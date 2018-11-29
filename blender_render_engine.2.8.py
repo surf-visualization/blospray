@@ -23,7 +23,7 @@ class CustomRenderEngine(bpy.types.RenderEngine):
     bl_use_shading_nodes_custom = False     # If True will hide cycles shading nodes
     
     def __init__(self):
-        print('CustomRenderEngine.__init__()')
+        print('>>> CustomRenderEngine.__init__()')
         super(CustomRenderEngine, self).__init__()
         
         #self.texture = Buffer(GL_INT, 1)
@@ -33,44 +33,48 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         #self.texture_format = GL_RGBA
         
     def __del__(self):
-        print('CustomRenderEngine.__del__()')
+        print('>>> CustomRenderEngine.__del__()')
         
-    def update(self, depsgraph, scene):
+    def update(self, data, depsgraph):
         """
         Export scene data for (final or material preview) render
         
         Note that this method is always called, even when re-rendering
         exactly the same scene or moving just the camera.
         """
-        print('CustomRenderEngine.update()')
+        print('>>> CustomRenderEngine.update()')
         print(data)
-        print(scene)
+        print(depsgraph)
         
     # This is the only method called by blender, in this example
     # we use it to detect preview rendering and call the implementation
     # in another method.
-    def render(self, scene):
+    def render(self, depsgraph):
         """Render scene into an image"""
-        print('CustomRenderEngine.render()')
+        print('>>> CustomRenderEngine.render()')
         
+        scene = depsgraph.scene
         scale = scene.render.resolution_percentage / 100.0
         self.size_x = int(scene.render.resolution_x * scale)
         self.size_y = int(scene.render.resolution_y * scale)
         print("%d x %d (scale %d%%) -> %d x %d" % \
             (scene.render.resolution_x, scene.render.resolution_y, scene.render.resolution_percentage,
             self.size_x, self.size_y))
+        
+        #self.size_x = 960
+        #self.size_y = 540
 
         if self.is_preview:
-            self.render_preview(scene)
+            self.render_preview(depsgraph)
         else:
-            self.render_scene(scene)
+            self.render_scene(depsgraph)
             
     # If the two view_... methods are defined the interactive rendered
     # mode becomes available
     
     def view_update(self, context):
         """Update on data changes for viewport render"""
-        print('CustomRenderEngine.view_update()')
+        print('>>> CustomRenderEngine.view_update()')
         
         region = context.region
         view_camera_offset = list(context.region_data.view_camera_offset)
@@ -88,7 +92,7 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         """Draw viewport render"""
         # Note: some changes in blender do not cause a view_update(),
         # but only a view_draw()
-        print('CustomRenderEngine.view_draw()')
+        print('>>> CustomRenderEngine.view_draw()')
         # XXX need to draw ourselves with OpenGL bgl module :-/
         region = context.region
         view_camera_offset = list(context.region_data.view_camera_offset)
@@ -103,13 +107,13 @@ class CustomRenderEngine(bpy.types.RenderEngine):
     
     def update_script_node(self, node):
         """Compile shader script node"""
-        print('CustomRenderEngine.update_script_node()')
+        print('>>> CustomRenderEngine.update_script_node()')
         
     # Implementation of the actual rendering
 
     # In this example, we fill the preview renders with a flat green color.
-    def render_preview(self, scene):
-        print('CustomRenderEngine.render_preview()')
+    def render_preview(self, depsgraph):
+        print('>>> CustomRenderEngine.render_preview()')
         
         pixel_count = self.size_x * self.size_y
 
@@ -124,8 +128,8 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         self.end_result(result)
         
     # In this example, we fill the full renders with a flat blue color.
-    def render_scene(self, scene):
-        print('CustomRenderEngine.render_scene()')
+    def render_scene(self, depsgraph):
+        print('>>> CustomRenderEngine.render_scene()')
         
         pixel_count = self.size_x * self.size_y
 
@@ -153,7 +157,7 @@ def register():
             properties_material,
             )
     
-    properties_render.RENDER_PT_evee_render.COMPAT_ENGINES.add(CustomRenderEngine.bl_idname)
+    #properties_render.RENDER_PT_evee_render.COMPAT_ENGINES.add(CustomRenderEngine.bl_idname)
     #properties_material.MATERIAL_PT_preview.COMPAT_ENGINES.add(CustomRenderEngine.bl_idname)
 
 
@@ -165,8 +169,8 @@ def unregister():
             properties_material,
             )
     
-    properties_render.RENDER_PT_render.COMPAT_ENGINES.remove(CustomRenderEngine.bl_idname)
-    properties_material.MATERIAL_PT_preview.COMPAT_ENGINES.remove(CustomRenderEngine.bl_idname)
+    #properties_render.RENDER_PT_render.COMPAT_ENGINES.remove(CustomRenderEngine.bl_idname)
+    #properties_material.MATERIAL_PT_preview.COMPAT_ENGINES.remove(CustomRenderEngine.bl_idname)
 
 
 if __name__ == "__main__":
