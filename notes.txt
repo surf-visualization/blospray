@@ -1,0 +1,24 @@
+https://docs.blender.org/api/2.79/bpy.types.RenderEngine.html
+
+https://github.com/LuxCoreRender/BlendLuxCore/blob/master/engine/__init__.py
+
+Luxrender discussion: http://www.luxrender.net/forum/viewtopic.php?f=11&t=11370&start=10
+https://bitbucket.org/luxrender/luxblend25/commits/branch/LuxCore_RealtimePreview
+
+https://svn.blender.org/svnroot/bf-extensions/trunk/py/scripts/addons/render_povray/render.py
+
+
+- when using a custom render engine the following property editors are
+  empty:
+    - Render (incl. resolution)
+    - Render Layers
+    - Scene
+    - World
+  these all need to be provided by the render engine addon :/
+  
+  Even though things like scene.render.resolution_x|y are still available
+  
+  The Materials properties are empty, although cycles nodes are
+  available in the node editor (provided bl_use_shading_nodes_custom = False)
+  
+  Light and Camera properties are also gone
