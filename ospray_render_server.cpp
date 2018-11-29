@@ -622,7 +622,7 @@ main(int argc, const char **argv)
 
     world = ospNewModel();
     
-    create_scene(num_rbcs, num_plts);
+    //create_scene(num_rbcs, num_plts);
     
     camera = ospNewCamera("perspective");
     renderer = ospNewRenderer("scivis"); 

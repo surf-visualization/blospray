@@ -46,6 +46,9 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         print(data)
         print(depsgraph)
         
+        scene = depsgraph.scene
+        camera = scene.camera
+        
     # This is the only method called by blender, in this example
     # we use it to detect preview rendering and call the implementation
     # in another method.
