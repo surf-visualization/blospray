@@ -210,8 +210,11 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         # Objects (meshes)
          
         for obj in scene.objects:
+            
             if obj.type != 'MESH':
                 continue
+                
+            obj2world = obj.matrix_world
                 
             mesh = obj.data
             mesh.calc_loop_triangles()
@@ -233,7 +236,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             vertices = numpy.empty(nv*3, dtype=numpy.float32)
             
             for idx, v in enumerate(mesh.vertices):
-                pos = v.co
+                pos = obj2world @ v.co
                 vertices[3*idx+0] = pos.x
                 vertices[3*idx+1] = pos.y
                 vertices[3*idx+2] = pos.z
