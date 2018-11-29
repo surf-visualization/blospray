@@ -81,6 +81,7 @@ vfov = 2*atan(image_plane_height/2)
 
 fovy = degrees(vfov)
 
+"""
 # Lights
 
 sun_obj = bpy.data.objects['Sun']
@@ -93,6 +94,12 @@ ambient_obj = bpy.data.objects['Ambient']
 ambient_data = ambient_obj.data
 
 ambient_intensity = ambient_data.node_tree.nodes["Emission"].inputs[1].default_value
+"""
+
+sun_dir = Vector((-1, -1, -1))
+sun_intensity = 1.0
+
+ambient_intensity = 0.4
 
 # Send params
 

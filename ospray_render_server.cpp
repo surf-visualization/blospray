@@ -306,9 +306,9 @@ add_ground_plane()
 
     for (int i = 0; i < num_vertices; i++)
     {
-        colors[4*i+0] = 0.5f;
-        colors[4*i+1] = 0.5f;
-        colors[4*i+2] = 0.5f;
+        colors[4*i+0] = 1.0f;
+        colors[4*i+1] = 0.0f;
+        colors[4*i+2] = 1.0f;
         colors[4*i+3] = 1.0f;
     }    
     
@@ -332,6 +332,15 @@ add_ground_plane()
     
     delete [] vertices;
     delete [] triangles;    
+}
+
+void
+create_scene()
+{
+    // Add ground plane
+    add_ground_plane();
+            
+    ospCommit(world);
 }
 
 void
@@ -503,7 +512,7 @@ receive_parameters(TCPSocket *sock)
             delete [] blender_framebuffer;
         }
         
-        framebuffer = ospNewFrameBuffer(image_size, OSP_FB_SRGBA, OSP_FB_COLOR | /*OSP_FB_DEPTH |*/ OSP_FB_ACCUM);    
+        framebuffer = ospNewFrameBuffer(image_size, OSP_FB_RGBA32F, OSP_FB_COLOR | /*OSP_FB_DEPTH |*/ OSP_FB_ACCUM);    
         blender_framebuffer = new float[image_size.x * image_size.y * 4];
         
         framebuffer_created = true;
@@ -552,9 +561,10 @@ render_frame()
     ospFrameBufferClear(framebuffer, OSP_FB_COLOR | OSP_FB_ACCUM);
 
     // Render N samples
-    for (int i = 0; i < 8; i++)
-        ospRenderFrame(framebuffer, renderer, OSP_FB_COLOR | OSP_FB_ACCUM);
-
+    ospRenderFrame(framebuffer, renderer, OSP_FB_COLOR | OSP_FB_ACCUM);
+    //for (int i = 0; i < 8; i++)
+    //    ospRenderFrame(framebuffer, renderer, OSP_FB_COLOR | OSP_FB_ACCUM);
+    
     gettimeofday(&t1, NULL);
     double tdiff = t1.tv_sec - t0.tv_sec + (t1.tv_usec - t0.tv_usec) * 0.000001;
     printf("Frame in %.3f seconds\n", tdiff);
@@ -563,19 +573,12 @@ render_frame()
 void 
 send_frame(TCPSocket *sock)
 {
-    // Access framebuffer and write its content as PPM file
-    const uint32_t *fb = (uint32_t*)ospMapFrameBuffer(framebuffer, OSP_FB_COLOR);
+    // Access framebuffer 
+    const float *fb = (float*)ospMapFrameBuffer(framebuffer, OSP_FB_COLOR);
     
-    //writePPM("firstFrame.ppm", image_size, fb);
+    printf("Sending %d bytes of framebuffer data\n", image_size.x*image_size.y*4*4);
     
-    // The Ospray (mapped) framebuffer contains a byte per channel, while 
-    // Blender expects a float in the range [0,1].       
-    //for (int i = 0; i < image_size.x*image_size.y*4; i++)
-        //blender_framebuffer[i] = fb[i] / 255.0;    
-    //sock->sendall((uint8_t*)blender_framebuffer, image_size.x*image_size.y*4*sizeof(float));
-    
-    // Send byte-channel directly, let receiver (Blender) handle conversion to float if needed
-    sock->sendall((uint8_t*)fb, image_size.x*image_size.y*4);
+    sock->sendall((uint8_t*)fb, image_size.x*image_size.y*4*4);
     
     // Unmap framebuffer
     ospUnmapFrameBuffer(fb, framebuffer);    
@@ -622,7 +625,7 @@ main(int argc, const char **argv)
 
     world = ospNewModel();
     
-    //create_scene(num_rbcs, num_plts);
+    create_scene();
     
     camera = ospNewCamera("perspective");
     renderer = ospNewRenderer("scivis"); 
