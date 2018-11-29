@@ -12,6 +12,8 @@ from struct import pack
 
 import numpy
 
+from messages_pb2 import CameraSettings, ImageSettings, LightSettings
+
 HOST = 'localhost'
 PORT = 5909
 
@@ -58,8 +60,9 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         self.update_stats('', 'Connecting')
         self.sock.connect((HOST, PORT))
         
-        self.export_scene(data, depsgraph)
         self.update_stats('', 'Exporting')
+        self.export_scene(data, depsgraph)
+        
         
     # This is the only method called by blender, in this example
     # we use it to detect preview rendering and call the implementation
@@ -123,41 +126,40 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
     def export_scene(self, data, depsgraph):
         
         scene = depsgraph.scene
-            
-        # Camera
         
-        camobj = scene.camera
-        camdata = camobj.data
-        cam_xform = camobj.matrix_world
-
-        cam_pos = camobj.location
-        cam_viewdir = cam_xform @ Vector((0, 0, -1)) - camobj.location
-        cam_updir = cam_xform @ Vector((0, 1, 0)) - camobj.location
-
         # Image
-
-        #width = 1920
-        #height = 1080
 
         perc = scene.render.resolution_percentage
         perc = perc / 100
 
         self.width = int(scene.render.resolution_x * perc)
         self.height = int(scene.render.resolution_y * perc)
-
-        print(perc)
-
+        
         aspect = self.width / self.height
+        
+        img = ImageSettings()
+        img.width = self.width
+        img.height = self.height
+        img.percentage = scene.render.resolution_percentage
+
+        # Camera
+        
+        camobj = scene.camera
+        camdata = camobj.data
+        cam_xform = camobj.matrix_world
+
+        cam = CameraSettings()
+        cam.position[:] = list(camobj.location)
+        cam.view_dir[:] = list(cam_xform @ Vector((0, 0, -1)) - camobj.location)
+        cam.up_dir[:] = list(cam_xform @ Vector((0, 1, 0)) - camobj.location)
 
         # Get camera FOV
-
         # radians!
         hfov = camdata.angle   
         image_plane_width = 2 * tan(hfov/2)
         image_plane_height = image_plane_width / aspect
         vfov = 2*atan(image_plane_height/2)
-
-        fovy = degrees(vfov)
+        cam.fov_y = degrees(vfov)
 
         # Lights
 
@@ -174,24 +176,83 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         ambient_intensity = ambient_data.node_tree.nodes["Emission"].inputs[1].default_value
         """
         
-        sun_dir = Vector((-1, -1, -1))
-        sun_intensity = 1.0
-
-        ambient_intensity = 0.4
-
-        # Send params
-
-        parameters = pack('<HHfffffffffffffff',
-            self.width, self.height, 
-            cam_pos.x, cam_pos.y, cam_pos.z,
-            cam_viewdir.x, cam_viewdir.y, cam_viewdir.z,
-            cam_updir.x, cam_updir.y, cam_updir.z,
-            fovy,
-            sun_dir.x, sun_dir.y, sun_dir.z, sun_intensity, ambient_intensity)
-            
-        # Send scene parameters
+        lght = LightSettings()
         
-        self.sock.sendall(parameters)
+        lght.sun_dir[:] = (-1, -1, -1)
+        lght.sun_intensity = 1.0
+        
+        lght.ambient_intensity = 0.4
+
+        #
+        # Send scene
+        #
+        
+        # Image settings
+        
+        s = img.SerializeToString()
+        self.sock.send(pack('<I', len(s)))
+        self.sock.send(s)
+        
+        # Camera settings
+        
+        s = cam.SerializeToString()
+        self.sock.send(pack('<I', len(s)))
+        self.sock.send(s)
+            
+        # Light settings
+        
+        s = lght.SerializeToString()
+        self.sock.send(pack('<I', len(s)))
+        self.sock.send(s)
+        
+        # (Render settings)
+        
+        # Objects (meshes)
+         
+        for obj in scene.objects:
+            if obj.type != 'MESH':
+                continue
+                
+            mesh = obj.data
+            mesh.calc_loop_triangles()
+            
+            nv = len(mesh.vertices)
+            nt = len(mesh.loop_triangles)
+            print('Object %s %d v, %d t' % (obj.name, nv, nt))
+            
+            # Send header
+            
+            data_size = nv*3*4 + nt*3*4
+            
+            # XXX ugly, as we only use data_size to signal to the receiver that 
+            # all objects where sent
+            self.sock.send(pack('<III', data_size, nv, nt))
+            
+            # Send vertices
+            
+            vertices = numpy.empty(nv*3, dtype=numpy.float32)
+            
+            for idx, v in enumerate(mesh.vertices):
+                pos = v.co
+                vertices[3*idx+0] = pos.x
+                vertices[3*idx+1] = pos.y
+                vertices[3*idx+2] = pos.z
+                
+            self.sock.send(vertices.tobytes())
+
+            # Send triangles
+            
+            triangles = numpy.empty(nt*3, dtype=numpy.uint32)   # XXX opt possible when less than 64k vertices ;-)
+            
+            for idx, tri in enumerate(mesh.loop_triangles):
+                triangles[3*idx+0] = tri.vertices[0]
+                triangles[3*idx+1] = tri.vertices[1]
+                triangles[3*idx+2] = tri.vertices[2]
+                
+            self.sock.send(triangles.tobytes())
+                        
+        # Signal last data was sent!
+        self.sock.sendall(pack('<I', 0))
 
 
             

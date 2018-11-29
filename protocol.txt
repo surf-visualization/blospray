@@ -1,0 +1,19 @@
+Protocol
+--------
+
+Image settings
+- resolution
+- percentage
+
+Camera settings
+- transform
+- fov
+(- type)
+
+(Render settings)
+(- samples)
+
+Objects
+
+Lights
+

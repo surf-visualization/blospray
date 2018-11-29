@@ -1,0 +1,1 @@
+need to add symlinks to google and six python packages in blender's python lib dir

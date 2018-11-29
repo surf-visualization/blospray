@@ -71,6 +71,7 @@ Copyright (C) 2017
 using namespace OIIO;
 
 #include "tcpsocket.h"
+#include "messages.pb.h"
 
 const int   PORT = 5909;
 
@@ -82,7 +83,6 @@ OSPCamera       camera;
 OSPRenderer     renderer;
 OSPFrameBuffer  framebuffer;
 bool            framebuffer_created = false;
-float           *blender_framebuffer;               // XXX not used anymore?
 
 OSPLight        lights[2];                          // 0 = ambient, 1 = sun
 OSPModel        mesh_model_rbc, mesh_model_plt;
@@ -277,8 +277,8 @@ add_ground_plane()
     triangles = new uint32_t[num_triangles*3];
     colors = new float[num_vertices*4];
     
-    const float M = 2000.0f;
-    const float z = -100.0f;
+    const float M = 2.0f;
+    const float z = 0.0f;
     
     vertices[0] = 0.0f - M;
     vertices[1] = 0.0f - M;
@@ -334,13 +334,10 @@ add_ground_plane()
     delete [] triangles;    
 }
 
-void
-create_scene()
+void 
+clear_scene()
 {
-    // Add ground plane
-    add_ground_plane();
-            
-    ospCommit(world);
+    
 }
 
 void
@@ -477,76 +474,196 @@ create_scene(int max_rbcs, int max_plts)
     printf("Data loaded...\n");
 }
 
+std::vector<char>   receive_buffer;
+
+std::vector<float>      vertex_buffer;
+std::vector<uint32_t>   triangle_buffer;
+
+ImageSettings image_settings;
+CameraSettings camera_settings;
+LightSettings light_settings;
+
+template<typename T>
 bool
-receive_parameters(TCPSocket *sock)
+receive_settings(TCPSocket *sock, T& settings)
 {
-    const int N = 2*sizeof(uint16_t) + 9*sizeof(float) + sizeof(float) + (3+1+1)*sizeof(float);
+    uint32_t message_size;
     
-    uint8_t     buffer[N];
-    
-    uint16_t    *imsize;
-    float       *cam;
-    float       *fovy;
-    float       *lght;
-    
-    float       cam_pos[3], cam_viewdir[3], cam_updir[3];
-    
-    if (sock->recvall(&buffer[0], N) == -1)
+    if (sock->recvall(&message_size, 4) == -1)
         return false;
     
-    imsize = (uint16_t*) buffer;
-    cam = (float*) ((uint8_t*)imsize + 2*sizeof(uint16_t));
-    fovy = (float*) ((uint8_t*)cam + 9*sizeof(float));
-    lght = (float*) ((uint8_t*)fovy + sizeof(float));
+    receive_buffer.clear();
+    receive_buffer.reserve(message_size);
     
+    if (sock->recvall(&receive_buffer[0], message_size) == -1)
+        return false;
+    
+    // XXX this probably makes a copy?
+    std::string message(&receive_buffer[0], message_size);
+    
+    settings.ParseFromString(message);
+    
+    return true;
+}
+
+bool
+receive_object(TCPSocket *sock, uint32_t data_size)
+{
+    uint32_t num_vertices, num_triangles;
+    
+    if (sock->recvall(&num_vertices, 4) == -1)
+        return false;
+    if (sock->recvall(&num_triangles, 4) == -1)
+        return false;
+    
+    printf("New triangle mesh: %d vertices, %d triangles\n", num_vertices, num_triangles);
+    
+    vertex_buffer.reserve(num_vertices*3);
+    triangle_buffer.reserve(num_triangles*3);
+    
+    if (sock->recvall(&vertex_buffer[0], num_vertices*3*sizeof(float)) == -1)
+        return false;
+    if (sock->recvall(&triangle_buffer[0], num_triangles*3*sizeof(uint32_t)) == -1)
+        return false;
+    
+    OSPGeometry mesh = ospNewGeometry("triangles");
+  
+        OSPData data = ospNewData(num_vertices, OSP_FLOAT3, &vertex_buffer[0]);   
+        ospCommit(data);
+        ospSetData(mesh, "vertex", data);
+
+        //data = ospNewData(num_vertices, OSP_FLOAT4, colors);
+        //ospCommit(data);
+        //ospSetData(mesh, "vertex.color", data);
+
+        data = ospNewData(num_triangles, OSP_INT3, &triangle_buffer[0]);            
+        ospCommit(data);
+        ospSetData(mesh, "index", data);
+
+    ospCommit(mesh);
+    
+    ospAddGeometry(world, mesh);    
+    
+    return true;
+}
+
+// XXX currently has big memory leak as we never release the new objects ;-)
+bool
+receive_scene(TCPSocket *sock)
+{
+    receive_buffer.reserve(4);
+    
+    // Set up renderer
+    
+    renderer = ospNewRenderer("scivis"); 
+    
+    float bgcol[] = { 1, 1, 1, 1 };
+    
+    ospSet1i(renderer, "aoSamples", 2);
+    ospSet1i(renderer, "shadowsEnabled", 1);
+    ospSet3fv(renderer, "bgColor", bgcol);
+        
     // Create/update framebuffer
     
-    if (imsize[0] != image_size.x || imsize[1] != image_size.y)
+    // XXX use percentage value? or is that handled in the blender side?
+    
+    receive_settings(sock, image_settings);
+    
+    if (image_size.x != image_settings.width() || image_size.y != image_settings.height())
     {
-        image_size.x = imsize[0];
-        image_size.y = imsize[1];
+        image_size.x = image_settings.width() ;
+        image_size.y = image_settings.height();
         
         if (framebuffer_created)
-        {
             ospRelease(framebuffer);
-            delete [] blender_framebuffer;
-        }
         
-        framebuffer = ospNewFrameBuffer(image_size, OSP_FB_RGBA32F, OSP_FB_COLOR | /*OSP_FB_DEPTH |*/ OSP_FB_ACCUM);    
-        blender_framebuffer = new float[image_size.x * image_size.y * 4];
-        
+        framebuffer = ospNewFrameBuffer(image_size, OSP_FB_RGBA32F, OSP_FB_COLOR | /*OSP_FB_DEPTH |*/ OSP_FB_ACCUM);            
         framebuffer_created = true;
     }
-        
+
     // Update camera
     
-    cam_pos[0] = cam[0];
-    cam_pos[1] = cam[1];
-    cam_pos[2] = cam[2];
+    receive_settings(sock, camera_settings);
     
-    cam_viewdir[0] = cam[3]; 
-    cam_viewdir[1] = cam[4];
-    cam_viewdir[2] = cam[5];
+    float cam_pos[3], cam_viewdir[3], cam_updir[3];
+    
+    cam_pos[0] = camera_settings.position(0);
+    cam_pos[1] = camera_settings.position(1);
+    cam_pos[2] = camera_settings.position(2);
+    
+    cam_viewdir[0] = camera_settings.view_dir(0); 
+    cam_viewdir[1] = camera_settings.view_dir(1); 
+    cam_viewdir[2] = camera_settings.view_dir(2); 
 
-    cam_updir[0] = cam[6]; 
-    cam_updir[1] = cam[7];
-    cam_updir[2] = cam[8];    
+    cam_updir[0] = camera_settings.up_dir(0);
+    cam_updir[1] = camera_settings.up_dir(1);
+    cam_updir[2] = camera_settings.up_dir(2);
     
+    camera = ospNewCamera("perspective");
+
     ospSetf(camera, "aspect", image_size.x/(float)image_size.y);
     ospSet3fv(camera, "pos", cam_pos);
     ospSet3fv(camera, "dir", cam_viewdir);
     ospSet3fv(camera, "up",  cam_updir);
-    ospSetf(camera, "fovy",  *fovy);
-    ospCommit(camera); // commit each object to indicate modifications are done
+    ospSetf(camera, "fovy",  camera_settings.fov_y());
+    ospCommit(camera); 
     
-    // Light
+    ospSetObject(renderer, "camera", camera);
     
-    ospSet3fv(lights[1], "direction",  lght);
-    ospSet1f(lights[1], "intensity",  lght[3]);    
+    // Lights
+    
+    receive_settings(sock, light_settings);
+    
+    // AO
+    lights[0] = ospNewLight3("ambient");
+    ospSet1f(lights[0], "intensity",  light_settings.ambient_intensity());
+    ospCommit(lights[0]);
+    
+    // Sun
+    float sun_dir[3];
+    sun_dir[0] = light_settings.sun_dir(0);
+    sun_dir[1] = light_settings.sun_dir(1);
+    sun_dir[2] = light_settings.sun_dir(2);
+
+    lights[1] = ospNewLight3("directional");
+    ospSet3fv(lights[1], "direction",  sun_dir);
+    ospSet1f(lights[1], "intensity",  light_settings.sun_intensity());    
     ospCommit(lights[1]);
     
-    ospSet1f(lights[0], "intensity",  lght[4]);
-    ospCommit(lights[0]);
+    // All lights
+    OSPData light_data = ospNewData(2, OSP_LIGHT, &lights);  
+    ospCommit(light_data);
+    
+    ospSetObject(renderer, "lights", light_data); 
+    
+    // Setup world and scene objects
+
+    world = ospNewModel();
+    
+    uint32_t data_size;
+    
+    while (true)
+    {
+        if (sock->recvall(&data_size, 4) == -1)
+            return false;
+        
+        if (data_size == 0)
+        {
+            // No more objects
+            break;
+        }
+        
+        if (!receive_object(sock, data_size))
+            return false;
+    }
+    
+    ospCommit(world);
+    
+    ospSetObject(renderer, "model",  world);
+    
+    // Done!
+    
+    ospCommit(renderer);
     
     return true;
 }
@@ -588,6 +705,10 @@ send_frame(TCPSocket *sock)
 int 
 main(int argc, const char **argv) 
 {
+    // Verify that the version of the library that we linked against is
+    // compatible with the version of the headers we compiled against.
+    GOOGLE_PROTOBUF_VERIFY_VERSION;
+    
     // Initialize OSPRay.
     // OSPRay parses (and removes) its commandline parameters, e.g. "--osp:debug"
     ospInit(&argc, argv);
@@ -620,46 +741,7 @@ main(int argc, const char **argv)
         std::cout << desc << "\n";
         return 1;
     }    
-    
-    // Setup world and scene
-
-    world = ospNewModel();
-    
-    create_scene();
-    
-    camera = ospNewCamera("perspective");
-    renderer = ospNewRenderer("scivis"); 
-
-    // Lights
-
-    // AO
-    lights[0] = ospNewLight(renderer, "ambient");
-    ospSetf(lights[0], "intensity",  0.75f);
-    ospCommit(lights[0]);
-
-    // Directional 
-    //float dir[] = { 0.1, 0.5, -1 };
-    float dir[] = { -6.695681095123291, 26.323204040527344, -20.653038024902344 };
-    lights[1] = ospNewLight(renderer, "directional");
-    ospSet3fv(lights[1], "direction",  dir);
-    ospSetf(lights[1], "intensity",  1.5f);
-    ospCommit(lights[1]);
-    
-    OSPData light_data = ospNewData(2, OSP_LIGHT, &lights);  
-    ospCommit(light_data);
-
-    // complete setup of renderer
-    
-    float bgcol[] = { 1, 1, 1, 1 };
-    
-    ospSet1i(renderer, "aoSamples", 2);
-    ospSet1i(renderer, "shadowsEnabled", 1);
-    ospSet3fv(renderer, "bgColor", bgcol);
-    ospSetObject(renderer, "model",  world);
-    ospSetObject(renderer, "camera", camera);
-    ospSetObject(renderer, "lights", light_data);      
-    ospCommit(renderer);
-    
+        
     if (output_file != "")
     {
         // Render single frame, save, exit
@@ -699,7 +781,6 @@ main(int argc, const char **argv)
         // Framebuffer "init"
         image_size.x = image_size.y = 0;
         framebuffer_created = false;
-        blender_framebuffer = NULL;
         
         TCPSocket   *listen_sock, *sock;
         
@@ -715,7 +796,7 @@ main(int argc, const char **argv)
             
             printf("Got new connection\n");
             
-            if (receive_parameters(sock))
+            if (receive_scene(sock))
             {
                 printf("Rendering\n");
                 render_frame();       

@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+message ImageSettings
+{
+    uint32  width = 1;
+    uint32  height = 2;
+    uint32  percentage = 3;
+}
+
+message CameraSettings
+{
+    repeated float position = 1;
+    repeated float view_dir = 2;
+    repeated float up_dir = 3;
+    
+    float fov_y = 4;                // Degrees
+    
+    // type
+}
+
+message RenderSettings
+{
+    uint32  samples = 1;
+}
+
+message LightSettings
+{
+    repeated float sun_dir = 1;
+    float sun_intensity = 2;
+    float ambient_intensity = 3;
+}
