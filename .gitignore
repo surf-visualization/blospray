@@ -2,4 +2,7 @@ build/
 __pycache__/
 bin/
 
+messages_pb2.py
+imgui.ini
+
 *.blend1
