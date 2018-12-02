@@ -59,7 +59,10 @@ Copyright (C) 2017
 #else
 #  include <alloca.h>
 #endif
+
 #include <boost/program_options.hpp>
+#include <boost/uuid/detail/sha1.hpp>
+
 #include <ospray/ospray.h>
 
 #include <glm/matrix.hpp>
@@ -68,10 +71,12 @@ Copyright (C) 2017
 
 #include <OpenImageIO/imageio.h>
 
-using namespace OIIO;
-
 #include "tcpsocket.h"
 #include "messages.pb.h"
+#include "json.hpp"
+
+using namespace OIIO;
+using json = nlohmann::json;
 
 const int   PORT = 5909;
 
@@ -137,6 +142,27 @@ writePPM(const char *fileName, const osp::vec2i &size, const uint32_t *pixel)
     fprintf(file, "\n");
     fclose(file);
 }
+
+// https://stackoverflow.com/a/39833022/9296788
+std::string 
+get_sha1(const std::string& p_arg)
+{
+    boost::uuids::detail::sha1 sha1;
+    sha1.process_bytes(p_arg.data(), p_arg.size());
+    unsigned hash[5] = {0};
+    sha1.get_digest(hash);
+
+    // Back to string
+    char buf[41] = {0};
+
+    for (int i = 0; i < 5; i++)
+    {
+        std::sprintf(buf + (i << 3), "%08x", hash[i]);
+    }
+
+    return std::string(buf);
+}
+
 
 void 
 clear_scene()
@@ -311,7 +337,7 @@ receive_settings(TCPSocket *sock, T& settings)
 }
 
 bool
-receive_object(TCPSocket *sock, uint32_t data_size)
+receive_mesh(TCPSocket *sock)
 {
     uint32_t num_vertices, num_triangles;
     
@@ -347,6 +373,35 @@ receive_object(TCPSocket *sock, uint32_t data_size)
     ospCommit(mesh);
     
     ospAddGeometry(world, mesh);    
+    
+    return true;
+}
+
+bool
+receive_volume(TCPSocket *sock)
+{
+    uint32_t    properties_size;
+    
+    if (sock->recvall(&properties_size, 4) == -1)
+        return false;
+    
+    std::string encoded_properties(properties_size, ' ');
+    
+    if (sock->recvall(&encoded_properties[0], properties_size) == -1)
+        return false;
+    
+    printf("%d\n", encoded_properties.size());
+    
+    printf("Receive volume properties:\n%s\n", encoded_properties.c_str());
+    
+    json properties = json::parse(encoded_properties);
+    
+    printf("New volume:\n%s\n", properties.dump().c_str());
+    
+    std::string hash = get_sha1(encoded_properties);
+    
+    if (sock->sendall((uint8_t*)hash.c_str(), 40) == -1)
+        return false;
     
     return true;
 }
@@ -444,21 +499,28 @@ receive_scene(TCPSocket *sock)
 
     world = ospNewModel();
     
-    uint32_t data_size;
+    char    data_type;
     
     while (true)
     {
-        if (sock->recvall(&data_size, 4) == -1)
+        if (sock->recvall(&data_type, 1) == -1)
             return false;
         
-        if (data_size == 0)
+        if (data_type == 'M')
+        {
+            if (!receive_mesh(sock))
+                return false;
+        }
+        else if (data_type == 'V')
+        {
+            if (!receive_volume(sock))
+                return false;
+        }
+        else if (data_type == '!')
         {
             // No more objects
             break;
         }
-        
-        if (!receive_object(sock, data_size))
-            return false;
     }
     
     ospCommit(world);

@@ -5,9 +5,8 @@ import bpy
 #from bgl import *
 from mathutils import Vector
 
-import array
+import array, json, socket
 from math import tan, atan, degrees
-import socket
 from struct import pack
 
 import numpy
@@ -122,6 +121,42 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
     #
     # Scene export
     #
+    
+    def export_volume(self, obj, data, depsgraph):
+        
+        self.sock.send(b'V')
+        
+        user_keys = [k for k in obj.keys() if k[0] != '_']
+        properties = {}
+        for k in user_keys:
+            v = obj[k]
+            if hasattr(v, 'to_dict'):
+                properties[k] = v.to_dict()
+            elif hasattr(v, 'to_list'):
+                properties[k] = v.to_list()
+            else:
+                # XXX assumes simple type that can be serialized to json
+                properties[k] = v
+                
+        if 'file' in properties:
+            # //... -> full path
+            properties['file'] = bpy.path.abspath(properties['file'])
+                
+        propjson = json.dumps(properties)
+
+        self.sock.send(pack('<I', len(propjson)))
+        self.sock.sendall(propjson.encode('utf8'))
+        
+        # XXX wait for volume to be loaded
+        
+        # XXX receive id for this volume
+        hash = self.sock.recv(40)
+        while len(hash) < 40:
+            hash += self.sock.recv(40-len(hash))
+            
+        obj['loaded_id'] = hash
+        
+        
 
     def export_scene(self, data, depsgraph):
         
@@ -214,11 +249,11 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             if obj.type != 'MESH':
                 continue
                 
-                
             if 'voltype' in obj:
+                self.export_volume(obj, data, depsgraph)
+                continue
                 
-                pass
-                
+            self.sock.send(b'M')
                 
             obj2world = obj.matrix_world
                 
@@ -229,13 +264,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             nt = len(mesh.loop_triangles)
             print('Object %s %d v, %d t' % (obj.name, nv, nt))
             
-            # Send header
-            
-            data_size = nv*3*4 + nt*3*4
-            
-            # XXX ugly, as we only use data_size to signal to the receiver that 
-            # all objects where sent
-            self.sock.send(pack('<III', data_size, nv, nt))
+            self.sock.send(pack('<II', nv, nt))
             
             # Send vertices
             
@@ -262,7 +291,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             self.sock.send(triangles.tobytes())
                         
         # Signal last data was sent!
-        self.sock.sendall(pack('<I', 0))
+        self.sock.sendall(b'!')
 
 
             

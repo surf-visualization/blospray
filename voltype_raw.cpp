@@ -4,8 +4,10 @@
 #include <ospray/ospray.h>
 #include "json.hpp"
 
+using json = nlohmann::json;
+
 OSPVolume
-load(nlohmann::json &parameters, float *bbox)
+load(json &parameters, float *bbox)
 {
     //assert parameters["voltype"] == "raw";
     
