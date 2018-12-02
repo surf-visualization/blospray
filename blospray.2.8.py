@@ -132,6 +132,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         perc = scene.render.resolution_percentage
         perc = perc / 100
 
+        # XXX should pass full resolution in img below
         self.width = int(scene.render.resolution_x * perc)
         self.height = int(scene.render.resolution_y * perc)
         
@@ -153,8 +154,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         cam.view_dir[:] = list(cam_xform @ Vector((0, 0, -1)) - camobj.location)
         cam.up_dir[:] = list(cam_xform @ Vector((0, 1, 0)) - camobj.location)
 
-        # Get camera FOV
-        # radians!
+        # Get camera FOV (in radians)
         hfov = camdata.angle   
         image_plane_width = 2 * tan(hfov/2)
         image_plane_height = image_plane_width / aspect
@@ -214,6 +214,12 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             if obj.type != 'MESH':
                 continue
                 
+                
+            if 'voltype' in obj:
+                
+                pass
+                
+                
             obj2world = obj.matrix_world
                 
             mesh = obj.data
@@ -236,6 +242,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             vertices = numpy.empty(nv*3, dtype=numpy.float32)
             
             for idx, v in enumerate(mesh.vertices):
+                # XXX note that we apply the object2world transform here
                 pos = obj2world @ v.co
                 vertices[3*idx+0] = pos.x
                 vertices[3*idx+1] = pos.y
