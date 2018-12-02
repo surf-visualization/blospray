@@ -54,6 +54,7 @@ Copyright (C) 2017
 #include <stdint.h>
 #include <ctype.h>
 #include <unistd.h>
+#include <dlfcn.h>
 #ifdef _WIN32
 #  include <malloc.h>
 #else
@@ -90,7 +91,16 @@ OSPFrameBuffer  framebuffer;
 bool            framebuffer_created = false;
 
 OSPLight        lights[2];                          // 0 = ambient, 1 = sun
-OSPModel        mesh_model_rbc, mesh_model_plt;
+//OSPModel        mesh_model_rbc, mesh_model_plt;
+
+// Volume loaders
+
+typedef OSPVolume   (*volume_load_function)(json &parameters, float *bbox);
+
+typedef std::map<std::string, volume_load_function>     VolumeLoadFunctionMap;
+VolumeLoadFunctionMap                                   volume_load_functions;
+
+// Utility
 
 // Uses OpenImageIO
 bool
@@ -398,9 +408,115 @@ receive_volume(TCPSocket *sock)
     
     printf("New volume:\n%s\n", properties.dump().c_str());
     
+    // Find load function 
+    
+    volume_load_function load_function = NULL;
+    
+    const std::string& voltype = properties["voltype"];
+    
+    VolumeLoadFunctionMap::iterator it = volume_load_functions.find(voltype);
+    if (it == volume_load_functions.end())
+    {
+        printf("No load function yet for volume type '%s'\n", voltype.c_str());
+        
+        std::string plugin_name = "voltype_" + voltype + ".so";
+        
+        printf("Opening %s\n", plugin_name.c_str());
+        
+        void *plugin = dlopen(plugin_name.c_str(), RTLD_LAZY);
+        
+        if (!plugin) 
+        {
+            fprintf(stderr, "dlopen() error: %s\n", dlerror());
+            return false;
+        }
+        
+        // Clear previous error
+        dlerror(); 
+        
+        load_function = (volume_load_function) dlsym(plugin, "load");
+        
+        if (load_function == NULL)
+        {
+            fprintf(stderr, "dlsym() error: %s\n", dlerror());
+            return false;
+        }
+        
+        volume_load_functions[voltype] = load_function;
+    }
+    else
+        load_function = it->second;
+    
+    // Let load function do its job
+    
+    printf("Calling load function\n");
+    
+    OSPVolume   volume;
+    float       bbox[6];
+    
+    volume = load_function(properties, bbox);
+    
+#if 1
+    ospSetf(volume,  "samplingRate", 0.1f);
+    ospSet1b(volume, "adaptiveSampling", false);
+    ospSet1b(volume, "gradientShadingEnabled", true);
+    
+    
+    // Transfer function
+    float   colors[] = { 
+                1.0f, 0.0f, 0.0f, 
+                0.0f, 1.0f, 0.0f, 
+                0.0f, 0.0f, 1.0f 
+            };
+    float   opacities[] = { 0.0f, 0.1f, 0.2f };
+    
+    OSPTransferFunction tf = ospNewTransferFunction("piecewise_linear");
+    
+    // XXX allow voxelRange to be set in json
+    ospSet2f(tf,   "valueRange", 0.0f, 255.0f);
+    
+    OSPData color_data = ospNewData(3, OSP_FLOAT3, colors);
+    ospSetData(tf, "colors", color_data);
+    ospRelease(color_data);
+    
+    OSPData opacity_data = ospNewData(3, OSP_FLOAT, opacities);
+    ospSetData(tf, "opacities", opacity_data);
+    ospRelease(opacity_data);
+    
+    ospCommit(tf);
+    
+    ospSetObject(volume,"transferFunction", tf);
+    ospRelease(tf);
+    
+    ospCommit(volume);
+    
+    ospAddVolume(world, volume);
+    ospRelease(volume);
+#else
+    OSPGeometry isosurface = ospNewGeometry("isosurfaces");
+    ospSetObject(isosurface, "volume", volume);
+    ospRelease(volume);
+    
+    float isovalues[1] = { 128.0f };
+    OSPData isovaluesData = ospNewData(1, OSP_FLOAT, isovalues);
+    ospSetData(isosurface, "isovalues", isovaluesData);
+    ospRelease(isovaluesData);
+    ospCommit(isosurface);
+    
+    ospAddGeometry(world, isosurface);
+    ospRelease(isosurface);
+#endif
+    
+    // Send back hash and bbox of loaded volume
+    
+    printf("Load function done\n");
+    
     std::string hash = get_sha1(encoded_properties);
     
-    if (sock->sendall((uint8_t*)hash.c_str(), 40) == -1)
+    if (sock->send((uint8_t*)hash.c_str(), 40) == -1)
+        return false;
+    
+    if (sock->sendall((uint8_t*)bbox, 6*4) == -1)
         return false;
     
     return true;

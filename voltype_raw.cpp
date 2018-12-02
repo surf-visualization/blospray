@@ -1,4 +1,3 @@
-#include <dlfcn.h>
 #include <cstdio>
 #include <stdint.h>
 #include <ospray/ospray.h>
@@ -6,6 +5,7 @@
 
 using json = nlohmann::json;
 
+extern "C"
 OSPVolume
 load(json &parameters, float *bbox)
 {
@@ -55,12 +55,13 @@ load(json &parameters, float *bbox)
     OSPData voxelData = ospNewData(num_voxels, dataType, voxels);   
     
     // XXX could keep voxels around if we use shared flag
-    if (voxelType == "uchar")
-        delete [] ((uint8_t*)voxels);
+    //if (voxelType == "uchar")
+    //    delete [] ((uint8_t*)voxels);
     
     OSPVolume volume = ospNewVolume("shared_structured_volume");
     
     ospSetData(volume,  "voxelData", voxelData);
+    ospRelease(voxelData);
 
     ospSetString(volume,"voxelType", voxelType.c_str());
     // XXX allow voxelRange to be set in json
@@ -69,19 +70,6 @@ load(json &parameters, float *bbox)
     // XXX allow grid settings to be set in json
     ospSet3f(volume,    "gridOrigin", 0.0f, 0.0f, 0.0f);
     ospSet3f(volume,    "gridSpacing", 1.0f, 1.0f, 1.0f);
-    
-    // Transfer function
-    osp::vec3f  colors[2] = { { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 1.0f } };
-    float       opacities[2] = { 0.0f, 1.0f };
-    
-    OSPTransferFunction tf = ospNewTransferFunction("piecewise_linear");
-    // XXX allow voxelRange to be set in json
-    ospSet2f(tf,   "valueRange", 0.0f, 255.0f);
-    ospSetData(tf, "colors", ospNewData(2, OSP_FLOAT3, colors));
-    ospSetData(tf, "colors", ospNewData(2, OSP_FLOAT, opacities));
-    ospCommit(tf);
-    
-    ospSetObject(volume,"transferFunction", tf);
 
     ospCommit(volume);
     

@@ -7,7 +7,7 @@ from mathutils import Vector
 
 import array, json, socket
 from math import tan, atan, degrees
-from struct import pack
+from struct import pack, unpack
 
 import numpy
 
@@ -142,20 +142,58 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             # //... -> full path
             properties['file'] = bpy.path.abspath(properties['file'])
                 
+        print('Sending properties:')
+        print(properties)
+        
         propjson = json.dumps(properties)
 
         self.sock.send(pack('<I', len(propjson)))
         self.sock.sendall(propjson.encode('utf8'))
         
-        # XXX wait for volume to be loaded
+        # Wait for volume to be loaded, signaled by receiving the ID on the
+        # server for this volume
         
-        # XXX receive id for this volume
-        hash = self.sock.recv(40)
-        while len(hash) < 40:
-            hash += self.sock.recv(40-len(hash))
+        id = self.sock.recv(40)
+        while len(id) < 40:
+            id += self.sock.recv(40-len(id))
             
-        obj['loaded_id'] = hash
+        obj['loaded_id'] = id.decode('utf8')
+        print('Exported volume received id %s' % id)
         
+        # Get volume bbox 
+        
+        bbox = self.sock.recv(24)
+        while len(bbox) < 24:
+            bbox += self.sock.recv(24-len(bbox))
+            
+        bbox = unpack('<ffffff', bbox)
+        print('Bbox', bbox)
+        
+        # Update mesh to match bbox
+        
+        verts = [
+            Vector((bbox[0], bbox[1], bbox[2])),
+            Vector((bbox[3], bbox[1], bbox[2])),
+            Vector((bbox[3], bbox[4], bbox[2])),
+            Vector((bbox[0], bbox[4], bbox[2])),
+            Vector((bbox[0], bbox[1], bbox[5])),
+            Vector((bbox[3], bbox[1], bbox[5])),
+            Vector((bbox[3], bbox[4], bbox[5])),
+            Vector((bbox[0], bbox[4], bbox[5]))
+        ]        
+        
+        edges = [
+            (0, 1), (1, 2), (2, 3), (3, 0),
+            (4, 5), (5, 6), (6, 7), (7, 4),
+            (0, 4), (1, 5), (2, 6), (3, 7)
+        ]
+        
+        faces = []
+        
+        mesh = bpy.data.meshes.new(name="Volume extent")
+        mesh.from_pydata(verts, edges, faces)
+        mesh.validate(verbose=True)
+        obj.data = mesh
         
 
     def export_scene(self, data, depsgraph):
