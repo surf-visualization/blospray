@@ -49,3 +49,10 @@ target_link_libraries(ospray_render_server
     ${Boost_LIBRARIES}
     ${PROTOBUF_LIBRARIES}
 )
+
+add_library(voltype_raw SHARED
+    voltype_raw.cpp)
+    
+target_link_libraries(voltype_raw
+    PUBLIC
+    ${OSPRAY_LIBRARIES})

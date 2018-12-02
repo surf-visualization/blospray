@@ -139,212 +139,15 @@ writePPM(const char *fileName, const osp::vec2i &size, const uint32_t *pixel)
 }
 
 void 
-load_cell_models()
-{
-    uint32_t  num_vertices, num_triangles;
-    float     *vertices, *colors;  
-    uint32_t  *triangles;
-    
-    // Read RBC geometry
-
-    FILE *f = fopen("rbc_normal_translated.bin", "rb");
-
-    fread(&num_vertices, 4, 1, f);
-    fread(&num_triangles, 4, 1, f);
-    
-    printf("RBC: %d vertices, %d triangles\n", num_vertices, num_triangles);
-
-    vertices = new float[3*num_vertices];    
-    triangles = new uint32_t[3*num_triangles];
-
-    fread(vertices, num_vertices*3*sizeof(float), 1, f);
-    fread(triangles, num_triangles*3*sizeof(uint32_t), 1, f);
-
-    fclose(f);    
-    
-    // Set vertex colors
-    
-    colors = new float[4*num_vertices];
-    
-    for (int i = 0; i < num_vertices; i++)
-    {
-        colors[4*i+0] = 1.0f;   //187
-        colors[4*i+1] = 0.0f;   //96
-        colors[4*i+2] = 0.0f;   //96
-        colors[4*i+3] = 1.0f;
-    }
-        
-    // Create mesh
-    
-    OSPGeometry mesh = ospNewGeometry("triangles");
-    
-      // XXX use ospRelease() here?
-  
-      OSPData data = ospNewData(num_vertices, OSP_FLOAT3, vertices);    // OSP_FLOAT3A format is also supported for vertex positions
-      ospCommit(data);
-      ospSetData(mesh, "vertex", data);
-
-      data = ospNewData(num_vertices, OSP_FLOAT4, colors);
-      ospCommit(data);
-      ospSetData(mesh, "vertex.color", data);
-
-      // XXX are aligned indices, i.e. OSP_INT4, faster to render?
-      data = ospNewData(num_triangles, OSP_INT3, triangles);            // OSP_INT4 format is also supported for triangle indices
-      ospCommit(data);
-      ospSetData(mesh, "index", data);
-
-    ospCommit(mesh);
-  
-    // Create model (for instancing)
-    
-    mesh_model_rbc = ospNewModel();
-        ospAddGeometry(mesh_model_rbc, mesh);
-    ospCommit(mesh_model_rbc);
-    
-    delete [] vertices;
-    delete [] triangles;
-    delete [] colors;
-
-
-    // Read PLT geometry
-
-    f = fopen("plt_normal_translated.bin", "rb");
-
-    fread(&num_vertices, 4, 1, f);
-    fread(&num_triangles, 4, 1, f);
-    
-    printf("PLT: %d vertices, %d triangles\n", num_vertices, num_triangles);
-
-    vertices = new float[3*num_vertices];    
-    triangles = new uint32_t[3*num_triangles];
-
-    fread(vertices, num_vertices*3*sizeof(float), 1, f);
-    fread(triangles, num_triangles*3*sizeof(uint32_t), 1, f);
-
-    fclose(f);    
-    
-    // Set vertex colors
-    
-    colors = new float[4*num_vertices];
-    
-    for (int i = 0; i < num_vertices; i++)
-    {
-        colors[4*i+0] = 230 / 255.0f;
-        colors[4*i+1] = 230 / 255.0f;
-        colors[4*i+2] = 110 / 255.0f;
-        colors[4*i+3] = 1.0f;
-    }
-        
-    // Create mesh
-    
-    mesh = ospNewGeometry("triangles");
-    
-      // XXX use ospRelease() here?
-  
-      data = ospNewData(num_vertices, OSP_FLOAT3, vertices);    // OSP_FLOAT3A format is also supported for vertex positions
-      ospCommit(data);
-      ospSetData(mesh, "vertex", data);
-
-      data = ospNewData(num_vertices, OSP_FLOAT4, colors);
-      ospCommit(data);
-      ospSetData(mesh, "vertex.color", data);
-
-      // XXX are aligned indices, i.e. OSP_INT4, faster to render?
-      data = ospNewData(num_triangles, OSP_INT3, triangles);            // OSP_INT4 format is also supported for triangle indices
-      ospCommit(data);
-      ospSetData(mesh, "index", data);
-
-    ospCommit(mesh);
-  
-    // Create model (for instancing)
-    
-    mesh_model_plt = ospNewModel();
-        ospAddGeometry(mesh_model_plt, mesh);
-    ospCommit(mesh_model_plt);
-}
-
-void
-add_ground_plane()
-{
-    uint32_t  num_vertices, num_triangles;
-    float     *vertices, *colors;  
-    uint32_t  *triangles;    
-    
-    num_vertices = 4;
-    num_triangles = 2;
-    
-    vertices = new float[num_vertices*3];
-    triangles = new uint32_t[num_triangles*3];
-    colors = new float[num_vertices*4];
-    
-    const float M = 2.0f;
-    const float z = 0.0f;
-    
-    vertices[0] = 0.0f - M;
-    vertices[1] = 0.0f - M;
-    vertices[2] = z;
-
-    vertices[3] = 2000.0f + M;
-    vertices[4] = 0.0f - M;
-    vertices[5] = z;
-
-    vertices[6] = 2000.0f + M;
-    vertices[7] = 1000.0f + M;
-    vertices[8] = z;
-
-    vertices[9] = 0.0f - M;
-    vertices[10] = 1000.0f + M;
-    vertices[11] = z;
-    
-    triangles[0] = 0;
-    triangles[1] = 1;
-    triangles[2] = 2;
-
-    triangles[3] = 0;
-    triangles[4] = 2;
-    triangles[5] = 3;
-
-    for (int i = 0; i < num_vertices; i++)
-    {
-        colors[4*i+0] = 1.0f;
-        colors[4*i+1] = 0.0f;
-        colors[4*i+2] = 1.0f;
-        colors[4*i+3] = 1.0f;
-    }    
-    
-    OSPGeometry mesh2 = ospNewGeometry("triangles");
-  
-      OSPData data = ospNewData(num_vertices, OSP_FLOAT3, vertices);   
-      ospCommit(data);
-      ospSetData(mesh2, "vertex", data);
-
-      data = ospNewData(num_vertices, OSP_FLOAT4, colors);
-      ospCommit(data);
-      ospSetData(mesh2, "vertex.color", data);
-
-      data = ospNewData(num_triangles, OSP_INT3, triangles);            
-      ospCommit(data);
-      ospSetData(mesh2, "index", data);
-
-    ospCommit(mesh2);
-    
-    ospAddGeometry(world, mesh2);    
-    
-    delete [] vertices;
-    delete [] triangles;    
-}
-
-void 
 clear_scene()
 {
     
 }
 
+#if 0
 void
 create_scene(int max_rbcs, int max_plts)
 {    
-    load_cell_models();
-    
     // Do instancing
   
     OSPGeometry     instance;
@@ -473,6 +276,7 @@ create_scene(int max_rbcs, int max_plts)
     
     printf("Data loaded...\n");
 }
+#endif
 
 std::vector<char>   receive_buffer;
 
