@@ -90,12 +90,12 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         """
         
         # Rendering already started when we sent the scene data in update()
-        # Read back framebuffer (might block)
-        
-        self.update_stats('', 'Rendering & reading back framebuffer')
+        # Read back framebuffer (might block)            
 
         num_pixels = self.width * self.height
         bytes_left = num_pixels * 4*4
+        
+        self.update_stats('%d bytes left' % bytes_left, 'Reading back framebuffer')
 
         framebuffer = numpy.zeros(bytes_left, dtype=numpy.uint8)
         view = memoryview(framebuffer)
@@ -104,6 +104,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             n = self.sock.recv_into(view, bytes_left)
             view = view[n:]
             bytes_left -= n
+            self.update_stats('%d bytes left' % bytes_left, 'Reading back framebuffer')
 
         self.sock.close()
         

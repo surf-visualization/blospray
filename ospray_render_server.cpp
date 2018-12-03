@@ -102,6 +102,12 @@ VolumeLoadFunctionMap                                   volume_load_functions;
 
 // Utility
 
+inline double
+time_diff(struct timeval t0, struct timeval t1)
+{
+    return t1.tv_sec - t0.tv_sec + (t1.tv_usec - t0.tv_usec) * 0.000001;
+}
+
 // Uses OpenImageIO
 bool
 writePNG(const char *fileName, const osp::vec2i &size, const uint32_t *pixel)
@@ -449,12 +455,19 @@ receive_volume(TCPSocket *sock)
     
     // Let load function do its job
     
+    struct timeval t0, t1;
+    
     printf("Calling load function\n");
+    
+    gettimeofday(&t0, NULL);
     
     OSPVolume   volume;
     float       bbox[6];
     
     volume = load_function(properties, bbox);
+    
+    gettimeofday(&t1, NULL);
+    printf("Load function took %.3fs\n", time_diff(t0, t1));
     
 #if 1
     ospSetf(volume,  "samplingRate", 0.1f);
@@ -536,7 +549,7 @@ receive_scene(TCPSocket *sock)
     
     ospSet1i(renderer, "aoSamples", 2);
     ospSet1i(renderer, "shadowsEnabled", 1);
-    ospSet3fv(renderer, "bgColor", bgcol);
+    ospSet4fv(renderer, "bgColor", bgcol);
         
     // Create/update framebuffer
     
@@ -650,6 +663,7 @@ receive_scene(TCPSocket *sock)
     return true;
 }
 
+
 void
 render_frame()
 {
@@ -665,13 +679,15 @@ render_frame()
     //    ospRenderFrame(framebuffer, renderer, OSP_FB_COLOR | OSP_FB_ACCUM);
     
     gettimeofday(&t1, NULL);
-    double tdiff = t1.tv_sec - t0.tv_sec + (t1.tv_usec - t0.tv_usec) * 0.000001;
-    printf("Frame in %.3f seconds\n", tdiff);
+    printf("Frame in %.3f seconds\n", time_diff(t0, t1));
 }
 
 void 
 send_frame(TCPSocket *sock)
 {
+    struct timeval t0, t1;
+    gettimeofday(&t0, NULL);
+    
     // Access framebuffer 
     const float *fb = (float*)ospMapFrameBuffer(framebuffer, OSP_FB_COLOR);
     
@@ -681,6 +697,9 @@ send_frame(TCPSocket *sock)
     
     // Unmap framebuffer
     ospUnmapFrameBuffer(fb, framebuffer);    
+    
+    gettimeofday(&t1, NULL);
+    printf("Sent framebuffer in %.3f seconds\n", time_diff(t0, t1));
 }
 
 
