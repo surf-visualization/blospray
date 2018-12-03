@@ -665,13 +665,16 @@ receive_scene(TCPSocket *sock)
 
 
 void
-render_frame()
+render_frame(bool clear=true)
 {
     struct timeval t0, t1;
     gettimeofday(&t0, NULL);
     
-    // Clear framebuffer
-    ospFrameBufferClear(framebuffer, OSP_FB_COLOR | OSP_FB_ACCUM);
+    if (clear)
+    {
+        // Clear framebuffer    
+        ospFrameBufferClear(framebuffer, OSP_FB_COLOR | OSP_FB_ACCUM);
+    }
 
     // Render N samples
     ospRenderFrame(framebuffer, renderer, OSP_FB_COLOR | OSP_FB_ACCUM);
@@ -799,11 +802,14 @@ main(int argc, const char **argv)
             
             if (receive_scene(sock))
             {
-                printf("Rendering\n");
-                render_frame();       
+                for (int i = 0; i < 4; i++)
+                {
+                    printf("Rendering sample %d\n", i);
+                    render_frame(i == 0);
 
-                printf("Sending framebuffer\n");
-                send_frame(sock);
+                    printf("Sending framebuffer\n");
+                    send_frame(sock);
+                }
             }
             else
                 sock->close();

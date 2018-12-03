@@ -5,7 +5,7 @@ import bpy
 #from bgl import *
 from mathutils import Vector
 
-import sys, array, json, os, socket
+import sys, array, json, os, socket, time
 from math import tan, atan, degrees
 from struct import pack, unpack
 
@@ -63,6 +63,36 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         self.update_stats('', 'Exporting')
         self.export_scene(data, depsgraph)
         
+    def _read_framebuffer(self, framebuffer, width, height):
+        
+        # XXX use select() in a loop, to handle UI updates better
+        
+        num_pixels = width * height
+        bytes_left = num_pixels * 4*4
+        
+        #self.update_stats('%d bytes left' % bytes_left, 'Reading back framebuffer')        
+        
+        view = memoryview(framebuffer)
+
+        while bytes_left > 0:
+            n = self.sock.recv_into(view, bytes_left)
+            view = view[n:]
+            bytes_left -= n
+            sys.stdout.write('.')
+            sys.stdout.flush()
+            #self.update_stats('%d bytes left' % bytes_left, 'Reading back framebuffer')
+        
+    def _read_framebuffer_to_file(self, framebuffer, width, height, fname='/dev/shm/framebuffer.bin'):
+        
+        with open(fname, 'wb') as f:
+        
+            num_pixels = width * height
+            bytes_left = num_pixels * 4*4        
+            
+            while bytes_left > 0:
+                d = self.sock.recv(bytes_left)
+                f.write(d)
+                bytes_left -= len(d)
         
     # This is the only method called by blender, in this example
     # we use it to detect preview rendering and call the implementation
@@ -75,14 +105,12 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         scale = scene.render.resolution_percentage / 100.0
         self.size_x = int(scene.render.resolution_x * scale)
         self.size_y = int(scene.render.resolution_y * scale)
+        
         print("%d x %d (scale %d%%) -> %d x %d" % \
             (scene.render.resolution_x, scene.render.resolution_y, scene.render.resolution_percentage,
             self.size_x, self.size_y))
 
         """
-        #self.size_x = 960
-        #self.size_y = 540
-
         if self.is_preview:
             self.render_preview(depsgraph)
         else:
@@ -90,34 +118,55 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         """
         
         # Rendering already started when we sent the scene data in update()
-        # Read back framebuffer (might block)            
+        # Read back framebuffer (might block)  
 
-        num_pixels = self.width * self.height
+        num_pixels = self.width * self.height    
         bytes_left = num_pixels * 4*4
-        
-        self.update_stats('%d bytes left' % bytes_left, 'Reading back framebuffer')
 
         framebuffer = numpy.zeros(bytes_left, dtype=numpy.uint8)
-        view = memoryview(framebuffer)
-
-        while bytes_left > 0:
-            n = self.sock.recv_into(view, bytes_left)
-            view = view[n:]
-            bytes_left -= n
-            self.update_stats('%d bytes left' % bytes_left, 'Reading back framebuffer')
-
-        self.sock.close()
         
-        pixels = framebuffer.view(numpy.float32).reshape((num_pixels, 4))
-        print(pixels.shape)
+        t0 = time.time()
         
-        # Here we write the pixel values to the RenderResult
         result = self.begin_result(0, 0, self.width, self.height)
-        layer = result.layers[0].passes["Combined"]
-        lst = pixels.tolist()
-        print(len(lst))
-        layer.rect = lst
-        self.end_result(result)
+        # Only Combined and Depth seem to be available
+        layer = result.layers[0].passes["Combined"] 
+        
+        S = 4
+        for i in range(S):
+            
+            self.update_stats('', 'Rendering %d/%d' % (i, S))
+            
+            """
+            
+            print('[%6.3f] _read_framebuffer start' % (time.time()-t0))
+            self._read_framebuffer(framebuffer, self.width, self.height)            
+            print('[%6.3f] _read_framebuffer end' % (time.time()-t0))
+            
+            pixels = framebuffer.view(numpy.float32).reshape((num_pixels, 4))
+            print(pixels.shape)
+            print('[%6.3f] view() end' % (time.time()-t0))
+            
+            # Here we write the pixel values to the RenderResult   
+            print(type(layer.rect))
+            layer.rect = pixels
+            self.update_result(result)
+            """
+            
+            print('[%6.3f] _read_framebuffer_to_file start' % (time.time()-t0))
+            self._read_framebuffer_to_file(framebuffer, self.width, self.height, '/dev/shm/framebuffer.bin')
+            print('[%6.3f] _read_framebuffer_to_file end' % (time.time()-t0))
+            
+            # XXX sigh, this needs an image file format...
+            result.layers[0].load_from_file('/dev/shm/framebuffer.bin')
+            self.update_result(result)
+            
+            print('[%6.3f] update_result() done' % (time.time()-t0))
+
+            self.update_progress(1.0*i/S)
+            
+        self.end_result(result)      
+        
+        self.sock.close()
 
         
     #

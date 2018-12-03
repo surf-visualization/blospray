@@ -4,8 +4,13 @@ https://github.com/LuxCoreRender/BlendLuxCore/blob/master/engine/__init__.py
 
 Luxrender discussion: http://www.luxrender.net/forum/viewtopic.php?f=11&t=11370&start=10
 https://bitbucket.org/luxrender/luxblend25/commits/branch/LuxCore_RealtimePreview
+https://forums.luxcorerender.org/viewtopic.php?t=212&start=20
+
+https://github.com/mattebb/3delightblender
 
 https://svn.blender.org/svnroot/bf-extensions/trunk/py/scripts/addons/render_povray/render.py
+
+https://www.mitsuba-renderer.org/repos/exporters/mitsuba-blender/
 
 
 - when using a custom render engine the following property editors are
