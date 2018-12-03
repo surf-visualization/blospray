@@ -13,12 +13,16 @@
 #include <cassert>
 #include <cstring>
 #include <stdint.h>
+#include <fcntl.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/sendfile.h>
+#include <sys/stat.h>
 #include <sys/time.h>
+#include <sys/types.h>
 #include <unistd.h>
 #include <netdb.h>
 #include <errno.h>
@@ -282,6 +286,50 @@ public:
         */
 
         return received;
+    }
+    
+    inline ssize_t sendfile(const char *fname)
+    {
+        struct stat st;
+        int res;
+        int fd;
+        off_t offset = 0;
+        
+        fd = ::open(fname, O_RDONLY);
+        if (fd == -1)
+        {
+            errno_for_last_fail = errno;
+            perror("::open() failed:");
+            return -1;
+        }
+        
+        res = fstat (fd, &st);
+        if (res == -1)
+        {
+            ::close(fd);
+            errno_for_last_fail = errno;
+            perror("::stat() failed:");
+            return -1;
+        }
+        
+        res = ::sendfile(sock, fd, &offset, st.st_size);
+        if (res == -1)
+        {
+            ::close(fd);
+            errno_for_last_fail = errno;
+            perror("::sendfile() failed:");
+            return -1;
+        }
+        
+        res = ::close(fd);
+        if (res == -1)
+        {
+            errno_for_last_fail = errno;
+            perror("::close() failed:");
+            return -1;
+        }
+        
+        return res;
     }
 
     // Polls

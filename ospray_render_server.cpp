@@ -51,6 +51,7 @@ Copyright (C) 2017
 #include <iostream>
 #include <string>
 #include <sys/time.h>
+#include <sys/stat.h>
 #include <stdint.h>
 #include <ctype.h>
 #include <unistd.h>
@@ -70,13 +71,11 @@ Copyright (C) 2017
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include <OpenImageIO/imageio.h>
-
+#include "image.h"
 #include "tcpsocket.h"
 #include "messages.pb.h"
 #include "json.hpp"
 
-using namespace OIIO;
 using json = nlohmann::json;
 
 const int   PORT = 5909;
@@ -106,57 +105,6 @@ inline double
 time_diff(struct timeval t0, struct timeval t1)
 {
     return t1.tv_sec - t0.tv_sec + (t1.tv_usec - t0.tv_usec) * 0.000001;
-}
-
-// Uses OpenImageIO
-bool
-writePNG(const char *fileName, const osp::vec2i &size, const uint32_t *pixel)
-{
-    ImageOutput *out = ImageOutput::create(fileName);
-    if (!out)    
-        return false;
-    
-    const int channels = 4; // RGBA
-    
-    // Framebuffer pixels start at lower-left
-    // "The origin of the screen coordinate system in OSPRay is the lower 
-    // left corner (as in OpenGL), thus the first pixel addressed by the 
-    // returned pointer is the lower left pixel of the image."
-    
-    int scanlinesize = size.x * channels;
-    
-    ImageSpec spec(size.x, size.y, channels, TypeDesc::UINT8);
-    out->open(fileName, spec);
-    out->write_image(TypeDesc::UINT8, 
-        (uint8_t*)pixel + (size.y-1)*scanlinesize,
-        AutoStride,
-        -scanlinesize, 
-        AutoStride
-    );
-    out->close();
-    ImageOutput::destroy(out);
-    
-    return true;
-}
-
-// helper function to write the rendered image as PPM file
-void 
-writePPM(const char *fileName, const osp::vec2i &size, const uint32_t *pixel)
-{
-    FILE *file = fopen(fileName, "wb");
-    fprintf(file, "P6\n%i %i\n255\n", size.x, size.y);
-    unsigned char *out = (unsigned char *)alloca(3*size.x);
-    for (int y = 0; y < size.y; y++) {
-        const unsigned char *in = (const unsigned char *)&pixel[(size.y-1-y)*size.x];
-        for (int x = 0; x < size.x; x++) {
-          out[3*x + 0] = in[4*x + 0];
-          out[3*x + 1] = in[4*x + 1];
-          out[3*x + 2] = in[4*x + 2];
-        }
-        fwrite(out, 3*size.x, sizeof(char), file);
-    }
-    fprintf(file, "\n");
-    fclose(file);
 }
 
 // https://stackoverflow.com/a/39833022/9296788
@@ -686,17 +634,40 @@ render_frame(bool clear=true)
 }
 
 void 
-send_frame(TCPSocket *sock)
+send_framebuffer(TCPSocket *sock)
 {
+    uint32_t bufsize;
+    
     struct timeval t0, t1;
     gettimeofday(&t0, NULL);
     
     // Access framebuffer 
     const float *fb = (float*)ospMapFrameBuffer(framebuffer, OSP_FB_COLOR);
     
-    printf("Sending %d bytes of framebuffer data\n", image_size.x*image_size.y*4*4);
+#if 1
+    // Write to OpenEXR file and send *its* contents
+    const char *FBFILE = "/dev/shm/orsfb.exr";
     
+    writeEXRFramebuffer(FBFILE, image_size, fb);
+    
+    struct stat st;
+    
+    stat(FBFILE, &st);
+    
+    printf("Sending framebuffer as OpenEXR file, %d byte\n", st.st_size);
+    
+    bufsize = st.st_size;
+    sock->send((uint8_t*)&bufsize, 4);
+    sock->sendfile(FBFILE);
+#else
+    // Send directly
+    bufsize = image_size.x*image_size.y*4*4;
+    
+    printf("Sending %d bytes of framebuffer data\n", bufsize);
+    
+    sock->send(&bufsize, 4);
     sock->sendall((uint8_t*)fb, image_size.x*image_size.y*4*4);
+#endif
     
     // Unmap framebuffer
     ospUnmapFrameBuffer(fb, framebuffer);    
@@ -717,12 +688,6 @@ main(int argc, const char **argv)
     // OSPRay parses (and removes) its commandline parameters, e.g. "--osp:debug"
     ospInit(&argc, argv);
     
-    int num_rbcs = -1;
-    int num_plts = -1;    
-    int width = 1920;
-    int height = 1080;
-    std::string output_file = "";
-    
     // Parse options
     namespace po = boost::program_options;
     
@@ -730,11 +695,6 @@ main(int argc, const char **argv)
     po::options_description desc("Allowed options");
     desc.add_options()
         ("help",        "produce help message")
-        ("rbcs,r",      po::value<int>(&num_rbcs)->default_value(num_rbcs), "Number of RBCs to include")
-        ("plts,p",      po::value<int>(&num_plts)->default_value(num_plts), "Number of PLTs to include")
-        ("width,w",     po::value<int>(&width)->default_value(width),       "Image width (for console rendering)")
-        ("height,h",    po::value<int>(&height)->default_value(height),     "Image height (for console rendering)")
-        ("output,o",    po::value<std::string>(&output_file),               "Render a single frame to file")
     ;
     
     po::variables_map vm;
@@ -746,74 +706,39 @@ main(int argc, const char **argv)
         return 1;
     }    
         
-    if (output_file != "")
-    {
-        // Render single frame, save, exit
-        
-        // camera
-        //float cam_pos[] = {1300.f, 1000.f, 1000.f};
-        float cam_pos[] = {-1058.8f, -1080.5f, 1191.0f};
-        //float cam_pos[] = {4.f, 4.f, 4.f};
-        float cam_up [] = {0.f, 0.f, 1.f};
-        float cam_view [] = {1.15f, 1, -0.88f};
-        
-        ospSetf(camera, "aspect", 1.0f*width/height);
-        ospSet3fv(camera, "pos", cam_pos);
-        ospSet3fv(camera, "dir", cam_view);
-        ospSet3fv(camera, "up",  cam_up);
-        ospSetf(camera, "fovy",  60.0f);
-        ospCommit(camera); // commit each object to indicate modifications are done
-        
-        image_size.x = width;
-        image_size.y = height;
-        
-        framebuffer = ospNewFrameBuffer(image_size, OSP_FB_SRGBA, OSP_FB_COLOR | /*OSP_FB_DEPTH |*/ OSP_FB_ACCUM);    
-        
-        printf("Rendering\n");
-        render_frame();
-        
-        const uint32_t *fb = (uint32_t*)ospMapFrameBuffer(framebuffer, OSP_FB_COLOR);
-        
-        writePNG(output_file.c_str(), image_size, fb);
-        
-        ospUnmapFrameBuffer(fb, framebuffer);
-    }
-    else
-    {
-        // Server loop
+    // Server loop
 
-        // Framebuffer "init"
-        image_size.x = image_size.y = 0;
-        framebuffer_created = false;
+    // Framebuffer "init"
+    image_size.x = image_size.y = 0;
+    framebuffer_created = false;
+    
+    TCPSocket   *listen_sock, *sock;
+    
+    listen_sock = new TCPSocket;
+    listen_sock->bind(PORT);
+    listen_sock->listen(1);
+    
+    printf("Listening...\n");
+    
+    while (true)
+    {            
+        sock = listen_sock->accept();
         
-        TCPSocket   *listen_sock, *sock;
+        printf("Got new connection\n");
         
-        listen_sock = new TCPSocket;
-        listen_sock->bind(PORT);
-        listen_sock->listen(1);
-        
-        printf("Listening...\n");
-        
-        while (true)
-        {            
-            sock = listen_sock->accept();
-            
-            printf("Got new connection\n");
-            
-            if (receive_scene(sock))
+        if (receive_scene(sock))
+        {
+            for (int i = 0; i < 4; i++)
             {
-                for (int i = 0; i < 4; i++)
-                {
-                    printf("Rendering sample %d\n", i);
-                    render_frame(i == 0);
+                printf("Rendering sample %d\n", i);
+                render_frame(i == 0);
 
-                    printf("Sending framebuffer\n");
-                    send_frame(sock);
-                }
+                printf("Sending framebuffer\n");
+                send_framebuffer(sock);
             }
-            else
-                sock->close();
         }
+        else
+            sock->close();
     }
 
     return 0;

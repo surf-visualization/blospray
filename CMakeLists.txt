@@ -35,6 +35,7 @@ include_directories(${GLM_INCLUDE_DIRS})
 
 add_executable(ospray_render_server 
     ospray_render_server.cpp 
+    image.cpp
     ${PROTO_SRCS}
     ${PROTO_HDRS})
     

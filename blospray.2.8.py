@@ -82,12 +82,14 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             sys.stdout.flush()
             #self.update_stats('%d bytes left' % bytes_left, 'Reading back framebuffer')
         
-    def _read_framebuffer_to_file(self, framebuffer, width, height, fname='/dev/shm/framebuffer.bin'):
+    def _read_framebuffer_to_file(self, framebuffer, fname):
         
         with open(fname, 'wb') as f:
+            
+            d = self.sock.recv(4)
+            bufsize = unpack('<I', d)[0]
         
-            num_pixels = width * height
-            bytes_left = num_pixels * 4*4        
+            bytes_left = bufsize
             
             while bytes_left > 0:
                 d = self.sock.recv(bytes_left)
@@ -131,8 +133,10 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         # Only Combined and Depth seem to be available
         layer = result.layers[0].passes["Combined"] 
         
+        FBFILE = '/dev/shm/blosprayfb.exr'
+        
         S = 4
-        for i in range(S):
+        for i in range(1, S+1):
             
             self.update_stats('', 'Rendering %d/%d' % (i, S))
             
@@ -153,11 +157,12 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             """
             
             print('[%6.3f] _read_framebuffer_to_file start' % (time.time()-t0))
-            self._read_framebuffer_to_file(framebuffer, self.width, self.height, '/dev/shm/framebuffer.bin')
+            self._read_framebuffer_to_file(framebuffer, FBFILE)
             print('[%6.3f] _read_framebuffer_to_file end' % (time.time()-t0))
             
-            # XXX sigh, this needs an image file format...
-            result.layers[0].load_from_file('/dev/shm/framebuffer.bin')
+            # Sigh, this needs an image file format. I.e. reading in a raw framebuffer
+            # of floats isn't possible
+            result.layers[0].load_from_file(FBFILE)
             self.update_result(result)
             
             print('[%6.3f] update_result() done' % (time.time()-t0))
