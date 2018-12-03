@@ -182,6 +182,22 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         
         self.sock.send(b'V')
         
+        # Object to world matrix
+        #
+        # Matrix(((0.013929054141044617, 0.0, 0.0, -0.8794544339179993),
+        #         (0.0, 0.013929054141044617, 0.0, -0.8227154612541199),
+        #         (0.0, 0.0, 0.013929054141044617, 0.0),
+        #         (0.0, 0.0, 0.0, 1.0)))
+        #
+        # Translation part in right-most column
+        obj2world = obj.matrix_world
+        
+        # Send row by row
+        for row in obj2world:
+            values = list(row)
+            self.sock.send(pack('<ffff', *values))
+        
+        # Custom properties
         user_keys = [k for k in obj.keys() if k[0] != '_']
         properties = {}
         for k in user_keys:
@@ -206,8 +222,8 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         self.sock.send(pack('<I', len(propjson)))
         self.sock.sendall(propjson.encode('utf8'))
         
-        # Wait for volume to be loaded, signaled by receiving the ID on the
-        # server for this volume
+        # Wait for volume to be loaded on the server, signaled by receiving 
+        # the ID on the server assigned to this volume
         
         id = self.sock.recv(40)
         while len(id) < 40:

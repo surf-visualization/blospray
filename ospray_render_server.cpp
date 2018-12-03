@@ -344,6 +344,14 @@ bool
 receive_volume(TCPSocket *sock)
 {
     uint32_t    properties_size;
+    float       obj2world[16];
+    
+    // Object-to-world matrix
+    
+    if (sock->recvall(&obj2world, 16*sizeof(float)) == -1)
+        return false;   
+    
+    // Custom properties
     
     if (sock->recvall(&properties_size, 4) == -1)
         return false;
@@ -417,10 +425,15 @@ receive_volume(TCPSocket *sock)
     printf("Load function took %.3fs\n", time_diff(t0, t1));
     
 #if 1
+    // https://github.com/ospray/ospray/pull/165
+    ospSetVec3f(volume, "xfm.l.vx", osp::vec3f{ obj2world[0], obj2world[4], obj2world[8] });
+    ospSetVec3f(volume, "xfm.l.vy", osp::vec3f{ obj2world[1], obj2world[5], obj2world[9] });
+    ospSetVec3f(volume, "xfm.l.vz", osp::vec3f{ obj2world[2], obj2world[6], obj2world[10] });
+    ospSetVec3f(volume, "xfm.p", osp::vec3f{ obj2world[3], obj2world[7], obj2world[11] });
+
     ospSetf(volume,  "samplingRate", 0.1f);
     ospSet1b(volume, "adaptiveSampling", false);
     ospSet1b(volume, "gradientShadingEnabled", true);
-    
     
     // Transfer function
     float   colors[] = { 
@@ -450,21 +463,62 @@ receive_volume(TCPSocket *sock)
     
     ospCommit(volume);
     
+    // Direct
     ospAddVolume(world, volume);
     ospRelease(volume);
-#else
-    OSPGeometry isosurface = ospNewGeometry("isosurfaces");
-    ospSetObject(isosurface, "volume", volume);
+    
+    /*
+    // As transformed instance
+    // XXX not an option currently, can only instantiate geometry, not volumes
+    OSPModel model = ospNewModel();
+    ospAddVolume(model, volume);
     ospRelease(volume);
     
-    float isovalues[1] = { 128.0f };
-    OSPData isovaluesData = ospNewData(1, OSP_FLOAT, isovalues);
-    ospSetData(isosurface, "isovalues", isovaluesData);
-    ospRelease(isovaluesData);
+    OSPGeometry = ospNewInstance(model, xform);
+    */
+    
+#else
+    // Isosurfacing (test)
+    OSPGeometry isosurface = ospNewGeometry("isosurfaces");
+    
+        ospSetObject(isosurface, "volume", volume);
+        ospRelease(volume);
+        
+        float isovalues[1] = { 128.0f };
+        OSPData isovaluesData = ospNewData(1, OSP_FLOAT, isovalues);
+        ospSetData(isosurface, "isovalues", isovaluesData);
+        ospRelease(isovaluesData);
+        
     ospCommit(isosurface);
     
-    ospAddGeometry(world, isosurface);
-    ospRelease(isosurface);
+    OSPModel model = ospNewModel();
+        ospAddGeometry(model, isosurface);
+    ospCommit(model);
+    //ospRelease(isosurface);
+    
+    // XXX hmm, get a segfault in ospray (null pointer it seems) when
+    // instantiating the isosurfaces. This only happens on the 2nd blender render
+    osp::affine3f    xform;
+    
+    xform.l.vx.x = obj2world[0];
+    xform.l.vx.y = obj2world[4];
+    xform.l.vx.z = obj2world[8];
+    
+    xform.l.vy.x = obj2world[1];
+    xform.l.vy.y = obj2world[5];
+    xform.l.vy.z = obj2world[9];
+    
+    xform.l.vz.x = obj2world[2];
+    xform.l.vz.y = obj2world[6];
+    xform.l.vz.z = obj2world[10];
+    
+    xform.p.x = obj2world[3];
+    xform.p.y = obj2world[7];
+    xform.p.z = obj2world[11];
+    
+    OSPGeometry imodel = ospNewInstance(model, xform);
+    ospAddGeometry(world, imodel);
+    //ospRelease(imodel);
 #endif
     
     // Send back hash and bbox of loaded volume
