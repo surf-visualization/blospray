@@ -90,7 +90,6 @@ OSPFrameBuffer  framebuffer;
 bool            framebuffer_created = false;
 
 OSPLight        lights[2];                          // 0 = ambient, 1 = sun
-//OSPModel        mesh_model_rbc, mesh_model_plt;
 
 // Volume loaders
 
@@ -552,7 +551,7 @@ receive_scene(TCPSocket *sock)
     
     // AO
     lights[0] = ospNewLight3("ambient");
-    ospSet1f(lights[0], "intensity",  light_settings.ambient_intensity());
+    ospSet1f(lights[0], "intensity", light_settings.ambient_intensity());
     ospCommit(lights[0]);
     
     // Sun
@@ -563,7 +562,7 @@ receive_scene(TCPSocket *sock)
 
     lights[1] = ospNewLight3("directional");
     ospSet3fv(lights[1], "direction",  sun_dir);
-    ospSet1f(lights[1], "intensity",  light_settings.sun_intensity());    
+    ospSet1f(lights[1], "intensity", light_settings.sun_intensity());    
     ospCommit(lights[1]);
     
     // All lights

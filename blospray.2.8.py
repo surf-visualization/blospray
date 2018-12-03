@@ -308,9 +308,9 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         lght = LightSettings()
         
         lght.sun_dir[:] = (-1, -1, -1)
-        lght.sun_intensity = 1.0
+        lght.sun_intensity = 10.0
         
-        lght.ambient_intensity = 0.4
+        lght.ambient_intensity = 0.2
 
         #
         # Send scene
