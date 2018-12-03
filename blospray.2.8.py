@@ -5,12 +5,13 @@ import bpy
 #from bgl import *
 from mathutils import Vector
 
-import array, json, socket
+import sys, array, json, os, socket
 from math import tan, atan, degrees
 from struct import pack, unpack
 
 import numpy
 
+sys.path.insert(0, os.path.split(__file__)[0])
 from messages_pb2 import CameraSettings, ImageSettings, LightSettings
 
 HOST = 'localhost'
