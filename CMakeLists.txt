@@ -24,12 +24,8 @@ message ("PROTO_SRCS = ${PROTO_SRCS}")
 message ("PROTO_HDRS = ${PROTO_HDRS}")
 
 include_directories(${OSPRAY_INCLUDE_DIRS})
-INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIR})
+include_directories(${Boost_INCLUDE_DIR})
 include_directories(${GLM_INCLUDE_DIRS})
-
-#add_executable(tutorial ospTutorial.cpp)
-#link_libraries(tutorial ${OSPRAY_BUILD_DIR})
-#target_link_libraries(tutorial ${OSPRAY_LIBRARIES})
 
 # Server
 
@@ -41,7 +37,6 @@ add_executable(ospray_render_server
     
 set_target_properties(ospray_render_server
     PROPERTIES
-    #INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/lib)
     INSTALL_RPATH "\\\$ORIGIN")
     
 target_include_directories(ospray_render_server

@@ -727,10 +727,10 @@ main(int argc, const char **argv)
         
         if (receive_scene(sock))
         {
-            for (int i = 0; i < 4; i++)
+            for (int i = 1; i <= 4; i++)
             {
                 printf("Rendering sample %d\n", i);
-                render_frame(i == 0);
+                render_frame(i == 1);
 
                 printf("Sending framebuffer\n");
                 send_framebuffer(sock);
