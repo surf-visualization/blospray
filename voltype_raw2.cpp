@@ -36,15 +36,16 @@ load(json &parameters, const float *object2world, float *bbox)
     num_grid_points = dims[0] * dims[1] * dims[2];
     num_hexahedrons = (dims[0]-1) * (dims[1]-1) * (dims[2]-1);
     
-    void        *grid_field_values;
-    std::string voxelType = parameters["voxel_type"].get<std::string>();
+    void *grid_field_values;
     OSPDataType dataType;
+    
+    std::string voxelType = parameters["voxel_type"].get<std::string>();
     
     if (voxelType == "uchar")
     {
         grid_field_values = new uint8_t[num_grid_points];
-        data_size = num_grid_points;
         dataType = OSP_UCHAR;
+        data_size = num_grid_points;
     }
     // else XXX
     
@@ -55,11 +56,11 @@ load(json &parameters, const float *object2world, float *bbox)
 
     // We use an unstructured volume for now, as we can transform its
     // vertices with the object2world matrix, as volumes currently don't
-    // support affine transformations in ospray.
+    // support affine transformations in ospray themselves.
     
     // Set (transformed) vertices
     
-    float   *vertices = new float[num_grid_points*4];
+    float   *vertices = new float[num_grid_points*3];
     float   *v;
     float   x, y, z;
     float   xx, yy, zz;
@@ -77,15 +78,15 @@ load(json &parameters, const float *object2world, float *bbox)
             {
                 x = i;
                 
-                xx = x*object2world[0] + y*object2world[1] + z*object2world[2] + object2world[3];
-                yy = x*object2world[4] + y*object2world[5] + z*object2world[6] + object2world[7];
-                yy = x*object2world[8] + y*object2world[9] + z*object2world[10] + object2world[11];
+                xx = x*object2world[0] + y*object2world[1] + z*object2world[2]  + object2world[3];
+                yy = x*object2world[4] + y*object2world[5] + z*object2world[6]  + object2world[7];
+                zz = x*object2world[8] + y*object2world[9] + z*object2world[10] + object2world[11];
                 
                 v[0] = xx;
                 v[1] = yy;
                 v[2] = zz;
-                v[3] = 0.0f;
-                v += 4;
+                
+                v += 3;
             }
         }
     }
@@ -93,22 +94,55 @@ load(json &parameters, const float *object2world, float *bbox)
     // Set up hexahedral cells
     
     int     *indices = new int[num_hexahedrons*8];   
+    int     *hex = indices;
     
-    // XXX...
+    const int ystep = dims[0];
+    const int zstep = dims[0] * dims[1];
+    
+    for (int k = 0; k < dims[2]-1; k++)
+    {
+        for (int j = 0; j < dims[1]-1; j++)
+        {
+            for (int i = 0; i < dims[0]-1; i++)
+            {
+                // VTK_HEXAHEDRON ordering
+                
+                int baseidx = k * zstep + j * ystep + i;
+                
+                hex[0] = baseidx;
+                hex[1] = baseidx + 1;
+                hex[2] = baseidx + ystep + 1;
+                hex[3] = baseidx + ystep;
+                
+                baseidx += zstep;
+                hex[4] = baseidx;
+                hex[5] = baseidx + 1;
+                hex[6] = baseidx + ystep + 1;
+                hex[7] = baseidx + ystep;
+                
+                hex += 8;
+            }
+        }
+    }
 
     // Set up volume object
     
-    OSPData verticesData = ospNewData(num_grid_points, OSP_FLOAT3A, vertices);   
+    OSPData verticesData = ospNewData(num_grid_points, OSP_FLOAT3, vertices);       // XXX need to look closer at how to use OSP_FLOAT3A
     OSPData fieldData = ospNewData(num_grid_points, dataType, grid_field_values);   
     OSPData indicesData = ospNewData(num_hexahedrons*2, OSP_INT4, indices);
     
     OSPVolume volume = ospNewVolume("unstructured_volume");
     
     ospSetData(volume,      "vertices", verticesData);
-    ospSetData(volume,      "field",    fieldData);
-    ospSetData(volume,      "indices",  indicesData);    
+    ospCommit(verticesData);
     ospRelease(verticesData);
+    
+    ospSetData(volume,      "field",    fieldData);
+    ospCommit(fieldData);
     ospRelease(fieldData);
+    
+    ospSetData(volume,      "indices",  indicesData);    
+    ospCommit(indicesData);
     ospRelease(indicesData);
     
     ospSetString(volume,    "hexMethod",  "planar");

@@ -410,7 +410,7 @@ receive_volume(TCPSocket *sock)
     gettimeofday(&t1, NULL);
     printf("Load function took %.3fs\n", time_diff(t0, t1));
     
-#if 1
+#if 0
     // https://github.com/ospray/ospray/pull/165
     /*
     ospSetVec3f(volume, "xfm.l.vx", osp::vec3f{ obj2world[0], obj2world[4], obj2world[8] });
@@ -475,10 +475,16 @@ receive_volume(TCPSocket *sock)
         float isovalues[1] = { 128.0f };
         OSPData isovaluesData = ospNewData(1, OSP_FLOAT, isovalues);
         ospSetData(isosurface, "isovalues", isovaluesData);
+        ospCommit(isovaluesData);
         ospRelease(isovaluesData);
         
     ospCommit(isosurface);
+        
+    // Direct
+    ospAddGeometry(world, isosurface);
+    ospRelease(isosurface);
     
+    /*
     OSPModel model = ospNewModel();
         ospAddGeometry(model, isosurface);
     ospCommit(model);
@@ -507,6 +513,7 @@ receive_volume(TCPSocket *sock)
     OSPGeometry imodel = ospNewInstance(model, xform);
     ospAddGeometry(world, imodel);
     //ospRelease(imodel);
+    */
 #endif
     
     // Send back hash and bbox of loaded volume
