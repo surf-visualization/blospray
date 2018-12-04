@@ -52,7 +52,7 @@ load(json &parameters, float *bbox)
 
     // Set up ospray volume 
     
-    OSPData voxelData = ospNewData(num_voxels, dataType, voxels);   
+    OSPData voxelData = ospNewData(num_voxels, dataType, voxels, OSP_DATA_SHARED_BUFFER);   
     
     // XXX could keep voxels around if we use shared flag
     //if (voxelType == "uchar")
