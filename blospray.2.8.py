@@ -483,34 +483,89 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
 # Class registration
 #
 
+from bl_ui import (
+        properties_data_camera,
+        properties_data_empty,
+        properties_data_light,
+        properties_data_mesh,
+        properties_data_modifier,
+        properties_material,
+        properties_object,
+        properties_output,
+        properties_render,
+        properties_scene,
+        properties_texture,
+        properties_view_layer,
+        properties_workspace,
+        properties_world
+        )
+
+enabled_panels = {
+
+    properties_data_camera : [
+        #'CAMERA_PT_presets',
+        #'DATA_PT_camera',
+        #'DATA_PT_camera_background_image',
+        'DATA_PT_camera_display',
+        'DATA_PT_camera_dof',
+        'DATA_PT_camera_dof_aperture',
+        #'DATA_PT_camera_safe_areas',
+        #'DATA_PT_camera_stereoscopy',
+        'DATA_PT_context_camera',
+        'DATA_PT_custom_props_camera',
+        'DATA_PT_lens',
+        #'SAFE_AREAS_PT_presets'
+    ],
+    
+    properties_data_empty : [
+        'DATA_PT_empty'
+    ],
+    
+    properties_data_light : [
+        #'DATA_PT_EEVEE_light',
+        #'DATA_PT_EEVEE_shadow',
+        #'DATA_PT_EEVEE_shadow_cascaded_shadow_map',
+        #'DATA_PT_EEVEE_shadow_contact',
+        'DATA_PT_area',
+        'DATA_PT_context_light',
+        'DATA_PT_custom_props_light',
+        'DATA_PT_falloff_curve',
+        'DATA_PT_light',
+        #'DATA_PT_preview',
+        'DATA_PT_spot'
+    ],
+    
+    properties_world : [
+        #'EEVEE_WORLD_PT_mist',
+        #'EEVEE_WORLD_PT_surface',
+        'WORLD_PT_context_world',
+        'WORLD_PT_custom_props',
+        'WORLD_PT_viewport_display',
+    ]
+}
+
+
 def register():
-    # Register the RenderEngine
     bpy.utils.register_class(OsprayRenderEngine)
 
-    # RenderEngines also need to tell UI Panels that they are compatible
+    # RenderEngines need to tell UI Panels that they are compatible with them.
     # Otherwise most of the UI will be empty when the engine is selected.
-    # In this example, we need to see the main render image button and
-    # the material preview panel.
-    from bl_ui import (
-            properties_render,
-            properties_material,
-            )
     
-    #properties_render.RENDER_PT_evee_render.COMPAT_ENGINES.add(CustomRenderEngine.bl_idname)
-    #properties_material.MATERIAL_PT_preview.COMPAT_ENGINES.add(CustomRenderEngine.bl_idname)
-
-
+    for module, panels in enabled_panels.items():
+        for panelname in panels:
+            panel = getattr(module, panelname)
+            if hasattr(panel, 'COMPAT_ENGINES'):
+                panel.COMPAT_ENGINES.add(OsprayRenderEngine.bl_idname)
+                
 def unregister():
     bpy.utils.unregister_class(OsprayRenderEngine)
-
-    from bl_ui import (
-            properties_render,
-            properties_material,
-            )
     
-    #properties_render.RENDER_PT_render.COMPAT_ENGINES.remove(CustomRenderEngine.bl_idname)
-    #properties_material.MATERIAL_PT_preview.COMPAT_ENGINES.remove(CustomRenderEngine.bl_idname)
-
+    for module, panels in enabled_panels.items():
+        for panelname in panels:
+            panel = getattr(module, panelname)
+            if hasattr(panel, 'COMPAT_ENGINES'):
+                panel.COMPAT_ENGINES.remove(OsprayRenderEngine.bl_idname)
+    
 
 if __name__ == "__main__":
     register()

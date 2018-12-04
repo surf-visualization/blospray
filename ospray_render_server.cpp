@@ -1,22 +1,8 @@
-/// legacyincludedir $HOME/software/ospray-1.4.2.x86_64.linux/include
-/// legacylibrarydir $HOME/software/ospray-1.4.2.x86_64.linux/lib
-/// legacyincludedir $HOME/software/glm-0.9.8.5
-/// uselibrary ospray
-/// uselibrary boost_program_options
-/// uselibrary OpenImageIO
-/// rpath $HOME/software/ospray-1.4.0.x86_64.linux/lib
-/// cflags -std=c++11
-
-// GCC/6.4.0-2.28
-// Boost/1.65.1-foss-2017b
-// OpenImageIO/1.7.17-foss-2017b
-
 /*
-Ospray renderer for HemoCell "cell positions" scene to be
-used as server for Blender.
+Ospray render server for blospray
 
 Paul Melis, SURFsara <paul.melis@surfsara.nl>
-Copyright (C) 2017 
+Copyright (C) 2017-2018
 */
 
 // ======================================================================== //

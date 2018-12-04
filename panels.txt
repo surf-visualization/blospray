@@ -1,0 +1,431 @@
+Read prefs: /home/paulm/.config/blender/2.80/config/userpref.blend
+found bundled python: /home/paulm/software/blender-2.80-71fd7e610a6-linux-glibc224-x86_64/2.80/python
+properties_animviz
+properties_constraint
+     BONE_PT_constraints
+     OBJECT_PT_constraints
+properties_data_armature
+     DATA_PT_bone_groups
+     DATA_PT_context_arm
+     DATA_PT_custom_props_arm
+     DATA_PT_display
+     DATA_PT_ghost
+     DATA_PT_iksolver_itasc
+     DATA_PT_motion_paths
+     DATA_PT_motion_paths_display
+     DATA_PT_onion_skinning
+     DATA_PT_pose_library
+     DATA_PT_skeleton
+properties_data_bone
+     BONE_PT_context_bone
+     BONE_PT_curved
+     BONE_PT_custom_props
+     BONE_PT_deform
+     BONE_PT_display
+     BONE_PT_inverse_kinematics
+     BONE_PT_relations
+     BONE_PT_transform
+properties_data_camera
+     CAMERA_PT_presets
+     DATA_PT_camera
+     DATA_PT_camera_background_image
+     DATA_PT_camera_display
+     DATA_PT_camera_dof
+     DATA_PT_camera_dof_aperture
+     DATA_PT_camera_safe_areas
+     DATA_PT_camera_stereoscopy
+     DATA_PT_context_camera
+     DATA_PT_custom_props_camera
+     DATA_PT_lens
+     SAFE_AREAS_PT_presets
+properties_data_curve
+     DATA_PT_active_spline
+     DATA_PT_context_curve
+     DATA_PT_curve_texture_space
+     DATA_PT_custom_props_curve
+     DATA_PT_font
+     DATA_PT_font_transform
+     DATA_PT_geometry_curve
+     DATA_PT_geometry_curve_bevel
+     DATA_PT_paragraph
+     DATA_PT_paragraph_alignment
+     DATA_PT_paragraph_spacing
+     DATA_PT_pathanim
+     DATA_PT_shape_curve
+     DATA_PT_text_boxes
+properties_data_empty
+     DATA_PT_empty
+properties_data_gpencil
+     DATA_PT_custom_props_gpencil
+     DATA_PT_gpencil
+     DATA_PT_gpencil_canvas
+     DATA_PT_gpencil_datapanel
+     DATA_PT_gpencil_display
+     DATA_PT_gpencil_layer_optionpanel
+     DATA_PT_gpencil_onionpanel
+     DATA_PT_gpencil_parentpanel
+     DATA_PT_gpencil_vertexpanel
+properties_data_lattice
+     DATA_PT_context_lattice
+     DATA_PT_custom_props_lattice
+     DATA_PT_lattice
+properties_data_light
+     DATA_PT_EEVEE_light
+     DATA_PT_EEVEE_shadow
+     DATA_PT_EEVEE_shadow_cascaded_shadow_map
+     DATA_PT_EEVEE_shadow_contact
+     DATA_PT_area
+     DATA_PT_context_light
+     DATA_PT_custom_props_light
+     DATA_PT_falloff_curve
+     DATA_PT_light
+     DATA_PT_preview
+     DATA_PT_spot
+properties_data_lightprobe
+     DATA_PT_context_lightprobe
+     DATA_PT_lightprobe
+     DATA_PT_lightprobe_display
+     DATA_PT_lightprobe_parallax
+properties_data_mesh
+     DATA_PT_context_mesh
+     DATA_PT_custom_props_mesh
+     DATA_PT_customdata
+     DATA_PT_face_maps
+     DATA_PT_normals
+     DATA_PT_shape_keys
+     DATA_PT_texture_space
+     DATA_PT_uv_texture
+     DATA_PT_vertex_colors
+     DATA_PT_vertex_groups
+properties_data_metaball
+     DATA_PT_context_metaball
+     DATA_PT_custom_props_metaball
+     DATA_PT_mball_texture_space
+     DATA_PT_metaball
+     DATA_PT_metaball_element
+properties_data_modifier
+     DATA_PT_gpencil_modifiers
+     DATA_PT_modifiers
+properties_data_shaderfx
+     DATA_PT_shader_fx
+properties_data_speaker
+     DATA_PT_cone
+     DATA_PT_context_speaker
+     DATA_PT_custom_props_speaker
+     DATA_PT_distance
+     DATA_PT_speaker
+properties_freestyle
+     MATERIAL_PT_freestyle_line
+     RENDER_PT_freestyle
+     VIEWLAYER_PT_freestyle
+     VIEWLAYER_PT_freestyle_lineset
+     VIEWLAYER_PT_freestyle_linestyle
+properties_grease_pencil_common
+properties_mask_common
+     MASK_PT_display
+     MASK_PT_layers
+     MASK_PT_mask
+     MASK_PT_point
+     MASK_PT_spline
+     MASK_PT_transforms
+properties_material
+     EEVEE_MATERIAL_PT_context_material
+     EEVEE_MATERIAL_PT_options
+     EEVEE_MATERIAL_PT_surface
+     EEVEE_MATERIAL_PT_volume
+     MATERIAL_PT_custom_props
+     MATERIAL_PT_preview
+     MATERIAL_PT_viewport
+properties_material_gpencil
+     MATERIAL_PT_gpencil_custom_props
+     MATERIAL_PT_gpencil_fillcolor
+     MATERIAL_PT_gpencil_material_presets
+     MATERIAL_PT_gpencil_options
+     MATERIAL_PT_gpencil_preview
+     MATERIAL_PT_gpencil_slots
+     MATERIAL_PT_gpencil_strokecolor
+     MATERIAL_PT_gpencil_surface
+properties_object
+     OBJECT_PT_collections
+     OBJECT_PT_context_object
+     OBJECT_PT_custom_props
+     OBJECT_PT_delta_transform
+     OBJECT_PT_display
+     OBJECT_PT_duplication
+     OBJECT_PT_motion_paths
+     OBJECT_PT_motion_paths_display
+     OBJECT_PT_onion_skinning
+     OBJECT_PT_relations
+     OBJECT_PT_transform
+properties_output
+     RENDER_PT_dimensions
+     RENDER_PT_encoding
+     RENDER_PT_encoding_audio
+     RENDER_PT_encoding_video
+     RENDER_PT_ffmpeg_presets
+     RENDER_PT_frame_remapping
+     RENDER_PT_output
+     RENDER_PT_output_views
+     RENDER_PT_post_processing
+     RENDER_PT_presets
+     RENDER_PT_stamp
+     RENDER_PT_stamp_burn
+     RENDER_PT_stamp_note
+     RENDER_PT_stereoscopy
+properties_paint_common
+properties_particle
+     PARTICLE_PT_boidbrain
+     PARTICLE_PT_cache
+     PARTICLE_PT_children
+     PARTICLE_PT_children_clumping
+     PARTICLE_PT_children_kink
+     PARTICLE_PT_children_parting
+     PARTICLE_PT_children_roughness
+     PARTICLE_PT_context_particles
+     PARTICLE_PT_custom_props
+     PARTICLE_PT_draw
+     PARTICLE_PT_emission
+     PARTICLE_PT_emission_source
+     PARTICLE_PT_field_weights
+     PARTICLE_PT_force_fields
+     PARTICLE_PT_force_fields_type1
+     PARTICLE_PT_force_fields_type1_falloff
+     PARTICLE_PT_force_fields_type2
+     PARTICLE_PT_force_fields_type2_falloff
+     PARTICLE_PT_hair_dynamics
+     PARTICLE_PT_hair_dynamics_presets
+     PARTICLE_PT_hair_dynamics_structure
+     PARTICLE_PT_hair_dynamics_volume
+     PARTICLE_PT_hair_shape
+     PARTICLE_PT_physics
+     PARTICLE_PT_physics_boids_battle
+     PARTICLE_PT_physics_boids_misc
+     PARTICLE_PT_physics_boids_movement
+     PARTICLE_PT_physics_deflection
+     PARTICLE_PT_physics_fluid_advanced
+     PARTICLE_PT_physics_fluid_springs
+     PARTICLE_PT_physics_fluid_springs_advanced
+     PARTICLE_PT_physics_fluid_springs_viscoelastic
+     PARTICLE_PT_physics_forces
+     PARTICLE_PT_physics_integration
+     PARTICLE_PT_physics_relations
+     PARTICLE_PT_render
+     PARTICLE_PT_render_billboards_alignment
+     PARTICLE_PT_render_billboards_tilt
+     PARTICLE_PT_render_billboards_uv
+     PARTICLE_PT_render_collection
+     PARTICLE_PT_render_collection_use_count
+     PARTICLE_PT_render_extra
+     PARTICLE_PT_render_line
+     PARTICLE_PT_render_object
+     PARTICLE_PT_render_path
+     PARTICLE_PT_render_path_timing
+     PARTICLE_PT_render_trails
+     PARTICLE_PT_rotation
+     PARTICLE_PT_rotation_angular_velocity
+     PARTICLE_PT_textures
+     PARTICLE_PT_velocity
+     PARTICLE_PT_vertexgroups
+properties_physics_cloth
+     CLOTH_PT_presets
+     PHYSICS_PT_cloth
+     PHYSICS_PT_cloth_cache
+     PHYSICS_PT_cloth_collision
+     PHYSICS_PT_cloth_damping
+     PHYSICS_PT_cloth_field_weights
+     PHYSICS_PT_cloth_object_collision
+     PHYSICS_PT_cloth_physical_properties
+     PHYSICS_PT_cloth_property_weights
+     PHYSICS_PT_cloth_self_collision
+     PHYSICS_PT_cloth_shape
+     PHYSICS_PT_cloth_stiffness
+properties_physics_common
+     PHYSICS_PT_add
+properties_physics_dynamicpaint
+     PHYSICS_PT_dp_advanced_canvas
+     PHYSICS_PT_dp_advanced_canvas_paint_dissolve
+     PHYSICS_PT_dp_advanced_canvas_paint_dry
+     PHYSICS_PT_dp_brush_source
+     PHYSICS_PT_dp_brush_source_color_ramp
+     PHYSICS_PT_dp_brush_velocity
+     PHYSICS_PT_dp_brush_velocity_color_ramp
+     PHYSICS_PT_dp_brush_velocity_smudge
+     PHYSICS_PT_dp_brush_wave
+     PHYSICS_PT_dp_cache
+     PHYSICS_PT_dp_canvas_initial_color
+     PHYSICS_PT_dp_canvas_output
+     PHYSICS_PT_dp_canvas_output_bake
+     PHYSICS_PT_dp_canvas_output_paintmaps
+     PHYSICS_PT_dp_canvas_output_wetmaps
+     PHYSICS_PT_dp_effects
+     PHYSICS_PT_dp_effects_drip
+     PHYSICS_PT_dp_effects_drip_weights
+     PHYSICS_PT_dp_effects_shrink
+     PHYSICS_PT_dp_effects_spread
+     PHYSICS_PT_dynamic_paint
+     PHYSICS_PT_dynamic_paint_settings
+properties_physics_field
+     PHYSICS_PT_collision
+     PHYSICS_PT_collision_particle
+     PHYSICS_PT_collision_softbody
+     PHYSICS_PT_field
+     PHYSICS_PT_field_falloff
+     PHYSICS_PT_field_falloff_angular
+     PHYSICS_PT_field_falloff_radial
+     PHYSICS_PT_field_settings
+     PHYSICS_PT_field_settings_kink
+     PHYSICS_PT_field_settings_texture_select
+properties_physics_fluid
+     FLUID_PT_presets
+     PHYSICS_PT_domain_bake
+     PHYSICS_PT_domain_boundary
+     PHYSICS_PT_domain_gravity
+     PHYSICS_PT_domain_particles
+     PHYSICS_PT_domain_viscosity
+     PHYSICS_PT_fluid
+     PHYSICS_PT_fluid_flow
+     PHYSICS_PT_fluid_particle_cache
+     PHYSICS_PT_fluid_settings
+properties_physics_rigidbody
+     PHYSICS_PT_rigid_body
+     PHYSICS_PT_rigid_body_collisions
+     PHYSICS_PT_rigid_body_collisions_collections
+     PHYSICS_PT_rigid_body_collisions_sensitivity
+     PHYSICS_PT_rigid_body_collisions_surface
+     PHYSICS_PT_rigid_body_dynamics
+     PHYSICS_PT_rigid_body_dynamics_deactivation
+     PHYSICS_PT_rigid_body_settings
+     PHYSICS_PT_rigidbody_panel
+properties_physics_rigidbody_constraint
+     PHYSICS_PT_rigid_body_constraint
+     PHYSICS_PT_rigid_body_constraint_limits
+     PHYSICS_PT_rigid_body_constraint_limits_angular
+     PHYSICS_PT_rigid_body_constraint_limits_linear
+     PHYSICS_PT_rigid_body_constraint_motor
+     PHYSICS_PT_rigid_body_constraint_motor_angular
+     PHYSICS_PT_rigid_body_constraint_motor_linear
+     PHYSICS_PT_rigid_body_constraint_objects
+     PHYSICS_PT_rigid_body_constraint_override_iterations
+     PHYSICS_PT_rigid_body_constraint_settings
+     PHYSICS_PT_rigid_body_constraint_springs
+     PHYSICS_PT_rigid_body_constraint_springs_angular
+     PHYSICS_PT_rigid_body_constraint_springs_linear
+     PHYSICS_PT_rigidbody_constraint_panel
+properties_physics_smoke
+     PHYSICS_PT_smoke
+     PHYSICS_PT_smoke_adaptive_domain
+     PHYSICS_PT_smoke_behavior
+     PHYSICS_PT_smoke_behavior_dissolve
+     PHYSICS_PT_smoke_cache
+     PHYSICS_PT_smoke_collections
+     PHYSICS_PT_smoke_field_weights
+     PHYSICS_PT_smoke_fire
+     PHYSICS_PT_smoke_flow_texture
+     PHYSICS_PT_smoke_highres
+     PHYSICS_PT_smoke_settings
+     PHYSICS_PT_smoke_settings_initial_velocity
+     PHYSICS_PT_smoke_settings_particle_size
+     PHYSICS_PT_smoke_viewport_display
+     PHYSICS_PT_smoke_viewport_display_color
+     PHYSICS_PT_smoke_viewport_display_debug
+properties_physics_softbody
+     PHYSICS_PT_softbody
+     PHYSICS_PT_softbody_cache
+     PHYSICS_PT_softbody_collision
+     PHYSICS_PT_softbody_edge
+     PHYSICS_PT_softbody_edge_aerodynamics
+     PHYSICS_PT_softbody_edge_stiffness
+     PHYSICS_PT_softbody_field_weights
+     PHYSICS_PT_softbody_goal
+     PHYSICS_PT_softbody_goal_settings
+     PHYSICS_PT_softbody_goal_strenghts
+     PHYSICS_PT_softbody_object
+     PHYSICS_PT_softbody_simulation
+     PHYSICS_PT_softbody_solver
+     PHYSICS_PT_softbody_solver_diagnostics
+     PHYSICS_PT_softbody_solver_helpers
+properties_render
+     RENDER_PT_color_management
+     RENDER_PT_color_management_curves
+     RENDER_PT_context
+     RENDER_PT_eevee_ambient_occlusion
+     RENDER_PT_eevee_bloom
+     RENDER_PT_eevee_depth_of_field
+     RENDER_PT_eevee_film
+     RENDER_PT_eevee_hair
+     RENDER_PT_eevee_indirect_lighting
+     RENDER_PT_eevee_indirect_lighting_display
+     RENDER_PT_eevee_motion_blur
+     RENDER_PT_eevee_sampling
+     RENDER_PT_eevee_screen_space_reflections
+     RENDER_PT_eevee_shadows
+     RENDER_PT_eevee_subsurface_scattering
+     RENDER_PT_eevee_volumetric
+     RENDER_PT_eevee_volumetric_lighting
+     RENDER_PT_eevee_volumetric_shadows
+     RENDER_PT_opengl_color
+     RENDER_PT_opengl_film
+     RENDER_PT_opengl_lighting
+     RENDER_PT_opengl_options
+     RENDER_PT_simplify
+     RENDER_PT_simplify_greasepencil
+     RENDER_PT_simplify_render
+     RENDER_PT_simplify_viewport
+     VIEW3D_PT_shading_color
+     VIEW3D_PT_shading_lighting
+     VIEW3D_PT_shading_options
+properties_scene
+     SCENE_PT_audio
+     SCENE_PT_custom_props
+     SCENE_PT_keyframing_settings
+     SCENE_PT_keying_set_paths
+     SCENE_PT_keying_sets
+     SCENE_PT_physics
+     SCENE_PT_rigid_body_cache
+     SCENE_PT_rigid_body_field_weights
+     SCENE_PT_rigid_body_world
+     SCENE_PT_rigid_body_world_settings
+     SCENE_PT_scene
+     SCENE_PT_unit
+properties_texture
+     TEXTURE_PT_blend
+     TEXTURE_PT_clouds
+     TEXTURE_PT_colors
+     TEXTURE_PT_colors_ramp
+     TEXTURE_PT_context
+     TEXTURE_PT_custom_props
+     TEXTURE_PT_distortednoise
+     TEXTURE_PT_image
+     TEXTURE_PT_image_alpha
+     TEXTURE_PT_image_mapping
+     TEXTURE_PT_image_mapping_crop
+     TEXTURE_PT_image_sampling
+     TEXTURE_PT_image_settings
+     TEXTURE_PT_influence
+     TEXTURE_PT_magic
+     TEXTURE_PT_mapping
+     TEXTURE_PT_marble
+     TEXTURE_PT_musgrave
+     TEXTURE_PT_node
+     TEXTURE_PT_node_mapping
+     TEXTURE_PT_preview
+     TEXTURE_PT_stucci
+     TEXTURE_PT_voronoi
+     TEXTURE_PT_voronoi_feature_weights
+     TEXTURE_PT_wood
+properties_view_layer
+     VIEWLAYER_PT_eevee_layer_passes
+     VIEWLAYER_PT_layer
+properties_workspace
+     WORKSPACE_PT_addons
+     WORKSPACE_PT_custom_props
+     WORKSPACE_PT_main
+properties_world
+     EEVEE_WORLD_PT_mist
+     EEVEE_WORLD_PT_surface
+     WORLD_PT_context_world
+     WORLD_PT_custom_props
+     WORLD_PT_viewport_display
+Error: Not freed memory blocks: 1, total unfreed memory 0.000198 MB
+
+Blender quit
