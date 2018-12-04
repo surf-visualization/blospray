@@ -7,7 +7,7 @@ using json = nlohmann::json;
 
 extern "C"
 OSPVolume
-load(json &parameters, float *bbox)
+load(json &parameters, const float */*object2world*/, float *bbox)
 {
     //assert parameters["voltype"] == "raw";
     
@@ -31,7 +31,7 @@ load(json &parameters, float *bbox)
     dims[0] = parameters["dimensions"][0];
     dims[1] = parameters["dimensions"][1];
     dims[2] = parameters["dimensions"][2];
-    num_voxels = dims[0] * dims[1] * dims[2];
+    num_voxels = dims[0] * dims[1] * dims[2];       // XXX is actually number of grid points
     
     
     void        *voxels;

@@ -79,7 +79,7 @@ OSPLight        lights[2];                          // 0 = ambient, 1 = sun
 
 // Volume loaders
 
-typedef OSPVolume   (*volume_load_function)(json &parameters, float *bbox);
+typedef OSPVolume   (*volume_load_function)(json &parameters, const float *obj2world, float *bbox);
 
 typedef std::map<std::string, volume_load_function>     VolumeLoadFunctionMap;
 VolumeLoadFunctionMap                                   volume_load_functions;
@@ -405,17 +405,19 @@ receive_volume(TCPSocket *sock)
     OSPVolume   volume;
     float       bbox[6];
     
-    volume = load_function(properties, bbox);
+    volume = load_function(properties, obj2world, bbox);
     
     gettimeofday(&t1, NULL);
     printf("Load function took %.3fs\n", time_diff(t0, t1));
     
 #if 1
     // https://github.com/ospray/ospray/pull/165
+    /*
     ospSetVec3f(volume, "xfm.l.vx", osp::vec3f{ obj2world[0], obj2world[4], obj2world[8] });
     ospSetVec3f(volume, "xfm.l.vy", osp::vec3f{ obj2world[1], obj2world[5], obj2world[9] });
     ospSetVec3f(volume, "xfm.l.vz", osp::vec3f{ obj2world[2], obj2world[6], obj2world[10] });
     ospSetVec3f(volume, "xfm.p", osp::vec3f{ obj2world[3], obj2world[7], obj2world[11] });
+    */
 
     ospSetf(volume,  "samplingRate", 0.1f);
     ospSet1b(volume, "adaptiveSampling", false);

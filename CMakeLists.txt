@@ -54,21 +54,18 @@ target_link_libraries(ospray_render_server
     ${PROTOBUF_LIBRARIES}
 )
 
-# Plugin
+# Plugins
 
-add_library(voltype_raw SHARED
-    voltype_raw.cpp)
-    
-set_target_properties(voltype_raw 
-    PROPERTIES
-    PREFIX "")
-    
-target_link_libraries(voltype_raw
-    PUBLIC
-    ${OSPRAY_LIBRARIES})
+add_library(voltype_raw SHARED voltype_raw.cpp)
+set_target_properties(voltype_raw PROPERTIES PREFIX "")   
+target_link_libraries(voltype_raw PUBLIC ${OSPRAY_LIBRARIES})
+
+add_library(voltype_raw2 SHARED voltype_raw2.cpp)
+set_target_properties(voltype_raw2 PROPERTIES PREFIX "")   
+target_link_libraries(voltype_raw2 PUBLIC ${OSPRAY_LIBRARIES})
     
 # Installation (including setting rpath)
 
 install(TARGETS 
-    ospray_render_server voltype_raw
+    ospray_render_server voltype_raw voltype_raw2
     DESTINATION bin)
