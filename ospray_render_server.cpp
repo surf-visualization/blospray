@@ -61,6 +61,7 @@ Copyright (C) 2017-2018
 #include "tcpsocket.h"
 #include "messages.pb.h"
 #include "json.hpp"
+#include "cool2warm.h"
 
 using json = nlohmann::json;
 
@@ -410,7 +411,7 @@ receive_volume(TCPSocket *sock)
     gettimeofday(&t1, NULL);
     printf("Load function took %.3fs\n", time_diff(t0, t1));
     
-#if 0
+#if 1
     // https://github.com/ospray/ospray/pull/165
     /*
     ospSetVec3f(volume, "xfm.l.vx", osp::vec3f{ obj2world[0], obj2world[4], obj2world[8] });
@@ -424,23 +425,28 @@ receive_volume(TCPSocket *sock)
     ospSet1b(volume, "gradientShadingEnabled", true);
     
     // Transfer function
-    float   colors[] = { 
-                1.0f, 0.0f, 0.0f, 
-                0.0f, 1.0f, 0.0f, 
-                0.0f, 0.0f, 1.0f 
-            };
-    float   opacities[] = { 0.0f, 0.1f, 0.2f };
     
+    float tf_colors[3*cool2warm_entries];
+    float tf_opacities[cool2warm_entries];
+
+    for (int i = 0; i < cool2warm_entries; i++)
+    {
+        tf_colors[3*i+0] = cool2warm[4*i+1];
+        tf_colors[3*i+1] = cool2warm[4*i+2];
+        tf_colors[3*i+2] = cool2warm[4*i+3];
+        tf_opacities[i]  = cool2warm[4*i+0];
+    }
+
     OSPTransferFunction tf = ospNewTransferFunction("piecewise_linear");
     
     // XXX allow voxelRange to be set in json
-    ospSet2f(tf,   "valueRange", 0.0f, 255.0f);
+    //ospSet2f(tf,   "valueRange", 0.0f, 255.0f);
     
-    OSPData color_data = ospNewData(3, OSP_FLOAT3, colors);
+    OSPData color_data = ospNewData(cool2warm_entries, OSP_FLOAT3, tf_colors);
     ospSetData(tf, "colors", color_data);
     ospRelease(color_data);
     
-    OSPData opacity_data = ospNewData(3, OSP_FLOAT, opacities);
+    OSPData opacity_data = ospNewData(cool2warm_entries, OSP_FLOAT, tf_opacities);
     ospSetData(tf, "opacities", opacity_data);
     ospRelease(opacity_data);
     

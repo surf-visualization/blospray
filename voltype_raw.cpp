@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <ospray/ospray.h>
 #include "json.hpp"
+#include "util.h"
 
 using json = nlohmann::json;
 
@@ -26,28 +27,48 @@ load(json &parameters, const float */*object2world*/, float *bbox)
     
     int32_t dims[3];
     uint32_t num_voxels;
-    uint32_t voxels_size;
+    uint32_t read_size;
     
     dims[0] = parameters["dimensions"][0];
     dims[1] = parameters["dimensions"][1];
     dims[2] = parameters["dimensions"][2];
     num_voxels = dims[0] * dims[1] * dims[2];       // XXX is actually number of grid points
     
-    
     void        *voxels;
     std::string voxelType = parameters["voxel_type"].get<std::string>();
     OSPDataType dataType;
+    bool        endian_flip = false;
+    
+    if (parameters.find("endian_flip") != parameters.end())
+        endian_flip = parameters["endian_flip"].get<int>();
     
     if (voxelType == "uchar")
     {
         voxels = new uint8_t[num_voxels];
-        voxels_size = num_voxels;
+        read_size = num_voxels;
         dataType = OSP_UCHAR;
+        
+        // XXX check bytes read
+        fread(voxels, 1, read_size, f);        
+    }
+    else if (voxelType == "float")
+    {
+        voxels = new float[num_voxels];
+        read_size = num_voxels * 4;
+        dataType = OSP_FLOAT;
+        
+        // XXX check bytes read
+        fread(voxels, 1, read_size, f);
+        
+        if (endian_flip)
+        {
+            float *foxels = (float*)voxels;
+            for (int i = 0; i < num_voxels; i++)
+                foxels[i] = float_swap(foxels[i]);        
+        }
     }
     // else XXX
     
-    // XXX check bytes read
-    fread(voxels, 1, voxels_size, f);
     fclose(f);
 
     // Set up ospray volume 
@@ -65,7 +86,7 @@ load(json &parameters, const float */*object2world*/, float *bbox)
 
     ospSetString(volume,"voxelType", voxelType.c_str());
     // XXX allow voxelRange to be set in json
-    ospSet2f(volume,    "voxelRange", 0.0f, 255.0f);
+    //ospSet2f(volume,    "voxelRange", 0.0f, 255.0f);
     ospSet3i(volume,    "dimensions", dims[0], dims[1], dims[2]);
     // XXX allow grid settings to be set in json
     ospSet3f(volume,    "gridOrigin", 0.0f, 0.0f, 0.0f);
