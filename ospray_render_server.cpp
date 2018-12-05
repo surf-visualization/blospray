@@ -259,9 +259,10 @@ std::vector<char>   receive_buffer;
 std::vector<float>      vertex_buffer;
 std::vector<uint32_t>   triangle_buffer;
 
-ImageSettings image_settings;
-CameraSettings camera_settings;
-LightSettings light_settings;
+ImageSettings   image_settings;
+RenderSettings  render_settings;
+CameraSettings  camera_settings;
+LightSettings   light_settings;
 
 template<typename T>
 bool
@@ -616,6 +617,10 @@ receive_scene(TCPSocket *sock)
         framebuffer = ospNewFrameBuffer(image_size, OSP_FB_RGBA32F, OSP_FB_COLOR | /*OSP_FB_DEPTH |*/ OSP_FB_ACCUM);            
         framebuffer_created = true;
     }
+    
+    // Render settings
+    
+    receive_settings(sock, render_settings);
 
     // Update camera
     
@@ -642,6 +647,12 @@ receive_scene(TCPSocket *sock)
     ospSet3fv(camera, "dir", cam_viewdir);
     ospSet3fv(camera, "up",  cam_updir);
     ospSetf(camera, "fovy",  camera_settings.fov_y());
+    if (camera_settings.dof_focus_distance() > 0.0f)
+    {
+        // XXX seem to stuck in loop during rendering when distance is 0
+        ospSetf(camera, "focusDistance", camera_settings.dof_focus_distance());
+        ospSetf(camera, "apertureRadius", camera_settings.dof_aperture());
+    }
     ospCommit(camera); 
     
     ospSetObject(renderer, "camera", camera);
@@ -828,7 +839,7 @@ main(int argc, const char **argv)
         
         if (receive_scene(sock))
         {
-            for (int i = 1; i <= 4; i++)
+            for (int i = 1; i <= render_settings.samples(); i++)
             {
                 printf("Rendering sample %d\n", i);
                 render_frame(i == 1);

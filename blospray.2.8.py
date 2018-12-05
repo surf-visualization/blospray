@@ -15,7 +15,7 @@ from struct import pack, unpack
 import numpy
 
 sys.path.insert(0, os.path.split(__file__)[0])
-from messages_pb2 import CameraSettings, ImageSettings, LightSettings
+from messages_pb2 import CameraSettings, ImageSettings, LightSettings, RenderSettings
 
 HOST = 'localhost'
 PORT = 5909
@@ -138,13 +138,12 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         
         FBFILE = '/dev/shm/blosprayfb.exr'
         
-        S = 4
-        for i in range(1, S+1):
+        for i in range(1, self.render_samples+1):
             
-            self.update_stats('', 'Rendering %d/%d' % (i, S))
+            self.update_stats('', 'Rendering sample %d/%d' % (i, self.render_samples))
             
             """
-            
+            # XXX Slow: get as raw block of floats
             print('[%6.3f] _read_framebuffer start' % (time.time()-t0))
             self._read_framebuffer(framebuffer, self.width, self.height)            
             print('[%6.3f] _read_framebuffer end' % (time.time()-t0))
@@ -154,6 +153,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             print('[%6.3f] view() end' % (time.time()-t0))
             
             # Here we write the pixel values to the RenderResult   
+            # XXX This is the slow part
             print(type(layer.rect))
             layer.rect = pixels
             self.update_result(result)
@@ -170,7 +170,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             
             print('[%6.3f] update_result() done' % (time.time()-t0))
 
-            self.update_progress(1.0*i/S)
+            self.update_progress(1.0*i/self.render_samples)
             
         self.end_result(result)      
         
@@ -295,6 +295,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         
         camobj = scene.camera
         camdata = camobj.data
+        
         cam_xform = camobj.matrix_world
 
         cam = CameraSettings()
@@ -308,6 +309,27 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         image_plane_height = image_plane_width / aspect
         vfov = 2*atan(image_plane_height/2)
         cam.fov_y = degrees(vfov)
+        
+        # DoF
+        if camdata.dof_object is not None:
+            cam.dof_focus_distance = (camdata.dof_object.location - camobj.location).length
+        else:
+            cam.dof_focus_distance = camdata.dof_distance
+            
+        cam.dof_aperture = 0.0
+        if 'aperture' in camdata:
+            cam.dof_aperture = camdata['aperture']
+            
+        # Render settings
+        
+        render = RenderSettings()
+        render.samples = 4
+        
+        # XXX For now, use property on the camera
+        if 'samples' in camdata:
+            render.samples = camdata['samples']
+            
+        self.render_samples = render.samples
 
         # Lights
 
@@ -338,6 +360,12 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         # Image settings
         
         s = img.SerializeToString()
+        self.sock.send(pack('<I', len(s)))
+        self.sock.send(s)
+        
+        # Render settings
+        
+        s = render.SerializeToString()
         self.sock.send(pack('<I', len(s)))
         self.sock.send(s)
         
@@ -519,7 +547,7 @@ enabled_panels = {
         #'DATA_PT_camera_background_image',
         'DATA_PT_camera_display',
         'DATA_PT_camera_dof',
-        'DATA_PT_camera_dof_aperture',
+        #'DATA_PT_camera_dof_aperture',     # This is a GPU-specific panel, the regular aperture settings are cycles specific
         #'DATA_PT_camera_safe_areas',
         #'DATA_PT_camera_stereoscopy',
         'DATA_PT_context_camera',

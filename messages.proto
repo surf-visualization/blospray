@@ -9,15 +9,19 @@ message ImageSettings
 
 message CameraSettings
 {
+    // camera type
+
     repeated float position = 1;
     repeated float view_dir = 2;
     repeated float up_dir = 3;
     
     float fov_y = 4;                // Degrees
     
-    // type
+    float dof_focus_distance = 5;
+    float dof_aperture = 6;
 }
 
+// XXX not used yet?
 message RenderSettings
 {
     uint32  samples = 1;
