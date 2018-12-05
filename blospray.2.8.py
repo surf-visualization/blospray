@@ -1,7 +1,8 @@
 # Can test with 
 # $ blender -P <thisscript.py> -E OSPRAY
 
-# XXX make sockets non-blocking and use select() to handle errors on the server side
+# - Need to check which collections to render ourselves
+# - Make sockets non-blocking and use select() to handle errors on the server side
 
 import bpy
 #from bgl import *
