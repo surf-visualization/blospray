@@ -21,7 +21,6 @@ message CameraSettings
     float dof_aperture = 6;
 }
 
-// XXX not used yet?
 message RenderSettings
 {
     uint32  samples = 1;
