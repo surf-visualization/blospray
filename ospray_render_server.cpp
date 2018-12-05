@@ -409,16 +409,15 @@ receive_volume(TCPSocket *sock)
     volume = load_function(properties, obj2world, bbox);
     
     gettimeofday(&t1, NULL);
-    printf("Load function took %.3fs\n", time_diff(t0, t1));
-    
-#if 1
-    // https://github.com/ospray/ospray/pull/165
-    /*
+    printf("Load function done, took %.3fs\n", time_diff(t0, t1));
+
+#if 0
+    // See https://github.com/ospray/ospray/pull/165, support for volume transformations was reverted
     ospSetVec3f(volume, "xfm.l.vx", osp::vec3f{ obj2world[0], obj2world[4], obj2world[8] });
     ospSetVec3f(volume, "xfm.l.vy", osp::vec3f{ obj2world[1], obj2world[5], obj2world[9] });
     ospSetVec3f(volume, "xfm.l.vz", osp::vec3f{ obj2world[2], obj2world[6], obj2world[10] });
     ospSetVec3f(volume, "xfm.p", osp::vec3f{ obj2world[3], obj2world[7], obj2world[11] });
-    */
+#endif
 
     if (properties.find("sampling_rate") != properties.end())
         ospSetf(volume,  "samplingRate", properties["sampling_rate"].get<float>());
@@ -465,38 +464,45 @@ receive_volume(TCPSocket *sock)
     
     ospCommit(volume);
     
-    // Direct
-    ospAddVolume(world, volume);
-    ospRelease(volume);
-    
-    /*
-    // As transformed instance
-    // XXX not an option currently, can only instantiate geometry, not volumes
-    OSPModel model = ospNewModel();
-    ospAddVolume(model, volume);
-    ospRelease(volume);
-    
-    OSPGeometry = ospNewInstance(model, xform);
-    */
-    
-#else
-    // Isosurfacing (test)
-    OSPGeometry isosurface = ospNewGeometry("isosurfaces");
-    
-        ospSetObject(isosurface, "volume", volume);
-        ospRelease(volume);
+    if (properties.find("isovalues") != properties.end())
+    {
+        // Isosurfacing
         
-        float isovalues[1] = { 128.0f };
-        OSPData isovaluesData = ospNewData(1, OSP_FLOAT, isovalues);
-        ospSetData(isosurface, "isovalues", isovaluesData);
+        printf("Representing volume with isosurface(s)\n");
+        
+        json isovalues_prop = properties["isovalues"];
+        int n = isovalues_prop.size();
+
+        float *isovalues = new float[n];
+        for (int i = 0; i < n; i++)
+            isovalues[i] = isovalues_prop[i];
+        
+        OSPData isovaluesData = ospNewData(n, OSP_FLOAT, isovalues);
         ospCommit(isovaluesData);
-        ospRelease(isovaluesData);
         
-    ospCommit(isosurface);
+        delete [] isovalues;
         
-    // Direct
-    ospAddGeometry(world, isosurface);
-    ospRelease(isosurface);
+        OSPGeometry isosurface = ospNewGeometry("isosurfaces");
+        
+            ospSetObject(isosurface, "volume", volume);
+            ospRelease(volume);
+
+            ospSetData(isosurface, "isovalues", isovaluesData);
+            ospRelease(isovaluesData);
+            
+        ospCommit(isosurface);
+            
+        ospAddGeometry(world, isosurface);
+        ospRelease(isosurface);
+    }
+    else
+    {
+        // Represent as volume 
+        
+        ospAddVolume(world, volume);
+        ospRelease(volume);
+    }
+
     
     /*
     OSPModel model = ospNewModel();
@@ -528,11 +534,8 @@ receive_volume(TCPSocket *sock)
     ospAddGeometry(world, imodel);
     //ospRelease(imodel);
     */
-#endif
-    
+
     // Send back hash and bbox of loaded volume
-    
-    printf("Load function done\n");
     
     std::string hash = get_sha1(encoded_properties);
     
