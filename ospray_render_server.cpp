@@ -420,7 +420,11 @@ receive_volume(TCPSocket *sock)
     ospSetVec3f(volume, "xfm.p", osp::vec3f{ obj2world[3], obj2world[7], obj2world[11] });
     */
 
-    ospSetf(volume,  "samplingRate", 0.1f);
+    if (properties.find("sampling_rate") != properties.end())
+        ospSetf(volume,  "samplingRate", properties["sampling_rate"].get<float>());
+    else
+        ospSetf(volume,  "samplingRate", 0.1f);
+    
     ospSet1b(volume, "adaptiveSampling", false);
     ospSet1b(volume, "gradientShadingEnabled", true);
     
@@ -431,16 +435,20 @@ receive_volume(TCPSocket *sock)
 
     for (int i = 0; i < cool2warm_entries; i++)
     {
+        tf_opacities[i]  = cool2warm[4*i+0];
         tf_colors[3*i+0] = cool2warm[4*i+1];
         tf_colors[3*i+1] = cool2warm[4*i+2];
         tf_colors[3*i+2] = cool2warm[4*i+3];
-        tf_opacities[i]  = cool2warm[4*i+0];
     }
 
     OSPTransferFunction tf = ospNewTransferFunction("piecewise_linear");
     
-    // XXX allow voxelRange to be set in json
-    //ospSet2f(tf,   "valueRange", 0.0f, 255.0f);
+    if (properties.find("data_range") != properties.end())
+    {
+        float minval = properties["data_range"][0];
+        float maxval = properties["data_range"][1];
+        ospSet2f(tf, "valueRange", minval, maxval);
+    }
     
     OSPData color_data = ospNewData(cool2warm_entries, OSP_FLOAT3, tf_colors);
     ospSetData(tf, "colors", color_data);
