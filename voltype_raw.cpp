@@ -48,6 +48,12 @@ load_as_unstructured(const json &parameters, const float *object2world,
     const int32_t *dims, const std::string& voxelType, OSPDataType dataType, void *grid_field_values,
     float *bbox)
 {    
+    if (voxelType != "float")
+    {
+        fprintf(stderr, "ERROR: OSPRay currently only supports unstructured volumes of 'float', not '%s'\n", voxelType.c_str());
+        return NULL;
+    }
+    
     uint32_t num_grid_points = dims[0] * dims[1] * dims[2];
     uint32_t num_hexahedrons = (dims[0]-1) * (dims[1]-1) * (dims[2]-1);
         
@@ -120,7 +126,7 @@ load_as_unstructured(const json &parameters, const float *object2world,
 
     // Set up volume object
     
-    // XXX need to look closer at how to use OSP_FLOAT3A
+    // XXX need to look closer at the specific alignment requirements of using OSP_FLOAT3A
     OSPData verticesData = ospNewData(num_grid_points, OSP_FLOAT3, vertices);       
     ospCommit(verticesData);
     

@@ -362,9 +362,17 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             if obj.type != 'MESH':
                 continue
                 
+            if obj.hide_render:
+                # XXX This doesn't seem to work for hiding the collection in which
+                # an object is located.
+                # See https://developer.blender.org/T58823 for more info
+                continue
+                
             if 'voltype' in obj:
                 self.export_volume(obj, data, depsgraph)
                 continue
+                
+            # Mesh
                 
             self.sock.send(b'M')
                 

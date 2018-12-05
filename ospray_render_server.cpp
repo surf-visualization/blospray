@@ -495,6 +495,41 @@ receive_volume(TCPSocket *sock)
         ospAddGeometry(world, isosurface);
         ospRelease(isosurface);
     }
+    else if (properties.find("slice_plane") != properties.end())
+    {
+        // Slice plane (only a single one supported, atm)
+        
+        printf("Representing volume with slice plane\n");
+        
+        json slice_plane_prop = properties["slice_plane"];
+        
+        if (slice_plane_prop.size() == 4)
+        {
+            float plane[4];
+            for (int i = 0; i < 4; i++)
+                plane[i] = slice_plane_prop[i];
+            
+            OSPData planeData = ospNewData(4, OSP_FLOAT, plane);
+            ospCommit(planeData);
+            
+            OSPGeometry slices = ospNewGeometry("slices");
+            
+                ospSetObject(slices, "volume", volume);
+                ospRelease(volume);
+
+                ospSetData(slices, "planes", planeData);
+                ospRelease(planeData);
+                
+            ospCommit(slices);
+                
+            ospAddGeometry(world, slices);
+            ospRelease(slices);
+        }
+        else
+        {
+            fprintf(stderr, "ERROR: slice_plane attribute should contain list of 4 floats values!\n");
+        }
+    }
     else
     {
         // Represent as volume 
