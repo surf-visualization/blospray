@@ -6,8 +6,11 @@
 
 using json = nlohmann::json;
 
+// XXX check for existence of "file", "header_skip", etc. entries in parameters[]
+
+
 static OSPVolume
-load_as_structured(json &parameters, const float *object2world, float *bbox)
+load_as_structured(const json &parameters, const float *object2world, float *bbox)
 {
     fprintf(stderr, "WARNING: structured volumes currently don't support object-to-world transformations\n");
     
@@ -41,34 +44,6 @@ load_as_structured(json &parameters, const float *object2world, float *bbox)
     if (parameters.find("endian_flip") != parameters.end())
         endian_flip = parameters["endian_flip"].get<int>();
     
-    if (voxelType == "uchar")
-    {
-        voxels = new uint8_t[num_voxels];
-        read_size = num_voxels;
-        dataType = OSP_UCHAR;
-        
-        // XXX check bytes read
-        fread(voxels, 1, read_size, f);        
-    }
-    else if (voxelType == "float")
-    {
-        voxels = new float[num_voxels];
-        read_size = num_voxels * 4;
-        dataType = OSP_FLOAT;
-        
-        // XXX check bytes read
-        fread(voxels, 1, read_size, f);
-        
-        if (endian_flip)
-        {
-            float *foxels = (float*)voxels;
-            for (int i = 0; i < num_voxels; i++)
-                foxels[i] = float_swap(foxels[i]);        
-        }
-    }
-    // else XXX
-    
-    fclose(f);
 
     // Set up ospray volume 
     
@@ -104,55 +79,10 @@ load_as_structured(json &parameters, const float *object2world, float *bbox)
 }
 
 static OSPVolume
-load_as_unstructured(json &parameters, const float *object2world, float *bbox)
-{
-    // XXX check for existence of "file", "header_skip", etc. entries in parameters[]
-    
-    std::string fname = parameters["file"].get<std::string>();
-    
-    FILE *f = fopen(fname.c_str(), "rb");
-    if (!f)
-    {
-        fprintf(stderr, "Could not open file '%s'\n", fname.c_str());
-        return NULL;
-    }
-    
-    // XXX 
-    fseek(f, parameters["header_skip"].get<int>(), SEEK_SET);
-    
-    int32_t dims[3];
-    uint32_t num_grid_points, num_hexahedrons;
-    uint32_t data_size;
-    
-    dims[0] = parameters["dimensions"][0];
-    dims[1] = parameters["dimensions"][1];
-    dims[2] = parameters["dimensions"][2];
-    
-    num_grid_points = dims[0] * dims[1] * dims[2];
-    num_hexahedrons = (dims[0]-1) * (dims[1]-1) * (dims[2]-1);
-    
-    void *grid_field_values;
-    OSPDataType dataType;
-    
-    std::string voxelType = parameters["voxel_type"].get<std::string>();
-    
-    if (voxelType == "uchar")
-    {
-        grid_field_values = new uint8_t[num_grid_points];
-        dataType = OSP_UCHAR;
-        data_size = num_grid_points;
-    }
-    // else XXX
-    
-    // XXX check bytes read
-    fread(grid_field_values, 1, data_size, f);
-    
-    fclose(f);
-
-    // We use an unstructured volume for now, as we can transform its
-    // vertices with the object2world matrix, as volumes currently don't
-    // support affine transformations in ospray themselves.
-    
+load_as_unstructured(const json &parameters, const float *object2world, const float *dims, float *bbox)
+{    
+    uint32_t num_hexahedrons = (dims[0]-1) * (dims[1]-1) * (dims[2]-1);
+        
     // Set (transformed) vertices
     
     float   *vertices = new float[num_grid_points*3];
@@ -241,8 +171,6 @@ load_as_unstructured(json &parameters, const float *object2world, float *bbox)
     ospRelease(indicesData);
     
     ospSetString(volume,    "hexMethod",  "planar");
-    // XXX allow voxelRange to be set in json
-    ospSet2f(volume,        "voxelRange", 0.0f, 255.0f);
 
     ospCommit(volume);
     
@@ -267,12 +195,93 @@ load(json &parameters, const float *object2world, float *bbox)
         fprintf(stderr, "WARNING: voltype_raw.load() called without property voltype set to 'raw'!\n");
     }
     
+    // Dimensions
+    
+    int32_t dims[3];
+    uint32_t num_grid_points;
+    
+    dims[0] = parameters["dimensions"][0];
+    dims[1] = parameters["dimensions"][1];
+    dims[2] = parameters["dimensions"][2];
+    
+    num_grid_points = dims[0] * dims[1] * dims[2];
+    
+    // Open file
+    
+    std::string fname = parameters["file"].get<std::string>();
+    
+    FILE *f = fopen(fname.c_str(), "rb");
+    if (!f)
+    {
+        fprintf(stderr, "Could not open file '%s'\n", fname.c_str());
+        return NULL;
+    }
+
+    // XXX check return value?
+    fseek(f, parameters["header_skip"].get<int>(), SEEK_SET);
+    
+    // Prepare data array and read data from file
+    
+    OSPDataType dataType;
+    void *grid_field_values;
+    uint32_t read_size;
+    
+    std::string voxelType = parameters["voxel_type"].get<std::string>();
+    
+    if (voxelType == "uchar")
+    {
+        grid_field_values = new uint8_t[num_grid_points];
+        dataType = OSP_UCHAR;
+        read_size = num_grid_points;
+    }
+    else if (voxelType == "float")
+    {
+        grid_field_values = new float[num_grid_points];
+        dataType = OSP_FLOAT;
+        read_size = num_grid_points*sizeof(float);
+    }
+    else 
+    {
+        fprintf(stderr, "WARNING: unhandled voxel data type '%s'!\n", voxelType);
+        fclose(f);
+        return NULL;
+    }
+    
+    // XXX check bytes read
+    fread(grid_field_values, 1, read_size, f);   
+    
+    fclose(f);
+    
+    // Endian-flip if needed
+
+    if (endian_flip)
+    {
+        if (voxelType == "float")
+        {
+            float *falues = (float*)grid_field_values;
+            for (int i = 0; i < num_grid_points; i++)
+                falues[i] = float_swap(falues[i]);        
+        }
+    }
+
+    // Set up volume object
+    
     OSPVolume volume;
     
     if (parameters.find("make_unstructured") != parameters.end() && parameters["make_unstructured"].get<int>())
+    {
+        // We support using an unstructured volume for now, as we can transform its
+        // vertices with the object2world matrix, as volumes currently don't
+        // support affine transformations in ospray themselves.
         volume = load_as_unstructured(parameters, object2world, bbox);
+    }
     else
         volume = load_as_structured(parameters, object2world, bbox);
+    
+    // XXX allow voxelRange to be set in json
+    ospSet2f(volume,        "voxelRange", 0.0f, 255.0f);
+
+    ospCommit(volume);
     
     return volume;
 }
