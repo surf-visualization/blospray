@@ -9,13 +9,18 @@ import bpy
 from mathutils import Vector
 
 import sys, array, json, os, socket, time
-from math import tan, atan, degrees
+from math import tan, atan, degrees, radians
 from struct import pack, unpack
 
 import numpy
 
 sys.path.insert(0, os.path.split(__file__)[0])
-from messages_pb2 import CameraSettings, ImageSettings, LightSettings, RenderSettings, SceneElement, MeshInfo, VolumeInfo
+
+from messages_pb2 import (
+    CameraSettings, ImageSettings, 
+    LightSettings, Light,
+    RenderSettings, SceneElement, MeshInfo, VolumeInfo
+)
 
 HOST = 'localhost'
 PORT = 5909
@@ -370,10 +375,49 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         
         light_settings = LightSettings()
         
-        light_settings.sun_dir[:] = (-1, -1, -1)
-        light_settings.sun_intensity = 10.0
+        #light_settings.sun_dir[:] = (-1, -1, -1)
+        #light_settings.sun_intensity = 10.0
         
-        light_settings.ambient_intensity = 0.2
+        light_settings.ambient_intensity = 0       
+        
+        type2enum = dict(POINT=Light.POINT, SUN=Light.SUN, SPOT=Light.SPOT, AREA=Light.AREA)
+        
+        lights = []
+        for obj in scene.objects:
+            
+            if obj.type != 'LIGHT':
+                continue
+                
+            data = obj.data
+            xform = obj.matrix_world
+            properties = customproperties2dict(data)
+            
+            light = Light()
+            light.type = type2enum[data.type]
+            light.object2world[:] = matrix2list(xform)
+            
+            # XXX
+            light.color[:] = properties['color'] if 'color' in properties else (1.0, 1.0, 1.0)            
+            light.intensity = properties['intensity'] if 'intensity' in properties else 1.0   
+            light.visible = True
+            
+            if data.type != 'SUN':
+                light.position[:] = (xform[0][3], xform[1][3], xform[2][3])
+                
+            if data.type in ['SUN', 'SPOT']:
+                light.direction[:] = obj.matrix_world @ Vector((0, 0, -1)) - obj.location
+                
+            if data.type == 'SPOT':
+                #light.opening_angle = degrees(data.spot_size)
+                # XXX is defined differently
+                #light.penumbra_angle = light.penumbra_angle - data.spot_blend*data.spot_size
+                light.opening_angle = 15
+                light.penumbra_angle = 0.5  
+            
+            lights.append(light)
+                
+        # XXX assigning to lights[:] doesn't work
+        light_settings.lights.extend(lights)
 
         #
         # Send scene
@@ -391,9 +435,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         # Light settings
         send_protobuf(self.sock, light_settings)
         
-        # (Render settings)
-        
-        # Objects (meshes)
+        # Objects (meshes and volumes)
          
         for obj in scene.objects:
             

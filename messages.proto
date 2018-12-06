@@ -61,9 +61,38 @@ message RenderSettings
     repeated float  background_color = 2;   // RGB only atm
 }
 
+message Light 
+{
+    enum Type {
+        POINT = 0;
+        SUN = 1;
+        SPOT = 2;
+        AREA = 3;
+    }
+    
+    Type            type = 1;
+    repeated float  object2world = 2;
+    
+    // Common values
+    repeated float  color = 3;
+    float           intensity = 4;
+    bool            visible = 5;
+    
+    // Per-type values
+    repeated float  direction = 6;          // Directional, spot
+    float           angular_diameter = 7;   // Directional
+    repeated float  position = 8;           // Point/sphere, spot, quad
+    float           radius = 9;             // Point/sphere, spot
+    float           opening_angle = 10;     // Spot
+    float           penumbra_angle = 11;    // Spot
+    repeated float  edge1 = 12;             // Area/Quad
+    repeated float  edge2 = 13;             // Area/Quad
+}   
+
 message LightSettings
 {
-    repeated    float sun_dir = 1;
-    float       sun_intensity = 2;
-    float       ambient_intensity = 3;
+    float           ambient_intensity = 1;
+    
+    repeated Light  lights = 2;
 }
+

@@ -72,8 +72,6 @@ OSPRenderer     renderer;
 OSPFrameBuffer  framebuffer;
 bool            framebuffer_created = false;
 
-OSPLight        lights[2];                          // 0 = ambient, 1 = sun
-
 ImageSettings   image_settings;
 RenderSettings  render_settings;
 CameraSettings  camera_settings;
@@ -517,24 +515,61 @@ receive_scene(TCPSocket *sock)
     
     receive_protobuf(sock, light_settings);
     
-    // AO
-    lights[0] = ospNewLight3("ambient");
-    ospSet1f(lights[0], "intensity", light_settings.ambient_intensity());
-    ospCommit(lights[0]);
+    const int num_lights = light_settings.lights_size();
+    OSPLight *osp_lights = new OSPLight[num_lights+1];
+    OSPLight osp_light;
     
-    // Sun
-    float sun_dir[3];
-    sun_dir[0] = light_settings.sun_dir(0);
-    sun_dir[1] = light_settings.sun_dir(1);
-    sun_dir[2] = light_settings.sun_dir(2);
-
-    lights[1] = ospNewLight3("directional");
-    ospSet3fv(lights[1], "direction",  sun_dir);
-    ospSet1f(lights[1], "intensity", light_settings.sun_intensity());    
-    ospCommit(lights[1]);
+    for (int i = 0; i < num_lights; i++)
+    {
+        printf("Light %d\n", i);
+        
+        const Light& light = light_settings.lights(i);
+        
+        if (light.type() == Light::POINT)
+        {
+            osp_light = osp_lights[i] = ospNewLight3("point");
+        }
+        else if (light.type() == Light::SPOT)
+        {
+            osp_light = osp_lights[i] = ospNewLight3("spot");
+            ospSetf(osp_light, "openingAngle", light.opening_angle());
+            ospSetf(osp_light, "penumbraAngle", light.penumbra_angle());
+        }
+        else if (light.type() == Light::SUN)
+        {
+            osp_light = osp_lights[i] = ospNewLight3("directional");
+            ospSetf(osp_light, "angularDiameter", light.angular_diameter());
+        }
+        else if (light.type() == Light::AREA)            
+        {
+            // XXX blender's area light is more general than ospray quad light
+            osp_light = osp_lights[i] = ospNewLight3("quad");
+        }
+        //else
+        // XXX HDRI
+        
+        ospSet3f(osp_light, "color", light.color(0), light.color(1), light.color(2));
+        ospSet1f(osp_light, "intensity", light.intensity());    
+        ospSet1b(osp_light, "isVisible", light.visible());                      
+        
+        if (light.type() != Light::SUN)
+            ospSet3f(osp_light, "position", light.position(0), light.position(1), light.position(2));
+        
+        if (light.type() == Light::SUN || light.type() == Light::SPOT)
+            ospSet3f(osp_light, "direction", light.direction(0), light.direction(1), light.direction(2));
+        
+        if (light.type() == Light::POINT || light.type() == Light::SPOT)
+            ospSetf(osp_light, "radius", light.radius());
+        
+        ospCommit(osp_light);      
+    }
     
-    // All lights
-    OSPData light_data = ospNewData(2, OSP_LIGHT, &lights);  
+    // Ambient
+    osp_lights[num_lights] = ospNewLight3("ambient");
+    ospSet1f(osp_lights[num_lights], "intensity", light_settings.ambient_intensity());
+    ospCommit(osp_lights[num_lights]);
+    
+    OSPData light_data = ospNewData(num_lights+1, OSP_LIGHT, osp_lights);  
     ospCommit(light_data);
     
     ospSetObject(renderer, "lights", light_data); 
