@@ -56,6 +56,7 @@ def customproperties2dict(obj):
     return properties
     
 def send_protobuf(sock, pb, sendall=False):
+    """Serialize a protobuf object and send it on the socket"""
     s = pb.SerializeToString()
     sock.send(pack('<I', len(s)))
     if sendall:

@@ -3,6 +3,10 @@ Ospray render server for blospray
 
 Paul Melis, SURFsara <paul.melis@surfsara.nl>
 Copyright (C) 2017-2018
+
+This source file started out as a copy of ospTutorial.c (although not
+much is left of it), as distributed in the OSPRay source code. 
+Hence the original copyright message below.
 */
 
 // ======================================================================== //
@@ -21,15 +25,6 @@ Copyright (C) 2017-2018
 // limitations under the License.                                           //
 // ======================================================================== //
 
-
-/* This is a small example tutorial how to use OSPRay in an application.
- *
- * On Linux build it in the build_directory with
- *   g++ ../apps/ospTutorial.cpp -I ../ospray/include -I .. ./libospray.so -Wl,-rpath,. -o ospTutorial
- * On Windows build it in the build_directory\$Configuration with
- *   cl ..\..\apps\ospTutorial.cpp /EHsc -I ..\..\ospray\include -I ..\.. ospray.lib
- */
-
 #include <stdint.h>
 #include <cstdio>
 #include <cstdlib>
@@ -43,6 +38,7 @@ Copyright (C) 2017-2018
 #include <unistd.h>
 #include <dlfcn.h>
 #ifdef _WIN32
+#  error "Windows is completely untested at the moment!"
 #  include <malloc.h>
 #else
 #  include <alloca.h>
@@ -78,12 +74,22 @@ bool            framebuffer_created = false;
 
 OSPLight        lights[2];                          // 0 = ambient, 1 = sun
 
+ImageSettings   image_settings;
+RenderSettings  render_settings;
+CameraSettings  camera_settings;
+LightSettings   light_settings;
+
 // Volume loaders
 
 typedef OSPVolume   (*volume_load_function)(json &parameters, const float *obj2world, float *bbox);
 
 typedef std::map<std::string, volume_load_function>     VolumeLoadFunctionMap;
 VolumeLoadFunctionMap                                   volume_load_functions;
+
+std::vector<char>       receive_buffer;
+
+std::vector<float>      vertex_buffer;
+std::vector<uint32_t>   triangle_buffer;
 
 // Utility
 
@@ -112,158 +118,6 @@ get_sha1(const std::string& p_arg)
 
     return std::string(buf);
 }
-
-
-
-void 
-clear_scene()
-{
-    
-}
-
-#if 0
-void
-create_scene(int max_rbcs, int max_plts)
-{    
-    // Do instancing
-  
-    OSPGeometry     instance;
-    osp::affine3f   xform;
-    
-    glm::mat4       R;
-    float           *M;
-  
-    uint32_t  num_rbc, num_plt, num_wbc;
-    float     tx, ty, tz, rx, ry, rz;
-    //float     A, B, C, D, E, F, AD, BD;
-  
-    FILE *p = fopen("cells.bin", "rb");
-    fread(&num_rbc, sizeof(uint32_t), 1, p);
-    fread(&num_plt, sizeof(uint32_t), 1, p);
-    fread(&num_wbc, sizeof(uint32_t), 1, p);
-    printf("On-disk scene: %d rbc, %d plt, %d wbc\n", num_rbc, num_plt, num_wbc);
-
-    // Directly add mesh (no instancing)
-    //ospAddGeometry(world, mesh);
-    
-    // Instance RBCs & PLTs
-    
-    if (max_rbcs == -1)
-        max_rbcs = num_rbc;
-    
-    printf("Adding %d RBCs\n", max_rbcs);    
-      
-    for (int i = 0; i < max_rbcs; i++)
-    {      
-        fread(&tx, sizeof(float), 1, p);
-        fread(&ty, sizeof(float), 1, p);
-        fread(&tz, sizeof(float), 1, p);
-        fread(&rx, sizeof(float), 1, p);
-        fread(&ry, sizeof(float), 1, p);
-        fread(&rz, sizeof(float), 1, p);
-        
-        R = glm::rotate(glm::mat4(1.0f), glm::radians(rx), glm::vec3(1,0,0));
-        R = glm::rotate(R, glm::radians(ry), glm::vec3(0,1,0));
-        R = glm::rotate(R, glm::radians(rz), glm::vec3(0,0,1));
-
-        M = glm::value_ptr(R);
-
-        xform.l.vx.x = M[0];
-        xform.l.vx.y = M[1];
-        xform.l.vx.z = M[2];
-
-        xform.l.vy.x = M[4];
-        xform.l.vy.y = M[5];
-        xform.l.vy.z = M[6];
-
-        xform.l.vz.x = M[8];
-        xform.l.vz.y = M[9];
-        xform.l.vz.z = M[10];
-
-        xform.p = { tx, ty, tz };
-
-        // Add instance
-        instance = ospNewInstance(mesh_model_rbc, xform);
-        
-        ospAddGeometry(world, instance);
-    }    
-    
-    // Skip remaining RBCs in scene file
-    
-    for (int i = 0; i < num_rbc-max_rbcs; i++)
-    {      
-        fread(&tx, sizeof(float), 1, p);
-        fread(&ty, sizeof(float), 1, p);
-        fread(&tz, sizeof(float), 1, p);
-        fread(&rx, sizeof(float), 1, p);
-        fread(&ry, sizeof(float), 1, p);
-        fread(&rz, sizeof(float), 1, p);
-    }
-    
-    if (max_plts == -1)
-        max_plts = num_plt;
-    
-    printf("Adding %d PLTs\n", max_plts);
-      
-    for (int i = 0; i < max_plts; i++)
-    {      
-        fread(&tx, sizeof(float), 1, p);
-        fread(&ty, sizeof(float), 1, p);
-        fread(&tz, sizeof(float), 1, p);
-        fread(&rx, sizeof(float), 1, p);
-        fread(&ry, sizeof(float), 1, p);
-        fread(&rz, sizeof(float), 1, p);
-
-        R = glm::rotate(glm::mat4(1.0f), glm::radians(rx), glm::vec3(1,0,0));
-        R = glm::rotate(R, glm::radians(ry), glm::vec3(0,1,0));
-        R = glm::rotate(R, glm::radians(rz), glm::vec3(0,0,1));
-
-        /*glm::mat4 T = glm::translate(
-        glm::mat4(1.0f), glm::vec3(tx, ty, tz)
-        );*/
-
-        M = glm::value_ptr(R);
-
-        xform.l.vx.x = M[0];
-        xform.l.vx.y = M[1];
-        xform.l.vx.z = M[2];
-
-        xform.l.vy.x = M[4];
-        xform.l.vy.y = M[5];
-        xform.l.vy.z = M[6];
-
-        xform.l.vz.x = M[8];
-        xform.l.vz.y = M[9];
-        xform.l.vz.z = M[10];
-
-        xform.p = { tx, ty, tz };
-
-        // Add instance
-        instance = ospNewInstance(mesh_model_plt, xform);
-        
-        ospAddGeometry(world, instance);
-    }        
-    
-    fclose(p);        
-    
-    // Add ground plane
-    add_ground_plane();
-            
-    ospCommit(world);
-    
-    printf("Data loaded...\n");
-}
-#endif
-
-std::vector<char>   receive_buffer;
-
-std::vector<float>      vertex_buffer;
-std::vector<uint32_t>   triangle_buffer;
-
-ImageSettings   image_settings;
-RenderSettings  render_settings;
-CameraSettings  camera_settings;
-LightSettings   light_settings;
 
 template<typename T>
 bool
@@ -304,6 +158,8 @@ object2world_from_protobuf(float *matrix, T& protobuf)
     for (int i = 0; i < 16; i++)
         matrix[i] = protobuf.object2world(i);   
 }
+
+// Receive methods
 
 bool
 receive_mesh(TCPSocket *sock)
@@ -378,8 +234,7 @@ receive_volume(TCPSocket *sock)
     // Custom properties
     
     const char *encoded_properties = volume_info.properties().c_str();
-        
-    printf("Received volume properties:\n%s\n", encoded_properties);
+    //printf("Received volume properties:\n%s\n", encoded_properties);
     
     json properties = json::parse(encoded_properties);
     
@@ -398,7 +253,7 @@ receive_volume(TCPSocket *sock)
         
         std::string plugin_name = "voltype_" + voltype + ".so";
         
-        printf("Opening %s\n", plugin_name.c_str());
+        printf("Loading plugin %s\n", plugin_name.c_str());
         
         void *plugin = dlopen(plugin_name.c_str(), RTLD_LAZY);
         
@@ -438,7 +293,7 @@ receive_volume(TCPSocket *sock)
     volume = load_function(properties, obj2world, bbox);
     
     gettimeofday(&t1, NULL);
-    printf("Load function done, took %.3fs\n", time_diff(t0, t1));
+    printf("Load function executed in %.3fs\n", time_diff(t0, t1));
 
 #if 0
     // See https://github.com/ospray/ospray/pull/165, support for volume transformations was reverted
@@ -471,20 +326,20 @@ receive_volume(TCPSocket *sock)
 
     OSPTransferFunction tf = ospNewTransferFunction("piecewise_linear");
     
-    if (properties.find("data_range") != properties.end())
-    {
-        float minval = properties["data_range"][0];
-        float maxval = properties["data_range"][1];
-        ospSet2f(tf, "valueRange", minval, maxval);
-    }
-    
-    OSPData color_data = ospNewData(cool2warm_entries, OSP_FLOAT3, tf_colors);
-    ospSetData(tf, "colors", color_data);
-    ospRelease(color_data);
-    
-    OSPData opacity_data = ospNewData(cool2warm_entries, OSP_FLOAT, tf_opacities);
-    ospSetData(tf, "opacities", opacity_data);
-    ospRelease(opacity_data);
+        if (properties.find("data_range") != properties.end())
+        {
+            float minval = properties["data_range"][0];
+            float maxval = properties["data_range"][1];
+            ospSet2f(tf, "valueRange", minval, maxval);
+        }
+        
+        OSPData color_data = ospNewData(cool2warm_entries, OSP_FLOAT3, tf_colors);
+        ospSetData(tf, "colors", color_data);
+        ospRelease(color_data);
+        
+        OSPData opacity_data = ospNewData(cool2warm_entries, OSP_FLOAT, tf_opacities);
+        ospSetData(tf, "opacities", opacity_data);
+        ospRelease(opacity_data);
     
     ospCommit(tf);
     
@@ -566,38 +421,6 @@ receive_volume(TCPSocket *sock)
         ospAddVolume(world, volume);
         ospRelease(volume);
     }
-
-    
-    /*
-    OSPModel model = ospNewModel();
-        ospAddGeometry(model, isosurface);
-    ospCommit(model);
-    //ospRelease(isosurface);
-    
-    // XXX hmm, get a segfault in ospray (null pointer it seems) when
-    // instantiating the isosurfaces. This only happens on the 2nd blender render
-    osp::affine3f    xform;
-    
-    xform.l.vx.x = obj2world[0];
-    xform.l.vx.y = obj2world[4];
-    xform.l.vx.z = obj2world[8];
-    
-    xform.l.vy.x = obj2world[1];
-    xform.l.vy.y = obj2world[5];
-    xform.l.vy.z = obj2world[9];
-    
-    xform.l.vz.x = obj2world[2];
-    xform.l.vz.y = obj2world[6];
-    xform.l.vz.z = obj2world[10];
-    
-    xform.p.x = obj2world[3];
-    xform.p.y = obj2world[7];
-    xform.p.z = obj2world[11];
-    
-    OSPGeometry imodel = ospNewInstance(model, xform);
-    ospAddGeometry(world, imodel);
-    //ospRelease(imodel);
-    */
 
     // Send back hash and bbox of loaded volume
     // XXX use protobuf
@@ -749,6 +572,7 @@ receive_scene(TCPSocket *sock)
     return true;
 }
 
+// Render
 
 void
 render_frame(bool clear=true)
@@ -771,6 +595,8 @@ render_frame(bool clear=true)
     printf("Frame in %.3f seconds\n", time_diff(t0, t1));
 }
 
+// Send result
+
 void 
 send_framebuffer(TCPSocket *sock)
 {
@@ -792,7 +618,7 @@ send_framebuffer(TCPSocket *sock)
     
     stat(FBFILE, &st);
     
-    printf("Sending framebuffer as OpenEXR file, %d byte\n", st.st_size);
+    printf("Sending framebuffer as OpenEXR file, %d bytes\n", st.st_size);
     
     bufsize = st.st_size;
     sock->send((uint8_t*)&bufsize, 4);
@@ -814,6 +640,7 @@ send_framebuffer(TCPSocket *sock)
     printf("Sent framebuffer in %.3f seconds\n", time_diff(t0, t1));
 }
 
+// Main
 
 int 
 main(int argc, const char **argv) 
@@ -826,37 +653,21 @@ main(int argc, const char **argv)
     // OSPRay parses (and removes) its commandline parameters, e.g. "--osp:debug"
     ospInit(&argc, argv);
     
-    // Parse options
-    namespace po = boost::program_options;
-    
-    // Declare the supported options.
-    po::options_description desc("Allowed options");
-    desc.add_options()
-        ("help",        "produce help message")
-    ;
-    
-    po::variables_map vm;
-    po::store(po::parse_command_line(argc, argv, desc), vm);
-    po::notify(vm);      
-    
-    if (vm.count("help")) {
-        std::cout << desc << "\n";
-        return 1;
-    }    
-        
-    // Server loop
-
     // Framebuffer "init"
     image_size.x = image_size.y = 0;
     framebuffer_created = false;
     
-    TCPSocket   *listen_sock, *sock;
+    // Server loop
+    
+    TCPSocket *listen_sock;
     
     listen_sock = new TCPSocket;
     listen_sock->bind(PORT);
     listen_sock->listen(1);
     
-    printf("Listening...\n");
+    printf("Listening...\n");    
+    
+    TCPSocket *sock;
     
     while (true)
     {            
