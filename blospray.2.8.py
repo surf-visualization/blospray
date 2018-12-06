@@ -27,7 +27,7 @@ PORT = 5909
 #         (0.0, 0.0, 0.013929054141044617, 0.0),
 #         (0.0, 0.0, 0.0, 1.0)))
 #
-# Translation part in right-most column
+# Translation part is in right-most column
 
 def matrix2list(m):
     """Convert to list of 16 floats"""
@@ -50,6 +50,7 @@ def customproperties2dict(obj):
             properties[k] = v
             
     if 'file' in properties:
+        # XXX might not always be called 'file'
         # //... -> full path
         properties['file'] = bpy.path.abspath(properties['file'])
         
@@ -62,7 +63,7 @@ def send_protobuf(sock, pb, sendall=False):
     if sendall:
         sock.sendall(s) 
     else:
-        sock.send(s) 
+        sock.send(s)
 
 class OsprayRenderEngine(bpy.types.RenderEngine):
     # These three members are used by blender to set up the
@@ -299,56 +300,58 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         perc = scene.render.resolution_percentage
         perc = perc / 100
 
-        # XXX should pass full resolution in img below
+        # XXX should pass full resolution in image_settings below
         self.width = int(scene.render.resolution_x * perc)
         self.height = int(scene.render.resolution_y * perc)
         
         aspect = self.width / self.height
         
-        img = ImageSettings()
-        img.width = self.width
-        img.height = self.height
-        img.percentage = scene.render.resolution_percentage
+        image_settings = ImageSettings()
+        image_settings.width = self.width
+        image_settings.height = self.height
+        image_settings.percentage = scene.render.resolution_percentage
 
         # Camera
         
-        camobj = scene.camera
-        camdata = camobj.data
-        
-        cam_xform = camobj.matrix_world
+        cam_obj = scene.camera        
+        cam_xform = cam_obj.matrix_world
+        cam_data = cam_obj.data
 
-        cam = CameraSettings()
-        cam.position[:] = list(camobj.location)
-        cam.view_dir[:] = list(cam_xform @ Vector((0, 0, -1)) - camobj.location)
-        cam.up_dir[:] = list(cam_xform @ Vector((0, 1, 0)) - camobj.location)
+        camera_settings = CameraSettings()
+        camera_settings.position[:] = list(cam_obj.location)
+        camera_settings.view_dir[:] = list(cam_xform @ Vector((0, 0, -1)) - cam_obj.location)
+        camera_settings.up_dir[:] = list(cam_xform @ Vector((0, 1, 0)) - cam_obj.location)
 
         # Get camera FOV (in radians)
-        hfov = camdata.angle   
+        hfov = cam_data.angle   
         image_plane_width = 2 * tan(hfov/2)
         image_plane_height = image_plane_width / aspect
         vfov = 2*atan(image_plane_height/2)
-        cam.fov_y = degrees(vfov)
+        camera_settings.fov_y = degrees(vfov)
         
         # DoF
-        if camdata.dof_object is not None:
-            cam.dof_focus_distance = (camdata.dof_object.location - camobj.location).length
+        if cam_data.dof_object is not None:
+            camera_settings.dof_focus_distance = (cam_data.dof_object.location - cam_obj.location).length
         else:
-            cam.dof_focus_distance = camdata.dof_distance
+            camera_settings.dof_focus_distance = cam_data.dof_distance
             
-        cam.dof_aperture = 0.0
-        if 'aperture' in camdata:
-            cam.dof_aperture = camdata['aperture']
+        camera_settings.dof_aperture = 0.0
+        if 'aperture' in cam_data:
+            camera_settings.dof_aperture = cam_data['aperture']
             
         # Render settings
         
-        render = RenderSettings()
-        render.samples = 4
+        render_settings = RenderSettings()
+        render_settings.samples = 4
+        # XXX this is a hack, as it doesn't specify the alpha value, only rgb
+        # World -> Viewport Display -> Color
+        render_settings.background_color[:] = scene.world.color
         
         # XXX For now, use property on the camera
-        if 'samples' in camdata:
-            render.samples = camdata['samples']
+        if 'samples' in cam_data:
+            render_settings.samples = cam_data['samples']
             
-        self.render_samples = render.samples
+        self.render_samples = render_settings.samples
 
         # Lights
 
@@ -365,28 +368,28 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         ambient_intensity = ambient_data.node_tree.nodes["Emission"].inputs[1].default_value
         """
         
-        lght = LightSettings()
+        light_settings = LightSettings()
         
-        lght.sun_dir[:] = (-1, -1, -1)
-        lght.sun_intensity = 10.0
+        light_settings.sun_dir[:] = (-1, -1, -1)
+        light_settings.sun_intensity = 10.0
         
-        lght.ambient_intensity = 0.2
+        light_settings.ambient_intensity = 0.2
 
         #
         # Send scene
         #
         
         # Image settings
-        send_protobuf(self.sock, img)
+        send_protobuf(self.sock, image_settings)
         
         # Render settings        
-        send_protobuf(self.sock, render)
+        send_protobuf(self.sock, render_settings)
         
         # Camera settings
-        send_protobuf(self.sock, cam)
+        send_protobuf(self.sock, camera_settings)
             
         # Light settings
-        send_protobuf(self.sock, lght)
+        send_protobuf(self.sock, light_settings)
         
         # (Render settings)
         

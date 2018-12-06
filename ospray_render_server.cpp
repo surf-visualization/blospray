@@ -446,11 +446,9 @@ receive_scene(TCPSocket *sock)
     
     renderer = ospNewRenderer("scivis"); 
     
-    float bgcol[] = { 1, 1, 1, 1 };
-    
     ospSet1i(renderer, "aoSamples", 2);
     ospSet1i(renderer, "shadowsEnabled", 1);
-    ospSet4fv(renderer, "bgColor", bgcol);
+    
         
     // Create/update framebuffer
     
@@ -473,6 +471,12 @@ receive_scene(TCPSocket *sock)
     // Render settings
     
     receive_protobuf(sock, render_settings);
+    
+    ospSet4f(renderer, "bgColor", 
+        render_settings.background_color(0),
+        render_settings.background_color(1),
+        render_settings.background_color(2),
+        1.0f);
 
     // Update camera
     
@@ -586,13 +590,10 @@ render_frame(bool clear=true)
         ospFrameBufferClear(framebuffer, OSP_FB_COLOR | OSP_FB_ACCUM);
     }
 
-    // Render N samples
     ospRenderFrame(framebuffer, renderer, OSP_FB_COLOR | OSP_FB_ACCUM);
-    //for (int i = 0; i < 8; i++)
-    //    ospRenderFrame(framebuffer, renderer, OSP_FB_COLOR | OSP_FB_ACCUM);
     
     gettimeofday(&t1, NULL);
-    printf("Frame in %.3f seconds\n", time_diff(t0, t1));
+    printf("Rendered frame in %.3f seconds\n", time_diff(t0, t1));
 }
 
 // Send result
