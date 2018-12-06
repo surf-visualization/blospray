@@ -15,10 +15,53 @@ from struct import pack, unpack
 import numpy
 
 sys.path.insert(0, os.path.split(__file__)[0])
-from messages_pb2 import CameraSettings, ImageSettings, LightSettings, RenderSettings
+from messages_pb2 import CameraSettings, ImageSettings, LightSettings, RenderSettings, SceneElement, MeshInfo, VolumeInfo
 
 HOST = 'localhost'
 PORT = 5909
+
+# Object to world matrix
+#
+# Matrix(((0.013929054141044617, 0.0, 0.0, -0.8794544339179993),
+#         (0.0, 0.013929054141044617, 0.0, -0.8227154612541199),
+#         (0.0, 0.0, 0.013929054141044617, 0.0),
+#         (0.0, 0.0, 0.0, 1.0)))
+#
+# Translation part in right-most column
+
+def matrix2list(m):
+    """Convert to list of 16 floats"""
+    values = []
+    for row in m:
+        values.extend(list(row))
+    return values
+    
+def customproperties2dict(obj):
+    user_keys = [k for k in obj.keys() if k[0] != '_']
+    properties = {}
+    for k in user_keys:
+        v = obj[k]
+        if hasattr(v, 'to_dict'):
+            properties[k] = v.to_dict()
+        elif hasattr(v, 'to_list'):
+            properties[k] = v.to_list()
+        else:
+            # XXX assumes simple type that can be serialized to json
+            properties[k] = v
+            
+    if 'file' in properties:
+        # //... -> full path
+        properties['file'] = bpy.path.abspath(properties['file'])
+        
+    return properties
+    
+def send_protobuf(sock, pb, sendall=False):
+    s = pb.SerializeToString()
+    sock.send(pack('<I', len(s)))
+    if sendall:
+        sock.sendall(s) 
+    else:
+        sock.send(s) 
 
 class OsprayRenderEngine(bpy.types.RenderEngine):
     # These three members are used by blender to set up the
@@ -182,51 +225,26 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
     #
     
     def export_volume(self, obj, data, depsgraph):
+    
+        element = SceneElement()
+        element.type = SceneElement.VOLUME
+        element.name = obj.name
         
-        self.sock.send(b'V')
+        send_protobuf(self.sock, element)        
         
-        # Object to world matrix
-        #
-        # Matrix(((0.013929054141044617, 0.0, 0.0, -0.8794544339179993),
-        #         (0.0, 0.013929054141044617, 0.0, -0.8227154612541199),
-        #         (0.0, 0.0, 0.013929054141044617, 0.0),
-        #         (0.0, 0.0, 0.0, 1.0)))
-        #
-        # Translation part in right-most column
-        obj2world = obj.matrix_world
+        volume = VolumeInfo()
+        volume.object2world[:] = matrix2list(obj.matrix_world)
+        properties = customproperties2dict(obj)
+        volume.properties = json.dumps(properties)
         
-        # Send row by row
-        for row in obj2world:
-            values = list(row)
-            self.sock.send(pack('<ffff', *values))
-        
-        # Custom properties
-        user_keys = [k for k in obj.keys() if k[0] != '_']
-        properties = {}
-        for k in user_keys:
-            v = obj[k]
-            if hasattr(v, 'to_dict'):
-                properties[k] = v.to_dict()
-            elif hasattr(v, 'to_list'):
-                properties[k] = v.to_list()
-            else:
-                # XXX assumes simple type that can be serialized to json
-                properties[k] = v
-                
-        if 'file' in properties:
-            # //... -> full path
-            properties['file'] = bpy.path.abspath(properties['file'])
-                
         print('Sending properties:')
         print(properties)
         
-        propjson = json.dumps(properties)
-
-        self.sock.send(pack('<I', len(propjson)))
-        self.sock.sendall(propjson.encode('utf8'))
+        send_protobuf(self.sock, volume)
         
         # Wait for volume to be loaded on the server, signaled by receiving 
         # the ID on the server assigned to this volume
+        # XXX use protobuf message
         
         id = self.sock.recv(40)
         while len(id) < 40:
@@ -358,28 +376,16 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         #
         
         # Image settings
+        send_protobuf(self.sock, img)
         
-        s = img.SerializeToString()
-        self.sock.send(pack('<I', len(s)))
-        self.sock.send(s)
-        
-        # Render settings
-        
-        s = render.SerializeToString()
-        self.sock.send(pack('<I', len(s)))
-        self.sock.send(s)
+        # Render settings        
+        send_protobuf(self.sock, render)
         
         # Camera settings
-        
-        s = cam.SerializeToString()
-        self.sock.send(pack('<I', len(s)))
-        self.sock.send(s)
+        send_protobuf(self.sock, cam)
             
         # Light settings
-        
-        s = lght.SerializeToString()
-        self.sock.send(pack('<I', len(s)))
-        self.sock.send(s)
+        send_protobuf(self.sock, lght)
         
         # (Render settings)
         
@@ -400,31 +406,53 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
                 self.export_volume(obj, data, depsgraph)
                 continue
                 
-            # Mesh
+            # Object with mesh data
                 
-            self.sock.send(b'M')
+            element = SceneElement()
+            element.type = SceneElement.MESH
+            element.name = obj.name
+            
+            send_protobuf(self.sock, element)
                 
-            obj2world = obj.matrix_world
-                
+            # Mesh info
+            
             mesh = obj.data
+            
+            mesh_info = MeshInfo()
+            mesh_info.flags = 0
+            mesh_info.object2world[:] = matrix2list(obj.matrix_world)
+            mesh_info.properties = json.dumps(customproperties2dict(mesh))
+            
+            # Turn geometry into triangles
+            # XXX handle modifiers
+            
             mesh.calc_loop_triangles()
             
-            nv = len(mesh.vertices)
-            nt = len(mesh.loop_triangles)
-            print('Object %s %d v, %d t' % (obj.name, nv, nt))
+            nv = mesh_info.num_vertices = len(mesh.vertices)
+            nt = mesh_info.num_triangles = len(mesh.loop_triangles)
             
-            self.sock.send(pack('<II', nv, nt))
+            print('Object %s - Mesh %s: %d v, %d t' % (obj.name, mesh.name, nv, nt))
+            
+            send_protobuf(self.sock, mesh_info)
             
             # Send vertices
             
             vertices = numpy.empty(nv*3, dtype=numpy.float32)
+            normals = numpy.empty(nv*3, dtype=numpy.float32)
+
+            # XXX note that we apply the object2world transform here
+            #pos = obj2world @ v.co
             
             for idx, v in enumerate(mesh.vertices):
-                # XXX note that we apply the object2world transform here
-                pos = obj2world @ v.co
-                vertices[3*idx+0] = pos.x
-                vertices[3*idx+1] = pos.y
-                vertices[3*idx+2] = pos.z
+                p = v.co
+                vertices[3*idx+0] = p.x
+                vertices[3*idx+1] = p.y
+                vertices[3*idx+2] = p.z
+                
+                n = v.normal
+                normals[3*idx+0] = n.x
+                normals[3*idx+1] = n.y
+                normals[3*idx+2] = n.z
                 
             self.sock.send(vertices.tobytes())
 
@@ -440,9 +468,10 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             self.sock.send(triangles.tobytes())
                         
         # Signal last data was sent!
-        self.sock.sendall(b'!')
-
-
+        
+        element = SceneElement()
+        element.type = SceneElement.NONE
+        send_protobuf(self.sock, element)
             
     # If the two view_... methods are defined the interactive rendered
     # mode becomes available
@@ -572,6 +601,19 @@ enabled_panels = {
         'DATA_PT_light',
         #'DATA_PT_preview',
         'DATA_PT_spot'
+    ],
+    
+    properties_data_mesh : [
+        #'DATA_PT_context_mesh',
+        'DATA_PT_custom_props_mesh',
+        #'DATA_PT_customdata',
+        #'DATA_PT_face_maps',
+        'DATA_PT_normals',
+        #'DATA_PT_shape_keys',
+        #'DATA_PT_texture_space',
+        #'DATA_PT_uv_texture',
+        'DATA_PT_vertex_colors',
+        #'DATA_PT_vertex_groups',
     ],
     
     properties_world : [

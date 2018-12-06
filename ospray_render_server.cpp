@@ -114,6 +114,7 @@ get_sha1(const std::string& p_arg)
 }
 
 
+
 void 
 clear_scene()
 {
@@ -266,7 +267,7 @@ LightSettings   light_settings;
 
 template<typename T>
 bool
-receive_settings(TCPSocket *sock, T& settings)
+receive_protobuf(TCPSocket *sock, T& protobuf)
 {
     uint32_t message_size;
     
@@ -275,55 +276,87 @@ receive_settings(TCPSocket *sock, T& settings)
     
     receive_buffer.clear();
     receive_buffer.reserve(message_size);
-    
+        
     if (sock->recvall(&receive_buffer[0], message_size) == -1)
         return false;
     
     // XXX this probably makes a copy?
     std::string message(&receive_buffer[0], message_size);
     
-    settings.ParseFromString(message);
+    protobuf.ParseFromString(message);
     
     return true;
+}
+
+void
+affine3f_from_matrix(osp::affine3f& xform, float *m)
+{
+    xform.l.vx = osp::vec3f{ m[0], m[4], m[8] };
+    xform.l.vy = osp::vec3f{ m[1], m[5], m[9] };
+    xform.l.vz = osp::vec3f{ m[2], m[6], m[10] };
+    xform.p = osp::vec3f{ m[3], m[7], m[11] };
+}
+
+template<typename T>
+void
+object2world_from_protobuf(float *matrix, T& protobuf)
+{
+    for (int i = 0; i < 16; i++)
+        matrix[i] = protobuf.object2world(i);   
 }
 
 bool
 receive_mesh(TCPSocket *sock)
 {
-    uint32_t num_vertices, num_triangles;
+    MeshInfo    mesh_info;
     
-    if (sock->recvall(&num_vertices, 4) == -1)
-        return false;
-    if (sock->recvall(&num_triangles, 4) == -1)
+    if (!receive_protobuf(sock, mesh_info))
         return false;
     
-    printf("New triangle mesh: %d vertices, %d triangles\n", num_vertices, num_triangles);
+    uint32_t nv, nt;
     
-    vertex_buffer.reserve(num_vertices*3);
-    triangle_buffer.reserve(num_triangles*3);
+    nv = mesh_info.num_vertices();
+    nt = mesh_info.num_triangles();
     
-    if (sock->recvall(&vertex_buffer[0], num_vertices*3*sizeof(float)) == -1)
+    printf("New triangle mesh: %d vertices, %d triangles\n", nv, nt);
+    
+    vertex_buffer.reserve(nv*3);
+    triangle_buffer.reserve(nt*3);
+    
+    if (sock->recvall(&vertex_buffer[0], nv*3*sizeof(float)) == -1)
         return false;
-    if (sock->recvall(&triangle_buffer[0], num_triangles*3*sizeof(uint32_t)) == -1)
+    if (sock->recvall(&triangle_buffer[0], nt*3*sizeof(uint32_t)) == -1)
         return false;
     
     OSPGeometry mesh = ospNewGeometry("triangles");
   
-        OSPData data = ospNewData(num_vertices, OSP_FLOAT3, &vertex_buffer[0]);   
+        OSPData data = ospNewData(nv, OSP_FLOAT3, &vertex_buffer[0]);   
         ospCommit(data);
         ospSetData(mesh, "vertex", data);
 
-        //data = ospNewData(num_vertices, OSP_FLOAT4, colors);
+        //data = ospNewData(nv, OSP_FLOAT4, colors);
         //ospCommit(data);
         //ospSetData(mesh, "vertex.color", data);
 
-        data = ospNewData(num_triangles, OSP_INT3, &triangle_buffer[0]);            
+        data = ospNewData(nt, OSP_INT3, &triangle_buffer[0]);            
         ospCommit(data);
         ospSetData(mesh, "index", data);
 
     ospCommit(mesh);
     
-    ospAddGeometry(world, mesh);    
+    OSPModel model = ospNewModel();
+    ospAddGeometry(model, mesh);
+    ospRelease(mesh);
+
+    float obj2world[16];
+    osp::affine3f xform;
+    
+    object2world_from_protobuf(obj2world, mesh_info);
+    affine3f_from_matrix(xform, obj2world);
+    
+    OSPGeometry instance = ospNewInstance(model, xform);    
+    ospAddGeometry(world, instance);    
+    ospRelease(instance);
     
     return true;
 }
@@ -331,27 +364,22 @@ receive_mesh(TCPSocket *sock)
 bool
 receive_volume(TCPSocket *sock)
 {
-    uint32_t    properties_size;
-    float       obj2world[16];
+    VolumeInfo volume_info;
+    
+    if (!receive_protobuf(sock, volume_info))
+        return false;    
     
     // Object-to-world matrix
     
-    if (sock->recvall(&obj2world, 16*sizeof(float)) == -1)
-        return false;   
+    float obj2world[16];
     
+    object2world_from_protobuf(obj2world, volume_info);
+
     // Custom properties
     
-    if (sock->recvall(&properties_size, 4) == -1)
-        return false;
-    
-    std::string encoded_properties(properties_size, ' ');
-    
-    if (sock->recvall(&encoded_properties[0], properties_size) == -1)
-        return false;
-    
-    printf("%d\n", encoded_properties.size());
-    
-    printf("Receive volume properties:\n%s\n", encoded_properties.c_str());
+    const char *encoded_properties = volume_info.properties().c_str();
+        
+    printf("Received volume properties:\n%s\n", encoded_properties);
     
     json properties = json::parse(encoded_properties);
     
@@ -572,6 +600,7 @@ receive_volume(TCPSocket *sock)
     */
 
     // Send back hash and bbox of loaded volume
+    // XXX use protobuf
     
     std::string hash = get_sha1(encoded_properties);
     
@@ -604,7 +633,7 @@ receive_scene(TCPSocket *sock)
     
     // XXX use percentage value? or is that handled in the blender side?
     
-    receive_settings(sock, image_settings);
+    receive_protobuf(sock, image_settings);
     
     if (image_size.x != image_settings.width() || image_size.y != image_settings.height())
     {
@@ -620,11 +649,11 @@ receive_scene(TCPSocket *sock)
     
     // Render settings
     
-    receive_settings(sock, render_settings);
+    receive_protobuf(sock, render_settings);
 
     // Update camera
     
-    receive_settings(sock, camera_settings);
+    receive_protobuf(sock, camera_settings);
     
     float cam_pos[3], cam_viewdir[3], cam_updir[3];
     
@@ -659,7 +688,7 @@ receive_scene(TCPSocket *sock)
     
     // Lights
     
-    receive_settings(sock, light_settings);
+    receive_protobuf(sock, light_settings);
     
     // AO
     lights[0] = ospNewLight3("ambient");
@@ -684,31 +713,29 @@ receive_scene(TCPSocket *sock)
     ospSetObject(renderer, "lights", light_data); 
     
     // Setup world and scene objects
-
+    
     world = ospNewModel();
     
-    char    data_type;
+    SceneElement element;
     
-    while (true)
+    // XXX check return value
+    receive_protobuf(sock, element);
+    
+    while (element.type() != SceneElement::NONE)
     {
-        if (sock->recvall(&data_type, 1) == -1)
-            return false;
-        
-        if (data_type == 'M')
+        if (element.type() == SceneElement::MESH)
         {
             if (!receive_mesh(sock))
                 return false;
         }
-        else if (data_type == 'V')
+        else if (element.type() == SceneElement::VOLUME)
         {
             if (!receive_volume(sock))
                 return false;
         }
-        else if (data_type == '!')
-        {
-            // No more objects
-            break;
-        }
+        // else XXX
+        
+        receive_protobuf(sock, element);
     }
     
     ospCommit(world);

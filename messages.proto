@@ -1,5 +1,39 @@
 syntax = "proto3";
 
+// Scene
+
+message SceneElement
+{   
+    enum Type {
+        NONE = 0;
+        MESH = 1;
+        VOLUME = 2;
+    }
+    
+    Type    type = 1;
+    string  name = 2;
+}
+
+message MeshInfo
+{
+    uint32          flags = 1;
+    repeated float  object2world = 2;
+    string          properties = 3;
+    
+    uint32          num_vertices = 4;
+    uint32          num_triangles = 5;
+}
+
+message VolumeInfo
+{
+    uint32          flags = 1;
+    repeated float  object2world = 2;
+    string          properties = 3;
+    
+}
+
+// Settings
+
 message ImageSettings
 {
     uint32  width = 1;
@@ -28,7 +62,7 @@ message RenderSettings
 
 message LightSettings
 {
-    repeated float sun_dir = 1;
-    float sun_intensity = 2;
-    float ambient_intensity = 3;
+    repeated    float sun_dir = 1;
+    float       sun_intensity = 2;
+    float       ambient_intensity = 3;
 }

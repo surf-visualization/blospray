@@ -17,11 +17,15 @@ else()
 endif()
 
 # Generate the .h and .cxx files
-PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HDRS messages.proto)
+PROTOBUF_GENERATE_CPP(PROTO_CPP_SRCS PROTO_CPP_HDRS messages.proto)
+# Python module as well
+PROTOBUF_GENERATE_PYTHON(PROTO_PYTHON_SRCS messages.proto)
 
 # Print path to generated files
-message ("PROTO_SRCS = ${PROTO_SRCS}")
-message ("PROTO_HDRS = ${PROTO_HDRS}")
+message ("PROTO_CPP_SRCS = ${PROTO_CPP_SRCS}")
+message ("PROTO_CPP_HDRS = ${PROTO_CPP_HDRS}")
+# XXX for some strange reason no python file is generated
+#message ("PROTO_PYTHON_SRCS = ${PROTO_PYTHON_SRCS}")
 
 include_directories(${OSPRAY_INCLUDE_DIRS})
 include_directories(${Boost_INCLUDE_DIR})
@@ -32,8 +36,8 @@ include_directories(${GLM_INCLUDE_DIRS})
 add_executable(ospray_render_server 
     ospray_render_server.cpp 
     image.cpp
-    ${PROTO_SRCS}
-    ${PROTO_HDRS})
+    ${PROTO_CPP_SRCS}
+    ${PROTO_CPP_HDRS})
     
 set_target_properties(ospray_render_server
     PROPERTIES
@@ -65,3 +69,8 @@ target_link_libraries(voltype_raw PUBLIC ${OSPRAY_LIBRARIES})
 install(TARGETS 
     ospray_render_server voltype_raw
     DESTINATION bin)
+    
+#install(FILES
+#    ${PROTO_PYTHON_SRCS}
+#    DESTINATION
+#    ${CMAKE_SOURCE_DIR})
