@@ -169,6 +169,8 @@ extern "C"
 OSPVolume
 load(float *bbox, VolumeLoadResult &result, const json &parameters, const float *object2world)
 {
+    char msg[1024];
+    
     if (parameters.find("voltype") != parameters.end() && parameters["voltype"].get<std::string>() != "raw")
     {
         fprintf(stderr, "WARNING: voltype_raw.load() called without property voltype set to 'raw'!\n");
@@ -192,7 +194,10 @@ load(float *bbox, VolumeLoadResult &result, const json &parameters, const float 
     FILE *f = fopen(fname.c_str(), "rb");
     if (!f)
     {
-        fprintf(stderr, "Could not open file '%s'\n", fname.c_str());
+        snprintf(msg, 1024, "Could not open file '%s'", fname.c_str());
+        result.set_success(false);
+        result.set_message(msg);
+        fprintf(stderr, "%s\n", msg);
         return NULL;
     }
 
@@ -221,7 +226,10 @@ load(float *bbox, VolumeLoadResult &result, const json &parameters, const float 
     }
     else 
     {
-        fprintf(stderr, "ERROR: unhandled voxel data type '%s'!\n", voxelType);
+        snprintf(msg, 1024, "ERROR: unhandled voxel data type '%s'!\n", voxelType);
+        result.set_success(false);
+        result.set_message(msg);
+        fprintf(stderr, "%s\n", msg);
         fclose(f);
         return NULL;
     }

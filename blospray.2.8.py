@@ -82,7 +82,7 @@ def receive_protobuf(sock, protobuf):
         parts.append(d)
         bytes_left -= len(d)
 
-    message = ''.join(parts)
+    message = b''.join(parts)
     
     protobuf.ParseFromString(message)
 
@@ -372,9 +372,9 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         # World -> Viewport Display -> Color
         render_settings.background_color[:] = world.color
         
-        # XXX For now, use property on the camera
-        if 'samples' in cam_data:
-            render_settings.samples = cam_data['samples']
+        # XXX For now, use property on the world
+        if 'samples' in world:
+            render_settings.samples = world['samples']
             
         self.render_samples = render_settings.samples
 
