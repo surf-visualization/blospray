@@ -464,50 +464,69 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             element.type = SceneElement.MESH
             element.name = obj.name
             
-            send_protobuf(self.sock, element)
-                
-            # Mesh info
+            send_protobuf(self.sock, element)      
+
+            mesh = obj.data            
             
-            mesh = obj.data
-            
-            mesh_info = MeshInfo()
-            mesh_info.flags = 0
+            mesh_info = MeshInfo()            
             mesh_info.object2world[:] = matrix2list(obj.matrix_world)
             mesh_info.properties = json.dumps(customproperties2dict(mesh))
             
+            flags = 0
+        
             # Turn geometry into triangles
             # XXX handle modifiers
-            
+                        
             mesh.calc_loop_triangles()
             
             nv = mesh_info.num_vertices = len(mesh.vertices)
             nt = mesh_info.num_triangles = len(mesh.loop_triangles)
             
-            print('Object %s - Mesh %s: %d v, %d t' % (obj.name, mesh.name, nv, nt))
+            print('Object %s - Mesh %s: %d v, %d t' % (obj.name, mesh.name, nv, nt))        
+
+            # Check if any faces use smooth shading
+            # XXX we currently don't handle meshes with both smooth
+            # and non-smooth faces, but those are not very common anyway
+            
+            use_smooth = False
+            for tri in mesh.loop_triangles:
+                if tri.use_smooth:
+                    use_smooth = True
+                    flags |= MeshInfo.NORMALS
+                    break
+                    
+            if use_smooth:
+                print('Mesh uses smooth shading')
+
+            # Send mesh info
+            
+            mesh_info.flags = flags
             
             send_protobuf(self.sock, mesh_info)
             
             # Send vertices
             
             vertices = numpy.empty(nv*3, dtype=numpy.float32)
-            normals = numpy.empty(nv*3, dtype=numpy.float32)
 
-            # XXX note that we apply the object2world transform here
-            #pos = obj2world @ v.co
-            
             for idx, v in enumerate(mesh.vertices):
                 p = v.co
                 vertices[3*idx+0] = p.x
                 vertices[3*idx+1] = p.y
                 vertices[3*idx+2] = p.z
                 
-                n = v.normal
-                normals[3*idx+0] = n.x
-                normals[3*idx+1] = n.y
-                normals[3*idx+2] = n.z
-                
             self.sock.send(vertices.tobytes())
-
+                
+            if use_smooth:
+                normals = numpy.empty(nv*3, dtype=numpy.float32)
+                
+                for idx, v in enumerate(mesh.vertices):
+                    n = v.normal
+                    normals[3*idx+0] = n.x
+                    normals[3*idx+1] = n.y
+                    normals[3*idx+2] = n.z
+                    
+                self.sock.send(normals.tobytes())
+                
             # Send triangles
             
             triangles = numpy.empty(nt*3, dtype=numpy.uint32)   # XXX opt possible when less than 64k vertices ;-)

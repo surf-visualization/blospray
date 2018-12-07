@@ -16,6 +16,13 @@ message SceneElement
 
 message MeshInfo
 {
+    enum Flags {
+        NONE = 0;
+        NORMALS = 1;
+        // = 2;
+        // = 4;
+    }
+
     uint32          flags = 1;
     repeated float  object2world = 2;
     string          properties = 3;

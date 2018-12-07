@@ -87,6 +87,7 @@ VolumeLoadFunctionMap                                   volume_load_functions;
 std::vector<char>       receive_buffer;
 
 std::vector<float>      vertex_buffer;
+std::vector<float>      normal_buffer;
 std::vector<uint32_t>   triangle_buffer;
 
 // Utility
@@ -163,38 +164,54 @@ bool
 receive_mesh(TCPSocket *sock)
 {
     MeshInfo    mesh_info;
+    OSPData     data;
     
     if (!receive_protobuf(sock, mesh_info))
         return false;
     
-    uint32_t nv, nt;
+    uint32_t nv, nt, flags;
     
     nv = mesh_info.num_vertices();
     nt = mesh_info.num_triangles();
+    flags = mesh_info.flags();
     
-    printf("New triangle mesh: %d vertices, %d triangles\n", nv, nt);
+    printf("New triangle mesh: %d vertices, %d triangles, flags 0x%08x\n", nv, nt, flags);
     
-    vertex_buffer.reserve(nv*3);
-    triangle_buffer.reserve(nt*3);
-    
+    vertex_buffer.reserve(nv*3);    
     if (sock->recvall(&vertex_buffer[0], nv*3*sizeof(float)) == -1)
         return false;
+    
+    if (flags & MeshInfo::NORMALS)
+    {
+        printf("Mesh has normals\n");
+        normal_buffer.reserve(nv*3);
+        if (sock->recvall(&normal_buffer[0], nv*3*sizeof(float)) == -1)
+            return false;        
+    }
+    
+    triangle_buffer.reserve(nt*3);
     if (sock->recvall(&triangle_buffer[0], nt*3*sizeof(uint32_t)) == -1)
         return false;
     
     OSPGeometry mesh = ospNewGeometry("triangles");
   
-        OSPData data = ospNewData(nv, OSP_FLOAT3, &vertex_buffer[0]);   
+        data = ospNewData(nv, OSP_FLOAT3, &vertex_buffer[0]);   
         ospCommit(data);
         ospSetData(mesh, "vertex", data);
+        ospRelease(data);
 
-        //data = ospNewData(nv, OSP_FLOAT4, colors);
-        //ospCommit(data);
-        //ospSetData(mesh, "vertex.color", data);
+        if (flags & MeshInfo::NORMALS)
+        {
+            data = ospNewData(nv, OSP_FLOAT3, &normal_buffer[0]);
+            ospCommit(data);
+            ospSetData(mesh, "vertex.normal", data);
+            ospRelease(data);
+        }
 
         data = ospNewData(nt, OSP_INT3, &triangle_buffer[0]);            
         ospCommit(data);
         ospSetData(mesh, "index", data);
+        ospRelease(data);
 
     ospCommit(mesh);
     
