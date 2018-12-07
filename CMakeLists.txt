@@ -64,6 +64,12 @@ add_library(voltype_raw SHARED voltype_raw.cpp)
 set_target_properties(voltype_raw PROPERTIES PREFIX "")   
 target_link_libraries(voltype_raw PUBLIC ${OSPRAY_LIBRARIES})
 
+target_include_directories(voltype_raw
+    PUBLIC
+    ${PROTOBUF_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_BINARY_DIR}
+)
+
 # Installation (including setting rpath)
 
 install(TARGETS 

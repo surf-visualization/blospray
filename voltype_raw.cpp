@@ -3,6 +3,7 @@
 #include <ospray/ospray.h>
 #include "json.hpp"
 #include "util.h"
+#include "messages.pb.h"
 
 using json = nlohmann::json;
 
@@ -10,9 +11,9 @@ using json = nlohmann::json;
 
 
 static OSPVolume
-load_as_structured(const json &parameters, const float *object2world, 
-    const int32_t *dims, const std::string& voxelType, OSPDataType dataType, void *grid_field_values,
-    float *bbox)
+load_as_structured(float *bbox, VolumeLoadResult &result,
+    const json &parameters, const float *object2world, 
+    const int32_t *dims, const std::string& voxelType, OSPDataType dataType, void *grid_field_values)
 {
     fprintf(stderr, "WARNING: structured volumes currently don't support object-to-world transformations\n");
     
@@ -44,9 +45,10 @@ load_as_structured(const json &parameters, const float *object2world,
 }
 
 static OSPVolume
-load_as_unstructured(const json &parameters, const float *object2world, 
-    const int32_t *dims, const std::string& voxelType, OSPDataType dataType, void *grid_field_values,
-    float *bbox)
+load_as_unstructured(
+    float *bbox, VolumeLoadResult &result,
+    const json &parameters, const float *object2world, 
+    const int32_t *dims, const std::string& voxelType, OSPDataType dataType, void *grid_field_values)
 {    
     if (voxelType != "float")
     {
@@ -165,7 +167,7 @@ load_as_unstructured(const json &parameters, const float *object2world,
 
 extern "C"
 OSPVolume
-load(json &parameters, const float *object2world, float *bbox)
+load(float *bbox, VolumeLoadResult &result, const json &parameters, const float *object2world)
 {
     if (parameters.find("voltype") != parameters.end() && parameters["voltype"].get<std::string>() != "raw")
     {
@@ -254,15 +256,17 @@ load(json &parameters, const float *object2world, float *bbox)
         // We support using an unstructured volume for now, as we can transform its
         // vertices with the object2world matrix, as volumes currently don't
         // support affine transformations in ospray themselves.
-        volume = load_as_unstructured(parameters, object2world, 
-                    dims, voxelType, dataType, grid_field_values,
-                    bbox);
+        volume = load_as_unstructured(  
+                    bbox, result,
+                    parameters, object2world, 
+                    dims, voxelType, dataType, grid_field_values);
     }
     else
     {
-        volume = load_as_structured(parameters, object2world, 
-                    dims, voxelType, dataType, grid_field_values,
-                    bbox);
+        volume = load_as_structured(
+                    bbox, result,
+                    parameters, object2world, 
+                    dims, voxelType, dataType, grid_field_values);
     }
     
     if (!volume)

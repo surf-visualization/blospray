@@ -79,7 +79,7 @@ LightSettings   light_settings;
 
 // Volume loaders
 
-typedef OSPVolume   (*volume_load_function)(json &parameters, const float *obj2world, float *bbox);
+typedef OSPVolume   (*volume_load_function)(float *bbox, VolumeLoadResult &result, const json &parameters, const float *object2world);
 
 typedef std::map<std::string, volume_load_function>     VolumeLoadFunctionMap;
 VolumeLoadFunctionMap                                   volume_load_functions;
@@ -137,6 +137,26 @@ receive_protobuf(TCPSocket *sock, T& protobuf)
     std::string message(&receive_buffer[0], message_size);
     
     protobuf.ParseFromString(message);
+    
+    return true;
+}
+
+template<typename T>
+bool
+send_protobuf(TCPSocket *sock, T& protobuf)
+{
+    std::string message;
+    uint32_t message_size;
+    
+    protobuf.SerializeToString(&message);
+    
+    message_size = message.size();
+    
+    if (sock->send((uint8_t*)&message_size, 4) == -1)
+        return false;
+    
+    if (sock->sendall((uint8_t*)&message[0], message_size) == -1)
+        return false;
     
     return true;
 }
@@ -255,6 +275,10 @@ receive_volume(TCPSocket *sock)
     
     printf("New volume:\n%s\n", properties.dump().c_str());
     
+    // Prepare result
+    
+    VolumeLoadResult    result;
+    
     // Find load function 
     
     volume_load_function load_function = NULL;
@@ -274,6 +298,10 @@ receive_volume(TCPSocket *sock)
         
         if (!plugin) 
         {
+            result.set_success(false);
+            result.set_message("Failed to open plugin");
+            send_protobuf(sock, result);
+
             fprintf(stderr, "dlopen() error: %s\n", dlerror());
             return false;
         }
@@ -285,6 +313,10 @@ receive_volume(TCPSocket *sock)
         
         if (load_function == NULL)
         {
+            result.set_success(false);
+            result.set_message("Failed to get load function from plugin");
+            send_protobuf(sock, result);
+    
             fprintf(stderr, "dlsym() error: %s\n", dlerror());
             return false;
         }
@@ -305,10 +337,27 @@ receive_volume(TCPSocket *sock)
     OSPVolume   volume;
     float       bbox[6];
     
-    volume = load_function(properties, obj2world, bbox);
+    volume = load_function(bbox, result, properties, obj2world);
     
     gettimeofday(&t1, NULL);
     printf("Load function executed in %.3fs\n", time_diff(t0, t1));
+    
+    if (volume == NULL)
+    {
+        send_protobuf(sock, result);
+
+        printf("ERROR: volume load function failed!\n");
+        return false;
+    }
+    
+    // Load function succeeded
+    
+    result.set_hash(get_sha1(encoded_properties));
+    
+    for (int i = 0; i < 6; i++)
+        result.add_bbox(bbox[i]);
+    
+    // Set up ospray volume object
 
 #if 0
     // See https://github.com/ospray/ospray/pull/165, support for volume transformations was reverted
@@ -436,18 +485,10 @@ receive_volume(TCPSocket *sock)
         ospAddVolume(world, volume);
         ospRelease(volume);
     }
+    
+    if (!send_protobuf(sock, result))
+        return false;
 
-    // Send back hash and bbox of loaded volume
-    // XXX use protobuf
-    
-    std::string hash = get_sha1(encoded_properties);
-    
-    if (sock->send((uint8_t*)hash.c_str(), 40) == -1)
-        return false;
-    
-    if (sock->sendall((uint8_t*)bbox, 6*4) == -1)
-        return false;
-    
     return true;
 }
 
@@ -607,13 +648,11 @@ receive_scene(TCPSocket *sock)
     {
         if (element.type() == SceneElement::MESH)
         {
-            if (!receive_mesh(sock))
-                return false;
+            receive_mesh(sock);
         }
         else if (element.type() == SceneElement::VOLUME)
         {
-            if (!receive_volume(sock))
-                return false;
+            receive_volume(sock);
         }
         // else XXX
         

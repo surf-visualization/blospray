@@ -104,3 +104,17 @@ message LightSettings
     repeated Light  lights = 3;
 }
 
+// Volume plugins
+
+// Returned by load function in plugin
+message VolumeLoadResult
+{
+    bool            success = 1;
+    string          message = 2;
+    
+    string          hash = 3;
+    repeated float  bbox = 4;
+}
+
+
+

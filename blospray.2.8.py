@@ -19,7 +19,8 @@ sys.path.insert(0, os.path.split(__file__)[0])
 from messages_pb2 import (
     CameraSettings, ImageSettings, 
     LightSettings, Light,
-    RenderSettings, SceneElement, MeshInfo, VolumeInfo
+    RenderSettings, SceneElement, MeshInfo, 
+    VolumeInfo, VolumeLoadResult
 )
 
 HOST = 'localhost'
@@ -69,6 +70,21 @@ def send_protobuf(sock, pb, sendall=False):
         sock.sendall(s) 
     else:
         sock.send(s)
+        
+def receive_protobuf(sock, protobuf):
+    d = sock.recv(4)
+    bufsize = unpack('<I', d)[0]
+    
+    parts = []
+    bytes_left = bufsize
+    while bytes_left > 0:
+        d = sock.recv(bytes_left)
+        parts.append(d)
+        bytes_left -= len(d)
+
+    message = ''.join(parts)
+    
+    protobuf.ParseFromString(message)
 
 class OsprayRenderEngine(bpy.types.RenderEngine):
     # These three members are used by blender to set up the
@@ -249,24 +265,27 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         
         send_protobuf(self.sock, volume)
         
-        # Wait for volume to be loaded on the server, signaled by receiving 
-        # the ID on the server assigned to this volume
-        # XXX use protobuf message
+        # Wait for volume to be loaded on the server, signaled
+        # by the return of a result value
         
-        id = self.sock.recv(40)
-        while len(id) < 40:
-            id += self.sock.recv(40-len(id))
+        volume_load_result = VolumeLoadResult()
+        
+        receive_protobuf(self.sock, volume_load_result)
+        
+        if not volume_load_result.success:
+            print('ERROR: volume loading failed:')
+            print(volume_load_result.message)
+            return
             
+        id = volume_load_result.hash
+        print(id)
+        
         obj['loaded_id'] = id.decode('utf8')
         print('Exported volume received id %s' % id)
         
         # Get volume bbox 
         
-        bbox = self.sock.recv(24)
-        while len(bbox) < 24:
-            bbox += self.sock.recv(24-len(bbox))
-            
-        bbox = unpack('<ffffff', bbox)
+        bbox = list(volume_load_result.bbox)
         print('Bbox', bbox)
         
         # Update mesh to match bbox

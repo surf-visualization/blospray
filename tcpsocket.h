@@ -27,6 +27,8 @@
 #include <netdb.h>
 #include <errno.h>
 
+// Should use void* instead of uint8_t* ;-)
+
 class TCPSocket
 {
 public:
