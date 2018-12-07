@@ -496,13 +496,7 @@ receive_volume(TCPSocket *sock)
 bool
 receive_scene(TCPSocket *sock)
 {
-    receive_buffer.reserve(4);
-    
-    // Set up renderer
-    
-    renderer = ospNewRenderer("scivis");
-    
-    // Create/update framebuffer
+    // Image settings
     
     // XXX use percentage value? or is that handled in the blender side?
     
@@ -523,6 +517,8 @@ receive_scene(TCPSocket *sock)
     // Render settings
     
     receive_protobuf(sock, render_settings);
+    
+    renderer = ospNewRenderer(render_settings.renderer().c_str());
     
     ospSet4f(renderer, "bgColor", 
         render_settings.background_color(0),

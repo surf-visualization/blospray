@@ -368,13 +368,14 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         # XXX For now, use some properties of the world
         
         render_settings = RenderSettings()
+        render_settings.renderer = world['renderer'] if 'renderer' in world else 'scivis'
         # XXX this is a hack, as it doesn't specify the alpha value, only rgb
         # World -> Viewport Display -> Color
         render_settings.background_color[:] = world.color
         self.render_samples = render_settings.samples = world['samples'] if 'samples' in world else 4
         render_settings.ao_samples = world['ao_samples'] if 'ao_samples' in world else 1
         render_settings.shadows_enabled = world['shadows_enabled'] if 'shadows_enabled' in world else False
-
+        
         # Lights
 
         """
