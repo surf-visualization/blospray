@@ -373,8 +373,12 @@ receive_volume(TCPSocket *sock)
         ospSetf(volume,  "samplingRate", 0.1f);
     
     ospSet1b(volume, "adaptiveSampling", false);
-    ospSet1b(volume, "gradientShadingEnabled", true);
     
+    if (properties.find("gradient_shading") != properties.end())
+        ospSetf(volume,  "gradientShadingEnabled", properties["gradient_shading"].get<int>());
+    else
+        ospSetf(volume,  "gradientShadingEnabled", false);
+        
     // Transfer function
     
     float tf_colors[3*cool2warm_entries];
