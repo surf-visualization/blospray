@@ -500,12 +500,8 @@ receive_scene(TCPSocket *sock)
     
     // Set up renderer
     
-    renderer = ospNewRenderer("scivis"); 
+    renderer = ospNewRenderer("scivis");
     
-    ospSet1i(renderer, "aoSamples", 2);
-    ospSet1i(renderer, "shadowsEnabled", 1);
-    
-        
     // Create/update framebuffer
     
     // XXX use percentage value? or is that handled in the blender side?
@@ -533,6 +529,9 @@ receive_scene(TCPSocket *sock)
         render_settings.background_color(1),
         render_settings.background_color(2),
         1.0f);
+    
+    ospSet1i(renderer, "aoSamples", render_settings.ao_samples());
+    ospSet1i(renderer, "shadowsEnabled", render_settings.shadows_enabled());
 
     // Update camera
     

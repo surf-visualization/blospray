@@ -65,7 +65,11 @@ message CameraSettings
 message RenderSettings
 {
     uint32          samples = 1;
-    repeated float  background_color = 2;   // RGB only atm
+    uint32          ao_samples = 2;
+    
+    repeated float  background_color = 3;   // RGB only atm
+    
+    bool            shadows_enabled = 4;
 }
 
 message Light 

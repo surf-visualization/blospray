@@ -365,18 +365,15 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             camera_settings.dof_aperture = cam_data['aperture']
             
         # Render settings
+        # XXX For now, use some properties of the world
         
         render_settings = RenderSettings()
-        render_settings.samples = 4
         # XXX this is a hack, as it doesn't specify the alpha value, only rgb
         # World -> Viewport Display -> Color
         render_settings.background_color[:] = world.color
-        
-        # XXX For now, use property on the world
-        if 'samples' in world:
-            render_settings.samples = world['samples']
-            
-        self.render_samples = render_settings.samples
+        self.render_samples = render_settings.samples = world['samples'] if 'samples' in world else 1
+        render_settings.ao_samples = world['ao_samples'] if 'ao_samples' in world else 1
+        render_settings.shadows_enabled = world['shadows_enabled'] if 'shadows_enabled' in world else True
 
         # Lights
 
@@ -704,6 +701,10 @@ enabled_panels = {
         #'DATA_PT_uv_texture',
         'DATA_PT_vertex_colors',
         #'DATA_PT_vertex_groups',
+    ],
+    
+    properties_render: [
+        #'RENDER_PT_context',   # XXX unclear which panel this is
     ],
     
     properties_world : [
