@@ -92,7 +92,8 @@ message Light
 message LightSettings
 {
     float           ambient_intensity = 1;
+    repeated float  ambient_color = 2;
     
-    repeated Light  lights = 2;
+    repeated Light  lights = 3;
 }
 

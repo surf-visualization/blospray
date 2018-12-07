@@ -567,6 +567,9 @@ receive_scene(TCPSocket *sock)
     // Ambient
     osp_lights[num_lights] = ospNewLight3("ambient");
     ospSet1f(osp_lights[num_lights], "intensity", light_settings.ambient_intensity());
+    ospSet3f(osp_lights[num_lights], "color", 
+        light_settings.ambient_color(0), light_settings.ambient_color(1), light_settings.ambient_color(2));
+    
     ospCommit(osp_lights[num_lights]);
     
     OSPData light_data = ospNewData(num_lights+1, OSP_LIGHT, osp_lights);  

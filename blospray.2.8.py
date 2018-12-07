@@ -299,6 +299,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
     def export_scene(self, data, depsgraph):
         
         scene = depsgraph.scene
+        world = scene.world
         
         # Image
 
@@ -350,7 +351,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         render_settings.samples = 4
         # XXX this is a hack, as it doesn't specify the alpha value, only rgb
         # World -> Viewport Display -> Color
-        render_settings.background_color[:] = scene.world.color
+        render_settings.background_color[:] = world.color
         
         # XXX For now, use property on the camera
         if 'samples' in cam_data:
@@ -375,10 +376,8 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         
         light_settings = LightSettings()
         
-        #light_settings.sun_dir[:] = (-1, -1, -1)
-        #light_settings.sun_intensity = 10.0
-        
-        light_settings.ambient_intensity = 0       
+        light_settings.ambient_color[:] = world['ambient_color'] if 'ambient_color' in world else (1,1,1)
+        light_settings.ambient_intensity = world['ambient_intensity'] if 'ambient_intensity' in world else 1
         
         type2enum = dict(POINT=Light.POINT, SUN=Light.SUN, SPOT=Light.SPOT, AREA=Light.AREA)
         
@@ -408,11 +407,18 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
                 light.direction[:] = obj.matrix_world @ Vector((0, 0, -1)) - obj.location
                 
             if data.type == 'SPOT':
-                #light.opening_angle = degrees(data.spot_size)
-                # XXX is defined differently
-                #light.penumbra_angle = light.penumbra_angle - data.spot_blend*data.spot_size
-                light.opening_angle = 15
-                light.penumbra_angle = 0.5  
+                # Blender:
+                # .spot_size = full angle where light shines, in degrees
+                # .spot_blend = factor in [0,1], 0 = no penumbra, 1 = penumbra is full angle
+                light.opening_angle = degrees(data.spot_size)
+                light.penumbra_angle = 0.5*data.spot_blend*degrees(data.spot_size)
+                # assert light.penumbra_angle < 0.5*light.opening_angle                
+                # XXX
+                light.radius = 0.0
+                
+            if data.type == 'POINT':
+                # XXX
+                light.radius = 0.0
             
             lights.append(light)
                 
