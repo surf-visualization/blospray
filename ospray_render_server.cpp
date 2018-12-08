@@ -25,24 +25,20 @@ Hence the original copyright message below.
 // limitations under the License.                                           //
 // ======================================================================== //
 
+#include <sys/time.h>
+#include <sys/stat.h>
 #include <stdint.h>
 #include <cstdio>
 #include <cstdlib>
 #include <cmath>
 #include <iostream>
 #include <string>
-#include <sys/time.h>
-#include <sys/stat.h>
-#include <stdint.h>
-#include <ctype.h>
 #include <unistd.h>
 #include <dlfcn.h>
-#ifdef _WIN32
-#  error "Windows is completely untested at the moment!"
-#  include <malloc.h>
-#else
-#  include <alloca.h>
-#endif
+#include <thread>
+#include <queue>
+#include <mutex>
+#include <condition_variable>
 
 #include <boost/program_options.hpp>
 #include <boost/uuid/detail/sha1.hpp>
@@ -57,6 +53,7 @@ Hence the original copyright message below.
 #include "tcpsocket.h"
 #include "messages.pb.h"
 #include "json.hpp"
+#include "blocking_queue.h"
 #include "cool2warm.h"
 
 using json = nlohmann::json;
@@ -669,27 +666,24 @@ receive_scene(TCPSocket *sock)
     return true;
 }
 
-// Render
-
-void
-render_frame(bool clear=true)
-{
-    struct timeval t0, t1;
-    gettimeofday(&t0, NULL);
-    
-    if (clear)
-    {
-        // Clear framebuffer    
-        ospFrameBufferClear(framebuffer, OSP_FB_COLOR | OSP_FB_ACCUM);
-    }
-
-    ospRenderFrame(framebuffer, renderer, OSP_FB_COLOR | OSP_FB_ACCUM);
-    
-    gettimeofday(&t1, NULL);
-    printf("Rendered frame in %.3f seconds\n", time_diff(t0, t1));
-}
-
 // Send result
+
+size_t
+write_framebuffer_exr(const char *fname)
+{
+    // Access framebuffer 
+    const float *fb = (float*)ospMapFrameBuffer(framebuffer, OSP_FB_COLOR);
+    
+    writeEXRFramebuffer(fname, image_size, fb);
+    
+    // Unmap framebuffer
+    ospUnmapFrameBuffer(fb, framebuffer);    
+    
+    struct stat st;
+    stat(fname, &st);
+    
+    return st.st_size;
+}
 
 void 
 send_framebuffer(TCPSocket *sock)
@@ -706,15 +700,11 @@ send_framebuffer(TCPSocket *sock)
     // Write to OpenEXR file and send *its* contents
     const char *FBFILE = "/dev/shm/orsfb.exr";
     
-    writeEXRFramebuffer(FBFILE, image_size, fb);
+    size_t size = write_framebuffer_exr(FBFILE);
     
-    struct stat st;
+    printf("Sending framebuffer as OpenEXR file, %d bytes\n", size);
     
-    stat(FBFILE, &st);
-    
-    printf("Sending framebuffer as OpenEXR file, %d bytes\n", st.st_size);
-    
-    bufsize = st.st_size;
+    bufsize = size;
     sock->send((uint8_t*)&bufsize, 4);
     sock->sendfile(FBFILE);
 #else
@@ -732,6 +722,53 @@ send_framebuffer(TCPSocket *sock)
     
     gettimeofday(&t1, NULL);
     printf("Sent framebuffer in %.3f seconds\n", time_diff(t0, t1));
+}
+
+// Rendering
+
+void
+render_thread(BlockingQueue<ClientMessage>& render_input_queue,
+    BlockingQueue<RenderResult>& render_result_queue)
+{
+    struct timeval t0, t1;
+    size_t  framebuffer_file_size;
+    char fname[1024];
+    
+    // Clear framebuffer    
+    ospFrameBufferClear(framebuffer, OSP_FB_COLOR | OSP_FB_ACCUM);
+
+    for (int i = 1; i <= render_settings.samples(); i++)
+    {
+        printf("Rendering sample %d\n", i);
+        
+        gettimeofday(&t0, NULL);
+
+        ospRenderFrame(framebuffer, renderer, OSP_FB_COLOR | OSP_FB_ACCUM);
+
+        gettimeofday(&t1, NULL);
+        printf("Rendered frame in %.3f seconds\n", time_diff(t0, t1));
+        
+        // Save framebuffer to file
+        sprintf(fname, "/dev/shm/blosprayfb%04d.exr", i);
+        
+        framebuffer_file_size = write_framebuffer_exr(fname);
+        // XXX check res
+        
+        // Signal a new frame is available
+        RenderResult rs;
+        rs.set_type(RenderResult::FRAME);
+        rs.set_sample(i);
+        rs.set_file_name(fname);
+        rs.set_file_size(framebuffer_file_size);
+        
+        render_result_queue.push(rs);
+        
+        // XXX handle cancel input
+    }
+    
+    RenderResult rs;
+    rs.set_type(RenderResult::DONE);
+    render_result_queue.push(rs);
 }
 
 // Main
@@ -763,6 +800,12 @@ main(int argc, const char **argv)
     
     TCPSocket *sock;
     
+    BlockingQueue<ClientMessage> render_input_queue;
+    BlockingQueue<RenderResult> render_result_queue;
+    
+    RenderResult        rs;
+    RenderResult::Type  type;
+    
     while (true)
     {            
         sock = listen_sock->accept();
@@ -771,17 +814,41 @@ main(int argc, const char **argv)
         
         if (receive_scene(sock))
         {
-            for (int i = 1; i <= render_settings.samples(); i++)
+            std::thread th(&render_thread, std::ref(render_input_queue), std::ref(render_result_queue));
+            
+            while (true)
             {
-                printf("Rendering sample %d\n", i);
-                render_frame(i == 1);
-
-                printf("Sending framebuffer\n");
-                send_framebuffer(sock);
+                // XXX wait for thread to finish
+                
+                // New render result
+                // XXX forward render results on socket
+                rs = render_result_queue.pop();
+                
+                send_protobuf(sock, rs);
+                
+                type = rs.type();
+                if (type == RenderResult::FRAME)
+                {
+                    sock->sendfile(rs.file_name().c_str());
+                    
+                    // Remove local file
+                    unlink(rs.file_name().c_str());
+                }
+                else if (type == RenderResult::CANCELED)
+                {
+                }
+                else if (type == RenderResult::DONE)
+                {
+                    printf("Rendering done!\n");
+                    th.join();
+                    break;
+                }
+                
+                // XXX listen for incoming client messages
             }
         }
-        else
-            sock->close();
+
+        sock->close();
     }
 
     return 0;

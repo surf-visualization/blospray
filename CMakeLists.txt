@@ -3,6 +3,8 @@ project(blospray)
 # Can probably lower this, but no idea to what
 cmake_minimum_required(VERSION 3.12)
 
+set(CMAKE_CXX_STANDARD 11)
+
 find_package(ospray 1.6 REQUIRED)
 find_package(Boost COMPONENTS program_options REQUIRED)
 find_package(glm REQUIRED)

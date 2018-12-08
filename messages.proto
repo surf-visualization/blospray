@@ -1,5 +1,30 @@
 syntax = "proto3";
 
+message ClientMessage
+{
+    enum Type {
+        //SCENE
+        CANCEL_RENDERING = 0;
+        //QUIT
+    }
+}
+
+message RenderResult 
+{
+    enum Type {
+        FRAME = 0;
+        CANCELED = 1;
+        DONE = 2;
+    }
+    
+    Type    type = 1;
+    
+    // FRAME
+    uint32  file_size = 2;
+    string  file_name = 3;
+    uint32  sample = 4;
+}
+
 // Scene
 
 message SceneElement

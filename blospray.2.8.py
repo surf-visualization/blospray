@@ -20,7 +20,8 @@ from messages_pb2 import (
     CameraSettings, ImageSettings, 
     LightSettings, Light,
     RenderSettings, SceneElement, MeshInfo, 
-    VolumeInfo, VolumeLoadResult
+    VolumeInfo, VolumeLoadResult,
+    ClientMessage, RenderResult
 )
 
 HOST = 'localhost'
@@ -151,17 +152,13 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             sys.stdout.flush()
             #self.update_stats('%d bytes left' % bytes_left, 'Reading back framebuffer')
         
-    def _read_framebuffer_to_file(self, framebuffer, fname):
+    def _read_framebuffer_to_file(self, fname, size):
         
         with open(fname, 'wb') as f:
-            
-            d = self.sock.recv(4)
-            bufsize = unpack('<I', d)[0]
-        
-            bytes_left = bufsize
-            
+            bytes_left = size
             while bytes_left > 0:
                 d = self.sock.recv(bytes_left)
+                # XXX check d
                 f.write(d)
                 bytes_left -= len(d)
         
@@ -204,39 +201,52 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         
         FBFILE = '/dev/shm/blosprayfb.exr'
         
-        for i in range(1, self.render_samples+1):
+        sample = 1
+        
+        while True:
             
-            self.update_stats('', 'Rendering sample %d/%d' % (i, self.render_samples))
+            self.update_stats('', 'Rendering sample %d/%d' % (sample, self.render_samples))
             
-            """
-            # XXX Slow: get as raw block of floats
-            print('[%6.3f] _read_framebuffer start' % (time.time()-t0))
-            self._read_framebuffer(framebuffer, self.width, self.height)            
-            print('[%6.3f] _read_framebuffer end' % (time.time()-t0))
+            render_result = RenderResult()
+            receive_protobuf(self.sock, render_result)
             
-            pixels = framebuffer.view(numpy.float32).reshape((num_pixels, 4))
-            print(pixels.shape)
-            print('[%6.3f] view() end' % (time.time()-t0))
-            
-            # Here we write the pixel values to the RenderResult   
-            # XXX This is the slow part
-            print(type(layer.rect))
-            layer.rect = pixels
-            self.update_result(result)
-            """
-            
-            print('[%6.3f] _read_framebuffer_to_file start' % (time.time()-t0))
-            self._read_framebuffer_to_file(framebuffer, FBFILE)
-            print('[%6.3f] _read_framebuffer_to_file end' % (time.time()-t0))
-            
-            # Sigh, this needs an image file format. I.e. reading in a raw framebuffer
-            # of floats isn't possible
-            result.layers[0].load_from_file(FBFILE)
-            self.update_result(result)
-            
-            print('[%6.3f] update_result() done' % (time.time()-t0))
+            if render_result.type == RenderResult.FRAME:
+                
+                """
+                # XXX Slow: get as raw block of floats
+                print('[%6.3f] _read_framebuffer start' % (time.time()-t0))
+                self._read_framebuffer(framebuffer, self.width, self.height)            
+                print('[%6.3f] _read_framebuffer end' % (time.time()-t0))
+                
+                pixels = framebuffer.view(numpy.float32).reshape((num_pixels, 4))
+                print(pixels.shape)
+                print('[%6.3f] view() end' % (time.time()-t0))
+                
+                # Here we write the pixel values to the RenderResult   
+                # XXX This is the slow part
+                print(type(layer.rect))
+                layer.rect = pixels
+                self.update_result(result)
+                """
+                
+                print('[%6.3f] _read_framebuffer_to_file start' % (time.time()-t0))
+                self._read_framebuffer_to_file(FBFILE, render_result.file_size)
+                print('[%6.3f] _read_framebuffer_to_file end' % (time.time()-t0))
+                
+                # Sigh, this needs an image file format. I.e. reading in a raw framebuffer
+                # of floats isn't possible
+                result.layers[0].load_from_file(FBFILE)
+                self.update_result(result)
+                
+                print('[%6.3f] update_result() done' % (time.time()-t0))
 
-            self.update_progress(1.0*i/self.render_samples)
+                self.update_progress(sample/self.render_samples)
+                
+                sample += 1
+                
+            elif render_result.type == RenderResult.DONE:
+                print('Rendering done!')
+                break
             
         self.end_result(result)      
         
