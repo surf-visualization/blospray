@@ -20,9 +20,9 @@ message RenderResult
     Type    type = 1;
     
     // FRAME
-    uint32  file_size = 2;
+    uint32  sample = 2;
     string  file_name = 3;
-    uint32  sample = 4;
+    uint32  file_size = 4;
 }
 
 // Scene
