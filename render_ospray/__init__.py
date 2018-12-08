@@ -20,14 +20,9 @@ if "bpy" in locals():
 import bpy
     
 class OsprayRenderEngine(bpy.types.RenderEngine):
-    # These three members are used by blender to set up the
-    # RenderEngine; define its internal name, visible name and capabilities.
     bl_idname = "OSPRAY"
     bl_label = "OSPRay"
-    
-    # Enable the availability of material preview renders
-    bl_use_preview = False
-    
+    bl_use_preview = False                  # Enable the availability of material preview renders
     bl_use_shading_nodes = True
     bl_use_shading_nodes_custom = False     # If True will hide cycles shading nodes
     
