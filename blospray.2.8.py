@@ -714,6 +714,23 @@ enabled_panels = {
         #'DATA_PT_vertex_groups',
     ],
     
+    properties_output: [
+        'RENDER_PT_dimensions',
+        #'RENDER_PT_encoding',
+        #'RENDER_PT_encoding_audio',
+        #'RENDER_PT_encoding_video',
+        #'RENDER_PT_ffmpeg_presets',
+        #'RENDER_PT_frame_remapping',
+        'RENDER_PT_output',
+        #'RENDER_PT_output_views',
+        #'RENDER_PT_post_processing',
+        #'RENDER_PT_presets',
+        #'RENDER_PT_stamp',
+        #'RENDER_PT_stamp_burn',
+        #'RENDER_PT_stamp_note',
+        #'RENDER_PT_stereoscopy
+    ],
+    
     properties_render: [
         #'RENDER_PT_context',   # XXX unclear which panel this is
     ],

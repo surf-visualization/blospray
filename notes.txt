@@ -34,6 +34,9 @@ the smaller the volume sampling rate, the *larger* the step size
   
   
   
+https://blender.stackexchange.com/questions/57306/how-to-create-a-custom-ui/57332#57332
+  
+  
 >>> dir(bl_ui)
 ['UI_UL_list', '__builtins__', '__cached__', '__doc__', '__file__', '__loader__', 
 '__name__', '__package__', '__path__', '__spec__', '_modules', '_modules_loaded', 
