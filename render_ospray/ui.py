@@ -68,3 +68,23 @@ class RENDER_PT_OSPRAY(Panel):
         ospray = scene.ospray
         
         layout.prop(ospray, 'renderer', text='') 
+
+
+classes = (
+    RENDER_PT_OSPRAY,
+)
+
+def register():
+    from bpy.utils import register_class
+    
+    print(classes)
+    for cls in classes:
+        register_class(cls)
+    
+    
+def unregister():
+    from bpy.utils import unregister_class
+    
+    for cls in classes:
+        unregister_class(cls)
+
