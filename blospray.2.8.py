@@ -91,7 +91,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
     # These three members are used by blender to set up the
     # RenderEngine; define its internal name, visible name and capabilities.
     bl_idname = "OSPRAY"
-    bl_label = "Ospray"
+    bl_label = "OSPRay"
     
     # Enable the availability of material preview renders
     bl_use_preview = False
