@@ -20,7 +20,7 @@ if "bpy" in locals():
     #imp.reload(update_files)
     
 import bpy
-from . import connection
+from .connection import Connection
 
 HOST = 'localhost'
 PORT = 5909
@@ -41,10 +41,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         #self.texture_id = self.texture[0]
         
         #self.texture_format = GL_RGBA
-        
-        self.connection = connection.Connection(self, HOST, PORT)
-        self.doh = 'doh'
-            
+                    
     def __del__(self):
         print('>>> CustomRenderEngine.__del__()')
         
@@ -57,6 +54,11 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         """
         print('>>> CustomRenderEngine.update()')
         
+        scene = depsgraph.scene
+        ospray = scene.ospray
+        
+        self.connection = Connection(self, ospray.host, ospray.port)
+
         self.connection.update(data, depsgraph)
         
     # This is the only method called by blender, in this example
@@ -67,6 +69,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         print('>>> CustomRenderEngine.render()')
         
         self.connection.render(depsgraph)
+        
         self.connection.close()
 
     # If the two view_... methods are defined the interactive rendered
@@ -151,11 +154,9 @@ def register():
     
     from . import properties
     from . import ui
-    #from . import connection
     
     properties.register()
     ui.register()
-    #connection.register()
     
     for cls in classes:
         register_class(cls)
@@ -166,11 +167,9 @@ def unregister():
     
     from . import properties
     from . import ui
-    #from . import connection
     
     properties.unregister()
     ui.unregister()
-    #connection.unregister()
     
     for cls in classes:
         unregister_class(cls)

@@ -62,6 +62,21 @@ class RenderOspraySettingsScene(PropertyGroup):
                 ('pathtracer', 'Path Tracer', ''),
                ]
         )                 
+        
+    host: StringProperty(
+        name='Host',
+        description='Host to connect to',
+        default='localhost',
+        maxlen=128,
+        )
+        
+    port: IntProperty(
+        name='Port',
+        description='Port to connect on',
+        default=5909,
+        min=1024,
+        max=65535
+        )
 
     samples: IntProperty(
         name='Samples',

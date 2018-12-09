@@ -5,10 +5,10 @@ from bpy.types import (Panel,
                        PropertyGroup,
                        )                       
 
-        
-class RENDER_PT_OSPRAY(Panel):
-    bl_idname = 'RENDER_PT_OSPRAY'
-    bl_label = 'Renderer'
+   
+class RENDER_PT_OSPRAY_CONNECTION(Panel):
+    bl_idname = 'RENDER_PT_OSPRAY_CONNECTION'
+    bl_label = 'Connection'
     bl_space_type = 'PROPERTIES'   
     bl_region_type = 'WINDOW'    
     bl_context = 'render'  
@@ -29,7 +29,33 @@ class RENDER_PT_OSPRAY(Panel):
         ospray = scene.ospray
         
         col = layout.column(align=True)
-        col.prop(ospray, 'renderer', text='Renderer') 
+        col.prop(ospray, 'host', text='Host') 
+        col.prop(ospray, 'port', text='Port') 
+        
+class RENDER_PT_OSPRAY_RENDERING(Panel):
+    bl_idname = 'RENDER_PT_OSPRAY'
+    bl_label = 'Rendering'
+    bl_space_type = 'PROPERTIES'   
+    bl_region_type = 'WINDOW'    
+    bl_context = 'render'  
+    
+    COMPAT_ENGINES = {'OSPRAY'}
+
+    @classmethod
+    def poll(cls, context):
+        rd = context.scene.render
+        return rd.engine in cls.COMPAT_ENGINES
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        #layout.use_property_decorate = False
+        
+        scene = context.scene
+        ospray = scene.ospray
+        
+        col = layout.column(align=True)
+        col.prop(ospray, 'renderer', text='Type') 
         col.prop(ospray, 'samples', text='Samples') 
         col.prop(ospray, 'ao_samples', text='AO Samples') 
         col.prop(ospray, 'shadows_enabled', text='Shadows') 
@@ -65,7 +91,8 @@ class WORLD_PT_OSPRAY(Panel):
         
 
 classes = (
-    RENDER_PT_OSPRAY,
+    RENDER_PT_OSPRAY_CONNECTION,
+    RENDER_PT_OSPRAY_RENDERING,
     WORLD_PT_OSPRAY,
 )
 
