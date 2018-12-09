@@ -178,7 +178,7 @@ def register():
         for panelname in panels:
             panel = getattr(module, panelname)
             if hasattr(panel, 'COMPAT_ENGINES'):
-                panel.COMPAT_ENGINES.add(OsprayRenderEngine.bl_idname)
+                panel.COMPAT_ENGINES.add('OSPRAY')
     
     
 def unregister():
@@ -191,5 +191,5 @@ def unregister():
         for panelname in panels:
             panel = getattr(module, panelname)
             if hasattr(panel, 'COMPAT_ENGINES'):
-                panel.COMPAT_ENGINES.remove(OsprayRenderEngine.bl_idname)
+                panel.COMPAT_ENGINES.remove('OSPRAY')
 

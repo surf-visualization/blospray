@@ -91,6 +91,8 @@ exported correctly yet, causing incorrect positions of objects. Top-level object
 
 ## Dependencies
 
+* Numpy
+
 * Google protobuf (C/C++ libraries needed during build, Python modules at runtime)
 
   To make Blender find the necessary protobuf packages add symlinks to

@@ -1,3 +1,3 @@
 #!/bin/sh
 
-protoc --python_out=. messages.proto
+protoc --python_out=./render_ospray messages.proto
