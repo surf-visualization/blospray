@@ -1,4 +1,4 @@
-# Can test with blender -P <thisscript.py>
+# Can test with blender -P <thisscript.py> -E custom_renderer
 #
 # https://docs.blender.org/api/2.79/bpy.types.RenderEngine.html
 #
@@ -7,6 +7,7 @@
 # Luxrender discussion: http://www.luxrender.net/forum/viewtopic.php?f=11&t=11370&start=10
 # https://bitbucket.org/luxrender/luxblend25/commits/branch/LuxCore_RealtimePreview
 
+import time
 import bpy
 #from bgl import *
 
@@ -22,8 +23,12 @@ class CustomRenderEngine(bpy.types.RenderEngine):
     bl_use_shading_nodes = True
     bl_use_shading_nodes_custom = False     # If True will hide cycles shading nodes
     
+    def log(self, s):
+        print('[%.3f] (%s) %s' % (time.time(), id(self), s))
+
+    
     def __init__(self):
-        print('>>> CustomRenderEngine.__init__()')
+        self.log('>>> CustomRenderEngine.__init__()')
         super(CustomRenderEngine, self).__init__()
         
         #self.texture = Buffer(GL_INT, 1)
@@ -33,7 +38,7 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         #self.texture_format = GL_RGBA
         
     def __del__(self):
-        print('>>> CustomRenderEngine.__del__()')
+        self.log('>>> CustomRenderEngine.__del__()')
         
     def update(self, data, depsgraph):
         """
@@ -42,9 +47,14 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         Note that this method is always called, even when re-rendering
         exactly the same scene or moving just the camera.
         """
-        print('>>> CustomRenderEngine.update()')
-        print(data)
-        print(depsgraph)
+        self.log('>>> CustomRenderEngine.update()')
+        print('data', data)
+        print('depsgraph', depsgraph)
+        print('depsgraph mode =', depsgraph.mode)
+        print('%d object instances' % len(depsgraph.object_instances))
+        
+        #depsgraph.debug_relations_graphviz('depsgraph.dot')
+        #depsgraph.debug_stats_gnuplot('depsgraph.dat', 'script')   #XXX
         
         scene = depsgraph.scene
         camera = scene.camera
@@ -54,7 +64,7 @@ class CustomRenderEngine(bpy.types.RenderEngine):
     # in another method.
     def render(self, depsgraph):
         """Render scene into an image"""
-        print('>>> CustomRenderEngine.render()')
+        self.log('>>> CustomRenderEngine.render()')
         
         scene = depsgraph.scene
         scale = scene.render.resolution_percentage / 100.0
@@ -77,7 +87,13 @@ class CustomRenderEngine(bpy.types.RenderEngine):
     
     def view_update(self, context):
         """Update on data changes for viewport render"""
-        print('>>> CustomRenderEngine.view_update()')
+        self.log('>>> CustomRenderEngine.view_update()')
+        
+        depsgraph = context.depsgraph
+        print('%d object instances' % len(depsgraph.object_instances))
+        print('%d updates:' % len(depsgraph.updates))
+        for update in depsgraph.updates:
+            print(('ID %s, geom %s, xform %s' % (update.id, update.is_dirty_geometry, update.is_dirty_transform)))
         
         region = context.region
         view_camera_offset = list(context.region_data.view_camera_offset)
@@ -89,13 +105,13 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         height = region.height
         channels_per_pixel = 4
         
-        self.buffer = Buffer(GL_UNSIGNED_BYTE, [width * height * channels_per_pixel])
+        #self.buffer = Buffer(GL_UNSIGNED_BYTE, [width * height * channels_per_pixel])
 
     def view_draw(self, context):
         """Draw viewport render"""
         # Note: some changes in blender do not cause a view_update(),
         # but only a view_draw()
-        print('>>> CustomRenderEngine.view_draw()')
+        self.log('>>> CustomRenderEngine.view_draw()')
         # XXX need to draw ourselves with OpenGL bgl module :-/
         region = context.region
         view_camera_offset = list(context.region_data.view_camera_offset)
@@ -110,13 +126,13 @@ class CustomRenderEngine(bpy.types.RenderEngine):
     
     def update_script_node(self, node):
         """Compile shader script node"""
-        print('>>> CustomRenderEngine.update_script_node()')
+        self.log('>>> CustomRenderEngine.update_script_node()')
         
     # Implementation of the actual rendering
 
     # In this example, we fill the preview renders with a flat green color.
     def render_preview(self, depsgraph):
-        print('>>> CustomRenderEngine.render_preview()')
+        self.log('>>> CustomRenderEngine.render_preview()')
         
         pixel_count = self.size_x * self.size_y
 
@@ -132,7 +148,7 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         
     # In this example, we fill the full renders with a flat blue color.
     def render_scene(self, depsgraph):
-        print('>>> CustomRenderEngine.render_scene()')
+        self.log('>>> CustomRenderEngine.render_scene()')
         
         pixel_count = self.size_x * self.size_y
 

@@ -406,6 +406,12 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
                 # XXX This doesn't seem to work for hiding the collection in which
                 # an object is located.
                 # See https://developer.blender.org/T58823 for more info
+                # Answer from Brecht:
+                # object.hide_render does not tell you if the object is hidden, 
+                # it only returns the value of the property as set by the user. This is the same as in 2.7x.
+                # To find out which objects are visible in the render, you can loop over depsgraph.object_instances.
+                # See also 
+                # https://en.blender.org/index.php/Dev:2.8/Source/Depsgraph
                 continue
                 
             if 'voltype' in obj:

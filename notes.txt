@@ -29,8 +29,36 @@ https://www.mitsuba-renderer.org/repos/exporters/mitsuba-blender/
   Light and Camera properties are also gone
   
   
+Ospray: the smaller the volume sampling rate, the *larger* the step size
   
-the smaller the volume sampling rate, the *larger* the step size
+  
+  
+bpy.types.RenderEngine API:
+    
+Final render
+
+e = new render engine
+e.update()
+e.render()
+del e
+
+Interactive render
+
+e = new render engine
+e.view_update()
+e.view_draw()   (called on UI interaction)
+
+e.view_update()
+- selection change
+- object change
+
+e.view_draw()   (one or more times)
+
+
+Multiple engines can be instantiated, e.g. when using two 3D viewports,
+each in interactive rendering mode.  
+
+  
   
   
   
