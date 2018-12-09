@@ -276,6 +276,8 @@ receive_volume(TCPSocket *sock)
     
     VolumeLoadResult    result;
     
+    result.set_success(true);
+    
     // Find load function 
     
     volume_load_function load_function = NULL;

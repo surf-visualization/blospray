@@ -228,7 +228,7 @@ class Connection:
         id = volume_load_result.hash
         print(id)
         
-        obj['loaded_id'] = id.decode('utf8')
+        obj['loaded_id'] = id
         print('Exported volume received id %s' % id)
         
         # Get volume bbox 
