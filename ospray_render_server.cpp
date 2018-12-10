@@ -295,7 +295,7 @@ receive_volume(TCPSocket *sock)
     {
         printf("No load function yet for volume type '%s'\n", voltype.c_str());
         
-        std::string plugin_name = "voltype_" + voltype + ".so";
+        std::string plugin_name = "volume_" + voltype + ".so";
         
         printf("Loading plugin %s\n", plugin_name.c_str());
         

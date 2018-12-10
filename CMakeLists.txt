@@ -62,11 +62,11 @@ target_link_libraries(ospray_render_server
 
 # Plugins
 
-add_library(voltype_raw SHARED voltype_raw.cpp)
-set_target_properties(voltype_raw PROPERTIES PREFIX "")   
-target_link_libraries(voltype_raw PUBLIC ${OSPRAY_LIBRARIES})
+add_library(volume_raw SHARED volume_raw.cpp)
+set_target_properties(volume_raw PROPERTIES PREFIX "")   
+target_link_libraries(volume_raw PUBLIC ${OSPRAY_LIBRARIES})
 
-target_include_directories(voltype_raw
+target_include_directories(volume_raw
     PUBLIC
     ${PROTOBUF_INCLUDE_DIRS}
     ${CMAKE_CURRENT_BINARY_DIR}
@@ -75,7 +75,7 @@ target_include_directories(voltype_raw
 # Installation (including setting rpath)
 
 install(TARGETS 
-    ospray_render_server voltype_raw
+    ospray_render_server volume_raw
     DESTINATION bin)
     
 #install(FILES
