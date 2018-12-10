@@ -32,6 +32,7 @@ class RENDER_PT_OSPRAY_CONNECTION(Panel):
         col.prop(ospray, 'host', text='Host') 
         col.prop(ospray, 'port', text='Port') 
         
+        
 class RENDER_PT_OSPRAY_RENDERING(Panel):
     bl_idname = 'RENDER_PT_OSPRAY'
     bl_label = 'Rendering'
@@ -187,7 +188,7 @@ enabled_panels = {
         #'EEVEE_WORLD_PT_surface',
         'WORLD_PT_context_world',
         'WORLD_PT_custom_props',
-        'WORLD_PT_viewport_display',
+        #'WORLD_PT_viewport_display',
     ]
 }
 

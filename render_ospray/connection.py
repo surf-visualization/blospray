@@ -316,13 +316,13 @@ class Connection:
         # XXX For now, use some properties of the world
         
         render_settings = RenderSettings()
-        render_settings.renderer = world['renderer'] if 'renderer' in world else 'scivis'
+        render_settings.renderer = scene.ospray.renderer
         # XXX this is a hack, as it doesn't specify the alpha value, only rgb
         # World -> Viewport Display -> Color
-        render_settings.background_color[:] = world.color
-        self.render_samples = render_settings.samples = world['samples'] if 'samples' in world else 4
-        render_settings.ao_samples = world['ao_samples'] if 'ao_samples' in world else 1
-        render_settings.shadows_enabled = world['shadows_enabled'] if 'shadows_enabled' in world else False
+        render_settings.background_color[:] = world.ospray.background_color
+        self.render_samples = render_settings.samples = scene.ospray.samples
+        render_settings.ao_samples = scene.ospray.ao_samples
+        render_settings.shadows_enabled = scene.ospray.shadows_enabled
         
         # Lights
 
@@ -341,8 +341,8 @@ class Connection:
         
         light_settings = LightSettings()
         
-        light_settings.ambient_color[:] = world['ambient_color'] if 'ambient_color' in world else (1,1,1)
-        light_settings.ambient_intensity = world['ambient_intensity'] if 'ambient_intensity' in world else 1
+        light_settings.ambient_color[:] = world.ospray.ambient_color
+        light_settings.ambient_intensity = world.ospray.ambient_intensity
         
         type2enum = dict(POINT=Light.POINT, SUN=Light.SUN, SPOT=Light.SPOT, AREA=Light.AREA)
         
@@ -381,9 +381,10 @@ class Connection:
                 # XXX
                 light.radius = 0.0
                 
+            # XXX point lights don't cast hard shadows?
             if data.type == 'POINT':
                 # XXX
-                light.radius = 0.0
+                light.radius = 0.1
             
             lights.append(light)
                 
