@@ -26,20 +26,39 @@ load_as_structured(float *bbox, VolumeLoadResult &result,
     ospRelease(voxelData);
 
     ospSetString(volume,"voxelType", voxelType.c_str());
-    ospSet3i(volume,    "dimensions", dims[0], dims[1], dims[2]);
-    // XXX allow grid settings to be set in json?
-    ospSet3f(volume,    "gridOrigin", 0.0f, 0.0f, 0.0f);
-    ospSet3f(volume,    "gridSpacing", 1.0f, 1.0f, 1.0f);
+    ospSet3i(volume, "dimensions", dims[0], dims[1], dims[2]);
+    
+    float origin[3] = { 0.0f, 0.0f, 0.0f };
+    float spacing[3] = { 1.0f, 1.0f, 1.0f };
+    
+    if (parameters.find("grid_origin") != parameters.end())
+    {
+        auto o = parameters["grid_origin"];
+        origin[0] = o[0];
+        origin[1] = o[1];
+        origin[2] = o[2];
+    }
+
+    if (parameters.find("grid_spacing") != parameters.end())
+    {
+        auto s = parameters["grid_spacing"];
+        spacing[0] = s[0];
+        spacing[1] = s[1];
+        spacing[2] = s[2];
+    }
+    
+    ospSet3f(volume, "gridOrigin", origin[0], origin[1], origin[2]);
+    ospSet3f(volume, "gridSpacing", spacing[0], spacing[1], spacing[2]);
 
     ospCommit(volume);
     
-    // Note that the volume bounding box is based on the *untransformed*
-    // volume, i.e. without applying object2world
+    bbox[0] = origin[0];
+    bbox[1] = origin[1];
+    bbox[2] = origin[2];
     
-    bbox[0] = bbox[1] = bbox[2] = 0.0f;
-    bbox[3] = dims[0];
-    bbox[4] = dims[1];
-    bbox[5] = dims[2];
+    bbox[3] = origin[0] + dims[0] * spacing[0];
+    bbox[4] = origin[1] + dims[1] * spacing[1];
+    bbox[5] = origin[2] + dims[2] * spacing[2];
     
     return volume;
 }
