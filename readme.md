@@ -97,6 +97,8 @@ $ ln -sf <blospray-repo>/render_ospray render_ospray
 
 * Command-line (batch) rendering isn't supported in a nice way yet, as the lifetime of the BLOSPRAY server needs to be managed manually.
 
+* Volumes can only use point-based values, so no cell-based values
+
 
 ## Dependencies
 
