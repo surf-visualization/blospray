@@ -69,8 +69,26 @@ $ ln -sf <blospray-repo>/render_ospray render_ospray
 
 * Only a single (hard-coded) transfer function for volume rendering is supported
 
+* Hierarchies of transformations (i.e. when using parenting) are not exported correctly yet, causing incorrect positions of objects. Top-level objects work correctly, though.
+
+* Modifiers on objects are not handled yet
+
+* Only final renders (i.e. using the F12 key) are supported. Preview rendering is technically feasible, but is not implemented yet.
+
+* Error handling isn't very good yet, causing a lockup in the Blender script in case the BLOSPRAY server does something wrong (like crash ;-))
+
+* BLOSPRAY is only being developed on Linux at the moment, on other platforms it might only work after some tweaks
+
+* Command-line (batch) rendering isn't supported in a nice way yet, as the lifetime of the BLOSPRAY server needs to be managed manually.
+
+* Volumes can only use point-based values, so no cell-based values
+
+
+OSPRay also has some limitations itself, some of which we can work around, some of which we can't:
+
 * In OSPray structured grid volumes currently cannot be transformed with an 
-  arbitrary affine transformation (see [this issue](https://github.com/ospray/ospray/issues/159)). 
+  arbitrary affine transformation (see [this issue](https://github.com/ospray/ospray/issues/159)
+  and [this issue](https://github.com/ospray/ospray/issues/48)). 
   We work around this limitation in two ways in the `volume_raw` plugin:
   
   - Custom properties `grid_spacing` and `grid_origin` can be set to influence the
@@ -83,21 +101,10 @@ $ ln -sf <blospray-repo>/render_ospray render_ospray
     it possible to handle volumes in the same general was as other 
     Blender scene objects. See tests/test.blend for an example.
     
-* Hierarchies of transformations (i.e. when using parenting) are not exported correctly yet, causing incorrect positions of objects. Top-level objects work correctly, though.
-
-* Modifiers on objects are not handled yet
-
-* Only final renders (i.e. using the F12 key) are supported. Preview rendering is technically feasible, but is not implemented yet.
-
-* Error handling isn't very good yet, causing a lockup in the Blender script in case the BLOSPRAY server does something wrong (like crash ;-))
-
-* BLOSPRAY is only being developed on Linux at the moment, on other platforms it might only work after some tweaks
-
+* Volumes are limited in their size, due to the relevant ISPC-based
+  code being built in 32-bit mode. See [this issue](https://github.com/ospray/ospray/issues/239).
+  
 * All rendering is done on the CPU, because, well ... it's OSPRay ;-)
-
-* Command-line (batch) rendering isn't supported in a nice way yet, as the lifetime of the BLOSPRAY server needs to be managed manually.
-
-* Volumes can only use point-based values, so no cell-based values
 
 
 ## Dependencies
