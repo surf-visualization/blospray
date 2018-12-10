@@ -413,7 +413,7 @@ class Connection:
                 # https://en.blender.org/index.php/Dev:2.8/Source/Depsgraph
                 continue
                 
-            if 'voltype' in obj:
+            if 'volume' in obj:
                 self.export_volume(obj, data, depsgraph)
                 continue
                 

@@ -288,14 +288,14 @@ receive_volume(TCPSocket *sock)
     
     volume_load_function load_function = NULL;
     
-    const std::string& voltype = properties["voltype"];
+    const std::string& volume_type = properties["volume"];
     
-    VolumeLoadFunctionMap::iterator it = volume_load_functions.find(voltype);
+    VolumeLoadFunctionMap::iterator it = volume_load_functions.find(volume_type);
     if (it == volume_load_functions.end())
     {
-        printf("No load function yet for volume type '%s'\n", voltype.c_str());
+        printf("No load function yet for volume type '%s'\n", volume_type.c_str());
         
-        std::string plugin_name = "volume_" + voltype + ".so";
+        std::string plugin_name = "volume_" + volume_type + ".so";
         
         printf("Loading plugin %s\n", plugin_name.c_str());
         
@@ -326,7 +326,7 @@ receive_volume(TCPSocket *sock)
             return false;
         }
         
-        volume_load_functions[voltype] = load_function;
+        volume_load_functions[volume_type] = load_function;
     }
     else
         load_function = it->second;
