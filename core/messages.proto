@@ -44,7 +44,7 @@ message MeshInfo
     enum Flags {
         NONE = 0;
         NORMALS = 1;
-        // = 2;
+        VERTEX_COLORS = 2;
         // = 4;
     }
 

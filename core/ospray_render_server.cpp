@@ -85,6 +85,8 @@ std::vector<char>       receive_buffer;
 
 std::vector<float>      vertex_buffer;
 std::vector<float>      normal_buffer;
+std::vector<float>      vertex_color_buffer;
+
 std::vector<uint32_t>   triangle_buffer;
 
 // Utility
@@ -206,6 +208,14 @@ receive_mesh(TCPSocket *sock)
         if (sock->recvall(&normal_buffer[0], nv*3*sizeof(float)) == -1)
             return false;        
     }
+        
+    if (flags & MeshInfo::VERTEX_COLORS)
+    {
+        printf("Mesh has vertex colors\n");
+        vertex_color_buffer.reserve(nv*4);
+        if (sock->recvall(&vertex_color_buffer[0], nv*4*sizeof(float)) == -1)
+            return false;        
+    }
     
     triangle_buffer.reserve(nt*3);
     if (sock->recvall(&triangle_buffer[0], nt*3*sizeof(uint32_t)) == -1)
@@ -226,6 +236,15 @@ receive_mesh(TCPSocket *sock)
             ospRelease(data);
         }
 
+
+        if (flags & MeshInfo::VERTEX_COLORS)
+        {
+            data = ospNewData(nv, OSP_FLOAT4, &vertex_color_buffer[0]);
+            ospCommit(data);
+            ospSetData(mesh, "vertex.color", data);
+            ospRelease(data);
+        }
+        
         data = ospNewData(nt, OSP_INT3, &triangle_buffer[0]);            
         ospCommit(data);
         ospSetData(mesh, "index", data);

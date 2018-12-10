@@ -459,7 +459,12 @@ class Connection:
                     
             if use_smooth:
                 print('Mesh uses smooth shading')
-
+            
+            # Vertex colors
+            #https://blender.stackexchange.com/a/8561
+            if mesh.vertex_colors:
+                flags |= MeshInfo.VERTEX_COLORS
+                
             # Send mesh info
             
             mesh_info.flags = flags
@@ -477,6 +482,8 @@ class Connection:
                 vertices[3*idx+2] = p.z
                 
             self.sock.send(vertices.tobytes())
+            
+            # Vertex normals
                 
             if use_smooth:
                 normals = numpy.empty(nv*3, dtype=numpy.float32)
@@ -488,6 +495,25 @@ class Connection:
                     normals[3*idx+2] = n.z
                     
                 self.sock.send(normals.tobytes())
+                
+            # Vertex colors
+            
+            if mesh.vertex_colors:
+                vcol_layer = mesh.vertex_colors.active
+                vcol_data = vcol_layer.data
+                
+                vertex_colors = numpy.empty(nv*4, dtype=numpy.float32)
+                
+                for poly in mesh.polygons:
+                    for loop_index in poly.loop_indices:
+                        loop_vert_index = mesh.loops[loop_index].vertex_index
+                        color = vcol_data[loop_index].color
+                        vertex_colors[4*loop_vert_index+0] = color[0]
+                        vertex_colors[4*loop_vert_index+1] = color[1]
+                        vertex_colors[4*loop_vert_index+2] = color[2]
+                        vertex_colors[4*loop_vert_index+3] = 1.0
+                        
+                self.sock.send(vertex_colors.tobytes())
                 
             # Send triangles
             

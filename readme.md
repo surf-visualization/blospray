@@ -104,6 +104,9 @@ OSPRay also has some limitations itself, some of which we can work around, some 
 * Volumes are limited in their size, due to the relevant ISPC-based
   code being built in 32-bit mode. See [this issue](https://github.com/ospray/ospray/issues/239).
   
+* Blender supports multiple colors per vertex (basically one per face loop),
+  while OSPRay only supports a single value per vertex. XXX need to double-check this
+  
 * All rendering is done on the CPU, because, well ... it's OSPRay ;-)
 
 
