@@ -9,19 +9,16 @@ as the Python API isn't fully compatible with 2.8x.
 
 ## Usage
 
-BLOSPRAY currently isn't a real Blender add-on. It is best used by executing it as a script during startup, followed by switching the renderer to `OSPRAY`. The following command-line accomplishes both:
+BLOSPRAY is as a Blender add-on, but is not being distributed separately.
+Currently, the way to install it is to clone this repository and then
+make a symlink to the `render_ospray` directory in the Blender addon directory:
 
 ```
-$ blender -P blospray.py -E OSPRAY [<file.blend>]
+$ cd ..../blender-2.8/2.80/scripts/addons
+$ ln -sf <blospray-repo>/render_ospray render_ospray
 ```
 
 ## Features
-
-* Custom properties
-
-  We use Blender's [custom properties](https://docs.blender.org/manual/en/dev/data_system/custom_properties.html)
-  to pass information to OSPRay. In future we expect to add new
-  UI panels to Blender as a nicer way to pass this information, but custom properties serve their purpose well for now. They can even be animated, with certain limitations.
 
 * Plugins
 
@@ -62,6 +59,10 @@ $ blender -P blospray.py -E OSPRAY [<file.blend>]
 
 ## Known limitations and bugs
 
+* The addon provides some UI panels to set OSPRay specific settings, but in other case we use Blender's [custom properties](https://docs.blender.org/manual/en/dev/data_system/custom_properties.html)
+  to pass information to OSPRay. These can even be animated, with certain limitations, but are not a long-term solution. Note also that builtin UI panels are disabled when the render engine
+  is set to OSPRay as those panels can't directly be used with OSPRay (e.g. they contain Cycles-specific settings).
+
 * Scene management on the render server is non-existent. I.e. memory usage increases after each render.  
 
 * Caching of scene data on the server, especially for large data loaded by plugins, is planned to be implemented, but isn't there yet. I.e. currently all scene data is re-sent when rendering a new image.
@@ -70,10 +71,7 @@ $ blender -P blospray.py -E OSPRAY [<file.blend>]
 
 * In OSPray structured grid volumes currently cannot be transformed with an arbitrary affine transformation (see [this issue](https://github.com/ospray/ospray/issues/159)). We work around this limitation by converting a structured grid to an unstructured one, whose vertices *can* be transformed. Of course, this increases memory usage and decreases render performance, but makes it possible to handle volumes in the same general was as other Blender scene objects. XXX backup
 
-* There are no BLOSPRAY-specific UI panels yet, while most of the regular panels that offer renderer-specific settings (e.g. for Cycles) are disabled. Most of the settings that you would normally change in a UI panel are currently managed through custom properties.
-
-* Hierarchies of transformations (i.e. when using parenting) are not
-exported correctly yet, causing incorrect positions of objects. Top-level objects work correctly, though.
+* Hierarchies of transformations (i.e. when using parenting) are not exported correctly yet, causing incorrect positions of objects. Top-level objects work correctly, though.
 
 * Modifiers on objects are not handled yet
 
@@ -83,11 +81,10 @@ exported correctly yet, causing incorrect positions of objects. Top-level object
 
 * BLOSPRAY is only being developed on Linux at the moment, on other platforms it might only work after some tweaks
 
-* At some point BLOSPRAY needs to be turned in a real add-on
-
 * All rendering is done on the CPU, because, well ... it's OSPRay ;-)
 
-* Command-line (batch) rendering isn't supported in a nice way yet, so the lifetime of the BLOSPRAY server needs to be managed manually.
+* Command-line (batch) rendering isn't supported in a nice way yet, as the lifetime of the BLOSPRAY server needs to be managed manually.
+
 
 ## Dependencies
 
@@ -103,5 +100,6 @@ exported correctly yet, causing incorrect positions of objects. Top-level object
   $ ln -sf /usr/lib/python3.7/site-packages/six.py six.py
   $ ln -sf /usr/lib/python3.7/site-packages/google google
   ```
+
 * Uses https://github.com/nlohmann/json/blob/develop/single_include/nlohmann/json.hpp
   (included in the sources)
