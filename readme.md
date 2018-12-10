@@ -69,8 +69,20 @@ $ ln -sf <blospray-repo>/render_ospray render_ospray
 
 * Only a single (hard-coded) transfer function for volume rendering is supported
 
-* In OSPray structured grid volumes currently cannot be transformed with an arbitrary affine transformation (see [this issue](https://github.com/ospray/ospray/issues/159)). We work around this limitation by converting a structured grid to an unstructured one, whose vertices *can* be transformed. Of course, this increases memory usage and decreases render performance, but makes it possible to handle volumes in the same general was as other Blender scene objects. XXX backup
-
+* In OSPray structured grid volumes currently cannot be transformed with an 
+  arbitrary affine transformation (see [this issue](https://github.com/ospray/ospray/issues/159)). 
+  We work around this limitation in two ways in the `volume_raw` plugin:
+  
+  - Custom properties `grid_spacing` and `grid_origin` can be set to influence the
+    scaling and placement of a structured volume (these get passed to the `gridOrigin`
+    and `gridSpacing` values of an `OSPVolume`). See tests/grid.blend for an example.
+    
+  - By setting a custom property `unstructured` to `1` on the volume object 
+    the structured grid is converted to an unstructured one, whose vertices *can* be transformed. 
+    Of course, this increases memory usage and decreases render performance, but makes 
+    it possible to handle volumes in the same general was as other 
+    Blender scene objects. See tests/test.blend for an example.
+    
 * Hierarchies of transformations (i.e. when using parenting) are not exported correctly yet, causing incorrect positions of objects. Top-level objects work correctly, though.
 
 * Modifiers on objects are not handled yet
