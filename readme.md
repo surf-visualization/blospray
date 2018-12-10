@@ -48,7 +48,7 @@ $ ln -sf <blospray-repo>/render_ospray render_ospray
 
 ## Supported elements
 
-* Basic mesh geometry
+* Basic mesh geometry, including normals and vertex colors
 
 * Volumes
 
