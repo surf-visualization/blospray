@@ -192,7 +192,8 @@ receive_mesh(TCPSocket *sock)
     nt = mesh_info.num_triangles();
     flags = mesh_info.flags();
     
-    printf("New triangle mesh: %d vertices, %d triangles, flags 0x%08x\n", nv, nt, flags);
+    printf("[MESH] %s (%s): %d vertices, %d triangles, flags 0x%08x\n", 
+        mesh_info.object_name().c_str(), mesh_info.mesh_name().c_str(), nv, nt, flags);
     
     vertex_buffer.reserve(nv*3);    
     if (sock->recvall(&vertex_buffer[0], nv*3*sizeof(float)) == -1)
@@ -270,7 +271,12 @@ receive_volume(TCPSocket *sock)
     
     json properties = json::parse(encoded_properties);
     
-    printf("New volume:\n%s\n", properties.dump().c_str());
+    // XXX we print the mesh_name here, but that mesh is replaced by the python
+    // export after it receives the volume extents. so a bit confusing as that original
+    // mesh is reported, but that isn't in the scene anymore
+    printf("[VOLUME] %s (%s)\n", 
+        volume_info.object_name().c_str(), volume_info.mesh_name().c_str());
+    printf("%s\n", properties.dump().c_str());
     
     // Prepare result
     

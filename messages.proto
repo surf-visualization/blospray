@@ -51,9 +51,11 @@ message MeshInfo
     uint32          flags = 1;
     repeated float  object2world = 2;
     string          properties = 3;
+    string          object_name = 4;
+    string          mesh_name = 5;
     
-    uint32          num_vertices = 4;
-    uint32          num_triangles = 5;
+    uint32          num_vertices = 6;
+    uint32          num_triangles = 7;
 }
 
 message VolumeInfo
@@ -61,7 +63,8 @@ message VolumeInfo
     uint32          flags = 1;
     repeated float  object2world = 2;
     string          properties = 3;
-    
+    string          object_name = 4;
+    string          mesh_name = 5;
 }
 
 // Settings

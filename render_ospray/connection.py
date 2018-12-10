@@ -203,15 +203,17 @@ class Connection:
         
         send_protobuf(self.sock, element)        
         
-        volume = VolumeInfo()
-        volume.object2world[:] = matrix2list(obj.matrix_world)
+        volume_info = VolumeInfo()
+        volume_info.object2world[:] = matrix2list(obj.matrix_world)
         properties = customproperties2dict(obj)
-        volume.properties = json.dumps(properties)
+        volume_info.properties = json.dumps(properties)
+        volume_info.object_name = obj.name
+        volume_info.mesh_name = obj.data.name
         
         print('Sending properties:')
         print(properties)
         
-        send_protobuf(self.sock, volume)
+        send_protobuf(self.sock, volume_info)
         
         # Wait for volume to be loaded on the server, signaled
         # by the return of a result value
@@ -426,6 +428,8 @@ class Connection:
             mesh = obj.data            
             
             mesh_info = MeshInfo()            
+            mesh_info.object_name = obj.name
+            mesh_info.mesh_name = mesh.name
             mesh_info.object2world[:] = matrix2list(obj.matrix_world)
             mesh_info.properties = json.dumps(customproperties2dict(mesh))
             
@@ -439,7 +443,8 @@ class Connection:
             nv = mesh_info.num_vertices = len(mesh.vertices)
             nt = mesh_info.num_triangles = len(mesh.loop_triangles)
             
-            print('Object %s - Mesh %s: %d v, %d t' % (obj.name, mesh.name, nv, nt))        
+            print('Object %s - Mesh %s: %d v, %d t' % (obj.name, mesh.name, nv, nt))    
+            print(mesh_info.object_name, mesh_info.mesh_name)
 
             # Check if any faces use smooth shading
             # XXX we currently don't handle meshes with both smooth
