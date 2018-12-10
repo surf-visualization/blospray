@@ -313,31 +313,16 @@ class Connection:
             camera_settings.dof_aperture = cam_data['aperture']
             
         # Render settings
-        # XXX For now, use some properties of the world
         
         render_settings = RenderSettings()
         render_settings.renderer = scene.ospray.renderer
-        # XXX this is a hack, as it doesn't specify the alpha value, only rgb
-        # World -> Viewport Display -> Color
+        # XXX doesn't specify the alpha value, only rgb
         render_settings.background_color[:] = world.ospray.background_color
         self.render_samples = render_settings.samples = scene.ospray.samples
         render_settings.ao_samples = scene.ospray.ao_samples
         render_settings.shadows_enabled = scene.ospray.shadows_enabled
         
         # Lights
-
-        """
-        sun_obj = bpy.data.objects['Sun']
-        sun_data = sun_obj.data
-
-        sun_dir = sun_obj.matrix_world @ Vector((0, 0, -1)) - sun_obj.location
-        sun_intensity = sun_data.node_tree.nodes["Emission"].inputs[1].default_value
-
-        ambient_obj = bpy.data.objects['Ambient']
-        ambient_data = ambient_obj.data
-
-        ambient_intensity = ambient_data.node_tree.nodes["Emission"].inputs[1].default_value
-        """
         
         light_settings = LightSettings()
         
@@ -388,7 +373,7 @@ class Connection:
             
             lights.append(light)
                 
-        # XXX assigning to lights[:] doesn't work
+        # Assigning to lights[:] doesn't work, need to use extend()
         light_settings.lights.extend(lights)
 
         #
@@ -458,7 +443,7 @@ class Connection:
 
             # Check if any faces use smooth shading
             # XXX we currently don't handle meshes with both smooth
-            # and non-smooth faces, but those are not very common anyway
+            # and non-smooth faces, but those are probably not very common anyway
             
             use_smooth = False
             for tri in mesh.loop_triangles:
