@@ -100,9 +100,18 @@ $ ln -sf <blospray-repo>/render_ospray render_ospray
 
 ## Dependencies
 
-* Numpy
+For building:
 
-* Google protobuf (C/C++ libraries needed during build, Python modules at runtime)
+* OpenImageIO
+* Google protobuf (C/C++ libraries)
+
+* Uses https://github.com/nlohmann/json/blob/develop/single_include/nlohmann/json.hpp
+  (included in the sources)
+
+For running:
+
+* Numpy
+* Google protobuf (Python modules)
 
   To make Blender find the necessary protobuf packages add symlinks to
   `google` and `six.py` in Blender's python library dir:
@@ -113,5 +122,3 @@ $ ln -sf <blospray-repo>/render_ospray render_ospray
   $ ln -sf /usr/lib/python3.7/site-packages/google google
   ```
 
-* Uses https://github.com/nlohmann/json/blob/develop/single_include/nlohmann/json.hpp
-  (included in the sources)
