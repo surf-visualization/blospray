@@ -69,8 +69,6 @@ $ ln -sf <blospray-repo>/render_ospray render_ospray
 
 * Only a single (hard-coded) transfer function for volume rendering is supported
 
-* Hierarchies of transformations (i.e. when using parenting) are not exported correctly yet, causing incorrect positions of objects. Top-level objects work correctly, though.
-
 * Only final renders (i.e. using the F12 key) are supported. Preview rendering is technically feasible, but is not implemented yet.
 
 * Error handling isn't very good yet, causing a lockup in the Blender script in case the BLOSPRAY server does something wrong (like crash ;-))
