@@ -48,8 +48,8 @@ $ ln -sf <blospray-repo>/render_ospray render_ospray
 
 ## Supported elements
 
-### Meshes
-
+| Meshes | |
+| ------ |-|
 | Normals           | :heavy_check_mark: |
 | Vertex colors     | :heavy_check_mark: |
 | Modifiers         | :heavy_check_mark: |
