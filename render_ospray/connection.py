@@ -426,19 +426,24 @@ class Connection:
             element.name = obj.name
             
             send_protobuf(self.sock, element)      
-
-            mesh = obj.data            
             
             mesh_info = MeshInfo()            
             mesh_info.object_name = obj.name
-            mesh_info.mesh_name = mesh.name
+            mesh_info.mesh_name = obj.data.name
             mesh_info.object2world[:] = matrix2list(obj.matrix_world)
-            mesh_info.properties = json.dumps(customproperties2dict(mesh))
+            mesh_info.properties = json.dumps(customproperties2dict(obj.data))
             
             flags = 0
+            
+            # Apply modifiers, if any
+
+            if obj.modifiers:
+                print('Applying modifiers')
+                mesh = obj.to_mesh(depsgraph, True)
+            else:
+                mesh = obj.data            
         
             # Turn geometry into triangles
-            # XXX handle modifiers
                         
             mesh.calc_loop_triangles()
             

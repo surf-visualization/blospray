@@ -48,7 +48,7 @@ $ ln -sf <blospray-repo>/render_ospray render_ospray
 
 ## Supported elements
 
-* Basic mesh geometry, including normals and vertex colors
+* Basic mesh geometry, including normals, vertex colors and modifiers
 
 * Volumes
 
@@ -70,8 +70,6 @@ $ ln -sf <blospray-repo>/render_ospray render_ospray
 * Only a single (hard-coded) transfer function for volume rendering is supported
 
 * Hierarchies of transformations (i.e. when using parenting) are not exported correctly yet, causing incorrect positions of objects. Top-level objects work correctly, though.
-
-* Modifiers on objects are not handled yet
 
 * Only final renders (i.e. using the F12 key) are supported. Preview rendering is technically feasible, but is not implemented yet.
 
