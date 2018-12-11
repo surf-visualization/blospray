@@ -55,12 +55,25 @@ $ ln -sf <blospray-repo>/render_ospray render_ospray
 | Modifiers         | :heavy_check_mark: |
 | Textures          | :x: |
 
-* Volumes
+| Volumes | |
+| ------- |-|
+| Isosurfaces | :heavy_check_mark: | Support through custom property |
+| Slice planes | :question: | Support for 1 plane through custom property |
+| AMR | :question: | No specific support, atm, but plugins can create AMR volumes |
 
-* Lights
+| Lights | |
+| ------ |-|
+| Point | :heavy_check_mark: |
+| Sun | :heavy_check_mark: |
+| Spot | :heavy_check_mark: |
+| Area | :heavy_check_mark: |
+| HDRI | :x: |
+| UI panels | :x: |
 
-* Basic render settings
-
+| Render settings | |
+| --------------- |-|
+| Resolution | :heavy_check_mark: |
+| Percentage | :heavy_check_mark: |
 
 ## Known limitations and bugs
 
