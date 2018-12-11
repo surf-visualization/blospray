@@ -41,13 +41,7 @@ Hence the original copyright message below.
 #include <condition_variable>
 
 #include <boost/program_options.hpp>
-#include <boost/uuid/detail/sha1.hpp>
-
 #include <ospray/ospray.h>
-
-#include <glm/matrix.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
 
 #include "image.h"
 #include "tcpsocket.h"
@@ -55,6 +49,8 @@ Hence the original copyright message below.
 #include "json.hpp"
 #include "blocking_queue.h"
 #include "cool2warm.h"
+#include "util.h"
+#include "plugin.h"
 
 using json = nlohmann::json;
 
@@ -76,12 +72,10 @@ LightSettings   light_settings;
 
 // Volume loaders
 
-typedef OSPVolume   (*volume_load_function)(float *bbox, VolumeLoadResult &result, const json &parameters, const float *object2world);
-
 typedef std::map<std::string, volume_load_function>     VolumeLoadFunctionMap;
 VolumeLoadFunctionMap                                   volume_load_functions;
 
-std::vector<char>       receive_buffer;
+// Geometry buffers
 
 std::vector<float>      vertex_buffer;
 std::vector<float>      normal_buffer;
@@ -90,75 +84,6 @@ std::vector<float>      vertex_color_buffer;
 std::vector<uint32_t>   triangle_buffer;
 
 // Utility
-
-inline double
-time_diff(struct timeval t0, struct timeval t1)
-{
-    return t1.tv_sec - t0.tv_sec + (t1.tv_usec - t0.tv_usec) * 0.000001;
-}
-
-// https://stackoverflow.com/a/39833022/9296788
-std::string 
-get_sha1(const std::string& p_arg)
-{
-    boost::uuids::detail::sha1 sha1;
-    sha1.process_bytes(p_arg.data(), p_arg.size());
-    unsigned hash[5] = {0};
-    sha1.get_digest(hash);
-
-    // Back to string
-    char buf[41] = {0};
-
-    for (int i = 0; i < 5; i++)
-    {
-        std::sprintf(buf + (i << 3), "%08x", hash[i]);
-    }
-
-    return std::string(buf);
-}
-
-template<typename T>
-bool
-receive_protobuf(TCPSocket *sock, T& protobuf)
-{
-    uint32_t message_size;
-    
-    if (sock->recvall(&message_size, 4) == -1)
-        return false;
-    
-    receive_buffer.clear();
-    receive_buffer.reserve(message_size);
-        
-    if (sock->recvall(&receive_buffer[0], message_size) == -1)
-        return false;
-    
-    // XXX this probably makes a copy?
-    std::string message(&receive_buffer[0], message_size);
-    
-    protobuf.ParseFromString(message);
-    
-    return true;
-}
-
-template<typename T>
-bool
-send_protobuf(TCPSocket *sock, T& protobuf)
-{
-    std::string message;
-    uint32_t message_size;
-    
-    protobuf.SerializeToString(&message);
-    
-    message_size = message.size();
-    
-    if (sock->send((uint8_t*)&message_size, 4) == -1)
-        return false;
-    
-    if (sock->sendall((uint8_t*)&message[0], message_size) == -1)
-        return false;
-    
-    return true;
-}
 
 void
 affine3f_from_matrix(osp::affine3f& xform, float *m)
@@ -754,7 +679,7 @@ send_framebuffer(TCPSocket *sock)
 // Rendering
 
 void
-render_thread(BlockingQueue<ClientMessage>& render_input_queue,
+render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
     BlockingQueue<RenderResult>& render_result_queue)
 {
     struct timeval t0, t1;
@@ -798,6 +723,110 @@ render_thread(BlockingQueue<ClientMessage>& render_input_queue,
     render_result_queue.push(rs);
 }
 
+// Connection handling
+
+bool
+handle_connection(TCPSocket *sock)
+{   
+    BlockingQueue<ClientMessage> render_input_queue;
+    BlockingQueue<RenderResult> render_result_queue;
+    
+    ClientMessage       client_message;
+    RenderResult        render_result;
+    RenderResult::Type  rr_type;
+    
+    std::thread         render_thread;
+    bool                rendering = false;
+    
+    while (true)
+    {
+        // Check for new client message
+        
+        if (sock->is_readable())
+        {
+            printf("readable\n");
+            if (!receive_protobuf(sock, client_message))
+            {
+                // XXX if we were rendering, handle the chaos
+                
+                fprintf(stderr, "Failed to receive client message (%d), goodbye!\n", sock->get_errno());
+                sock->close();
+                return false;
+            }
+            
+            switch (client_message.type())
+            {
+                case ClientMessage::UPDATE_SCENE:
+                    // XXX handle clear_scene 
+                    // XXX check res
+                    receive_scene(sock);
+                    break;
+            
+                case ClientMessage::START_RENDERING:
+                    
+                    if (rendering)
+                    {
+                        // Ignore
+                        break;
+                    }
+                    
+                    //render_input_queue.clear();
+                    //render_result_queue.clear();        // XXX handle any remaining results
+                
+                    // Start render thread
+                    render_thread = std::thread(&render_thread_func, std::ref(render_input_queue), std::ref(render_result_queue));
+                    
+                    rendering = true;
+                    break;
+                    
+                // CANCEL_RENDERING
+                    
+                case ClientMessage::QUIT:
+                    // XXX if we were rendering, handle the chaos
+                    break;
+            }
+        }
+        
+        // Check for new render results
+        
+        if (rendering && render_result_queue.size() > 0)
+        {
+            render_result = render_result_queue.pop();
+            
+            // Forward render results on socket
+            send_protobuf(sock, render_result);
+            
+            switch (render_result.type())
+            {
+                case RenderResult::FRAME:
+                    sock->sendfile(render_result.file_name().c_str());
+                
+                    // Remove local file
+                    unlink(render_result.file_name().c_str());
+                    break;
+                
+                case RenderResult::CANCELED:
+                    break;
+                
+                case RenderResult::DONE:
+                    printf("Rendering done!\n");
+                
+                    // Thread should have finished by now
+                    render_thread.join();
+                
+                    rendering = false;
+                    break;
+            }
+        }
+        
+        usleep(1000);
+    }
+    
+    sock->close();
+    
+    return true;
+}
+
 // Main
 
 int 
@@ -827,55 +856,16 @@ main(int argc, const char **argv)
     
     TCPSocket *sock;
     
-    BlockingQueue<ClientMessage> render_input_queue;
-    BlockingQueue<RenderResult> render_result_queue;
-    
-    RenderResult        rs;
-    RenderResult::Type  type;
-    
     while (true)
     {            
         sock = listen_sock->accept();
         
         printf("Got new connection\n");
         
-        if (receive_scene(sock))
-        {
-            std::thread th(&render_thread, std::ref(render_input_queue), std::ref(render_result_queue));
-            
-            while (true)
-            {
-                // XXX wait for thread to finish
-                
-                // New render result
-                // XXX forward render results on socket
-                rs = render_result_queue.pop();
-                
-                send_protobuf(sock, rs);
-                
-                type = rs.type();
-                if (type == RenderResult::FRAME)
-                {
-                    sock->sendfile(rs.file_name().c_str());
-                    
-                    // Remove local file
-                    unlink(rs.file_name().c_str());
-                }
-                else if (type == RenderResult::CANCELED)
-                {
-                }
-                else if (type == RenderResult::DONE)
-                {
-                    printf("Rendering done!\n");
-                    th.join();
-                    break;
-                }
-                
-                // XXX listen for incoming client messages
-            }
-        }
-
-        sock->close();
+        if (!handle_connection(sock))
+            printf("Error handling connection!\n");
+        else
+            printf("Connection successfully handled\n");
     }
 
     return 0;

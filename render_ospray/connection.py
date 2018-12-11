@@ -107,6 +107,10 @@ class Connection:
     
     def render(self, depsgraph):
         
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.START_RENDERING
+        send_protobuf(self.sock, client_message)
+        
         scene = depsgraph.scene
         
         scale = scene.render.resolution_percentage / 100.0
@@ -191,6 +195,9 @@ class Connection:
             
         self.engine.end_result(result)      
         
+        client_message.type = ClientMessage.QUIT
+        send_protobuf(self.sock, client_message)
+        
     #
     # Scene export
     #
@@ -267,9 +274,14 @@ class Connection:
 
     def export_scene(self, data, depsgraph):
         
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.UPDATE_SCENE
+        client_message.clear_scene = True
+        send_protobuf(self.sock, client_message)
+
         scene = depsgraph.scene
         world = scene.world
-        
+                
         # Image
 
         perc = scene.render.resolution_percentage

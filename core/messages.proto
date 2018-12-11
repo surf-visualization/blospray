@@ -3,10 +3,18 @@ syntax = "proto3";
 message ClientMessage
 {
     enum Type {
-        //SCENE
-        CANCEL_RENDERING = 0;
-        //QUIT
+        UPDATE_SCENE = 0;
+        
+        START_RENDERING = 10;
+        CANCEL_RENDERING = 11;
+        
+        QUIT = 99;
     }
+    
+    Type    type = 1;
+    
+    // UPDATE_SCENE
+    bool    clear_scene = 2;
 }
 
 message RenderResult 
