@@ -20,31 +20,31 @@ $ ln -sf <blospray-repo>/render_ospray render_ospray
 
 ## Features
 
-* Plugins
+### Plugins
 
-  There is a rudimentary plugin system that can be used to set up
-  custom scene elements in OSPRay directly. This is especially useful when working with large scientific datasets for which it is infeasible or unattractive to load into Blender. Instead, one can use a proxy object, such as a cube mesh, and attach a plugin to it. During rendering BLOSPRAY will call the plugin to load the actual scene data associated with the proxy. In this way Blender scene creation, such as camera animation or lighting, can be done as usual as the proxy object shows the bounding box of the data and can even be transformed.
+There is a rudimentary plugin system that can be used to set up
+custom scene elements in OSPRay directly. This is especially useful when working with large scientific datasets for which it is infeasible or unattractive to load into Blender. Instead, one can use a proxy object, such as a cube mesh, and attach a plugin to it. During rendering BLOSPRAY will call the plugin to load the actual scene data associated with the proxy. In this way Blender scene creation, such as camera animation or lighting, can be done as usual as the proxy object shows the bounding box of the data and can even be transformed.
 
-  The original use case for plugins (and even BLOSPRAY itself) was
-  to make it easy to add a rendered volume in a Blender scene, as Blender
-  itself doesn't have good volume rendering support. But plugins can be used for other types of scene contact as well, like polygonal geometry.
+The original use case for plugins (and even BLOSPRAY itself) was
+to make it easy to add a rendered volume in a Blender scene, as Blender
+itself doesn't have good volume rendering support. But plugins can be used for other types of scene contact as well, like polygonal geometry.
 
-* Render server
+### Render server
 
-  BLOSPRAY consists of two parts:
+BLOSPRAY consists of two parts:
 
-  1. a Python script (`blospray.py`) that implements the Blender render engine. It handles scene export, showing the rendered result, etc.
-  2. a render server (`ospray_render_server`) that receives the scene from Blender, calls OSPRay routines to do the actual rendering and sends back the image result.
+    1. a Python script (`blospray.py`) that implements the Blender render engine. It handles scene export, showing the rendered result, etc.
+    2. a render server (`ospray_render_server`) that receives the scene from Blender, calls OSPRay routines to do the actual rendering and sends back the image result.
 
-  The original reason for this two-part setup is that there currently is no Python API for OSPRay, so direct integration in Blender is not straightforward. Neither is there a command-line OSPRay utility that takes as input a scene description in some format and outputs a rendered image.
+The original reason for this two-part setup is that there currently is no Python API for OSPRay, so direct integration in Blender is not straightforward. Neither is there a command-line OSPRay utility that takes as input a scene description in some format and outputs a rendered image.
 
-  Plus, the client-server setup also has some advantages:
+Plus, the client-server setup also has some advantages:
 
-  - The separate render server can be run on a remote system, for example an HPC system that holds a large scientific dataset to be rendered. This offloads most of the compute-intensive rendering workload and necessity to hold data to be rendered locally away from the system running Blender.
-  - It should be feasible to use OSPRay's [Parallel Rendering with MPI](http://www.ospray.org/documentation.html#parallel-rendering-with-mpi) mode, by providing a variant of the render server as an MPI program.
-  - BLOSPRAY development becomes slightly easier as both Blender and the render server can be independently restarted in case of crashes or bugs.
+    - The separate render server can be run on a remote system, for example an HPC system that holds a large scientific dataset to be rendered. This offloads most of the compute-intensive rendering workload and necessity to hold data to be rendered locally away from the system running Blender.
+    - It should be feasible to use OSPRay's [Parallel Rendering with MPI](http://www.ospray.org/documentation.html#parallel-rendering-with-mpi) mode, by providing a variant of the render server as an MPI program.
+    - BLOSPRAY development becomes slightly easier as both Blender and the render server can be independently restarted in case of crashes or bugs.
 
-  Of course, this client-server setup does introduce some overhead, in terms of network latency and data (de)serialization. But in practice this overhead is small compared to actual render times.
+Of course, this client-server setup does introduce some overhead, in terms of network latency and data (de)serialization. But in practice this overhead is small compared to actual render times.
 
 ## Supported elements
 
