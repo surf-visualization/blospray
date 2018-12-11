@@ -334,7 +334,9 @@ class Connection:
         type2enum = dict(POINT=Light.POINT, SUN=Light.SUN, SPOT=Light.SPOT, AREA=Light.AREA)
         
         lights = []
-        for obj in scene.objects:
+        for instance in depsgraph.object_instances:
+            
+            obj = instance.object
             
             if obj.type != 'LIGHT':
                 continue
@@ -398,22 +400,14 @@ class Connection:
         
         # Objects (meshes and volumes)
          
-        for obj in scene.objects:
+        for instance in depsgraph.object_instances:
+            
+            obj = instance.object
             
             if obj.type != 'MESH':
                 continue
                 
-            if obj.hide_render:
-                # XXX This doesn't seem to work for hiding the collection in which
-                # an object is located.
-                # See https://developer.blender.org/T58823 for more info
-                # Answer from Brecht:
-                # object.hide_render does not tell you if the object is hidden, 
-                # it only returns the value of the property as set by the user. This is the same as in 2.7x.
-                # To find out which objects are visible in the render, you can loop over depsgraph.object_instances.
-                # See also 
-                # https://en.blender.org/index.php/Dev:2.8/Source/Depsgraph
-                continue
+            assert not instance.is_instance
                 
             if 'volume' in obj:
                 self.export_volume(obj, data, depsgraph)

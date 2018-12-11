@@ -53,6 +53,13 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         print('depsgraph mode =', depsgraph.mode)
         print('%d object instances' % len(depsgraph.object_instances))
         
+        for instance in depsgraph.object_instances:
+            print(instance)
+            print(instance.is_instance, instance.instance_object)
+            print(instance.matrix_world)
+            print('parent', instance.parent)
+            print('object', instance.object)
+        
         #depsgraph.debug_relations_graphviz('depsgraph.dot')
         #depsgraph.debug_stats_gnuplot('depsgraph.dat', 'script')   #XXX
         
