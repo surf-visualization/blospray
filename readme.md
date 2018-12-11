@@ -75,10 +75,10 @@ $ ln -sf <blospray-repo>/render_ospray render_ospray
 
 | Cameras | | |
 | ------- |-|-|
-| Perspective | :heavy_check_mark : |
-| Orthographic | :x : |
-| DOF | :heavy_check_mark : |
-| UI panels | :x: |
+| Perspective | :heavy_check_mark : | |
+| Orthographic | :x : | |
+| DOF | :heavy_check_mark : | |
+| UI panels | :x: | |
 
 | Render settings | |
 | --------------- |-|
