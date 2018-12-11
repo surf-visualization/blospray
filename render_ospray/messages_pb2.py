@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x0emessages.proto\"\x96\x01\n\rClientMessage\x12!\n\x04type\x18\x01 \x01(\x0e\x32\x13.ClientMessage.Type\x12\x13\n\x0b\x63lear_scene\x18\x02 \x01(\x08\"M\n\x04Type\x12\x10\n\x0cUPDATE_SCENE\x10\x00\x12\x13\n\x0fSTART_RENDERING\x10\n\x12\x14\n\x10\x43\x41NCEL_RENDERING\x10\x0b\x12\x08\n\x04QUIT\x10\x63\"\x91\x01\n\x0cRenderResult\x12 \n\x04type\x18\x01 \x01(\x0e\x32\x12.RenderResult.Type\x12\x0e\n\x06sample\x18\x02 \x01(\r\x12\x11\n\tfile_name\x18\x03 \x01(\t\x12\x11\n\tfile_size\x18\x04 \x01(\r\")\n\x04Type\x12\t\n\x05\x46RAME\x10\x00\x12\x0c\n\x08\x43\x41NCELED\x10\x01\x12\x08\n\x04\x44ONE\x10\x02\"f\n\x0cSceneElement\x12 \n\x04type\x18\x01 \x01(\x0e\x32\x12.SceneElement.Type\x12\x0c\n\x04name\x18\x02 \x01(\t\"&\n\x04Type\x12\x08\n\x04NONE\x10\x00\x12\x08\n\x04MESH\x10\x01\x12\n\n\x06VOLUME\x10\x02\"\xcb\x01\n\x08MeshInfo\x12\r\n\x05\x66lags\x18\x01 \x01(\r\x12\x14\n\x0cobject2world\x18\x02 \x03(\x02\x12\x12\n\nproperties\x18\x03 \x01(\t\x12\x13\n\x0bobject_name\x18\x04 \x01(\t\x12\x11\n\tmesh_name\x18\x05 \x01(\t\x12\x14\n\x0cnum_vertices\x18\x06 \x01(\r\x12\x15\n\rnum_triangles\x18\x07 \x01(\r\"1\n\x05\x46lags\x12\x08\n\x04NONE\x10\x00\x12\x0b\n\x07NORMALS\x10\x01\x12\x11\n\rVERTEX_COLORS\x10\x02\"m\n\nVolumeInfo\x12\r\n\x05\x66lags\x18\x01 \x01(\r\x12\x14\n\x0cobject2world\x18\x02 \x03(\x02\x12\x12\n\nproperties\x18\x03 \x01(\t\x12\x13\n\x0bobject_name\x18\x04 \x01(\t\x12\x11\n\tmesh_name\x18\x05 \x01(\t\"B\n\rImageSettings\x12\r\n\x05width\x18\x01 \x01(\r\x12\x0e\n\x06height\x18\x02 \x01(\r\x12\x12\n\npercentage\x18\x03 \x01(\r\"\x85\x01\n\x0e\x43\x61meraSettings\x12\x10\n\x08position\x18\x01 \x03(\x02\x12\x10\n\x08view_dir\x18\x02 \x03(\x02\x12\x0e\n\x06up_dir\x18\x03 \x03(\x02\x12\r\n\x05\x66ov_y\x18\x04 \x01(\x02\x12\x1a\n\x12\x64of_focus_distance\x18\x05 \x01(\x02\x12\x14\n\x0c\x64of_aperture\x18\x06 \x01(\x02\"z\n\x0eRenderSettings\x12\x10\n\x08renderer\x18\x01 \x01(\t\x12\x0f\n\x07samples\x18\x02 \x01(\r\x12\x12\n\nao_samples\x18\x03 \x01(\r\x12\x18\n\x10\x62\x61\x63kground_color\x18\x04 \x03(\x02\x12\x17\n\x0fshadows_enabled\x18\x05 \x01(\x08\"\xe0\x02\n\x05Light\x12\x19\n\x04type\x18\x01 \x01(\x0e\x32\x0b.Light.Type\x12\x14\n\x0cobject2world\x18\x02 \x03(\x02\x12\x13\n\x0bobject_name\x18\x03 \x01(\t\x12\x12\n\nlight_name\x18\x04 \x01(\t\x12\r\n\x05\x63olor\x18\n \x03(\x02\x12\x11\n\tintensity\x18\x0b \x01(\x02\x12\x0f\n\x07visible\x18\x0c \x01(\x08\x12\x11\n\tdirection\x18\x14 \x03(\x02\x12\x18\n\x10\x61ngular_diameter\x18\x15 \x01(\x02\x12\x10\n\x08position\x18\x16 \x03(\x02\x12\x0e\n\x06radius\x18\x17 \x01(\x02\x12\x15\n\ropening_angle\x18\x18 \x01(\x02\x12\x16\n\x0epenumbra_angle\x18\x19 \x01(\x02\x12\r\n\x05\x65\x64ge1\x18\x1a \x03(\x02\x12\r\n\x05\x65\x64ge2\x18\x1b \x03(\x02\".\n\x04Type\x12\t\n\x05POINT\x10\x00\x12\x07\n\x03SUN\x10\x01\x12\x08\n\x04SPOT\x10\x02\x12\x08\n\x04\x41REA\x10\x03\"Y\n\rLightSettings\x12\x19\n\x11\x61mbient_intensity\x18\x01 \x01(\x02\x12\x15\n\rambient_color\x18\x02 \x03(\x02\x12\x16\n\x06lights\x18\x03 \x03(\x0b\x32\x06.Light\"P\n\x10VolumeLoadResult\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\x12\x0c\n\x04hash\x18\x03 \x01(\t\x12\x0c\n\x04\x62\x62ox\x18\x04 \x03(\x02\x62\x06proto3')
+  serialized_pb=_b('\n\x0emessages.proto\"\x96\x01\n\rClientMessage\x12!\n\x04type\x18\x01 \x01(\x0e\x32\x13.ClientMessage.Type\x12\x13\n\x0b\x63lear_scene\x18\x02 \x01(\x08\"M\n\x04Type\x12\x10\n\x0cUPDATE_SCENE\x10\x00\x12\x13\n\x0fSTART_RENDERING\x10\n\x12\x14\n\x10\x43\x41NCEL_RENDERING\x10\x0b\x12\x08\n\x04QUIT\x10\x63\"\xa7\x01\n\x0cRenderResult\x12 \n\x04type\x18\x01 \x01(\x0e\x32\x12.RenderResult.Type\x12\x0e\n\x06sample\x18\x02 \x01(\r\x12\x11\n\tfile_name\x18\x03 \x01(\t\x12\x11\n\tfile_size\x18\x04 \x01(\r\x12\x14\n\x0cmemory_usage\x18\x05 \x01(\x02\")\n\x04Type\x12\t\n\x05\x46RAME\x10\x00\x12\x0c\n\x08\x43\x41NCELED\x10\x01\x12\x08\n\x04\x44ONE\x10\x02\"f\n\x0cSceneElement\x12 \n\x04type\x18\x01 \x01(\x0e\x32\x12.SceneElement.Type\x12\x0c\n\x04name\x18\x02 \x01(\t\"&\n\x04Type\x12\x08\n\x04NONE\x10\x00\x12\x08\n\x04MESH\x10\x01\x12\n\n\x06VOLUME\x10\x02\"\xcb\x01\n\x08MeshInfo\x12\r\n\x05\x66lags\x18\x01 \x01(\r\x12\x14\n\x0cobject2world\x18\x02 \x03(\x02\x12\x12\n\nproperties\x18\x03 \x01(\t\x12\x13\n\x0bobject_name\x18\x04 \x01(\t\x12\x11\n\tmesh_name\x18\x05 \x01(\t\x12\x14\n\x0cnum_vertices\x18\x06 \x01(\r\x12\x15\n\rnum_triangles\x18\x07 \x01(\r\"1\n\x05\x46lags\x12\x08\n\x04NONE\x10\x00\x12\x0b\n\x07NORMALS\x10\x01\x12\x11\n\rVERTEX_COLORS\x10\x02\"m\n\nVolumeInfo\x12\r\n\x05\x66lags\x18\x01 \x01(\r\x12\x14\n\x0cobject2world\x18\x02 \x03(\x02\x12\x12\n\nproperties\x18\x03 \x01(\t\x12\x13\n\x0bobject_name\x18\x04 \x01(\t\x12\x11\n\tmesh_name\x18\x05 \x01(\t\"B\n\rImageSettings\x12\r\n\x05width\x18\x01 \x01(\r\x12\x0e\n\x06height\x18\x02 \x01(\r\x12\x12\n\npercentage\x18\x03 \x01(\r\"\x85\x01\n\x0e\x43\x61meraSettings\x12\x10\n\x08position\x18\x01 \x03(\x02\x12\x10\n\x08view_dir\x18\x02 \x03(\x02\x12\x0e\n\x06up_dir\x18\x03 \x03(\x02\x12\r\n\x05\x66ov_y\x18\x04 \x01(\x02\x12\x1a\n\x12\x64of_focus_distance\x18\x05 \x01(\x02\x12\x14\n\x0c\x64of_aperture\x18\x06 \x01(\x02\"z\n\x0eRenderSettings\x12\x10\n\x08renderer\x18\x01 \x01(\t\x12\x0f\n\x07samples\x18\x02 \x01(\r\x12\x12\n\nao_samples\x18\x03 \x01(\r\x12\x18\n\x10\x62\x61\x63kground_color\x18\x04 \x03(\x02\x12\x17\n\x0fshadows_enabled\x18\x05 \x01(\x08\"\xe0\x02\n\x05Light\x12\x19\n\x04type\x18\x01 \x01(\x0e\x32\x0b.Light.Type\x12\x14\n\x0cobject2world\x18\x02 \x03(\x02\x12\x13\n\x0bobject_name\x18\x03 \x01(\t\x12\x12\n\nlight_name\x18\x04 \x01(\t\x12\r\n\x05\x63olor\x18\n \x03(\x02\x12\x11\n\tintensity\x18\x0b \x01(\x02\x12\x0f\n\x07visible\x18\x0c \x01(\x08\x12\x11\n\tdirection\x18\x14 \x03(\x02\x12\x18\n\x10\x61ngular_diameter\x18\x15 \x01(\x02\x12\x10\n\x08position\x18\x16 \x03(\x02\x12\x0e\n\x06radius\x18\x17 \x01(\x02\x12\x15\n\ropening_angle\x18\x18 \x01(\x02\x12\x16\n\x0epenumbra_angle\x18\x19 \x01(\x02\x12\r\n\x05\x65\x64ge1\x18\x1a \x03(\x02\x12\r\n\x05\x65\x64ge2\x18\x1b \x03(\x02\".\n\x04Type\x12\t\n\x05POINT\x10\x00\x12\x07\n\x03SUN\x10\x01\x12\x08\n\x04SPOT\x10\x02\x12\x08\n\x04\x41REA\x10\x03\"Y\n\rLightSettings\x12\x19\n\x11\x61mbient_intensity\x18\x01 \x01(\x02\x12\x15\n\rambient_color\x18\x02 \x03(\x02\x12\x16\n\x06lights\x18\x03 \x03(\x0b\x32\x06.Light\"P\n\x10VolumeLoadResult\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\x12\x0c\n\x04hash\x18\x03 \x01(\t\x12\x0c\n\x04\x62\x62ox\x18\x04 \x03(\x02\x62\x06proto3')
 )
 
 
@@ -75,8 +75,8 @@ _RENDERRESULT_TYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=276,
-  serialized_end=317,
+  serialized_start=298,
+  serialized_end=339,
 )
 _sym_db.RegisterEnumDescriptor(_RENDERRESULT_TYPE)
 
@@ -101,8 +101,8 @@ _SCENEELEMENT_TYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=383,
-  serialized_end=421,
+  serialized_start=405,
+  serialized_end=443,
 )
 _sym_db.RegisterEnumDescriptor(_SCENEELEMENT_TYPE)
 
@@ -127,8 +127,8 @@ _MESHINFO_FLAGS = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=578,
-  serialized_end=627,
+  serialized_start=600,
+  serialized_end=649,
 )
 _sym_db.RegisterEnumDescriptor(_MESHINFO_FLAGS)
 
@@ -157,8 +157,8 @@ _LIGHT_TYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=1375,
-  serialized_end=1421,
+  serialized_start=1397,
+  serialized_end=1443,
 )
 _sym_db.RegisterEnumDescriptor(_LIGHT_TYPE)
 
@@ -237,6 +237,13 @@ _RENDERRESULT = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='memory_usage', full_name='RenderResult.memory_usage', index=4,
+      number=5, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -251,7 +258,7 @@ _RENDERRESULT = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=172,
-  serialized_end=317,
+  serialized_end=339,
 )
 
 
@@ -289,8 +296,8 @@ _SCENEELEMENT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=319,
-  serialized_end=421,
+  serialized_start=341,
+  serialized_end=443,
 )
 
 
@@ -363,8 +370,8 @@ _MESHINFO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=424,
-  serialized_end=627,
+  serialized_start=446,
+  serialized_end=649,
 )
 
 
@@ -422,8 +429,8 @@ _VOLUMEINFO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=629,
-  serialized_end=738,
+  serialized_start=651,
+  serialized_end=760,
 )
 
 
@@ -467,8 +474,8 @@ _IMAGESETTINGS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=740,
-  serialized_end=806,
+  serialized_start=762,
+  serialized_end=828,
 )
 
 
@@ -533,8 +540,8 @@ _CAMERASETTINGS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=809,
-  serialized_end=942,
+  serialized_start=831,
+  serialized_end=964,
 )
 
 
@@ -592,8 +599,8 @@ _RENDERSETTINGS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=944,
-  serialized_end=1066,
+  serialized_start=966,
+  serialized_end=1088,
 )
 
 
@@ -722,8 +729,8 @@ _LIGHT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1069,
-  serialized_end=1421,
+  serialized_start=1091,
+  serialized_end=1443,
 )
 
 
@@ -767,8 +774,8 @@ _LIGHTSETTINGS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1423,
-  serialized_end=1512,
+  serialized_start=1445,
+  serialized_end=1534,
 )
 
 
@@ -819,8 +826,8 @@ _VOLUMELOADRESULT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1514,
-  serialized_end=1594,
+  serialized_start=1536,
+  serialized_end=1616,
 )
 
 _CLIENTMESSAGE.fields_by_name['type'].enum_type = _CLIENTMESSAGE_TYPE

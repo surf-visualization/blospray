@@ -712,6 +712,7 @@ render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
         rs.set_sample(i);
         rs.set_file_name(fname);
         rs.set_file_size(framebuffer_file_size);
+        rs.set_memory_usage(memory_usage());
         
         render_result_queue.push(rs);
         

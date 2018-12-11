@@ -31,6 +31,7 @@ message RenderResult
     uint32  sample = 2;
     string  file_name = 3;
     uint32  file_size = 4;
+    float   memory_usage = 5;
 }
 
 // Scene

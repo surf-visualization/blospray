@@ -179,6 +179,9 @@ class Connection:
                     self.update_result(result)
                     """
                     
+                    # XXX both receiving into a file, and loading from file, block
+                    # the blender UI for a short time
+                    
                     print('[%6.3f] _read_framebuffer_to_file start' % (time.time()-t0))
                     self._read_framebuffer_to_file(FBFILE, render_result.file_size)
                     print('[%6.3f] _read_framebuffer_to_file end' % (time.time()-t0))
@@ -194,7 +197,12 @@ class Connection:
                     self.engine.update_progress(sample/self.render_samples)
                     
                     sample += 1
-                    self.engine.update_stats('', 'Rendering sample %d/%d' % (sample, self.render_samples))
+                    
+                    # XXX perhaps use update_memory_stats()
+                    
+                    self.engine.update_stats(   
+                        'Server %.1f MB' % render_result.memory_usage, 
+                        'Rendering sample %d/%d' % (sample, self.render_samples))
                     
                 elif render_result.type == RenderResult.CANCELED:
                     print('Rendering CANCELED!')
