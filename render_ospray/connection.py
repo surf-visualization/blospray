@@ -102,7 +102,6 @@ class Connection:
         self.engine.update_stats('', 'Connecting')
         self.sock.connect((self.host, self.port))
         
-        self.engine.update_stats('', 'Exporting')
         self.export_scene(data, depsgraph)    
     
     def render(self, depsgraph):
@@ -148,9 +147,9 @@ class Connection:
         sample = 1
         cancel_sent = False
         
+        self.engine.update_stats('', 'Rendering sample %d/%d' % (sample, self.render_samples))
+        
         while True:
-            
-            self.engine.update_stats('', 'Rendering sample %d/%d' % (sample, self.render_samples))
             
             # Check for incoming render results
             
@@ -195,13 +194,16 @@ class Connection:
                     self.engine.update_progress(sample/self.render_samples)
                     
                     sample += 1
+                    self.engine.update_stats('', 'Rendering sample %d/%d' % (sample, self.render_samples))
                     
                 elif render_result.type == RenderResult.CANCELED:
                     print('Rendering CANCELED!')
+                    self.engine.update_stats('', 'Rendering canceled')
                     cancel_sent = True
                     break
                     
                 elif render_result.type == RenderResult.DONE:
+                    self.engine.update_stats('', 'Rendering done')
                     print('Rendering done!')
                     break
                     
@@ -228,6 +230,8 @@ class Connection:
     #
     
     def export_volume(self, obj, data, depsgraph):
+        
+        self.engine.update_stats('', 'Exporting volume %s' % obj.name)
     
         element = SceneElement()
         element.type = SceneElement.VOLUME
@@ -299,6 +303,8 @@ class Connection:
 
     def export_scene(self, data, depsgraph):
         
+        self.engine.update_stats('', 'Exporting scene')
+        
         client_message = ClientMessage()
         client_message.type = ClientMessage.UPDATE_SCENE
         client_message.clear_scene = True
@@ -362,6 +368,8 @@ class Connection:
         render_settings.shadows_enabled = scene.ospray.shadows_enabled
         
         # Lights
+        
+        self.engine.update_stats('', 'Exporting lights')
         
         light_settings = LightSettings()
         
@@ -436,7 +444,7 @@ class Connection:
         send_protobuf(self.sock, light_settings)
         
         # Objects (meshes and volumes)
-         
+        
         for instance in depsgraph.object_instances:
             
             obj = instance.object
@@ -451,6 +459,8 @@ class Connection:
                 continue
                 
             # Object with mesh data
+            
+            self.engine.update_stats('', 'Exporting object %s' % obj.name)
             
             mesh = obj.data
                 
