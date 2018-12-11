@@ -346,6 +346,8 @@ class Connection:
             light = Light()
             light.type = type2enum[data.type]
             light.object2world[:] = matrix2list(xform)
+            light.object_name = obj.name
+            light.light_name = data.name
             
             # XXX
             light.color[:] = properties['color'] if 'color' in properties else (1.0, 1.0, 1.0)            

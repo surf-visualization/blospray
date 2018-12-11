@@ -113,21 +113,24 @@ message Light
     
     Type            type = 1;
     repeated float  object2world = 2;
+    string          object_name = 3;
+    string          light_name = 4;
+    
     
     // Common values
-    repeated float  color = 3;
-    float           intensity = 4;
-    bool            visible = 5;
+    repeated float  color = 10;
+    float           intensity = 11;
+    bool            visible = 12;
     
     // Per-type values
-    repeated float  direction = 6;          // Directional, spot
-    float           angular_diameter = 7;   // Directional
-    repeated float  position = 8;           // Point/sphere, spot, quad
-    float           radius = 9;             // Point/sphere, spot
-    float           opening_angle = 10;     // Spot
-    float           penumbra_angle = 11;    // Spot
-    repeated float  edge1 = 12;             // Area/Quad
-    repeated float  edge2 = 13;             // Area/Quad
+    repeated float  direction = 20;          // Directional, spot
+    float           angular_diameter = 21;  // Directional
+    repeated float  position = 22;          // Point/sphere, spot, quad
+    float           radius = 23;            // Point/sphere, spot
+    float           opening_angle = 24;     // Spot
+    float           penumbra_angle = 25;    // Spot
+    repeated float  edge1 = 26;             // Area/Quad
+    repeated float  edge2 = 27;             // Area/Quad
 }   
 
 message LightSettings

@@ -203,7 +203,7 @@ receive_mesh(TCPSocket *sock)
     
     if (flags & MeshInfo::NORMALS)
     {
-        printf("Mesh has normals\n");
+        printf("...... Mesh has normals\n");
         normal_buffer.reserve(nv*3);
         if (sock->recvall(&normal_buffer[0], nv*3*sizeof(float)) == -1)
             return false;        
@@ -211,7 +211,7 @@ receive_mesh(TCPSocket *sock)
         
     if (flags & MeshInfo::VERTEX_COLORS)
     {
-        printf("Mesh has vertex colors\n");
+        printf("...... Mesh has vertex colors\n");
         vertex_color_buffer.reserve(nv*4);
         if (sock->recvall(&vertex_color_buffer[0], nv*4*sizeof(float)) == -1)
             return false;        
@@ -602,9 +602,9 @@ receive_scene(TCPSocket *sock)
     
     for (int i = 0; i < num_lights; i++)
     {
-        printf("Light %d\n", i);
-        
         const Light& light = light_settings.lights(i);
+        
+        printf("[LIGHT] %s (%s)\n", light.object_name().c_str(), light.light_name().c_str());
         
         if (light.type() == Light::POINT)
         {

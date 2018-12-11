@@ -86,6 +86,8 @@ $ ln -sf <blospray-repo>/render_ospray render_ospray
 
 OSPRay also has some limitations itself, some of which we can work around, some of which we can't:
 
+* The pathtracer renderer does not support volume rendering
+
 * In OSPray structured grid volumes currently cannot be transformed with an 
   arbitrary affine transformation (see [this issue](https://github.com/ospray/ospray/issues/159)
   and [this issue](https://github.com/ospray/ospray/issues/48)). 
