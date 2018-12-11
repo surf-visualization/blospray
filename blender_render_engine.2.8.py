@@ -14,8 +14,8 @@ import bpy
 class CustomRenderEngine(bpy.types.RenderEngine):
     # These three members are used by blender to set up the
     # RenderEngine; define its internal name, visible name and capabilities.
-    bl_idname = "custom_renderer"
-    bl_label = "Flat Color Renderer"
+    bl_idname = "TEST"
+    bl_label = "TEST"
     
     # Enable the availability of material preview renders
     bl_use_preview = False
@@ -59,6 +59,11 @@ class CustomRenderEngine(bpy.types.RenderEngine):
             print(instance.matrix_world)
             print('parent', instance.parent)
             print('object', instance.object)
+            obj = instance.object
+            if obj.type == 'MESH':
+                mesh = obj.data
+                print('mesh', mesh.name)
+                print('%d v, %d p' % (len(mesh.vertices), len(mesh.polygons)))
         
         #depsgraph.debug_relations_graphviz('depsgraph.dot')
         #depsgraph.debug_stats_gnuplot('depsgraph.dat', 'script')   #XXX
