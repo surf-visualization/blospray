@@ -5,7 +5,7 @@ import bpy
 #from bgl import *
 from mathutils import Vector
 
-import sys, array, json, os, socket, time
+import sys, array, json, os, select, socket, time
 from math import tan, atan, degrees, radians
 from struct import pack, unpack
 
@@ -146,55 +146,80 @@ class Connection:
         FBFILE = '/dev/shm/blosprayfb.exr'
         
         sample = 1
+        cancel_sent = False
         
         while True:
             
             self.engine.update_stats('', 'Rendering sample %d/%d' % (sample, self.render_samples))
             
-            render_result = RenderResult()
-            receive_protobuf(self.sock, render_result)
+            # Check for incoming render results
             
-            if render_result.type == RenderResult.FRAME:
+            r, w, e = select.select([self.sock], [], [], 0)
+            
+            if len(r) == 1:
                 
-                """
-                # XXX Slow: get as raw block of floats
-                print('[%6.3f] _read_framebuffer start' % (time.time()-t0))
-                self._read_framebuffer(framebuffer, self.width, self.height)            
-                print('[%6.3f] _read_framebuffer end' % (time.time()-t0))
+                render_result = RenderResult()
+                receive_protobuf(self.sock, render_result)
                 
-                pixels = framebuffer.view(numpy.float32).reshape((num_pixels, 4))
-                print(pixels.shape)
-                print('[%6.3f] view() end' % (time.time()-t0))
-                
-                # Here we write the pixel values to the RenderResult   
-                # XXX This is the slow part
-                print(type(layer.rect))
-                layer.rect = pixels
-                self.update_result(result)
-                """
-                
-                print('[%6.3f] _read_framebuffer_to_file start' % (time.time()-t0))
-                self._read_framebuffer_to_file(FBFILE, render_result.file_size)
-                print('[%6.3f] _read_framebuffer_to_file end' % (time.time()-t0))
-                
-                # Sigh, this needs an image file format. I.e. reading in a raw framebuffer
-                # of floats isn't possible, hence the OpenEXR file
-                result.layers[0].load_from_file(FBFILE)
-                
-                self.engine.update_result(result)
-                
-                print('[%6.3f] update_result() done' % (time.time()-t0))
+                if render_result.type == RenderResult.FRAME:
+                    
+                    """
+                    # XXX Slow: get as raw block of floats
+                    print('[%6.3f] _read_framebuffer start' % (time.time()-t0))
+                    self._read_framebuffer(framebuffer, self.width, self.height)            
+                    print('[%6.3f] _read_framebuffer end' % (time.time()-t0))
+                    
+                    pixels = framebuffer.view(numpy.float32).reshape((num_pixels, 4))
+                    print(pixels.shape)
+                    print('[%6.3f] view() end' % (time.time()-t0))
+                    
+                    # Here we write the pixel values to the RenderResult   
+                    # XXX This is the slow part
+                    print(type(layer.rect))
+                    layer.rect = pixels
+                    self.update_result(result)
+                    """
+                    
+                    print('[%6.3f] _read_framebuffer_to_file start' % (time.time()-t0))
+                    self._read_framebuffer_to_file(FBFILE, render_result.file_size)
+                    print('[%6.3f] _read_framebuffer_to_file end' % (time.time()-t0))
+                    
+                    # Sigh, this needs an image file format. I.e. reading in a raw framebuffer
+                    # of floats isn't possible, hence the OpenEXR file
+                    result.layers[0].load_from_file(FBFILE)
+                    
+                    self.engine.update_result(result)
+                    
+                    print('[%6.3f] update_result() done' % (time.time()-t0))
 
-                self.engine.update_progress(sample/self.render_samples)
-                
-                sample += 1
-                
-            elif render_result.type == RenderResult.DONE:
-                print('Rendering done!')
-                break
+                    self.engine.update_progress(sample/self.render_samples)
+                    
+                    sample += 1
+                    
+                elif render_result.type == RenderResult.CANCELED:
+                    print('Rendering CANCELED!')
+                    cancel_sent = True
+                    break
+                    
+                elif render_result.type == RenderResult.DONE:
+                    print('Rendering done!')
+                    break
+                    
+            # Check if render was canceled
+            
+            if self.engine.test_break() and not cancel_sent:
+                client_message = ClientMessage()
+                client_message.type = ClientMessage.CANCEL_RENDERING
+                send_protobuf(self.sock, client_message)
+                cancel_sent = True
+                    
+            time.sleep(0.001)
             
         self.engine.end_result(result)      
         
+        print('Done with render loop')
+        
+        client_message = ClientMessage()
         client_message.type = ClientMessage.QUIT
         send_protobuf(self.sock, client_message)
         

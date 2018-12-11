@@ -716,6 +716,21 @@ render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
         render_result_queue.push(rs);
         
         // XXX handle cancel input
+        
+        if (render_input_queue.size() > 0)
+        {
+            ClientMessage cm = render_input_queue.pop();
+            if (cm.type() == ClientMessage::CANCEL_RENDERING)
+            {
+                printf("{render thread} Canceling rendering\n");
+                            
+                RenderResult rs;
+                rs.set_type(RenderResult::CANCELED);
+                render_result_queue.push(rs);
+                
+                return;
+            }
+        }
     }
     
     RenderResult rs;
@@ -744,7 +759,6 @@ handle_connection(TCPSocket *sock)
         
         if (sock->is_readable())
         {
-            printf("readable\n");
             if (!receive_protobuf(sock, client_message))
             {
                 // XXX if we were rendering, handle the chaos
@@ -779,11 +793,25 @@ handle_connection(TCPSocket *sock)
                     rendering = true;
                     break;
                     
-                // CANCEL_RENDERING
+                case ClientMessage::CANCEL_RENDERING:
+                    
+                    printf("Got request to CANCEL rendering\n");
+                    
+                    if (!rendering)
+                        break;
+                    
+                    render_input_queue.push(client_message);
+                    
+                    break;
                     
                 case ClientMessage::QUIT:
-                    // XXX if we were rendering, handle the chaos
-                    break;
+                    // XXX if we were still rendering, handle the chaos
+                
+                    printf("Got QUIT message\n");
+                
+                    sock->close();
+                
+                    return true;
             }
         }
         
@@ -806,6 +834,12 @@ handle_connection(TCPSocket *sock)
                     break;
                 
                 case RenderResult::CANCELED:
+                    printf("Rendering canceled!\n");
+                
+                    // Thread should have finished by now
+                    render_thread.join();
+                
+                    rendering = false;
                     break;
                 
                 case RenderResult::DONE:
