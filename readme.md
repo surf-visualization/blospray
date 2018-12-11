@@ -53,13 +53,16 @@ $ ln -sf <blospray-repo>/render_ospray render_ospray
 | Normals           | :heavy_check_mark: |
 | Vertex colors     | :heavy_check_mark: |
 | Modifiers         | :heavy_check_mark: |
+| Materials         | :x: |
 | Textures          | :x: |
+| UI panels | :x: |
 
-| Volumes | |
-| ------- |-|
+| Volumes | | |
+| ------- |-|-|
 | Isosurfaces | :heavy_check_mark: | Support through custom property |
 | Slice planes | :question: | Support for 1 plane through custom property |
 | AMR | :question: | No specific support, atm, but plugins can create AMR volumes |
+| UI panels | :x: |
 
 | Lights | |
 | ------ |-|
@@ -70,10 +73,19 @@ $ ln -sf <blospray-repo>/render_ospray render_ospray
 | HDRI | :x: |
 | UI panels | :x: |
 
+| Cameras | | |
+| ------- |-|-|
+| Perspective | :heavy_check_mark : |
+| Orthographic | :x : |
+| DOF | :heavy_check_mark : |
+| UI panels | :x: |
+
 | Render settings | |
 | --------------- |-|
 | Resolution | :heavy_check_mark: |
 | Percentage | :heavy_check_mark: |
+| UI panels | :question: |
+
 
 ## Known limitations and bugs
 
