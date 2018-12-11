@@ -33,7 +33,7 @@ itself doesn't have good volume rendering support. But plugins can be used for o
 
 BLOSPRAY consists of two parts:
 
-1. a Python script (`blospray.py`) that implements the Blender render engine. It handles scene export, showing the rendered result, etc.
+1. a Python addon (directory `render_ospray`) that implements the Blender render engine. It handles scene export, showing the rendered result, etc.
 2. a render server (`ospray_render_server`) that receives the scene from Blender, calls OSPRay routines to do the actual rendering and sends back the image result.
 
 The original reason for this two-part setup is that there currently is no Python API for OSPRay, so direct integration in Blender is not straightforward. Neither is there a command-line OSPRay utility that takes as input a scene description in some format and outputs a rendered image.
@@ -44,7 +44,8 @@ Plus, the client-server setup also has some advantages:
 - It should be feasible to use OSPRay's [Parallel Rendering with MPI](http://www.ospray.org/documentation.html#parallel-rendering-with-mpi) mode, by providing a variant of the render server as an MPI program.
 - BLOSPRAY development becomes slightly easier as both Blender and the render server can be independently restarted in case of crashes or bugs.
 
-Of course, this client-server setup does introduce some overhead, in terms of network latency and data (de)serialization. But in practice this overhead is small compared to actual render times.
+Of course, this client-server setup does introduce some overhead, in terms of network latency and data (de)serialization. But in practice this overhead is small compared to actual render times. 
+In future, caching of data on the server can help in reducing the overhead even further.
 
 ## Supported elements
 
@@ -60,8 +61,8 @@ Of course, this client-server setup does introduce some overhead, in terms of ne
 | Volumes | | |
 | ------- |-|-|
 | Isosurfaces | :heavy_check_mark: | Support through custom property |
-| Slice planes | :question: | Support for 1 plane through custom property |
-| AMR | :question: | No specific support, atm, but plugins can create AMR volumes |
+| Slice planes | :o: | Support for 1 plane through custom property |
+| AMR | :o: | No specific support, atm, but plugins can create AMR volumes |
 | UI panels | :x: |
 
 | Lights | |
@@ -84,7 +85,7 @@ Of course, this client-server setup does introduce some overhead, in terms of ne
 | --------------- |-|
 | Resolution | :heavy_check_mark: |
 | Percentage | :heavy_check_mark: |
-| UI panels | :question: |
+| UI panels | :o: |
 
 
 ## Known limitations and bugs
@@ -121,13 +122,13 @@ OSPRay also has some limitations itself, some of which we can work around, some 
   
   - Custom properties `grid_spacing` and `grid_origin` can be set to influence the
     scaling and placement of a structured volume (these get passed to the `gridOrigin`
-    and `gridSpacing` values of an `OSPVolume`). See tests/grid.blend for an example.
+    and `gridSpacing` values of an `OSPVolume`). See **tests/grid.blend** for an example.
     
   - By setting a custom property `unstructured` to `1` on the volume object 
     the structured grid is converted to an unstructured one, whose vertices *can* be transformed. 
     Of course, this increases memory usage and decreases render performance, but makes 
     it possible to handle volumes in the same general was as other 
-    Blender scene objects. See tests/test.blend for an example.
+    Blender scene objects. See **tests/test.blend** for an example.
     
 * Volumes are limited in their size, due to the relevant ISPC-based
   code being built in 32-bit mode. See [this issue](https://github.com/ospray/ospray/issues/239).
