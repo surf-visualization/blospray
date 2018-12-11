@@ -9,7 +9,8 @@ as the Python API isn't fully compatible with 2.8x.
 
 ## Usage
 
-BLOSPRAY is as a Blender add-on, but is not being distributed separately.
+BLOSPRAY is a Blender add-on, but is not being distributed separately
+as it is in heavy development.
 Currently, the way to install it is to clone this repository and then
 make a symlink to the `render_ospray` directory in the Blender addon directory:
 
@@ -63,6 +64,7 @@ In future, caching of data on the server can help in reducing the overhead even 
 | Isosurfaces | :heavy_check_mark: | Support through custom property |
 | Slice planes | :o: | Support for 1 plane through custom property |
 | AMR | :o: | No specific support, atm, but plugins can create AMR volumes |
+| Transfer functions | :x: | No UI yet |
 | UI panels | :x: |
 
 | Lights | |
@@ -90,8 +92,8 @@ In future, caching of data on the server can help in reducing the overhead even 
 
 ## Known limitations and bugs
 
-* The addon provides some UI panels to set OSPRay specific settings, but in other case we use Blender's [custom properties](https://docs.blender.org/manual/en/dev/data_system/custom_properties.html)
-  to pass information to OSPRay. These can even be animated, with certain limitations, but are not a long-term solution. Note also that builtin UI panels are disabled when the render engine
+* The addon provides some UI panels to set OSPRay specific settings, but in other cases we use Blender's [custom properties](https://docs.blender.org/manual/en/dev/data_system/custom_properties.html)
+  to pass information to OSPRay. These can even be animated, with certain limitations, but are not a long-term solution. Note also that some builtin UI panels are disabled when the render engine
   is set to OSPRay as those panels can't directly be used with OSPRay (e.g. they contain Cycles-specific settings).
 
 * Scene management on the render server is non-existent. I.e. memory usage increases after each render.  
