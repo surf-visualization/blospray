@@ -87,16 +87,34 @@ message ImageSettings
 
 message CameraSettings
 {
-    // camera type
+    enum Type {
+        PERSPECTIVE = 0;
+        ORTHOGRAPHIC = 1;
+        PANORAMIC = 2;
+    }
+    
+    Type    type = 1;
+    string  object_name = 2;
+    string  camera_name = 3;
 
-    repeated float position = 1;
-    repeated float view_dir = 2;
-    repeated float up_dir = 3;
+    repeated float position = 10;
+    repeated float view_dir = 11;
+    repeated float up_dir = 12;
     
-    float fov_y = 4;                // Degrees
+    // Perspective
+    float fov_y = 20;                // Degrees
     
-    float dof_focus_distance = 5;
-    float dof_aperture = 6;
+    // Orthographic
+    float height = 30;
+    
+    // Perspective, orthographic
+    float aspect = 40;
+    
+    // Common
+    float clip_start = 50;
+    
+    float dof_focus_distance = 60;
+    float dof_aperture = 61;
 }
 
 message RenderSettings

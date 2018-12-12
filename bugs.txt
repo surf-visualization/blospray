@@ -1,0 +1,2 @@
+Bugs
+- camera clip start doesn't match cycles render

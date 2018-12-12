@@ -486,6 +486,8 @@ receive_scene(TCPSocket *sock)
     
     receive_protobuf(sock, camera_settings);
     
+    printf("[CAMERA] %s (%s)\n", camera_settings.object_name().c_str(), camera_settings.camera_name().c_str());
+    
     float cam_pos[3], cam_viewdir[3], cam_updir[3];
     
     cam_pos[0] = camera_settings.position(0);
@@ -500,13 +502,34 @@ receive_scene(TCPSocket *sock)
     cam_updir[1] = camera_settings.up_dir(1);
     cam_updir[2] = camera_settings.up_dir(2);
     
-    camera = ospNewCamera("perspective");
+    switch (camera_settings.type())
+    {
+        case CameraSettings::PERSPECTIVE:
+            camera = ospNewCamera("perspective");
+            ospSetf(camera, "fovy",  camera_settings.fov_y());
+            break;
+        
+        case CameraSettings::ORTHOGRAPHIC:
+            camera = ospNewCamera("orthographic");
+            ospSetf(camera, "height", camera_settings.height());
+            break;
+            
+        case CameraSettings::PANORAMIC:
+            camera = ospNewCamera("panoramic");
+            break;
+        
+        default:
+            fprintf(stderr, "WARNING: unknown camera type %d\n", camera_settings.type());
+            break;
+    }
 
-    ospSetf(camera, "aspect", image_size.x/(float)image_size.y);
+    ospSetf(camera, "aspect", camera_settings.aspect());
+    ospSetf(camera, "nearClip", camera_settings.clip_start());     
+    
     ospSet3fv(camera, "pos", cam_pos);
     ospSet3fv(camera, "dir", cam_viewdir);
     ospSet3fv(camera, "up",  cam_updir);
-    ospSetf(camera, "fovy",  camera_settings.fov_y());
+    
     if (camera_settings.dof_focus_distance() > 0.0f)
     {
         // XXX seem to stuck in loop during rendering when distance is 0

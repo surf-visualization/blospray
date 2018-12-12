@@ -344,16 +344,35 @@ class Connection:
         cam_data = cam_obj.data
 
         camera_settings = CameraSettings()
+        camera_settings.object_name = cam_obj.name
+        camera_settings.camera_name = cam_data.name
+        
+        camera_settings.aspect = aspect
+        camera_settings.clip_start = cam_data.clip_start
+        
+        if cam_data.type == 'PERSP':
+            camera_settings.type = CameraSettings.PERSPECTIVE
+            
+            # Get camera FOV (in degrees)
+            hfov = cam_data.angle   
+            image_plane_width = 2 * tan(hfov/2)
+            image_plane_height = image_plane_width / aspect
+            vfov = 2*atan(image_plane_height/2)
+            camera_settings.fov_y = degrees(vfov)
+            
+        elif cam_data.type == 'ORTHO':
+            camera_settings.type = CameraSettings.ORTHOGRAPHIC
+            camera_settings.height = cam_data.ortho_scale / aspect
+            
+        elif cam_data.type == 'PANO':
+            camera_settings.type = CameraSettings.PANORAMIC
+            
+        else:
+            raise ValueError('Unknown camera type "%s"' % cam_data.type)
+        
         camera_settings.position[:] = list(cam_obj.location)
         camera_settings.view_dir[:] = list(cam_xform @ Vector((0, 0, -1)) - cam_obj.location)
         camera_settings.up_dir[:] = list(cam_xform @ Vector((0, 1, 0)) - cam_obj.location)
-
-        # Get camera FOV (in radians)
-        hfov = cam_data.angle   
-        image_plane_width = 2 * tan(hfov/2)
-        image_plane_height = image_plane_width / aspect
-        vfov = 2*atan(image_plane_height/2)
-        camera_settings.fov_y = degrees(vfov)
         
         # DoF
         if cam_data.dof_object is not None:

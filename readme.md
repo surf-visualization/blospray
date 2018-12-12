@@ -27,8 +27,19 @@ There is a rudimentary plugin system that can be used to set up
 custom scene elements in OSPRay directly. This is especially useful when working with large scientific datasets for which it is infeasible or unattractive to load into Blender. Instead, one can use a proxy object, such as a cube mesh, and attach a plugin to it. During rendering BLOSPRAY will call the plugin to load the actual scene data associated with the proxy. In this way Blender scene creation, such as camera animation or lighting, can be done as usual as the proxy object shows the bounding box of the data and can even be transformed.
 
 The original use case for plugins (and even BLOSPRAY itself) was
-to make it easy to add a rendered volume in a Blender scene, as Blender
-itself doesn't have good volume rendering support. But plugins can be used for other types of scene contact as well, like polygonal geometry.
+to make it easy to use volume rendering in a Blender scene. Blender's
+own volume rendering support is geared towards the built-in 
+smoke and fire simulations and isn't really a good fit for
+scientific datasets, plus it is very hard to get volume data
+into Blender anyway for that use case. 
+
+Apart from volumes, plugins can be used for other types of scene contact as well, like polygonal geometry.
+But this is currently not supported yet in BLOSPRAY.
+
+Note that BLOSPRAY plugins are different from OSPRay's own "extensions", that
+are also loadable at run-time. The latter are meant for extending OSPRay itself
+with, for example, a new geometry type. BLOSPRAY plugins serve to extend *Blender*
+with new scene elements that can then be rendered in OSPRay.
 
 ### Render server
 
@@ -44,6 +55,7 @@ Plus, the client-server setup also has some advantages:
 - The separate render server can be run on a remote system, for example an HPC system that holds a large scientific dataset to be rendered. This offloads most of the compute-intensive rendering workload and necessity to hold data to be rendered locally away from the system running Blender.
 - It should be feasible to use OSPRay's [Parallel Rendering with MPI](http://www.ospray.org/documentation.html#parallel-rendering-with-mpi) mode, by providing a variant of the render server as an MPI program.
 - BLOSPRAY development becomes slightly easier as both Blender and the render server can be independently restarted in case of crashes or bugs.
+- The network protocol is (currently) not strongly tied to Blender, so the render server can be used in other situations as well.
 
 Of course, this client-server setup does introduce some overhead, in terms of network latency and data (de)serialization. But in practice this overhead is small compared to actual render times. 
 In future, caching of data on the server can help in reducing the overhead even further.
