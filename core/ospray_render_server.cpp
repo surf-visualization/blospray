@@ -64,6 +64,7 @@ OSPCamera       camera;
 OSPRenderer     renderer;
 OSPFrameBuffer  framebuffer;
 bool            framebuffer_created = false;
+OSPMaterial     material;   // XXX hack for now
 
 ImageSettings   image_settings;
 RenderSettings  render_settings;
@@ -161,7 +162,6 @@ receive_mesh(TCPSocket *sock)
             ospRelease(data);
         }
 
-
         if (flags & MeshInfo::VERTEX_COLORS)
         {
             data = ospNewData(nv, OSP_FLOAT4, &vertex_color_buffer[0]);
@@ -175,6 +175,9 @@ receive_mesh(TCPSocket *sock)
         ospSetData(mesh, "index", data);
         ospRelease(data);
 
+        // XXX for now
+        ospSetMaterial(mesh, material);
+    
     ospCommit(mesh);
     
     OSPModel model = ospNewModel();
@@ -605,6 +608,13 @@ receive_scene(TCPSocket *sock)
     ospCommit(light_data);
     
     ospSetObject(renderer, "lights", light_data); 
+    
+    // For now a single material
+    
+    material = ospNewMaterial2(render_settings.renderer().c_str(), "OBJMaterial");
+    
+    ospSet3f(material, "Kd", 0.8f, 0.8f, 0.8f);
+    ospCommit(material);
     
     // Setup world and scene objects
     
