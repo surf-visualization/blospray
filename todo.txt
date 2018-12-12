@@ -1,0 +1,30 @@
+Bugs
+- camera clip start doesn't match cycles render, nor OpenGL preview
+
+Fix/improve
+- 
+
+Must haves
+- Correctly release the scene after rendering
+- Light UI panel
+- Volume UI panel
+- Camera UI panel
+- More render settings in the UI
+- TF editor in Blender
+- Better error handling and recovery
+
+Very nice to haves ;-)
+- Interactive preview rendering
+
+Nice to haves
+- Start server during rendering automatically
+- Caching of large data sets across renders
+- Border render
+- Textured geometry
+
+Obscure to haves
+- Handle multiple concurrent renders in Blender
+- Optimize scene when Blender instances are used
+
+Decide
+- How to leverage blender's node system

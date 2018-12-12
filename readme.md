@@ -153,6 +153,8 @@ OSPRay also has some limitations itself, some of which we can work around, some 
 * Blender supports multiple colors per vertex (basically one per face loop),
   while OSPRay only supports a single value per vertex. XXX need to double-check this
   
+* The OSPRay orthographic camera does not support depth-of-field
+  
 * All rendering is done on the CPU, because, well ... it's OSPRay ;-)
 
 
