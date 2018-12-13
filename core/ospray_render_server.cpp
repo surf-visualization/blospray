@@ -715,23 +715,26 @@ void
 render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
     BlockingQueue<RenderResult>& render_result_queue)
 {
-    struct timeval t0, t1;
+    struct timeval t0, t1, t2;
     size_t  framebuffer_file_size;
     char fname[1024];
+    
+    gettimeofday(&t0, NULL);
     
     // Clear framebuffer    
     ospFrameBufferClear(framebuffer, OSP_FB_COLOR | OSP_FB_ACCUM);
 
     for (int i = 1; i <= render_settings.samples(); i++)
     {
-        printf("Rendering sample %d\n", i);
+        printf("Rendering sample %d ... ", i);
+        fflush(stdout);
         
-        gettimeofday(&t0, NULL);
+        gettimeofday(&t1, NULL);
 
         ospRenderFrame(framebuffer, renderer, OSP_FB_COLOR | OSP_FB_ACCUM);
 
-        gettimeofday(&t1, NULL);
-        printf("Rendered frame in %.3f seconds\n", time_diff(t0, t1));
+        gettimeofday(&t2, NULL);
+        printf("frame in %.3f seconds\n", time_diff(t1, t2));
         
         // Save framebuffer to file
         sprintf(fname, "/dev/shm/blosprayfb%04d.exr", i);
@@ -770,6 +773,9 @@ render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
     RenderResult rs;
     rs.set_type(RenderResult::DONE);
     render_result_queue.push(rs);
+    
+    gettimeofday(&t2, NULL);
+    printf("Rendering done in %.3f seconds\n", time_diff(t0, t2));
 }
 
 // Connection handling
@@ -920,12 +926,14 @@ main(int argc, const char **argv)
     listen_sock->bind(PORT);
     listen_sock->listen(1);
     
-    printf("Listening...\n");    
+    printf("Listening on port %d\n", PORT);    
     
     TCPSocket *sock;
     
     while (true)
     {            
+        printf("Waiting for new connection...\n");    
+        
         sock = listen_sock->accept();
         
         printf("Got new connection\n");

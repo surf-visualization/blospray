@@ -1,11 +1,10 @@
 Bugs
-- camera clip start doesn't match cycles render, nor OpenGL preview
+- Camera clipping (start only) doesn't match cycles render, nor OpenGL preview
 
 Fix/improve
-- 
+- Correctly release the scene after rendering
 
 Must haves
-- Correctly release the scene after rendering
 - Light UI panel
 - Volume UI panel
 - Camera UI panel
@@ -15,11 +14,18 @@ Must haves
 
 Very nice to haves ;-)
 - Interactive preview rendering
+- UI buttons to preload/clear the scene on the server, including
+  setting object bboxes of volumes to correct sizes
 
 Nice to haves
-- Start server during rendering automatically
+- Start/stop server during rendering automatically
 - Caching of large data sets across renders
 - Border render
+- UI button to get stats from server on currently loaded scene
+- Log file for the server
+- Reduce overhead in server -> client communication. E.g. render
+  of angel.blend in 3840x2160 @ 4 spp takes 40.972s on the server,
+  but 46.90s on the blender side (i.e. +14.5% longer)
 - Textured geometry
 
 Obscure to haves
@@ -27,4 +33,8 @@ Obscure to haves
 - Optimize scene when Blender instances are used
 
 Decide
+
+
+Look into
 - How to leverage blender's node system
+- OSPRay's extension modules and scenegraph, mostly w.r.t. model loading
