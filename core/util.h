@@ -3,9 +3,15 @@
 
 #include <sys/time.h>
 #include <arpa/inet.h>
-#include <boost/uuid/detail/sha1.hpp>
 #include <iostream>
 #include <fstream>
+#include <boost/version.hpp>
+#if BOOST_VERSION >= 106600
+#include <boost/uuid/detail/sha1.hpp>
+#else
+#include <boost/uuid/sha1.hpp>
+#endif
+
 #include "messages.pb.h"
 #include "tcpsocket.h"
 
