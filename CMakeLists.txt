@@ -1,6 +1,7 @@
 project(blospray)
 
-# Can probably lower this, but no idea to what
+# Might be able to lower this, but e.g.
+# 3.9 does not have a cmake module to find protobuf
 cmake_minimum_required(VERSION 3.12)
 
 set(CMAKE_CXX_STANDARD 11)
