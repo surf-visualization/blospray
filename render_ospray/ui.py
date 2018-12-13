@@ -62,6 +62,50 @@ class RENDER_PT_OSPRAY_RENDERING(Panel):
         col.prop(ospray, 'shadows_enabled', text='Shadows') 
 
 
+class DATA_PT_OSPRAY_LIGHT(Panel):
+    bl_idname = 'DATA_PT_OSPRAY_LIGHT'
+    bl_label = 'Light'
+    bl_space_type = 'PROPERTIES'   
+    bl_region_type = 'WINDOW'    
+    bl_context = 'data'  
+    
+    COMPAT_ENGINES = {'OSPRAY'}
+    
+    @classmethod
+    def poll(cls, context):
+        light = context.light
+        engine = context.engine
+        return light and (engine in cls.COMPAT_ENGINES)
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+
+        blender_light = context.light
+        ospray_light = blender_light.ospray
+
+        col = layout.column()            
+
+        col.prop(blender_light, "color", text="Color")
+        col.prop(ospray_light, "intensity", text="Intensity", slider=False)
+        col.prop(ospray_light, "is_visible", text="Visible")
+        
+        if blender_light.type in {'SUN'}:
+            col.prop(ospray_light, "angular_diameter", text="Angular diameter")
+
+        if blender_light.type in {'POINT', 'SPOT'}:
+            col.prop(blender_light, "shadow_soft_size", text="Size")
+
+        if blender_light.type in {'SPOT'}:
+            col.prop(blender_light, "spot_size", text="Size")
+            col.prop(blender_light, "spot_blend", text="Blend")
+            col.prop(blender_light, "show_cone", text="Show cone")
+            
+        if blender_light.type in {'AREA'}:
+            col.prop(blender_light, "size", text="Size in X")
+            col.prop(blender_light, "size_y", text="Size in Y")            
+  
+  
   
 class WORLD_PT_OSPRAY(Panel):
     bl_idname = 'WORLD_PT_OSPRAY'
@@ -94,6 +138,7 @@ class WORLD_PT_OSPRAY(Panel):
 classes = (
     RENDER_PT_OSPRAY_CONNECTION,
     RENDER_PT_OSPRAY_RENDERING,
+    DATA_PT_OSPRAY_LIGHT,
     WORLD_PT_OSPRAY,
 )
 
@@ -136,17 +181,22 @@ enabled_panels = {
     ],
     
     properties_data_light : [
-        #'DATA_PT_EEVEE_light',
+        # Enable this one, as it is the parent of a number of panels, such DATA_PT_spot.
+        # If not enabled those panels won't show up. However, this shows a number of
+        # light settings that are not appropriate for OSPRay, such as point.specular_factor
+        #'DATA_PT_EEVEE_light',      
         #'DATA_PT_EEVEE_shadow',
         #'DATA_PT_EEVEE_shadow_cascaded_shadow_map',
         #'DATA_PT_EEVEE_shadow_contact',
-        'DATA_PT_area',
+        # Disabled, as we don't want the shape options (OSPRay only has square area lights)
+        #'DATA_PT_area',
         'DATA_PT_context_light',
         'DATA_PT_custom_props_light',
         'DATA_PT_falloff_curve',
+        # Shows the same light type buttons as DATA_PT_EEVEE_light, but without the specific controls
         'DATA_PT_light',
         #'DATA_PT_preview',
-        'DATA_PT_spot'
+        #'DATA_PT_spot'           # XXX for some reason this one doesn't show up
     ],
     
     properties_data_mesh : [

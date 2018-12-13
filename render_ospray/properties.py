@@ -128,10 +128,81 @@ class RenderOspraySettingsWorld(PropertyGroup):
         max = 100
         )
         
+        
+class RenderOspraySettingsLight(PropertyGroup):
+    
+    # Common
+    
+    color: FloatVectorProperty(  
+        name="Color",
+        subtype='COLOR',
+        default=(1.0, 1.0, 1.0),
+        min=0.0, max=1.0,
+        description='Color of the light (color)'
+        )
+    
+    intensity: FloatProperty(
+        name='Intensity',
+        description='Intensity of the light (intensity)',
+        default = 1,
+        min = 0,
+        max = 100
+        )    
+        
+    is_visible: BoolProperty(
+        name="Visible",
+        description="Whether the light can be directly seen (isVisible)",
+        default = True
+        )        
+        
+    # Directional/distant light
+    
+    angular_diameter: FloatProperty(
+        name='Angular diameter',
+        description='Apparent size (angle) of the light (angularDiameter)',
+        default = 0,
+        min = 0,
+        max = 180
+        )   
+
+    # Point/sphere light, spot light
+    
+    # XXX use blender light's shadow_soft_size, as this will show the size
+    # in the 3D light representation
+    """
+    radius: FloatProperty(
+        name='Radius',
+        description='Size of (sphere) light (radius)',
+        default = 0,
+        min = 0,
+        max = 100
+        )  
+    """
+        
+    # Spot light
+        
+    opening_angle: FloatProperty(
+        name='Opening angle',
+        description='Full opening angle of the spot (openingAngle)',
+        default = 45,
+        min = 0,
+        max = 180
+        )  
+
+    penumbra_angle: FloatProperty(
+        name='Penumbra angle',
+        description='Size of the "penumbra", the region between the rim (of the illumination cone) and full intensity of the spot; should be smaller than half of the opening angle (penumbraAngle)',
+        default = 0,
+        min = 0,
+        max = 180   
+        )      
+        
+        
 
 classes = (
     RenderOspraySettingsScene,
     RenderOspraySettingsWorld,
+    RenderOspraySettingsLight,
 )
 
 def register():
@@ -142,6 +213,7 @@ def register():
         
     bpy.types.Scene.ospray = PointerProperty(type=RenderOspraySettingsScene)
     bpy.types.World.ospray = PointerProperty(type=RenderOspraySettingsWorld)
+    bpy.types.Light.ospray = PointerProperty(type=RenderOspraySettingsLight)
     
     
 def unregister():

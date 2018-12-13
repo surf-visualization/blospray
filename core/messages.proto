@@ -150,7 +150,7 @@ message Light
     bool            visible = 12;
     
     // Per-type values
-    repeated float  direction = 20;          // Directional, spot
+    repeated float  direction = 20;         // Directional, spot
     float           angular_diameter = 21;  // Directional
     repeated float  position = 22;          // Point/sphere, spot, quad
     float           radius = 23;            // Point/sphere, spot

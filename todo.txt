@@ -34,6 +34,8 @@ Obscure to haves
 
 Decide
 
+Test
+
 
 Look into
 - How to leverage blender's node system
