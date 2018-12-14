@@ -106,7 +106,6 @@ class DATA_PT_OSPRAY_LIGHT(Panel):
             col.prop(blender_light, "size_y", text="Size in Y")            
   
   
-  
 class WORLD_PT_OSPRAY(Panel):
     bl_idname = 'WORLD_PT_OSPRAY'
     bl_label = 'World'

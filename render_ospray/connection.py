@@ -415,7 +415,9 @@ class Connection:
                 
             data = obj.data
             xform = obj.matrix_world
+            
             properties = customproperties2dict(data)
+            ospray_data = data.ospray
             
             light = Light()
             light.type = type2enum[data.type]
@@ -423,12 +425,13 @@ class Connection:
             light.object_name = obj.name
             light.light_name = data.name
             
-            # XXX
-            light.color[:] = properties['color'] if 'color' in properties else (1.0, 1.0, 1.0)            
-            light.intensity = properties['intensity'] if 'intensity' in properties else 1.0   
-            light.visible = True
+            light.color[:] = data.color
+            light.intensity = ospray_data.intensity
+            light.visible = ospray_data.is_visible      # XXX inconsistent naming
             
-            if data.type != 'SUN':
+            if data.type == 'SUN':
+                light.angular_diameter = ospray_data.angular_diameter
+            elif data.type != 'AREA':
                 light.position[:] = (xform[0][3], xform[1][3], xform[2][3])
                 
             if data.type in ['SUN', 'SPOT']:
@@ -441,13 +444,28 @@ class Connection:
                 light.opening_angle = degrees(data.spot_size)
                 light.penumbra_angle = 0.5*data.spot_blend*degrees(data.spot_size)
                 # assert light.penumbra_angle < 0.5*light.opening_angle                
-                # XXX
-                light.radius = 0.0
                 
-            # XXX point lights don't cast hard shadows?
-            if data.type == 'POINT':
-                # XXX
-                light.radius = 0.1
+            if data.type in ['POINT', 'SPOT']:
+                light.radius = data.shadow_soft_size
+                
+            if data.type == 'AREA':
+                size_x = data.size
+                size_y = data.size_y
+                
+                # Local
+                position = Vector((-0.5*size_x, -0.5*size_y, 0))
+                edge1 = position + Vector((0, size_y, 0))
+                edge2 = position + Vector((size_x, 0, 0))
+                
+                # World
+                position = obj.matrix_world @ position
+                edge1 = obj.matrix_world @ edge1 - position
+                edge2 = obj.matrix_world @ edge2 - position
+                print(position, edge1, edge2)
+                
+                light.position[:] = position
+                light.edge1[:] = edge1
+                light.edge2[:] = edge2
             
             lights.append(light)
                 

@@ -593,6 +593,12 @@ receive_scene(TCPSocket *sock)
         if (light.type() == Light::POINT || light.type() == Light::SPOT)
             ospSetf(osp_light, "radius", light.radius());
         
+        if (light.type() == Light::AREA)
+        {
+            ospSet3f(osp_light, "edge1", light.edge1(0), light.edge1(1), light.edge1(2));
+            ospSet3f(osp_light, "edge2", light.edge2(0), light.edge2(1), light.edge2(2));
+        }
+        
         ospCommit(osp_light);      
     }
     
