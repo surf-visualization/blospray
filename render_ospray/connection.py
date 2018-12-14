@@ -464,8 +464,10 @@ class Connection:
                 print(position, edge1, edge2)
                 
                 light.position[:] = position
-                light.edge1[:] = edge1
-                light.edge2[:] = edge2
+                # XXX See https://github.com/ospray/ospray/issues/290
+                # Swap edge1 and edge2 for now
+                light.edge1[:] = edge2
+                light.edge2[:] = edge1
             
             lights.append(light)
                 
