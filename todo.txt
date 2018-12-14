@@ -11,6 +11,8 @@ Must haves
 - More render settings in the UI
 - TF editor in Blender
 - Better error handling and recovery
+- Better handling of instancing and (particle system) duplication, i.e. don't duplicate mesh
+- Cancel render during export of large scenes
 
 Very nice to haves ;-)
 - Interactive preview rendering

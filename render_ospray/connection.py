@@ -499,8 +499,6 @@ class Connection:
             if obj.type != 'MESH':
                 continue
                 
-            assert not instance.is_instance
-                
             if 'volume' in obj:
                 self.export_volume(obj, data, depsgraph)
                 continue
@@ -520,7 +518,11 @@ class Connection:
             mesh_info = MeshInfo()            
             mesh_info.object_name = obj.name
             mesh_info.mesh_name = mesh.name
-            mesh_info.object2world[:] = matrix2list(obj.matrix_world)
+            if instance.is_instance:
+                print('%s (%s) is instance' % (obj.name, mesh.name))
+                mesh_info.object2world[:] = matrix2list(instance.matrix_world)
+            else:
+                mesh_info.object2world[:] = matrix2list(obj.matrix_world)
             mesh_info.properties = json.dumps(customproperties2dict(mesh))
             
             flags = 0

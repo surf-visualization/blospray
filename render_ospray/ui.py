@@ -199,7 +199,7 @@ enabled_panels = {
     ],
     
     properties_data_mesh : [
-        #'DATA_PT_context_mesh',
+        'DATA_PT_context_mesh',
         'DATA_PT_custom_props_mesh',
         #'DATA_PT_customdata',
         #'DATA_PT_face_maps',
@@ -208,7 +208,7 @@ enabled_panels = {
         #'DATA_PT_texture_space',
         #'DATA_PT_uv_texture',
         'DATA_PT_vertex_colors',
-        #'DATA_PT_vertex_groups',
+        'DATA_PT_vertex_groups',
     ],
     
     properties_output: [
