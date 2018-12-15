@@ -1,3 +1,5 @@
+// VERSION: 1
+
 syntax = "proto3";
 
 message ClientMessage
@@ -15,7 +17,7 @@ message ClientMessage
     Type    type = 1;
     
     // HELLO fields
-    uint32  version = 10;   // XXX not used yet
+    uint32  version = 10;       // XXX not used yet
     
     // UPDATE_SCENE fields
     bool    clear_scene = 20;
@@ -40,8 +42,6 @@ message RenderResult
 
 // Scene
 
-// A visible Blender (3D) object, with a link to its data
-// (excludes lights and camera)
 message SceneElement
 {   
     enum Type {
@@ -59,7 +59,7 @@ message SceneElement
     string          properties = 3;
     
     repeated float  object2world = 10;
-    string          data_link = 11;     // Linked data   XXX should send data first?
+    string          data_link = 11;
 }
 
 message MeshData    // XXX rename?
@@ -73,9 +73,6 @@ message MeshData    // XXX rename?
     }
 
     uint32          flags = 1;
-    //string          name = 2;
-    //string          properties = 3;
-    
     uint32          num_vertices = 10;
     uint32          num_triangles = 11;
 }

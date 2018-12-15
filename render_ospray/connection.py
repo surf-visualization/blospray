@@ -99,12 +99,16 @@ class Connection:
         print(depsgraph)
         
         self.engine.update_stats('', 'Connecting')
+
         self.sock.connect((self.host, self.port))
         
-        # XXX send HELLO and check returned version
+        # Send HELLO and check returned version
+        #hello = ClientMessage()
+        #hello.type = ClientMessage.HELLO
+        #hello.version = 1
+        #send_protobuf(self.sock, hello)
         
         self.exported_meshes = set()
-        
         self.export_scene(data, depsgraph)    
     
     def render(self, depsgraph):
@@ -323,9 +327,6 @@ class Connection:
         send_protobuf(self.sock, element)      
         
         mesh_data = MeshData()
-        #mesh_data.name = mesh.name
-        #mesh_data.properties = json.dumps(customproperties2dict(mesh))
-        
         flags = 0
         
         # Send triangulated geometry 

@@ -62,6 +62,89 @@ class RENDER_PT_OSPRAY_RENDERING(Panel):
         col.prop(ospray, 'shadows_enabled', text='Shadows') 
 
 
+class OBJECT_PT_OSPRAY(Panel):
+    bl_idname = 'OBJECT_PT_OSPRAY'
+    bl_label = 'OSPray Settings'
+    bl_space_type = 'PROPERTIES'   
+    bl_region_type = 'WINDOW'    
+    bl_context = 'object'  
+    
+    COMPAT_ENGINES = {'OSPRAY'}
+    
+    @classmethod
+    def poll(cls, context):
+        obj = context.object
+        return ((context.engine in cls.COMPAT_ENGINES) and 
+                obj and (obj.type in {'MESH'}))
+    
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        #layout.use_property_decorate = False
+        
+        obj = context.object
+        ospray = obj.ospray
+        
+        col = layout.column(align=True)
+        col.prop(ospray, 'representation', text='Representation', expand=True) 
+        
+    
+    
+class DATA_PT_OSPRAY_MESH(Panel):
+    bl_idname = 'DATA_PT_OSPRAY_MESH'
+    bl_label = 'OSPRay Settings'
+    bl_space_type = 'PROPERTIES'   
+    bl_region_type = 'WINDOW'    
+    bl_context = 'data'  
+    
+    COMPAT_ENGINES = {'OSPRAY'}
+    
+    @classmethod
+    def poll(cls, context):
+        mesh = context.mesh
+        return ((context.engine in cls.COMPAT_ENGINES) and  mesh)
+            
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        
+        mesh = context.mesh
+        ospray = mesh.ospray
+        
+        col = layout.column(align=True)
+        col.prop(ospray, 'plugin', text='Plugin') 
+        
+
+    
+class DATA_PT_OSPRAY_MESH_VOLUME(Panel):
+    bl_idname = 'DATA_PT_OSPRAY_MESH_VOLUME'
+    bl_label = 'OSPRay Volume'
+    bl_space_type = 'PROPERTIES'   
+    bl_region_type = 'WINDOW'    
+    bl_context = 'data'  
+    
+    COMPAT_ENGINES = {'OSPRAY'}
+    
+    @classmethod
+    def poll(cls, context):
+        obj = context.object
+        mesh = context.mesh
+        return ((context.engine in cls.COMPAT_ENGINES) and  mesh and (obj.ospray.representation in {'volume', 'volume_slices', 'volume_isosurfaces'}))
+            
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        
+        mesh = context.mesh
+        ospray = mesh.ospray
+        
+        col = layout.column(align=True)
+        col.prop(ospray, 'gradient_shading', text='Gradient shading') 
+        col.prop(ospray, 'pre_integration', text='Pre-integration') 
+        col.prop(ospray, 'single_shade', text='Single shade') 
+        col.prop(ospray, 'sampling_rate', text='Sampling rate') 
+        
+    
 class DATA_PT_OSPRAY_LIGHT(Panel):
     bl_idname = 'DATA_PT_OSPRAY_LIGHT'
     bl_label = 'Light'
@@ -137,6 +220,9 @@ class WORLD_PT_OSPRAY(Panel):
 classes = (
     RENDER_PT_OSPRAY_CONNECTION,
     RENDER_PT_OSPRAY_RENDERING,
+    OBJECT_PT_OSPRAY,
+    DATA_PT_OSPRAY_MESH,
+    DATA_PT_OSPRAY_MESH_VOLUME,
     DATA_PT_OSPRAY_LIGHT,
     WORLD_PT_OSPRAY,
 )

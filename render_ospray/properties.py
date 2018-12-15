@@ -129,6 +129,61 @@ class RenderOspraySettingsWorld(PropertyGroup):
         )
         
         
+class RenderOspraySettingsObject(PropertyGroup):
+    
+    representation: EnumProperty(
+        name='Representation',
+        description='Representation',
+        items=[ ('regular', 'Regular', 'Regular blender representation'),
+                ('volume', 'Volume', 'Linked data must have volume plugin set'),
+                ('volume_slices', 'Slices', 'Linked data must have volume plugin set'),
+                ('volume_isosurfaces', 'Isosurfaces', 'Linked data must have volume plugin set'),
+                #('spheres', 'Spheres', ''),
+                #('cylinders', 'Cylinders', ''),
+                ('geometry', 'Geometry', 'Linked data must have geometry plugin set'),
+               ]
+        )   
+        
+        
+class RenderOspraySettingsMesh(PropertyGroup):
+        
+    plugin: StringProperty(
+        name='Plugin',
+        description='Plugin to use server-side for creating this "object"',
+        default='',
+        maxlen=64,
+        ) 
+        
+    # Properties for a mesh representing an OSPRay volume
+        
+    #voxelrange
+    
+    gradient_shading: BoolProperty(
+        name='Gradient shading',
+        description='Render with surface shading wrt. to normalized gradient',
+        default = False
+        )
+        
+    pre_integration: BoolProperty(
+        name='Pre-integration',
+        description='Use pre-integration for transfer function lookups',
+        default = False
+        )
+   
+    single_shade: BoolProperty(
+        name='Single shade',
+        description='Shade only at the point of maximum intensity',
+        default = True
+        )           
+    
+    sampling_rate: FloatProperty(
+        name='Sampling rate',
+        description='Sampling rate (fraction of the cell size) of the volume. This is also the minimum step size for adaptive sampling',
+        default = 0.125,
+        min = 0.001,
+        max = 100000
+        )    
+        
 class RenderOspraySettingsLight(PropertyGroup):
     
     # Common
@@ -202,6 +257,8 @@ class RenderOspraySettingsLight(PropertyGroup):
 classes = (
     RenderOspraySettingsScene,
     RenderOspraySettingsWorld,
+    RenderOspraySettingsObject,
+    RenderOspraySettingsMesh,
     RenderOspraySettingsLight,
 )
 
@@ -213,6 +270,8 @@ def register():
         
     bpy.types.Scene.ospray = PointerProperty(type=RenderOspraySettingsScene)
     bpy.types.World.ospray = PointerProperty(type=RenderOspraySettingsWorld)
+    bpy.types.Object.ospray = PointerProperty(type=RenderOspraySettingsObject)
+    bpy.types.Mesh.ospray = PointerProperty(type=RenderOspraySettingsMesh)
     bpy.types.Light.ospray = PointerProperty(type=RenderOspraySettingsLight)
     
     
@@ -224,5 +283,8 @@ def unregister():
         
     del bpy.types.Scene.ospray
     del bpy.types.World.ospray
+    del bpy.types.Object.ospray
+    del bpy.types.Mesh.ospray
+    del bpy.types.Light.ospray
     
     
