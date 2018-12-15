@@ -24,7 +24,7 @@ Nice to haves
 - Caching of large data sets across renders
 - Border render
 - UI button to get stats from server on currently loaded scene
-- Log file for the server
+- Handle text objects
 - Reduce overhead in server -> client communication. E.g. render
   of angel.blend in 3840x2160 @ 4 spp takes 40.972s on the server,
   but 46.90s on the blender side (i.e. +14.5% longer)
@@ -33,6 +33,7 @@ Nice to haves
 Obscure to haves
 - Handle multiple concurrent renders in Blender
 - Optimize scene when Blender instances are used
+- Log file for the server
 
 Decide
 

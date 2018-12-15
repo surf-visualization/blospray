@@ -3,7 +3,8 @@ syntax = "proto3";
 message ClientMessage
 {
     enum Type {
-        UPDATE_SCENE = 0;
+        HELLO = 0;          // XXX not used atm
+        UPDATE_SCENE = 1;
         
         START_RENDERING = 10;
         CANCEL_RENDERING = 11;
@@ -13,8 +14,11 @@ message ClientMessage
     
     Type    type = 1;
     
-    // UPDATE_SCENE
-    bool    clear_scene = 2;
+    // HELLO fields
+    uint32  version = 10;   // XXX not used yet
+    
+    // UPDATE_SCENE fields
+    bool    clear_scene = 20;
 }
 
 message RenderResult 
@@ -36,44 +40,53 @@ message RenderResult
 
 // Scene
 
+// A visible Blender (3D) object, with a link to its data
+// (excludes lights and camera)
 message SceneElement
 {   
     enum Type {
-        NONE = 0;
-        MESH = 1;
-        VOLUME = 2;
+        NONE = 0;       // Used for signaling last object was sent
+        
+        MESH_OBJECT = 10;
+        VOLUME_OBJECT = 11;
+        
+        MESH_DATA = 20;
+        VOLUME_DATA = 21;
     }
     
-    Type    type = 1;
-    string  name = 2;
+    Type            type = 1;
+    string          name = 2;
+    string          properties = 3;
+    
+    repeated float  object2world = 10;
+    string          data_link = 11;     // Linked data   XXX should send data first?
 }
 
-message MeshInfo
+message MeshData    // XXX rename?
 {
     enum Flags {
         NONE = 0;
         NORMALS = 1;
         VERTEX_COLORS = 2;
         // = 4;
+        // = 8;
     }
 
     uint32          flags = 1;
-    repeated float  object2world = 2;
-    string          properties = 3;
-    string          object_name = 4;
-    string          mesh_name = 5;
+    //string          name = 2;
+    //string          properties = 3;
     
-    uint32          num_vertices = 6;
-    uint32          num_triangles = 7;
+    uint32          num_vertices = 10;
+    uint32          num_triangles = 11;
 }
 
-message VolumeInfo
+message VolumeData
 {
     uint32          flags = 1;
-    repeated float  object2world = 2;
+    string          name = 2;
     string          properties = 3;
-    string          object_name = 4;
-    string          mesh_name = 5;
+    
+    repeated float  object2world = 10;   // XXX We like to know the volume xform, as we  might need to apply it to the vertices directly, i.e. can't instantiate without the matrix
 }
 
 // Settings

@@ -45,12 +45,12 @@ Hence the original copyright message below.
 
 #include "image.h"
 #include "tcpsocket.h"
-#include "messages.pb.h"
 #include "json.hpp"
 #include "blocking_queue.h"
 #include "cool2warm.h"
 #include "util.h"
 #include "plugin.h"
+#include "messages.pb.h"
 
 using json = nlohmann::json;
 
@@ -65,6 +65,9 @@ OSPRenderer     renderer;
 OSPFrameBuffer  framebuffer;
 bool            framebuffer_created = false;
 OSPMaterial     material;   // XXX hack for now
+
+typedef std::map<std::string, OSPModel>     LoadedMeshesMap;
+LoadedMeshesMap                             loaded_meshes;
 
 ImageSettings   image_settings;
 RenderSettings  render_settings;
@@ -106,28 +109,32 @@ object2world_from_protobuf(float *matrix, T& protobuf)
 // Receive methods
 
 bool
-receive_mesh(TCPSocket *sock)
+add_mesh_data(TCPSocket *sock, const SceneElement& element)
 {
-    MeshInfo    mesh_info;
+    printf("[MESH] %s\n", element.name().c_str());
+    
+    if (loaded_meshes.find(element.name()) != loaded_meshes.end())
+        printf("WARNING: mesh '%s' already loaded!\n", element.name().c_str());
+    
+    MeshData    mesh_data;
     OSPData     data;
     
-    if (!receive_protobuf(sock, mesh_info))
+    if (!receive_protobuf(sock, mesh_data))
         return false;
     
     uint32_t nv, nt, flags;
     
-    nv = mesh_info.num_vertices();
-    nt = mesh_info.num_triangles();
-    flags = mesh_info.flags();
+    nv = mesh_data.num_vertices();
+    nt = mesh_data.num_triangles();
+    flags = mesh_data.flags();
     
-    printf("[MESH] %s (%s): %d vertices, %d triangles, flags 0x%08x\n", 
-        mesh_info.object_name().c_str(), mesh_info.mesh_name().c_str(), nv, nt, flags);
+    printf("...... %d vertices, %d triangles, flags 0x%08x\n", nv, nt, flags);
     
     vertex_buffer.reserve(nv*3);    
     if (sock->recvall(&vertex_buffer[0], nv*3*sizeof(float)) == -1)
         return false;
     
-    if (flags & MeshInfo::NORMALS)
+    if (flags & MeshData::NORMALS)
     {
         printf("...... Mesh has normals\n");
         normal_buffer.reserve(nv*3);
@@ -135,7 +142,7 @@ receive_mesh(TCPSocket *sock)
             return false;        
     }
         
-    if (flags & MeshInfo::VERTEX_COLORS)
+    if (flags & MeshData::VERTEX_COLORS)
     {
         printf("...... Mesh has vertex colors\n");
         vertex_color_buffer.reserve(nv*4);
@@ -154,7 +161,7 @@ receive_mesh(TCPSocket *sock)
         ospSetData(mesh, "vertex", data);
         ospRelease(data);
 
-        if (flags & MeshInfo::NORMALS)
+        if (flags & MeshData::NORMALS)
         {
             data = ospNewData(nv, OSP_FLOAT3, &normal_buffer[0]);
             ospCommit(data);
@@ -162,7 +169,7 @@ receive_mesh(TCPSocket *sock)
             ospRelease(data);
         }
 
-        if (flags & MeshInfo::VERTEX_COLORS)
+        if (flags & MeshData::VERTEX_COLORS)
         {
             data = ospNewData(nv, OSP_FLOAT4, &vertex_color_buffer[0]);
             ospCommit(data);
@@ -183,11 +190,32 @@ receive_mesh(TCPSocket *sock)
     OSPModel model = ospNewModel();
     ospAddGeometry(model, mesh);
     ospRelease(mesh);
+        
+    loaded_meshes[element.name()] = model;
+    
+    return true;
+}
 
+bool
+add_mesh_object(TCPSocket *sock, const SceneElement& element)
+{
+    printf("[OBJECT] %s (mesh)\n", element.name().c_str());
+    printf("........ --> %s\n", element.data_link().c_str());
+    
+    LoadedMeshesMap::iterator it = loaded_meshes.find(element.data_link());
+    
+    if (it == loaded_meshes.end())
+    {
+        printf("WARNING: linked mesh data '%s' not loaded!\n", element.data_link().c_str());
+        return false;
+    }
+    
+    OSPModel model = it->second;
+    
     float obj2world[16];
     osp::affine3f xform;
     
-    object2world_from_protobuf(obj2world, mesh_info);
+    object2world_from_protobuf(obj2world, element);
     affine3f_from_matrix(xform, obj2world);
     
     OSPGeometry instance = ospNewInstance(model, xform);    
@@ -197,23 +225,24 @@ receive_mesh(TCPSocket *sock)
     return true;
 }
 
+/*
 bool
 receive_volume(TCPSocket *sock)
 {
-    VolumeInfo volume_info;
+    VolumeData volume_data;
     
-    if (!receive_protobuf(sock, volume_info))
+    if (!receive_protobuf(sock, volume_data))
         return false;    
     
     // Object-to-world matrix
     
     float obj2world[16];
     
-    object2world_from_protobuf(obj2world, volume_info);
+    object2world_from_protobuf(obj2world, volume_data);
 
     // Custom properties
     
-    const char *encoded_properties = volume_info.properties().c_str();
+    const char *encoded_properties = volume_data.properties().c_str();
     //printf("Received volume properties:\n%s\n", encoded_properties);
     
     json properties = json::parse(encoded_properties);
@@ -222,7 +251,7 @@ receive_volume(TCPSocket *sock)
     // export after it receives the volume extents. so a bit confusing as that original
     // mesh is reported, but that isn't in the scene anymore
     printf("[VOLUME] %s (%s)\n", 
-        volume_info.object_name().c_str(), volume_info.mesh_name().c_str());
+        volume_data.name().c_str(), volume_data.data_link().c_str());
     printf("%s\n", properties.dump().c_str());
     
     // Prepare result
@@ -447,6 +476,7 @@ receive_volume(TCPSocket *sock)
 
     return true;
 }
+*/
 
 // XXX currently has big memory leak as we never release the new objects ;-)
 bool
@@ -629,14 +659,18 @@ receive_scene(TCPSocket *sock)
     
     while (element.type() != SceneElement::NONE)
     {
-        if (element.type() == SceneElement::MESH)
+        if (element.type() == SceneElement::MESH_DATA)
         {
-            receive_mesh(sock);
+            add_mesh_data(sock, element);
         }
-        else if (element.type() == SceneElement::VOLUME)
+        else if (element.type() == SceneElement::MESH_OBJECT)
+        {
+            add_mesh_object(sock, element);
+        }
+        /*else if (element.type() == SceneElement::VOLUME)
         {
             receive_volume(sock);
-        }
+        }*/
         // else XXX
         
         receive_protobuf(sock, element);

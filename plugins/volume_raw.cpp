@@ -15,7 +15,7 @@ load_as_structured(float *bbox, VolumeLoadResult &result,
     const json &parameters, const float *object2world, 
     const int32_t *dims, const std::string& voxelType, OSPDataType dataType, void *grid_field_values)
 {
-    fprintf(stderr, "WARNING: structured volumes currently don't support object-to-world transformations\n");
+    fprintf(stderr, "WARNING: structured volumes in OSPRay currently don't support object-to-world transformations\n");
     
     OSPVolume volume = ospNewVolume("shared_structured_volume");
     
@@ -51,6 +51,8 @@ load_as_structured(float *bbox, VolumeLoadResult &result,
     ospSet3f(volume, "gridSpacing", spacing[0], spacing[1], spacing[2]);
 
     ospCommit(volume);
+    
+    // XXX in the unstructured load function below we pass the bbox of the UNTRANSFORMED volume
     
     bbox[0] = origin[0];
     bbox[1] = origin[1];
@@ -174,6 +176,8 @@ load_as_unstructured(
     
     // Note that the volume bounding box is based on the *untransformed*
     // volume, i.e. without applying object2world
+    // XXX we ignore gridorigin and gridspacing here, and always assume
+    // origin 0,0,0 and spacing 1,1,1
     
     bbox[0] = bbox[1] = bbox[2] = 0.0f;
     bbox[3] = dims[0];

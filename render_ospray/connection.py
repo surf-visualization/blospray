@@ -15,10 +15,9 @@ sys.path.insert(0, os.path.split(__file__)[0])
 
 from .messages_pb2 import (
     CameraSettings, ImageSettings, 
-    LightSettings, Light,
-    RenderSettings, SceneElement, MeshInfo, 
-    VolumeInfo, VolumeLoadResult,
-    ClientMessage, RenderResult
+    LightSettings, Light, RenderSettings, 
+    SceneElement, MeshData, VolumeData, 
+    ClientMessage, VolumeLoadResult, RenderResult
 )
 
 # Object to world matrix
@@ -101,6 +100,10 @@ class Connection:
         
         self.engine.update_stats('', 'Connecting')
         self.sock.connect((self.host, self.port))
+        
+        # XXX send HELLO and check returned version
+        
+        self.exported_meshes = set()
         
         self.export_scene(data, depsgraph)    
     
@@ -247,12 +250,12 @@ class Connection:
         
         send_protobuf(self.sock, element)        
         
-        volume_info = VolumeInfo()
-        volume_info.object2world[:] = matrix2list(obj.matrix_world)
+        volume_data = VolumeData()
+        volume_data.object2world[:] = matrix2list(obj.matrix_world)
         properties = customproperties2dict(obj)
-        volume_info.properties = json.dumps(properties)
-        volume_info.object_name = obj.name
-        volume_info.mesh_name = obj.data.name
+        volume_data.properties = json.dumps(properties)
+        volume_data.object_name = obj.name
+        volume_data.mesh_name = obj.data.name
         
         print('Sending properties:')
         print(properties)
@@ -308,6 +311,114 @@ class Connection:
         mesh.validate(verbose=True)
         obj.data = mesh
         
+        
+    def export_mesh(self, mesh, data, depsgraph):
+        
+        self.engine.update_stats('', 'Exporting mesh %s' % mesh.name)
+    
+        element = SceneElement()
+        element.type = SceneElement.MESH_DATA
+        element.name = mesh.name
+        element.properties = json.dumps(customproperties2dict(mesh))        
+        send_protobuf(self.sock, element)      
+        
+        mesh_data = MeshData()
+        #mesh_data.name = mesh.name
+        #mesh_data.properties = json.dumps(customproperties2dict(mesh))
+        
+        flags = 0
+        
+        # Send triangulated geometry 
+                    
+        mesh.calc_loop_triangles()
+        
+        nv = mesh_data.num_vertices = len(mesh.vertices)
+        nt = mesh_data.num_triangles = len(mesh.loop_triangles)
+        
+        print('Mesh %s: %d v, %d t' % (mesh.name, nv, nt))    
+
+        # Check if any faces use smooth shading
+        # XXX we currently don't handle meshes with both smooth
+        # and non-smooth faces, but those are probably not very common anyway
+        
+        use_smooth = False
+        for tri in mesh.loop_triangles:
+            if tri.use_smooth:
+                print('Mesh uses smooth shading')
+                use_smooth = True
+                flags |= MeshData.NORMALS
+                break
+                
+        # Vertex colors
+        #https://blender.stackexchange.com/a/8561
+        if mesh.vertex_colors:
+            flags |= MeshData.VERTEX_COLORS
+            
+        # Send mesh data
+        
+        mesh_data.flags = flags
+        
+        send_protobuf(self.sock, mesh_data)
+        
+        # Send vertices
+        
+        vertices = numpy.empty(nv*3, dtype=numpy.float32)
+
+        for idx, v in enumerate(mesh.vertices):
+            p = v.co
+            vertices[3*idx+0] = p.x
+            vertices[3*idx+1] = p.y
+            vertices[3*idx+2] = p.z
+            
+        self.sock.send(vertices.tobytes())
+        
+        # Vertex normals
+            
+        if use_smooth:
+            normals = numpy.empty(nv*3, dtype=numpy.float32)
+            
+            for idx, v in enumerate(mesh.vertices):
+                n = v.normal
+                normals[3*idx+0] = n.x
+                normals[3*idx+1] = n.y
+                normals[3*idx+2] = n.z
+                
+            self.sock.send(normals.tobytes())
+            
+        # Vertex colors
+        
+        if mesh.vertex_colors:
+            vcol_layer = mesh.vertex_colors.active
+            vcol_data = vcol_layer.data
+            
+            vertex_colors = numpy.empty(nv*4, dtype=numpy.float32)
+            
+            for poly in mesh.polygons:
+                for loop_index in poly.loop_indices:
+                    loop_vert_index = mesh.loops[loop_index].vertex_index
+                    color = vcol_data[loop_index].color
+                    vertex_colors[4*loop_vert_index+0] = color[0]
+                    vertex_colors[4*loop_vert_index+1] = color[1]
+                    vertex_colors[4*loop_vert_index+2] = color[2]
+                    vertex_colors[4*loop_vert_index+3] = 1.0
+                    
+            self.sock.send(vertex_colors.tobytes())
+            
+        # Send triangles
+        
+        triangles = numpy.empty(nt*3, dtype=numpy.uint32)   # XXX opt possible when less than 64k vertices ;-)
+        
+        for idx, tri in enumerate(mesh.loop_triangles):
+            triangles[3*idx+0] = tri.vertices[0]
+            triangles[3*idx+1] = tri.vertices[1]
+            triangles[3*idx+2] = tri.vertices[2]
+            
+        self.sock.send(triangles.tobytes())
+        
+        # Remember that we exported this mesh
+        
+        self.exported_meshes.add(mesh.name)
+        
 
     def export_scene(self, data, depsgraph):
         
@@ -315,7 +426,7 @@ class Connection:
         
         client_message = ClientMessage()
         client_message.type = ClientMessage.UPDATE_SCENE
-        client_message.clear_scene = True
+        client_message.clear_scene = True   # XXX   Add a UI bool for this flag
         send_protobuf(self.sock, client_message)
 
         scene = depsgraph.scene
@@ -490,7 +601,7 @@ class Connection:
         # Light settings
         send_protobuf(self.sock, light_settings)
         
-        # Objects (meshes and volumes)
+        # Objects (meshes, including meshes marked as volumes)
         
         for instance in depsgraph.object_instances:
             
@@ -499,124 +610,45 @@ class Connection:
             if obj.type != 'MESH':
                 continue
                 
-            if 'volume' in obj:
-                self.export_volume(obj, data, depsgraph)
-                continue
-                
-            # Object with mesh data
+            mesh = obj.data
+
+            # Export mesh if not already done so earlier, we can then link to it 
+            # when exporting the object below
             
+            # XXX we should export meshes separately, keeping a local
+            # list which ones we already exported (by name).
+            # Then for MESH objects use the name of the mesh to instantiate
+            # it using the given xform. This gives us real instancing.
+            # But a user can change a mesh's name. However, we can 
+            # sort of handle this by using the local name list and deleting
+            # (also on the server) whichever name's we don't see when exporting.
+            # Could also set a custom property on meshes with a unique ID
+            # we choose ourselves. But props get copied when duplicating
+            # See https://devtalk.blender.org/t/universal-unique-id-per-object/363/3
+            
+            if mesh.name not in self.exported_meshes:
+                self.export_mesh(mesh, data, depsgraph)
+             
+            # XXX disable for now
+            #if 'volume' in obj:
+            #    self.export_volume(obj, data, depsgraph)
+            #    continue
+                
             self.engine.update_stats('', 'Exporting object %s' % obj.name)
             
-            mesh = obj.data
-                
             element = SceneElement()
-            element.type = SceneElement.MESH
+            element.type = SceneElement.MESH_OBJECT
             element.name = obj.name
+            element.properties = json.dumps(customproperties2dict(mesh))
+            if instance.is_instance:
+                print('%s (%s) is instance' % (obj.name, mesh.name))
+                element.object2world[:] = matrix2list(instance.matrix_world)
+            else:
+                element.object2world[:] = matrix2list(obj.matrix_world)
+            element.data_link = mesh.name
             
             send_protobuf(self.sock, element)      
             
-            mesh_info = MeshInfo()            
-            mesh_info.object_name = obj.name
-            mesh_info.mesh_name = mesh.name
-            if instance.is_instance:
-                print('%s (%s) is instance' % (obj.name, mesh.name))
-                mesh_info.object2world[:] = matrix2list(instance.matrix_world)
-            else:
-                mesh_info.object2world[:] = matrix2list(obj.matrix_world)
-            mesh_info.properties = json.dumps(customproperties2dict(mesh))
-            
-            flags = 0
-            
-            # Turn geometry into triangles
-                        
-            mesh.calc_loop_triangles()
-            
-            nv = mesh_info.num_vertices = len(mesh.vertices)
-            nt = mesh_info.num_triangles = len(mesh.loop_triangles)
-            
-            print('Object %s - Mesh %s: %d v, %d t' % (obj.name, mesh.name, nv, nt))    
-            print(mesh_info.object_name, mesh_info.mesh_name)
-
-            # Check if any faces use smooth shading
-            # XXX we currently don't handle meshes with both smooth
-            # and non-smooth faces, but those are probably not very common anyway
-            
-            use_smooth = False
-            for tri in mesh.loop_triangles:
-                if tri.use_smooth:
-                    use_smooth = True
-                    flags |= MeshInfo.NORMALS
-                    break
-                    
-            if use_smooth:
-                print('Mesh uses smooth shading')
-            
-            # Vertex colors
-            #https://blender.stackexchange.com/a/8561
-            if mesh.vertex_colors:
-                flags |= MeshInfo.VERTEX_COLORS
-                
-            # Send mesh info
-            
-            mesh_info.flags = flags
-            
-            send_protobuf(self.sock, mesh_info)
-            
-            # Send vertices
-            
-            vertices = numpy.empty(nv*3, dtype=numpy.float32)
-
-            for idx, v in enumerate(mesh.vertices):
-                p = v.co
-                vertices[3*idx+0] = p.x
-                vertices[3*idx+1] = p.y
-                vertices[3*idx+2] = p.z
-                
-            self.sock.send(vertices.tobytes())
-            
-            # Vertex normals
-                
-            if use_smooth:
-                normals = numpy.empty(nv*3, dtype=numpy.float32)
-                
-                for idx, v in enumerate(mesh.vertices):
-                    n = v.normal
-                    normals[3*idx+0] = n.x
-                    normals[3*idx+1] = n.y
-                    normals[3*idx+2] = n.z
-                    
-                self.sock.send(normals.tobytes())
-                
-            # Vertex colors
-            
-            if mesh.vertex_colors:
-                vcol_layer = mesh.vertex_colors.active
-                vcol_data = vcol_layer.data
-                
-                vertex_colors = numpy.empty(nv*4, dtype=numpy.float32)
-                
-                for poly in mesh.polygons:
-                    for loop_index in poly.loop_indices:
-                        loop_vert_index = mesh.loops[loop_index].vertex_index
-                        color = vcol_data[loop_index].color
-                        vertex_colors[4*loop_vert_index+0] = color[0]
-                        vertex_colors[4*loop_vert_index+1] = color[1]
-                        vertex_colors[4*loop_vert_index+2] = color[2]
-                        vertex_colors[4*loop_vert_index+3] = 1.0
-                        
-                self.sock.send(vertex_colors.tobytes())
-                
-            # Send triangles
-            
-            triangles = numpy.empty(nt*3, dtype=numpy.uint32)   # XXX opt possible when less than 64k vertices ;-)
-            
-            for idx, tri in enumerate(mesh.loop_triangles):
-                triangles[3*idx+0] = tri.vertices[0]
-                triangles[3*idx+1] = tri.vertices[1]
-                triangles[3*idx+2] = tri.vertices[2]
-                
-            self.sock.send(triangles.tobytes())
-                        
         # Signal last data was sent!
         
         element = SceneElement()
@@ -627,7 +659,7 @@ class Connection:
     
     def _read_framebuffer(self, framebuffer, width, height):
         
-        # XXX use select() in a loop, to handle UI updates better
+        # XXX use select() in a loop, to allow UI updates more frequently
         
         num_pixels = width * height
         bytes_left = num_pixels * 4*4
@@ -645,6 +677,8 @@ class Connection:
             #self.update_stats('%d bytes left' % bytes_left, 'Reading back framebuffer')
         
     def _read_framebuffer_to_file(self, fname, size):
+        
+        # XXX use select() in a loop, to allow UI updates more frequently
         
         with open(fname, 'wb') as f:
             bytes_left = size
