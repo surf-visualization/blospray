@@ -48,9 +48,9 @@ message SceneElement
         NONE = 0;       // Used for signaling last object was sent
         
         MESH_OBJECT = 10;
-        VOLUME_OBJECT = 11;
+        MESH_DATA = 11;
         
-        MESH_DATA = 20;
+        VOLUME_OBJECT = 20;
         VOLUME_DATA = 21;
     }
     
@@ -62,7 +62,7 @@ message SceneElement
     string          data_link = 11;
 }
 
-message MeshData    // XXX rename?
+message MeshData
 {
     enum Flags {
         NONE = 0;
@@ -79,6 +79,8 @@ message MeshData    // XXX rename?
 
 message VolumeData
 {
+    // XXX which flags?
+    
     uint32          flags = 1;
     string          name = 2;
     string          properties = 3;

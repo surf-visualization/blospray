@@ -76,7 +76,7 @@ LightSettings   light_settings;
 
 // Volume loaders
 
-typedef std::map<std::string, volume_load_function>     VolumeLoadFunctionMap;
+typedef std::map<std::string, volume_load_function_t>   VolumeLoadFunctionMap;
 VolumeLoadFunctionMap                                   volume_load_functions;
 
 // Geometry buffers
@@ -262,7 +262,7 @@ receive_volume(TCPSocket *sock)
     
     // Find load function 
     
-    volume_load_function load_function = NULL;
+    volume_load_function_t load_function = NULL;
     
     const std::string& volume_type = properties["volume"];
     
@@ -290,7 +290,7 @@ receive_volume(TCPSocket *sock)
         // Clear previous error
         dlerror(); 
         
-        load_function = (volume_load_function) dlsym(plugin, "load");
+        load_function = (volume_load_function_t) dlsym(plugin, "load");
         
         if (load_function == NULL)
         {

@@ -3,7 +3,8 @@
 #include <ospray/ospray.h>
 #include "json.hpp"
 #include "util.h"
-#include "messages.pb.h"
+#include "messages.pb.h"        // VolumeLoadResult
+#include "plugin.h"
 
 using json = nlohmann::json;
 
@@ -194,9 +195,9 @@ load(float *bbox, VolumeLoadResult &result, const json &parameters, const float 
 {
     char msg[1024];
     
-    if (parameters.find("voltype") != parameters.end() && parameters["voltype"].get<std::string>() != "raw")
+    if (parameters.find("volume") != parameters.end() && parameters["volume"].get<std::string>() != "raw")
     {
-        fprintf(stderr, "WARNING: voltype_raw.load() called without property voltype set to 'raw'!\n");
+        fprintf(stderr, "WARNING: volume_raw.load() called without property volume set to 'raw'!\n");
     }
     
     // Dimensions
@@ -317,5 +318,13 @@ load(float *bbox, VolumeLoadResult &result, const json &parameters, const float 
     
     return volume;
 }
-    
+
+Registry    
+registry = {
+
+    //NULL,
+    load,
+
+    //NULL
+};
 
