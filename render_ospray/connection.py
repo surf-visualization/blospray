@@ -1,7 +1,7 @@
 # - Use depsgraph fields to determine what to render
 # - Make sockets non-blocking and use select() to handle errors on the server side
 
-import bpy
+import bpy, bmesh
 #from bgl import *
 from mathutils import Vector
 
@@ -246,25 +246,28 @@ class Connection:
     
     def export_volume(self, obj, data, depsgraph):
         
-        self.engine.update_stats('', 'Exporting volume %s' % obj.name)
-    
+        # Volume data (i.e. mesh)
+        
+        mesh = obj.data
+        
+        self.engine.update_stats('', 'Exporting mesh %s (volume)' % mesh.name)
+        
         element = SceneElement()
-        element.type = SceneElement.VOLUME
-        element.name = obj.name
+        element.type = SceneElement.VOLUME_DATA
+        element.name = mesh.name
         
-        send_protobuf(self.sock, element)        
+        properties = customproperties2dict(mesh)
+        properties['_plugin'] = mesh.ospray.plugin
+        properties['_sampling_rate'] = mesh.ospray.sampling_rate
+        properties['_gradient_shading'] = mesh.ospray.gradient_shading
+        properties['_pre_integration'] = mesh.ospray.pre_integration
+        properties['_single_shade'] = mesh.ospray.single_shade
         
-        volume_data = VolumeData()
-        volume_data.object2world[:] = matrix2list(obj.matrix_world)
-        properties = customproperties2dict(obj)
-        volume_data.properties = json.dumps(properties)
-        volume_data.object_name = obj.name
-        volume_data.mesh_name = obj.data.name
+        element.properties = json.dumps(properties)
+        # XXX add a copy of the object's xform, as the volume loading plugin might need it
+        element.object2world[:] = matrix2list(obj.matrix_world)
         
-        print('Sending properties:')
-        print(properties)
-        
-        send_protobuf(self.sock, volume_info)
+        send_protobuf(self.sock, element)   
         
         # Wait for volume to be loaded on the server, signaled
         # by the return of a result value
@@ -281,7 +284,7 @@ class Connection:
         id = volume_load_result.hash
         print(id)
         
-        obj['loaded_id'] = id
+        mesh['loaded_id'] = id
         print('Exported volume received id %s' % id)
         
         # Get volume bbox 
@@ -308,12 +311,42 @@ class Connection:
             (0, 4), (1, 5), (2, 6), (3, 7)
         ]
         
-        faces = []
+        bm = bmesh.new()
         
+        bm_verts = []
+        
+        for v in verts:
+            bm_verts.append(bm.verts.new(v))
+            
+        for i, j in edges:
+            bm.edges.new((bm_verts[i], bm_verts[j]))
+        
+        bm.to_mesh(mesh)
+        
+        mesh.validate(verbose=True)
+
+        """
+        faces = []
         mesh = bpy.data.meshes.new(name="Volume extent")
         mesh.from_pydata(verts, edges, faces)
         mesh.validate(verbose=True)
         obj.data = mesh
+        """
+        
+        # Volume object
+        
+        self.engine.update_stats('', 'Exporting object %s (volume)' % obj.name)
+        print('Sending properties:')
+        print(properties)
+        
+        element = SceneElement()
+        element.type = SceneElement.VOLUME_OBJECT
+        element.name = obj.name
+        element.properties = json.dumps(customproperties2dict(obj)) 
+        element.object2world[:] = matrix2list(obj.matrix_world)
+        element.data_link = mesh.name
+        
+        send_protobuf(self.sock, element)        
         
         
     def export_mesh(self, mesh, data, depsgraph):
@@ -611,6 +644,19 @@ class Connection:
             if obj.type != 'MESH':
                 continue
                 
+            representation = obj.ospray.representation
+            print('Object %s, representation %s' % (obj.name, representation))
+
+            if representation == 'volume':
+                self.export_volume(obj, data, depsgraph)
+                continue
+            elif representation != 'regular':
+                print('WARNING: object "%s" has unhandled representation type "%s"' % \
+                    (obj.name, representation))
+                continue
+                
+            # Regular blender mesh
+                
             mesh = obj.data
 
             # Export mesh if not already done so earlier, we can then link to it 
@@ -629,24 +675,19 @@ class Connection:
             
             if mesh.name not in self.exported_meshes:
                 self.export_mesh(mesh, data, depsgraph)
-             
-            # XXX disable for now
-            #if 'volume' in obj:
-            #    self.export_volume(obj, data, depsgraph)
-            #    continue
-                
-            self.engine.update_stats('', 'Exporting object %s' % obj.name)
+
+            self.engine.update_stats('', 'Exporting object %s (mesh)' % obj.name)
             
             element = SceneElement()
             element.type = SceneElement.MESH_OBJECT
             element.name = obj.name
+            element.data_link = mesh.name
             element.properties = json.dumps(customproperties2dict(mesh))
             if instance.is_instance:
                 print('%s (%s) is instance' % (obj.name, mesh.name))
                 element.object2world[:] = matrix2list(instance.matrix_world)
             else:
                 element.object2world[:] = matrix2list(obj.matrix_world)
-            element.data_link = mesh.name
             
             send_protobuf(self.sock, element)      
             

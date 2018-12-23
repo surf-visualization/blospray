@@ -67,7 +67,10 @@ bool            framebuffer_created = false;
 OSPMaterial     material;   // XXX hack for now
 
 typedef std::map<std::string, OSPModel>     LoadedMeshesMap;
-LoadedMeshesMap                             loaded_meshes;
+typedef std::map<std::string, OSPVolume>    LoadedVolumesMap;
+
+LoadedMeshesMap     loaded_meshes;
+LoadedVolumesMap    loaded_volumes;
 
 ImageSettings   image_settings;
 RenderSettings  render_settings;
@@ -109,7 +112,7 @@ object2world_from_protobuf(float *matrix, T& protobuf)
 // Receive methods
 
 bool
-add_mesh_data(TCPSocket *sock, const SceneElement& element)
+receive_and_add_mesh_data(TCPSocket *sock, const SceneElement& element)
 {
     printf("[MESH] %s\n", element.name().c_str());
     
@@ -197,7 +200,7 @@ add_mesh_data(TCPSocket *sock, const SceneElement& element)
 }
 
 bool
-add_mesh_object(TCPSocket *sock, const SceneElement& element)
+receive_and_add_mesh_object(TCPSocket *sock, const SceneElement& element)
 {
     printf("[OBJECT] %s (mesh)\n", element.name().c_str());
     printf("........ --> %s\n", element.data_link().c_str());
@@ -225,24 +228,18 @@ add_mesh_object(TCPSocket *sock, const SceneElement& element)
     return true;
 }
 
-/*
 bool
-receive_volume(TCPSocket *sock)
+receive_and_add_volume_data(TCPSocket *sock, const SceneElement& element)
 {
-    VolumeData volume_data;
-    
-    if (!receive_protobuf(sock, volume_data))
-        return false;    
-    
-    // Object-to-world matrix
+    // Object-to-world matrix (copy of the parent object)
     
     float obj2world[16];
     
-    object2world_from_protobuf(obj2world, volume_data);
+    object2world_from_protobuf(obj2world, element);
 
     // Custom properties
     
-    const char *encoded_properties = volume_data.properties().c_str();
+    const char *encoded_properties = element.properties().c_str();
     //printf("Received volume properties:\n%s\n", encoded_properties);
     
     json properties = json::parse(encoded_properties);
@@ -250,13 +247,12 @@ receive_volume(TCPSocket *sock)
     // XXX we print the mesh_name here, but that mesh is replaced by the python
     // export after it receives the volume extents. so a bit confusing as that original
     // mesh is reported, but that isn't in the scene anymore
-    printf("[VOLUME] %s (%s)\n", 
-        volume_data.name().c_str(), volume_data.data_link().c_str());
+    printf("[VOLUME (mesh)] %s\n", element.name().c_str());
     printf("%s\n", properties.dump().c_str());
     
     // Prepare result
     
-    VolumeLoadResult    result;
+    VolumeLoadResult result;
     
     result.set_success(true);
     
@@ -264,7 +260,7 @@ receive_volume(TCPSocket *sock)
     
     volume_load_function_t load_function = NULL;
     
-    const std::string& volume_type = properties["volume"];
+    const std::string& volume_type = properties["_plugin"];
     
     VolumeLoadFunctionMap::iterator it = volume_load_functions.find(volume_type);
     if (it == volume_load_functions.end())
@@ -329,7 +325,7 @@ receive_volume(TCPSocket *sock)
 
         printf("ERROR: volume load function failed!\n");
         return false;
-    }
+    }    
     
     // Load function succeeded
     
@@ -338,28 +334,30 @@ receive_volume(TCPSocket *sock)
     for (int i = 0; i < 6; i++)
         result.add_bbox(bbox[i]);
     
-    // Set up ospray volume object
-
-#if 0
-    // See https://github.com/ospray/ospray/pull/165, support for volume transformations was reverted
-    ospSetVec3f(volume, "xfm.l.vx", osp::vec3f{ obj2world[0], obj2world[4], obj2world[8] });
-    ospSetVec3f(volume, "xfm.l.vy", osp::vec3f{ obj2world[1], obj2world[5], obj2world[9] });
-    ospSetVec3f(volume, "xfm.l.vz", osp::vec3f{ obj2world[2], obj2world[6], obj2world[10] });
-    ospSetVec3f(volume, "xfm.p", osp::vec3f{ obj2world[3], obj2world[7], obj2world[11] });
-#endif
-
-    if (properties.find("sampling_rate") != properties.end())
-        ospSetf(volume,  "samplingRate", properties["sampling_rate"].get<float>());
+    // Set up further volume parameters
+    
+    if (properties.find("_sampling_rate") != properties.end())
+        ospSetf(volume,  "samplingRate", properties["_sampling_rate"].get<float>());
     else
         ospSetf(volume,  "samplingRate", 0.1f);
     
+    if (properties.find("_gradient_shading") != properties.end())
+        ospSet1i(volume,  "gradientShadingEnabled", properties["_gradient_shading"].get<bool>());
+    else
+        ospSet1i(volume,  "gradientShadingEnabled", false);
+    
+    if (properties.find("_pre_integration") != properties.end())
+        ospSet1i(volume,  "preIntegration", properties["_pre_integration"].get<bool>());
+    else
+        ospSet1i(volume,  "preIntegration", false);    
+    
+    if (properties.find("_single_shade") != properties.end())
+        ospSet1i(volume,  "singleShade", properties["_single_shade"].get<bool>());
+    else
+        ospSet1i(volume,  "singleShade", true);  
+    
     ospSet1b(volume, "adaptiveSampling", false);
     
-    if (properties.find("gradient_shading") != properties.end())
-        ospSetf(volume,  "gradientShadingEnabled", properties["gradient_shading"].get<int>());
-    else
-        ospSetf(volume,  "gradientShadingEnabled", false);
-        
     // Transfer function
     
     float tf_colors[3*cool2warm_entries];
@@ -396,7 +394,54 @@ receive_volume(TCPSocket *sock)
     ospRelease(tf);
     
     ospCommit(volume);
+
+    // Cache loaded volume object
     
+    loaded_volumes[element.name()] = volume;
+
+    send_protobuf(sock, result);
+    
+    return true;
+}
+    
+
+bool
+receive_and_add_volume_object(TCPSocket *sock, const SceneElement& element)
+{
+    // Object-to-world matrix
+    
+    float obj2world[16];
+    
+    object2world_from_protobuf(obj2world, element);
+
+    // Custom properties
+    
+    const char *encoded_properties = element.properties().c_str();
+    //printf("Received volume properties:\n%s\n", encoded_properties);
+    
+    json properties = json::parse(encoded_properties);
+    
+    printf("[VOLUME (object)] %s\n", element.name().c_str());
+    printf("........ --> %s\n", element.data_link().c_str());
+    
+    LoadedVolumesMap::iterator it = loaded_volumes.find(element.data_link());
+    
+    if (it == loaded_volumes.end())
+    {
+        printf("WARNING: linked volume data '%s' not loaded!\n", element.data_link().c_str());
+        return false;
+    }
+    
+    OSPVolume volume = it->second;
+    
+#if 0
+    // See https://github.com/ospray/ospray/pull/165, support for volume transformations was reverted
+    ospSetVec3f(volume, "xfm.l.vx", osp::vec3f{ obj2world[0], obj2world[4], obj2world[8] });
+    ospSetVec3f(volume, "xfm.l.vy", osp::vec3f{ obj2world[1], obj2world[5], obj2world[9] });
+    ospSetVec3f(volume, "xfm.l.vz", osp::vec3f{ obj2world[2], obj2world[6], obj2world[10] });
+    ospSetVec3f(volume, "xfm.p", osp::vec3f{ obj2world[3], obj2world[7], obj2world[11] });
+#endif
+
     if (properties.find("isovalues") != properties.end())
     {
         // Isosurfacing
@@ -470,13 +515,9 @@ receive_volume(TCPSocket *sock)
         ospAddVolume(world, volume);
         ospRelease(volume);
     }
-    
-    if (!send_protobuf(sock, result))
-        return false;
 
     return true;
 }
-*/
 
 // XXX currently has big memory leak as we never release the new objects ;-)
 bool
@@ -661,18 +702,23 @@ receive_scene(TCPSocket *sock)
     {
         if (element.type() == SceneElement::MESH_DATA)
         {
-            add_mesh_data(sock, element);
+            receive_and_add_mesh_data(sock, element);
         }
         else if (element.type() == SceneElement::MESH_OBJECT)
         {
-            add_mesh_object(sock, element);
+            receive_and_add_mesh_object(sock, element);
         }
-        /*else if (element.type() == SceneElement::VOLUME)
+        else if (element.type() == SceneElement::VOLUME_DATA)
         {
-            receive_volume(sock);
-        }*/
+            receive_and_add_volume_data(sock, element);
+        }
+        else if (element.type() == SceneElement::VOLUME_OBJECT)
+        {
+            receive_and_add_volume_object(sock, element);
+        }
         // else XXX
         
+        // XXX check return value
         receive_protobuf(sock, element);
     }
     
