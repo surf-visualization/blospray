@@ -312,18 +312,24 @@ class Connection:
         ]
         
         bm = bmesh.new()
+        bm.from_mesh(mesh)
         
         bm_verts = []
         
-        for v in verts:
-            bm_verts.append(bm.verts.new(v))
+        bm.verts.ensure_lookup_table()
+        for vi, v in enumerate(verts):
+            #bm_verts.append(bm.verts.new(v))
+            bm.verts[vi].co = v
             
-        for i, j in edges:
-            bm.edges.new((bm_verts[i], bm_verts[j]))
+        #for i, j in edges:
+        #    bm.edges.new((bm_verts[i], bm_verts[j]))
         
         bm.to_mesh(mesh)
+        bm.free()
         
         mesh.validate(verbose=True)
+        
+        print([v.co for v in mesh.vertices])
 
         """
         faces = []

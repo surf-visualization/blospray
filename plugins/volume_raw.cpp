@@ -242,6 +242,12 @@ load(float *bbox, VolumeLoadResult &result, const json &parameters, const float 
         dataType = OSP_UCHAR;
         read_size = num_grid_points;
     }
+    else if (voxelType == "ushort")
+    {
+        grid_field_values = new uint16_t[num_grid_points];
+        dataType = OSP_USHORT;
+        read_size = num_grid_points*2;
+    }    
     else if (voxelType == "float")
     {
         grid_field_values = new float[num_grid_points];
