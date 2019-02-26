@@ -17,7 +17,8 @@ from .messages_pb2 import (
     CameraSettings, ImageSettings, 
     LightSettings, Light, RenderSettings, 
     SceneElement, MeshData, VolumeData, 
-    ClientMessage, VolumeLoadResult, RenderResult
+    ClientMessage, VolumeLoadResult, GeometryLoadResult,
+    RenderResult
 )
 
 # Object to world matrix
@@ -354,6 +355,114 @@ class Connection:
         
         send_protobuf(self.sock, element)        
         
+    def export_geometry(self, obj, data, depsgraph):
+        
+        # User-defined geometry (server-side)
+        
+        mesh = obj.data
+        
+        self.engine.update_stats('', 'Exporting mesh %s (geometry)' % mesh.name)
+        
+        element = SceneElement()
+        element.type = SceneElement.GEOMETRY_DATA
+        element.name = mesh.name
+        
+        properties = customproperties2dict(mesh)
+        properties['_plugin'] = mesh.ospray.plugin
+        
+        element.properties = json.dumps(properties)
+        # XXX add a copy of the object's xform, as the volume loading plugin might need it
+        element.object2world[:] = matrix2list(obj.matrix_world)
+        
+        send_protobuf(self.sock, element)   
+        
+        # Wait for geometry to be loaded on the server, signaled
+        # by the return of a result value
+        
+        geometry_load_result = GeometryLoadResult()
+        
+        receive_protobuf(self.sock, geometry_load_result)
+        
+        if not geometry_load_result.success:
+            print('ERROR: geometry loading failed:')
+            print(geometry_load_result.message)
+            return
+         
+        # XXX
+        #id = geometry_load_result.hash
+        id = '12345'
+        print(id)
+        
+        mesh['loaded_id'] = id
+        print('Exported geometry received id %s' % id)
+        
+        # Get geometry bbox 
+        
+        bbox = list(geometry_load_result.bbox)
+        print('Bbox', bbox)
+        
+        # Update mesh to match bbox
+        
+        verts = [
+            Vector((bbox[0], bbox[1], bbox[2])),
+            Vector((bbox[3], bbox[1], bbox[2])),
+            Vector((bbox[3], bbox[4], bbox[2])),
+            Vector((bbox[0], bbox[4], bbox[2])),
+            Vector((bbox[0], bbox[1], bbox[5])),
+            Vector((bbox[3], bbox[1], bbox[5])),
+            Vector((bbox[3], bbox[4], bbox[5])),
+            Vector((bbox[0], bbox[4], bbox[5]))
+        ]        
+        
+        edges = [
+            (0, 1), (1, 2), (2, 3), (3, 0),
+            (4, 5), (5, 6), (6, 7), (7, 4),
+            (0, 4), (1, 5), (2, 6), (3, 7)
+        ]
+        
+        bm = bmesh.new()
+        bm.from_mesh(mesh)
+        
+        bm_verts = []
+        
+        bm.verts.ensure_lookup_table()
+        for vi, v in enumerate(verts):
+            #bm_verts.append(bm.verts.new(v))
+            bm.verts[vi].co = v
+            
+        #for i, j in edges:
+        #    bm.edges.new((bm_verts[i], bm_verts[j]))
+        
+        bm.to_mesh(mesh)
+        bm.free()
+        
+        mesh.validate(verbose=True)
+        
+        print([v.co for v in mesh.vertices])
+
+        """
+        faces = []
+        mesh = bpy.data.meshes.new(name="Volume extent")
+        mesh.from_pydata(verts, edges, faces)
+        mesh.validate(verbose=True)
+        obj.data = mesh
+        """
+        
+        # Geometry object
+        
+        self.engine.update_stats('', 'Exporting object %s (geometry)' % obj.name)
+        print('Sending properties:')
+        print(properties)
+        
+        element = SceneElement()
+        element.type = SceneElement.GEOMETRY_OBJECT
+        element.name = obj.name
+        element.properties = json.dumps(customproperties2dict(obj)) 
+        element.object2world[:] = matrix2list(obj.matrix_world)
+        element.data_link = mesh.name
+        
+        send_protobuf(self.sock, element)
+        
         
     def export_mesh(self, mesh, data, depsgraph):
         
@@ -627,6 +736,7 @@ class Connection:
 
         #
         # Send scene
+        # XXX why isn't the lights export code below?
         #
         
         # Image settings
@@ -655,6 +765,9 @@ class Connection:
 
             if representation == 'volume':
                 self.export_volume(obj, data, depsgraph)
+                continue
+            elif representation == 'geometry':
+                self.export_geometry(obj, data, depsgraph)
                 continue
             elif representation != 'regular':
                 print('WARNING: object "%s" has unhandled representation type "%s"' % \

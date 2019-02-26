@@ -7,6 +7,10 @@ add_library(volume_raw SHARED volume_raw.cpp)
 set_target_properties(volume_raw PROPERTIES PREFIX "")   
 target_link_libraries(volume_raw PUBLIC ${OSPRAY_LIBRARIES})
 
+add_library(geometry_rbc SHARED geometry_rbc.cpp)
+set_target_properties(geometry_rbc PROPERTIES PREFIX "")   
+target_link_libraries(geometry_rbc PUBLIC ${OSPRAY_LIBRARIES})
+
 target_include_directories(volume_raw
     PUBLIC
     ${PROTOBUF_INCLUDE_DIRS}
@@ -14,5 +18,5 @@ target_include_directories(volume_raw
 )
 
 install(TARGETS 
-    volume_raw
+    volume_raw geometry_rbc
     DESTINATION bin)

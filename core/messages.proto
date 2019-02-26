@@ -47,11 +47,17 @@ message SceneElement
     enum Type {
         NONE = 0;       // Used for signaling last object was sent
         
+        // Regular Blender mesh
         MESH_OBJECT = 10;
         MESH_DATA = 11;
         
+        // Volume
         VOLUME_OBJECT = 20;
         VOLUME_DATA = 21;
+        
+        // Geometry 
+        GEOMETRY_OBJECT = 30;
+        GEOMETRY_DATA = 31;
     }
     
     Type            type = 1;
@@ -86,6 +92,13 @@ message VolumeData
     string          properties = 3;
     
     repeated float  object2world = 10;   // XXX We like to know the volume xform, as we  might need to apply it to the vertices directly, i.e. can't instantiate without the matrix
+}
+
+message GeometryData
+{
+    uint32          flags = 1;
+    string          name = 2;
+    string          properties = 3;
 }
 
 // Settings
@@ -180,9 +193,9 @@ message LightSettings
     repeated Light  lights = 3;
 }
 
-// Volume plugins
-
+// Plugins
 // Returned by load function in plugin
+
 message VolumeLoadResult
 {
     bool            success = 1;
@@ -192,5 +205,12 @@ message VolumeLoadResult
     repeated float  bbox = 4;
 }
 
-
+message GeometryLoadResult
+{
+    bool            success = 1;
+    string          message = 2;
+    
+    string          hash = 3;
+    repeated float  bbox = 4;
+}
 

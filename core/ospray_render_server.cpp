@@ -68,9 +68,12 @@ OSPMaterial     material;   // XXX hack for now
 
 typedef std::map<std::string, OSPModel>     LoadedMeshesMap;
 typedef std::map<std::string, OSPVolume>    LoadedVolumesMap;
+typedef std::map<std::string, OSPModel>     LoadedGeometriesMap;
 
+// XXX rename to ..._cache
 LoadedMeshesMap     loaded_meshes;
 LoadedVolumesMap    loaded_volumes;
+LoadedGeometriesMap loaded_geometries;
 
 ImageSettings   image_settings;
 RenderSettings  render_settings;
@@ -81,6 +84,11 @@ LightSettings   light_settings;
 
 typedef std::map<std::string, volume_load_function_t>   VolumeLoadFunctionMap;
 VolumeLoadFunctionMap                                   volume_load_functions;
+
+// Geometry loaders
+
+typedef std::map<std::string, geometry_load_function_t> GeometryLoadFunctionMap;
+GeometryLoadFunctionMap                                 geometry_load_functions;
 
 // Geometry buffers
 
@@ -519,6 +527,161 @@ receive_and_add_volume_object(TCPSocket *sock, const SceneElement& element)
     return true;
 }
 
+
+bool
+receive_and_add_geometry_data(TCPSocket *sock, const SceneElement& element)
+{
+    // Object-to-world matrix (copy of the parent object)
+    
+    float obj2world[16];
+    
+    object2world_from_protobuf(obj2world, element);
+
+    // Custom properties
+    
+    const char *encoded_properties = element.properties().c_str();
+    //printf("Received volume properties:\n%s\n", encoded_properties);
+    
+    json properties = json::parse(encoded_properties);
+    
+    // XXX we print the mesh_name here, but that mesh is replaced by the python
+    // export after it receives the volume extents. so a bit confusing as that original
+    // mesh is reported, but that isn't in the scene anymore
+    printf("[GEOMETRY (mesh)] %s\n", element.name().c_str());
+    printf("%s\n", properties.dump().c_str());
+    
+    // Prepare result
+    
+    GeometryLoadResult result;
+    
+    result.set_success(true);
+    
+    // Find load function 
+    
+    geometry_load_function_t load_function = NULL;
+    
+    const std::string& geometry_type = properties["_plugin"];
+    
+    GeometryLoadFunctionMap::iterator it = geometry_load_functions.find(geometry_type);
+    if (it == geometry_load_functions.end())
+    {
+        printf("No load function yet for geometry type '%s'\n", geometry_type.c_str());
+        
+        std::string plugin_name = "geometry_" + geometry_type + ".so";
+        
+        printf("Loading plugin %s\n", plugin_name.c_str());
+        
+        void *plugin = dlopen(plugin_name.c_str(), RTLD_LAZY);
+        
+        if (!plugin) 
+        {
+            result.set_success(false);
+            result.set_message("Failed to open plugin");
+            send_protobuf(sock, result);
+
+            fprintf(stderr, "dlopen() error: %s\n", dlerror());
+            return false;
+        }
+        
+        // Clear previous error
+        dlerror(); 
+        
+        load_function = (geometry_load_function_t) dlsym(plugin, "load");
+        
+        if (load_function == NULL)
+        {
+            result.set_success(false);
+            result.set_message("Failed to get load function from plugin");
+            send_protobuf(sock, result);
+    
+            fprintf(stderr, "dlsym() error: %s\n", dlerror());
+            return false;
+        }
+        
+        geometry_load_functions[geometry_type] = load_function;
+    }
+    else
+        load_function = it->second;
+    
+    // Let load function do its job
+    
+    struct timeval t0, t1;
+    
+    printf("Calling load function\n");
+    
+    gettimeofday(&t0, NULL);
+    
+    OSPModel    model;
+    float       bbox[6];
+    
+    model = load_function(bbox, result, properties, obj2world);
+    
+    gettimeofday(&t1, NULL);
+    printf("Load function executed in %.3fs\n", time_diff(t0, t1));
+    
+    if (model == NULL)
+    {
+        send_protobuf(sock, result);
+
+        printf("ERROR: geometry load function failed!\n");
+        return false;
+    }    
+    
+    // Load function succeeded
+    
+    result.set_hash(get_sha1(encoded_properties));
+    
+    for (int i = 0; i < 6; i++)
+        result.add_bbox(bbox[i]);
+
+    // Cache loaded geometry object
+    
+    loaded_geometries[element.name()] = model;
+    
+    send_protobuf(sock, result);
+    
+    return true;
+}
+
+bool
+receive_and_add_geometry_object(TCPSocket *sock, const SceneElement& element)
+{
+    // Object-to-world matrix
+    
+    float obj2world[16];
+    
+    object2world_from_protobuf(obj2world, element);
+
+    // Custom properties
+    
+    const char *encoded_properties = element.properties().c_str();
+    //printf("Received volume properties:\n%s\n", encoded_properties);
+    
+    json properties = json::parse(encoded_properties);
+    
+    printf("[OBJECT %s] (geometry)\n", element.name().c_str());
+    printf("........ --> %s\n", element.data_link().c_str());
+    
+    LoadedGeometriesMap::iterator it = loaded_geometries.find(element.data_link());
+    
+    if (it == loaded_geometries.end())
+    {
+        printf("WARNING: linked geometry data '%s' not loaded!\n", element.data_link().c_str());
+        return false;
+    }
+    
+    OSPModel model = it->second;
+    
+    osp::affine3f xform;    
+    affine3f_from_matrix(xform, obj2world);
+    
+    OSPGeometry instance = ospNewInstance(model, xform);    
+    ospAddGeometry(world, instance);    
+    ospRelease(instance);
+
+    return true;
+}
+
 // XXX currently has big memory leak as we never release the new objects ;-)
 bool
 receive_scene(TCPSocket *sock)
@@ -715,6 +878,14 @@ receive_scene(TCPSocket *sock)
         else if (element.type() == SceneElement::VOLUME_OBJECT)
         {
             receive_and_add_volume_object(sock, element);
+        }
+        else if (element.type() == SceneElement::GEOMETRY_DATA)
+        {
+            receive_and_add_geometry_data(sock, element);
+        }
+        else if (element.type() == SceneElement::GEOMETRY_OBJECT)
+        {
+            receive_and_add_geometry_object(sock, element);
         }
         // else XXX
         
