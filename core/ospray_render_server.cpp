@@ -66,9 +66,9 @@ OSPFrameBuffer  framebuffer;
 bool            framebuffer_created = false;
 OSPMaterial     material;   // XXX hack for now
 
-typedef std::map<std::string, OSPModel>     LoadedMeshesMap;
-typedef std::map<std::string, OSPVolume>    LoadedVolumesMap;
-typedef std::map<std::string, OSPModel>     LoadedGeometriesMap;
+typedef std::map<std::string, OSPModel>         LoadedMeshesMap;
+typedef std::map<std::string, OSPVolume>        LoadedVolumesMap;
+typedef std::map<std::string, ModelInstances>   LoadedGeometriesMap;
 
 // XXX rename to ..._cache
 LoadedMeshesMap     loaded_meshes;
@@ -611,21 +611,16 @@ receive_and_add_geometry_data(TCPSocket *sock, const SceneElement& element)
     
     gettimeofday(&t0, NULL);
     
-    OSPModel    model;
-    float       bbox[6];
+    float                   bbox[6];
+    ModelInstances          model_instances;
     
-    model = load_function(bbox, result, properties, obj2world);
+    load_function(model_instances, bbox, result, properties, obj2world);
     
     gettimeofday(&t1, NULL);
     printf("Load function executed in %.3fs\n", time_diff(t0, t1));
     
-    if (model == NULL)
-    {
-        send_protobuf(sock, result);
-
-        printf("ERROR: geometry load function failed!\n");
-        return false;
-    }    
+    if (model_instances.size() == 0)
+        printf("WARNING: geometry load function returned no instances\n");
     
     // Load function succeeded
     
@@ -636,7 +631,7 @@ receive_and_add_geometry_data(TCPSocket *sock, const SceneElement& element)
 
     // Cache loaded geometry object
     
-    loaded_geometries[element.name()] = model;
+    loaded_geometries[element.name()] = model_instances;
     
     send_protobuf(sock, result);
     
@@ -670,15 +665,21 @@ receive_and_add_geometry_object(TCPSocket *sock, const SceneElement& element)
         return false;
     }
     
-    OSPModel model = it->second;
+    ModelInstances model_instances = it->second;
     
-    osp::affine3f xform;    
-    affine3f_from_matrix(xform, obj2world);
+    osp::affine3f   obj2world_xform, xform; 
     
-    OSPGeometry instance = ospNewInstance(model, xform);    
-    ospAddGeometry(world, instance);    
-    ospRelease(instance);
-
+    affine3f_from_matrix(obj2world_xform, obj2world);
+    
+    for (ModelInstances::const_iterator it = model_instances.begin(); it != model_instances.end(); ++it)
+    {
+        // XXX need to implement matrix multiplication of osp::affine3f's ;-)
+        //xform = obj2world_xform * it->second;
+        OSPGeometry instance = ospNewInstance(it->first, it->second);    
+            ospAddGeometry(world, instance);    
+        ospRelease(instance);
+    }
+    
     return true;
 }
 
@@ -861,6 +862,7 @@ receive_scene(TCPSocket *sock)
     // XXX check return value
     receive_protobuf(sock, element);
     
+    // XXX use function table
     while (element.type() != SceneElement::NONE)
     {
         if (element.type() == SceneElement::MESH_DATA)
@@ -938,6 +940,7 @@ send_framebuffer(TCPSocket *sock)
     // Write to OpenEXR file and send *its* contents
     const char *FBFILE = "/dev/shm/orsfb.exr";
     
+    // XXX this also maps/unmaps the framebuffer!
     size_t size = write_framebuffer_exr(FBFILE);
     
     printf("Sending framebuffer as OpenEXR file, %d bytes\n", size);
@@ -955,6 +958,7 @@ send_framebuffer(TCPSocket *sock)
     sock->sendall((uint8_t*)fb, image_size.x*image_size.y*4*4);
 #endif
     
+    // XXX can already unmap after written to file
     // Unmap framebuffer
     ospUnmapFrameBuffer(fb, framebuffer);    
     

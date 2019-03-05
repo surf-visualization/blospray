@@ -79,6 +79,9 @@ def receive_protobuf(sock, protobuf):
 
     message = b''.join(parts)
     
+    print('receive_protobuf():\n')
+    print(message)
+    
     protobuf.ParseFromString(message)
 
 
@@ -355,6 +358,7 @@ class Connection:
         
         send_protobuf(self.sock, element)        
         
+    # XXX rename to export_ospray_geometry to avoid confusion with blender geometry
     def export_geometry(self, obj, data, depsgraph):
         
         # User-defined geometry (server-side)
@@ -401,7 +405,12 @@ class Connection:
         bbox = list(geometry_load_result.bbox)
         print('Bbox', bbox)
         
+        """
+        
         # Update mesh to match bbox
+        # XXX need to check if this is even supported behaviour in the
+        # new depsgraph method, as we're changing data that is only supposed
+        # to be valid during export (as it basically is a private copy of the scene data)
         
         verts = [
             Vector((bbox[0], bbox[1], bbox[2])),
@@ -421,24 +430,21 @@ class Connection:
         ]
         
         bm = bmesh.new()
-        bm.from_mesh(mesh)
-        
+
         bm_verts = []
-        
-        bm.verts.ensure_lookup_table()
         for vi, v in enumerate(verts):
-            #bm_verts.append(bm.verts.new(v))
-            bm.verts[vi].co = v
+            bm_verts.append(bm.verts.new(v))
             
-        #for i, j in edges:
-        #    bm.edges.new((bm_verts[i], bm_verts[j]))
-        
+        for i, j in edges:
+            bm.edges.new((bm_verts[i], bm_verts[j]))
+
         bm.to_mesh(mesh)
         bm.free()
         
         mesh.validate(verbose=True)
         
         print([v.co for v in mesh.vertices])
+        """
 
         """
         faces = []

@@ -1,3 +1,4 @@
+// Need to set RBC_DATA_PATH 
 #include <cstdio>
 #include <stdint.h>
 #include <ospray/ospray.h>
@@ -241,8 +242,8 @@ add_ground_plane()
 */
 
 extern "C" 
-OSPModel
-load(float *bbox, GeometryLoadResult &result, const json &parameters, const float *object2world)
+void
+load(ModelInstances& model_instances, float *bbox, GeometryLoadResult &result, const json &parameters, const float *object2world)
 {    
     rbc_data_path = getenv("RBC_DATA_PATH");
     if (!rbc_data_path)
@@ -250,7 +251,7 @@ load(float *bbox, GeometryLoadResult &result, const json &parameters, const floa
         fprintf(stderr, "ERROR: RBC_DATA_PATH not set!\n");
         result.set_success(false);
         result.set_message("RBC_DATA_PATH not set!");
-        return NULL;
+        return;
     }
     
     int max_rbcs = -1;
@@ -265,12 +266,9 @@ load(float *bbox, GeometryLoadResult &result, const json &parameters, const floa
     {
         result.set_success(false);
         result.set_message("Failed to load cell models");
-        return NULL;
+        return;
     }
     
-    OSPModel container = ospNewModel();
-    
-    OSPGeometry     instance;
     osp::affine3f   xform;
     
     glm::mat4       R;
@@ -289,7 +287,7 @@ load(float *bbox, GeometryLoadResult &result, const json &parameters, const floa
         fprintf(stderr, "ERROR: could not open cells.bin!\n");
         result.set_success(false);
         result.set_message("could not open cells.bin");
-        return NULL;
+        return;
     }
     
     fread(&num_rbc, sizeof(uint32_t), 1, p);
@@ -297,7 +295,7 @@ load(float *bbox, GeometryLoadResult &result, const json &parameters, const floa
     fread(&num_wbc, sizeof(uint32_t), 1, p);
     printf("On-disk scene: %d rbc, %d plt, %d wbc\n", num_rbc, num_plt, num_wbc);
 
-    // Instance RBCs & PLTs
+    // Instantiate RBCs & PLTs
     
     if (max_rbcs == -1)
         max_rbcs = num_rbc;
@@ -332,11 +330,9 @@ load(float *bbox, GeometryLoadResult &result, const json &parameters, const floa
         xform.l.vz.z = M[10];
 
         xform.p = { tx, ty, tz };
-
-        // Add instance
-        instance = ospNewInstance(mesh_model_rbc, xform);
         
-        ospAddGeometry(container, instance);
+        // Add instance
+        model_instances.push_back(std::make_pair(mesh_model_rbc, xform));
     }    
     
     // Skip remaining RBCs in scene file
@@ -390,9 +386,8 @@ load(float *bbox, GeometryLoadResult &result, const json &parameters, const floa
         xform.p = { tx, ty, tz };
 
         // Add instance
-        instance = ospNewInstance(mesh_model_plt, xform);
-        
-        ospAddGeometry(container, instance);
+        // Add instance
+        model_instances.push_back(std::make_pair(mesh_model_plt, xform));
     }        
     
     fclose(p);        
@@ -406,8 +401,6 @@ load(float *bbox, GeometryLoadResult &result, const json &parameters, const floa
     bbox[3] = 2000.0f;
     bbox[4] = 1000.0f;
     bbox[5] = 1000.0f;
-    
-    return container;
 }
 
 Registry    

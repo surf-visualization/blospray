@@ -1,12 +1,19 @@
 #ifndef PLUGIN_H
 #define PLUGIN_H
 
+#include <vector>
+
+#include <ospray/ospray.h>
+
 #include "messages.pb.h"        // VolumeLoadResult
 
 using json = nlohmann::json;
 
+typedef std::pair<OSPModel, osp::affine3f>  ModelInstance;
+typedef std::vector<ModelInstance>          ModelInstances;
+
 typedef OSPVolume   (*volume_load_function_t)(float *bbox, VolumeLoadResult &result, const json &parameters, const float *object2world);
-typedef OSPModel    (*geometry_load_function_t)(float *bbox, GeometryLoadResult &result, const json &parameters, const float *object2world);
+typedef void        (*geometry_load_function_t)(ModelInstances& model_instances, float *bbox, GeometryLoadResult &result, const json &parameters, const float *object2world);
 
 typedef struct 
 {
