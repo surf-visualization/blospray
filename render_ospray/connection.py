@@ -79,8 +79,8 @@ def receive_protobuf(sock, protobuf):
 
     message = b''.join(parts)
     
-    print('receive_protobuf():\n')
-    print(message)
+    #print('receive_protobuf():\n')
+    #print(message)
     
     protobuf.ParseFromString(message)
 

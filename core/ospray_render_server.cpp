@@ -856,6 +856,10 @@ receive_scene(TCPSocket *sock)
     // Setup world and scene objects
     
     world = ospNewModel();
+        // Use ospSet1i for now, even though the value is a bool
+        // See https://github.com/ospray/ospray/issues/277
+        ospSet1i(world, "compactMode", 1);
+    ospCommit(world);
     
     SceneElement element;
     
