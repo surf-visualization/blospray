@@ -1,8 +1,11 @@
 Bugs
-- Camera clipping (start only) doesn't match cycles render, nor OpenGL preview
+- Camera clipping start doesn't match cycles render, nor OpenGL scene view,
+  as ospray only supports setting the clipping end
 
 Fix/improve
 - Correctly release the scene after rendering
+- If possible, get rid of OpenEXR as intermediate framebuffer file
+  (depends on possibilities of blender API)
 
 Must haves
 - Light UI panel
@@ -13,22 +16,27 @@ Must haves
 - Better error handling and recovery
 - Better handling of instancing and (particle system) duplication, i.e. don't duplicate mesh
 - Cancel render during export of large scenes
+- Caching of large data sets across renders
+- Border render (as a convenience until we have interactive preview render)
 
 Very nice to haves ;-)
 - Interactive preview rendering
 - UI buttons to preload/clear the scene on the server, including
-  setting object bboxes of volumes to correct sizes
+  setting object bboxes of volumes to correct sizes (see also next point)
+- UI button to query bbox/proxy geometry of server-side scene objects.
+  We currently do this implicitly during the scene export phase of
+  rendering, but since we're operating on a depsgraph copy this actually
+  will not work. So the user should query the bbox/proxies manually.
 
 Nice to haves
 - Start/stop server during rendering automatically
-- Caching of large data sets across renders
-- Border render
 - UI button to get stats from server on currently loaded scene
 - Handle text objects
 - Reduce overhead in server -> client communication. E.g. render
   of angel.blend in 3840x2160 @ 4 spp takes 40.972s on the server,
   but 46.90s on the blender side (i.e. +14.5% longer)
 - Textured geometry
+- Allow plugins to provide user-defined proxy geometry, not just a bbox
 
 Obscure to haves
 - Handle multiple concurrent renders in Blender
@@ -36,6 +44,12 @@ Obscure to haves
 - Log file for the server
 
 Decide
+- Protobuf is very nice for the combo data layout description, 
+  serialization, application API it provides. But it is an extra dependency
+  that users would need to install. Can we locally include protobuf
+  in the sources and build process? Or should we get rid of it
+  altogether?
+  
 
 Test
 
@@ -43,3 +57,9 @@ Test
 Look into
 - How to leverage blender's node system
 - OSPRay's extension modules and scenegraph, mostly w.r.t. model loading
+- For batch renders there's no need to send the framebuffer for each
+  sample, but not sure we can detect that specific situation. Should
+  look into how cycles handles this case
+
+
+protobuf gone
