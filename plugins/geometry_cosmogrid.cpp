@@ -111,7 +111,8 @@ load_points(const char *fname, int max_points, float sphere_radius)
       //ospSetData(mesh, "vertex.color", data);
 
       OSPMaterial material = ospNewMaterial2("scivis", "OBJMaterial");
-      ospSet3f(material, "Kd", 0.8f, 0, 0);
+      ospSet3f(material, "Kd", 1.0f, 1.0f, 1.0f);
+      ospSet1f(material, "d", 1.0f);
       ospCommit(material);
       ospSetMaterial(spheres, material);
       ospRelease(material);
