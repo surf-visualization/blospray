@@ -338,7 +338,7 @@ enabled_panels = {
         'TEXTURE_PT_marble',
         'TEXTURE_PT_musgrave',
         'TEXTURE_PT_node',
-        'TEXTURE_PT_node_mapping',
+        #'TEXTURE_PT_node_mapping',
         'TEXTURE_PT_preview',
         'TEXTURE_PT_stucci',
         'TEXTURE_PT_voronoi',

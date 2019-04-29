@@ -1,4 +1,4 @@
-// Need to set RBC_DATA_PATH 
+// Need to set RBC_DATA_PATH for the server process before the plugin is used
 #include <cstdio>
 #include <stdint.h>
 #include <ospray/ospray.h>
@@ -8,7 +8,6 @@
 
 #include "json.hpp"
 #include "util.h"
-//#include "messages.pb.h"        // VolumeLoadResult
 #include "plugin.h"
 
 using json = nlohmann::json;
@@ -72,6 +71,8 @@ load_cell_models()
       ospSetData(mesh, "vertex.color", data);
 
       // XXX are aligned indices, i.e. OSP_INT4, faster to render?
+      // YYY they are not really aligned it seems, merely 4 elements
+      // stored for a 3-element vector 
       data = ospNewData(num_triangles, OSP_INT3, triangles);            // OSP_INT4 format is also supported for triangle indices
       ospCommit(data);
       ospSetData(mesh, "index", data);
@@ -95,9 +96,6 @@ load_cell_models()
     delete [] triangles;
     delete [] colors;
     
-
-
-
     // Read PLT geometry
 
     sprintf(fname, "%s/plt_normal_translated.bin", rbc_data_path);
