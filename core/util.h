@@ -11,9 +11,59 @@
 #else
 #include <boost/uuid/sha1.hpp>
 #endif
+#include <glm/gtc/type_ptr.hpp>
 
+#include <ospray.h>
 #include "messages.pb.h"
 #include "tcpsocket.h"
+
+void
+affine3f_from_rowmajor(osp::affine3f& xform, float *m)
+{
+    xform.l.vx = osp::vec3f{ m[0], m[4], m[8] };
+    xform.l.vy = osp::vec3f{ m[1], m[5], m[9] };
+    xform.l.vz = osp::vec3f{ m[2], m[6], m[10] };
+    xform.p    = osp::vec3f{ m[3], m[7], m[11] };
+}
+
+void
+affine3f_from_colmajor(osp::affine3f& xform, float *m)
+{
+    xform.l.vx = osp::vec3f{ m[0], m[1], m[2] };
+    xform.l.vy = osp::vec3f{ m[4], m[5], m[6] };
+    xform.l.vz = osp::vec3f{ m[8], m[9], m[10] };
+    xform.p    = osp::vec3f{ m[12], m[13], m[14] };
+}
+
+void
+affine3f_from_mat4(osp::affine3f& xform, const glm::mat4 &mat)
+{
+    const float *M = glm::value_ptr(mat);
+
+    xform.l.vx.x = M[0];
+    xform.l.vx.y = M[1];
+    xform.l.vx.z = M[2];
+
+    xform.l.vy.x = M[4];
+    xform.l.vy.y = M[5];
+    xform.l.vy.z = M[6];
+
+    xform.l.vz.x = M[8];
+    xform.l.vz.y = M[9];
+    xform.l.vz.z = M[10];
+
+    xform.p.x = M[12];
+    xform.p.y = M[13];
+    xform.p.z = M[14];
+}
+
+osp::affine3f
+affine3f_from_mat4(const glm::mat4 &mat)
+{
+    osp::affine3f xform;
+    affine3f_from_mat4(xform, mat);
+    return xform;
+}
 
 inline double
 time_diff(struct timeval t0, struct timeval t1)

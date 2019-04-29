@@ -77,12 +77,12 @@ load_cell_models()
       ospCommit(data);
       ospSetData(mesh, "index", data);
             
-        OSPMaterial material = ospNewMaterial2("scivis", "OBJMaterial");
+      OSPMaterial material = ospNewMaterial2("scivis", "OBJMaterial");
     
-        ospSet3f(material, "Kd", 0.8f, 0, 0);
-        ospCommit(material);
-        ospSetMaterial(mesh, material);
-        ospRelease(material);
+      ospSet3f(material, "Kd", 0.8f, 0, 0);
+      ospCommit(material);
+      ospSetMaterial(mesh, material);
+      ospRelease(material);
 
     ospCommit(mesh);
   
@@ -147,13 +147,12 @@ load_cell_models()
       ospCommit(data);
       ospSetData(mesh, "index", data);
     
-        material = ospNewMaterial2("scivis", "OBJMaterial");
+      material = ospNewMaterial2("scivis", "OBJMaterial");
     
-        ospSet3f(material, "Kd", 0.8f, 0.8f, 0.8f);
-        ospCommit(material);
-        ospSetMaterial(mesh, material);
-        ospRelease(material);
-
+      ospSet3f(material, "Kd", 0.8f, 0.8f, 0.8f);
+      ospCommit(material);
+      ospSetMaterial(mesh, material);
+      ospRelease(material);
 
     ospCommit(mesh);
   
@@ -241,7 +240,7 @@ add_ground_plane()
 
 extern "C" 
 void
-load(ModelInstances& model_instances, float *bbox, GeometryLoadResult &result, const json &parameters, const float *object2world)
+load(ModelInstances& model_instances, float *bbox, GeometryLoadResult &result, const json &parameters, const glm::mat4& object2world)
 {    
     rbc_data_path = getenv("RBC_DATA_PATH");
     if (!rbc_data_path)
@@ -267,15 +266,10 @@ load(ModelInstances& model_instances, float *bbox, GeometryLoadResult &result, c
         return;
     }
     
-    osp::affine3f   xform;
-    
-    glm::mat4       R;
-    float           *M;
-  
-    uint32_t  num_rbc, num_plt, num_wbc;
-    float     tx, ty, tz, rx, ry, rz;
-    //float     A, B, C, D, E, F, AD, BD;
-    
+    uint32_t    num_rbc, num_plt, num_wbc;
+    float       tx, ty, tz, rx, ry, rz;
+    glm::mat4   R;
+
     char fname[1024];
     sprintf(fname, "%s/cells.bin", rbc_data_path);
     FILE *p = fopen(fname, "rb");
@@ -308,29 +302,14 @@ load(ModelInstances& model_instances, float *bbox, GeometryLoadResult &result, c
         fread(&rx, sizeof(float), 1, p);
         fread(&ry, sizeof(float), 1, p);
         fread(&rz, sizeof(float), 1, p);
-        
+                
         R = glm::rotate(glm::mat4(1.0f), glm::radians(rx), glm::vec3(1,0,0));
         R = glm::rotate(R, glm::radians(ry), glm::vec3(0,1,0));
-        R = glm::rotate(R, glm::radians(rz), glm::vec3(0,0,1));
-
-        M = glm::value_ptr(R);
-
-        xform.l.vx.x = M[0];
-        xform.l.vx.y = M[1];
-        xform.l.vx.z = M[2];
-
-        xform.l.vy.x = M[4];
-        xform.l.vy.y = M[5];
-        xform.l.vy.z = M[6];
-
-        xform.l.vz.x = M[8];
-        xform.l.vz.y = M[9];
-        xform.l.vz.z = M[10];
-
-        xform.p = { tx, ty, tz };
+        R = glm::rotate(R, glm::radians(rz), glm::vec3(0,0,1));   
+        //R = glm::translate(R, glm::vec3(tx,ty,tz));        
         
         // Add instance
-        model_instances.push_back(std::make_pair(mesh_model_rbc, xform));
+        model_instances.push_back(std::make_pair(mesh_model_rbc, R));
     }    
     
     // Skip remaining RBCs in scene file
@@ -362,30 +341,14 @@ load(ModelInstances& model_instances, float *bbox, GeometryLoadResult &result, c
         R = glm::rotate(glm::mat4(1.0f), glm::radians(rx), glm::vec3(1,0,0));
         R = glm::rotate(R, glm::radians(ry), glm::vec3(0,1,0));
         R = glm::rotate(R, glm::radians(rz), glm::vec3(0,0,1));
+        //R = glm::translate(R, glm::vec3(tx,ty,tz));
 
         /*glm::mat4 T = glm::translate(
         glm::mat4(1.0f), glm::vec3(tx, ty, tz)
         );*/
-
-        M = glm::value_ptr(R);
-
-        xform.l.vx.x = M[0];
-        xform.l.vx.y = M[1];
-        xform.l.vx.z = M[2];
-
-        xform.l.vy.x = M[4];
-        xform.l.vy.y = M[5];
-        xform.l.vy.z = M[6];
-
-        xform.l.vz.x = M[8];
-        xform.l.vz.y = M[9];
-        xform.l.vz.z = M[10];
-
-        xform.p = { tx, ty, tz };
-
+        
         // Add instance
-        // Add instance
-        model_instances.push_back(std::make_pair(mesh_model_plt, xform));
+        model_instances.push_back(std::make_pair(mesh_model_plt, R));
     }        
     
     fclose(p);        

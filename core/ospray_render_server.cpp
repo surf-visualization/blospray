@@ -42,6 +42,7 @@ Hence the original copyright message below.
 
 #include <boost/program_options.hpp>
 #include <ospray/ospray.h>
+#include <glm/gtx/string_cast.hpp>      // to_string()
 
 #include "image.h"
 #include "tcpsocket.h"
@@ -100,21 +101,33 @@ std::vector<uint32_t>   triangle_buffer;
 
 // Utility
 
-void
-affine3f_from_matrix(osp::affine3f& xform, float *m)
-{
-    xform.l.vx = osp::vec3f{ m[0], m[4], m[8] };
-    xform.l.vy = osp::vec3f{ m[1], m[5], m[9] };
-    xform.l.vz = osp::vec3f{ m[2], m[6], m[10] };
-    xform.p = osp::vec3f{ m[3], m[7], m[11] };
-}
-
 template<typename T>
 void
-object2world_from_protobuf(float *matrix, T& protobuf)
+object2world_from_protobuf(glm::mat4 &matrix, T& protobuf)
 {
-    for (int i = 0; i < 16; i++)
-        matrix[i] = protobuf.object2world(i);   
+    float *M = glm::value_ptr(matrix);
+    
+    // Protobuf elements assumed in row-major order 
+    // (while GLM uses column-major order)
+    M[0] = protobuf.object2world(0);
+    M[1] = protobuf.object2world(4);
+    M[2] = protobuf.object2world(8);
+    M[3] = protobuf.object2world(12);
+
+    M[4] = protobuf.object2world(1);
+    M[5] = protobuf.object2world(5);
+    M[6] = protobuf.object2world(9);
+    M[7] = protobuf.object2world(13);
+    
+    M[8] = protobuf.object2world(2);
+    M[9] = protobuf.object2world(6);
+    M[10] = protobuf.object2world(10);
+    M[11] = protobuf.object2world(14);
+    
+    M[12] = protobuf.object2world(3);
+    M[13] = protobuf.object2world(7);
+    M[14] = protobuf.object2world(11);
+    M[15] = protobuf.object2world(15);    
 }
 
 // Receive methods
@@ -223,11 +236,11 @@ receive_and_add_mesh_object(TCPSocket *sock, const SceneElement& element)
     
     OSPModel model = it->second;
     
-    float obj2world[16];
-    osp::affine3f xform;
+    glm::mat4       obj2world;
+    osp::affine3f   xform;
     
     object2world_from_protobuf(obj2world, element);
-    affine3f_from_matrix(xform, obj2world);
+    affine3f_from_mat4(xform, obj2world);
     
     OSPGeometry instance = ospNewInstance(model, xform);    
     ospAddGeometry(world, instance);    
@@ -241,8 +254,7 @@ receive_and_add_volume_data(TCPSocket *sock, const SceneElement& element)
 {
     // Object-to-world matrix (copy of the parent object)
     
-    float obj2world[16];
-    
+    glm::mat4 obj2world;
     object2world_from_protobuf(obj2world, element);
 
     // Custom properties
@@ -418,8 +430,7 @@ receive_and_add_volume_object(TCPSocket *sock, const SceneElement& element)
 {
     // Object-to-world matrix
     
-    float obj2world[16];
-    
+    glm::mat4 obj2world;
     object2world_from_protobuf(obj2world, element);
 
     // Custom properties
@@ -533,8 +544,7 @@ receive_and_add_geometry_data(TCPSocket *sock, const SceneElement& element)
 {
     // Object-to-world matrix (copy of the parent object)
     
-    float obj2world[16];
-    
+    glm::mat4 obj2world;
     object2world_from_protobuf(obj2world, element);
 
     // Custom properties
@@ -643,14 +653,13 @@ receive_and_add_geometry_object(TCPSocket *sock, const SceneElement& element)
 {
     // Object-to-world matrix
     
-    float obj2world[16];
-    
-    object2world_from_protobuf(obj2world, element);
+    glm::mat4 obj2world;
+    object2world_from_protobuf(obj2world, element);    
 
     // Custom properties
     
     const char *encoded_properties = element.properties().c_str();
-    //printf("Received volume properties:\n%s\n", encoded_properties);
+    //printf("Received geometry object properties:\n%s\n", encoded_properties);
     
     json properties = json::parse(encoded_properties);
     
@@ -665,17 +674,19 @@ receive_and_add_geometry_object(TCPSocket *sock, const SceneElement& element)
         return false;
     }
     
-    ModelInstances model_instances = it->second;
+    // Create instance(s)    
     
-    osp::affine3f   obj2world_xform, xform; 
-    
-    affine3f_from_matrix(obj2world_xform, obj2world);
+    ModelInstances  model_instances = it->second;
+    glm::mat4       xform; 
     
     for (ModelInstances::const_iterator it = model_instances.begin(); it != model_instances.end(); ++it)
     {
-        // XXX need to implement matrix multiplication of osp::affine3f's ;-)
-        //xform = obj2world_xform * it->second;
-        OSPGeometry instance = ospNewInstance(it->first, it->second);    
+        const OSPModel& model = it->first;
+        const glm::mat4& instance_xform = it->second;
+        xform = obj2world * instance_xform;
+        //printf("xform = %s\n", glm::to_string(xform).c_str());
+        
+        OSPGeometry instance = ospNewInstance(model, affine3f_from_mat4(xform));
             ospAddGeometry(world, instance);    
         ospRelease(instance);
     }

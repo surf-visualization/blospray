@@ -13,7 +13,7 @@ using json = nlohmann::json;
 
 static OSPVolume
 load_as_structured(float *bbox, VolumeLoadResult &result,
-    const json &parameters, const float *object2world, 
+    const json &parameters, const glm::mat4 &/*object2world*/, 
     const int32_t *dims, const std::string& voxelType, OSPDataType dataType, void *grid_field_values)
 {
     fprintf(stderr, "WARNING: structured volumes in OSPRay currently don't support object-to-world transformations\n");
@@ -69,7 +69,7 @@ load_as_structured(float *bbox, VolumeLoadResult &result,
 static OSPVolume
 load_as_unstructured(
     float *bbox, VolumeLoadResult &result,
-    const json &parameters, const float *object2world, 
+    const json &parameters, const glm::mat4 &object2world, 
     const int32_t *dims, const std::string& voxelType, OSPDataType dataType, void *grid_field_values)
 {    
     if (voxelType != "float")
@@ -83,10 +83,10 @@ load_as_unstructured(
         
     // Set (transformed) vertices
     
-    float   *vertices = new float[num_grid_points*3];
-    float   *v;
-    float   x, y, z;
-    float   xx, yy, zz;
+    float       *vertices = new float[num_grid_points*3];
+    float       *v;
+    float       x, y, z;
+    glm::vec4   p;
     
     v = vertices;
     for (int k = 0; k < dims[2]; k++)
@@ -101,13 +101,11 @@ load_as_unstructured(
             {
                 x = i;
                 
-                xx = x*object2world[0] + y*object2world[1] + z*object2world[2]  + object2world[3];
-                yy = x*object2world[4] + y*object2world[5] + z*object2world[6]  + object2world[7];
-                zz = x*object2world[8] + y*object2world[9] + z*object2world[10] + object2world[11];
+                p = object2world * glm::vec4(x, y, z, 1);
                 
-                v[0] = xx;
-                v[1] = yy;
-                v[2] = zz;
+                v[0] = p[0];
+                v[1] = p[1];
+                v[2] = p[2];
                 
                 v += 3;
             }
@@ -191,7 +189,7 @@ load_as_unstructured(
 
 extern "C"
 OSPVolume
-load(float *bbox, VolumeLoadResult &result, const json &parameters, const float *object2world)
+load(float *bbox, VolumeLoadResult &result, const json &parameters, const glm::mat4 &object2world)
 {
     char msg[1024];
     
