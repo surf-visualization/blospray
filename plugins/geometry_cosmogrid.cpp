@@ -12,7 +12,7 @@ const char      *data_file;
 OSPModel        model;
 
 bool
-load_points(const char *fname, int max_points, float sphere_radius)
+load_points(const char *fname, int max_points, float sphere_radius, float sphere_opacity)
 {
     uint32_t  num_points;
     float     *colors;  
@@ -112,7 +112,7 @@ load_points(const char *fname, int max_points, float sphere_radius)
 
       OSPMaterial material = ospNewMaterial2("scivis", "OBJMaterial");
       ospSet3f(material, "Kd", 1.0f, 1.0f, 1.0f);
-      ospSet1f(material, "d", 1.0f);
+      ospSet1f(material, "d", sphere_opacity);
       ospCommit(material);
       ospSetMaterial(spheres, material);
       ospRelease(material);
@@ -147,13 +147,17 @@ load(ModelInstances& model_instances, float *bbox, GeometryLoadResult &result, c
     
     int max_points = -1;
     float sphere_radius = 0.01f;
+    float sphere_opacity = 1.0f;
     
     if (parameters.find("max_points") != parameters.end())
         max_points = parameters["max_points"].get<int>();
+    
     if (parameters.find("sphere_radius") != parameters.end())
         sphere_radius = parameters["sphere_radius"].get<float>();
+    if (parameters.find("sphere_opacity") != parameters.end())
+        sphere_opacity = parameters["sphere_opacity"].get<float>();
     
-    if (!load_points(data_file, max_points, sphere_radius))
+    if (!load_points(data_file, max_points, sphere_radius, sphere_opacity))
     {
         result.set_success(false);
         result.set_message("Failed to load points from HDF5 file");

@@ -11,6 +11,9 @@ Fix/improve
 - Correctly release the scene after rendering
 - If possible, get rid of OpenEXR as intermediate framebuffer file
   (depends on possibilities of blender API)
+- Move background color settings from World panel to Render panel?
+  With cycles it's a World setting, but with ospray it's a parameter
+  of the scivis renderer
 
 Must haves
 - Light UI panel
@@ -23,6 +26,7 @@ Must haves
 - Cancel render during export of large scenes
 - Caching of large data sets across renders
 - Border render (as a convenience until we have interactive preview render)
+  Use imageStart and imageEnd parameters on the camera
 - Interactive preview rendering
 
 Very nice to haves ;-)
