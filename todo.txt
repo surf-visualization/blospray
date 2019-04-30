@@ -3,6 +3,8 @@ Bugs
   as ospray only supports setting the clipping end
 - When rendering very large images (25k x 6k pixels) writing the framebuffer
   to the EXR file segfaults. See https://github.com/OpenImageIO/oiio/issues/2226
+- JSON exceptions on the server should be handled at the top-level
+- isovalues.blend test: move volume props from object to mesh
 
 
 Fix/improve
@@ -40,6 +42,7 @@ Nice to haves
   but 46.90s on the blender side (i.e. +14.5% longer)
 - Textured geometry
 - Allow plugins to provide user-defined proxy geometry, not just a bbox
+- Provide a list of render presets
 
 Obscure to haves
 - Handle multiple concurrent renders in Blender

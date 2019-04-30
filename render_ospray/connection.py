@@ -347,13 +347,15 @@ class Connection:
         # Volume object
         
         self.engine.update_stats('', 'Exporting object %s (volume)' % obj.name)
+        
+        properties = customproperties2dict(obj)
         print('Sending properties:')
         print(properties)
         
         element = SceneElement()
         element.type = SceneElement.VOLUME_OBJECT
         element.name = obj.name
-        element.properties = json.dumps(customproperties2dict(obj)) 
+        element.properties = json.dumps(properties) 
         element.object2world[:] = matrix2list(obj.matrix_world)
         element.data_link = mesh.name
         

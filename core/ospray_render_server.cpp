@@ -42,6 +42,7 @@ Hence the original copyright message below.
 
 #include <boost/program_options.hpp>
 #include <ospray/ospray.h>
+#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/string_cast.hpp>      // to_string()
 
 #include "image.h"
@@ -328,12 +329,14 @@ receive_and_add_volume_data(TCPSocket *sock, const SceneElement& element)
     struct timeval t0, t1;
     
     printf("Calling load function\n");
+    printf("... properties = %s\n", properties.dump().c_str());
     
     gettimeofday(&t0, NULL);
     
     OSPVolume   volume;
     float       bbox[6];
     
+    // XXX the properties are passed through parameter called "parameters"
     volume = load_function(bbox, result, properties, obj2world);
     
     gettimeofday(&t1, NULL);
@@ -726,7 +729,7 @@ receive_scene(TCPSocket *sock)
         render_settings.background_color(0),
         render_settings.background_color(1),
         render_settings.background_color(2),
-        1.0f);
+        0.0f);
     
     ospSet1i(renderer, "aoSamples", render_settings.ao_samples());
     ospSet1i(renderer, "shadowsEnabled", render_settings.shadows_enabled());
