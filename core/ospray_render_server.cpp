@@ -2,7 +2,7 @@
 Ospray render server for blospray
 
 Paul Melis, SURFsara <paul.melis@surfsara.nl>
-Copyright (C) 2017-2018
+Copyright (C) 2017-2019
 
 This source file started out as a copy of ospTutorial.c (although not
 much is left of it), as distributed in the OSPRay source code. 

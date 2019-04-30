@@ -302,11 +302,12 @@ load(ModelInstances& model_instances, float *bbox, GeometryLoadResult &result, c
         fread(&rx, sizeof(float), 1, p);
         fread(&ry, sizeof(float), 1, p);
         fread(&rz, sizeof(float), 1, p);
-                
-        R = glm::rotate(glm::mat4(1.0f), glm::radians(rx), glm::vec3(1,0,0));
+        
+        R = glm::mat4(1.0f);
+        R = glm::translate(R, glm::vec3(tx,ty,tz));        
+        R = glm::rotate(R, glm::radians(rx), glm::vec3(1,0,0));
         R = glm::rotate(R, glm::radians(ry), glm::vec3(0,1,0));
         R = glm::rotate(R, glm::radians(rz), glm::vec3(0,0,1));   
-        //R = glm::translate(R, glm::vec3(tx,ty,tz));        
         
         // Add instance
         model_instances.push_back(std::make_pair(mesh_model_rbc, R));
@@ -338,11 +339,12 @@ load(ModelInstances& model_instances, float *bbox, GeometryLoadResult &result, c
         fread(&ry, sizeof(float), 1, p);
         fread(&rz, sizeof(float), 1, p);
 
-        R = glm::rotate(glm::mat4(1.0f), glm::radians(rx), glm::vec3(1,0,0));
+        R = glm::mat4(1.0f);
+        R = glm::translate(R, glm::vec3(tx,ty,tz));
+        R = glm::rotate(R, glm::radians(rx), glm::vec3(1,0,0));
         R = glm::rotate(R, glm::radians(ry), glm::vec3(0,1,0));
         R = glm::rotate(R, glm::radians(rz), glm::vec3(0,0,1));
-        //R = glm::translate(R, glm::vec3(tx,ty,tz));
-
+        
         /*glm::mat4 T = glm::translate(
         glm::mat4(1.0f), glm::vec3(tx, ty, tz)
         );*/
