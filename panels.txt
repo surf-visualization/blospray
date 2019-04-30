@@ -1,5 +1,8 @@
+Color management: using fallback mode for management
+Blender 2.80 (sub 60) (hash 9bb47c512f74 built 2019-04-29 11:43:31)
 Read prefs: /home/paulm/.config/blender/2.80/config/userpref.blend
-found bundled python: /home/paulm/software/blender-2.80-71fd7e610a6-linux-glibc224-x86_64/2.80/python
+Color management: scene view "Filmic" not found, setting default "Default".
+Color management: scene look "Filmic - Base Contrast" not found, setting default "None".
 properties_animviz
 properties_constraint
      BONE_PT_constraints
@@ -9,11 +12,9 @@ properties_data_armature
      DATA_PT_context_arm
      DATA_PT_custom_props_arm
      DATA_PT_display
-     DATA_PT_ghost
      DATA_PT_iksolver_itasc
      DATA_PT_motion_paths
      DATA_PT_motion_paths_display
-     DATA_PT_onion_skinning
      DATA_PT_pose_library
      DATA_PT_skeleton
 properties_data_bone
@@ -30,9 +31,12 @@ properties_data_camera
      DATA_PT_camera
      DATA_PT_camera_background_image
      DATA_PT_camera_display
+     DATA_PT_camera_display_composition_guides
+     DATA_PT_camera_display_passepartout
      DATA_PT_camera_dof
      DATA_PT_camera_dof_aperture
      DATA_PT_camera_safe_areas
+     DATA_PT_camera_safe_areas_center_cut
      DATA_PT_camera_stereoscopy
      DATA_PT_context_camera
      DATA_PT_custom_props_camera
@@ -56,21 +60,26 @@ properties_data_curve
 properties_data_empty
      DATA_PT_empty
 properties_data_gpencil
+     DATA_PT_context_gpencil
      DATA_PT_custom_props_gpencil
-     DATA_PT_gpencil
      DATA_PT_gpencil_canvas
-     DATA_PT_gpencil_datapanel
      DATA_PT_gpencil_display
-     DATA_PT_gpencil_layer_optionpanel
-     DATA_PT_gpencil_onionpanel
-     DATA_PT_gpencil_parentpanel
-     DATA_PT_gpencil_vertexpanel
+     DATA_PT_gpencil_layer_adjustments
+     DATA_PT_gpencil_layer_display
+     DATA_PT_gpencil_layer_relations
+     DATA_PT_gpencil_layers
+     DATA_PT_gpencil_onion_skinning
+     DATA_PT_gpencil_onion_skinning_custom_colors
+     DATA_PT_gpencil_onion_skinning_display
+     DATA_PT_gpencil_strokes
+     DATA_PT_gpencil_vertex_groups
 properties_data_lattice
      DATA_PT_context_lattice
      DATA_PT_custom_props_lattice
      DATA_PT_lattice
 properties_data_light
      DATA_PT_EEVEE_light
+     DATA_PT_EEVEE_light_distance
      DATA_PT_EEVEE_shadow
      DATA_PT_EEVEE_shadow_cascaded_shadow_map
      DATA_PT_EEVEE_shadow_contact
@@ -86,12 +95,14 @@ properties_data_lightprobe
      DATA_PT_lightprobe
      DATA_PT_lightprobe_display
      DATA_PT_lightprobe_parallax
+     DATA_PT_lightprobe_visibility
 properties_data_mesh
      DATA_PT_context_mesh
      DATA_PT_custom_props_mesh
      DATA_PT_customdata
      DATA_PT_face_maps
      DATA_PT_normals
+     DATA_PT_normals_auto_smooth
      DATA_PT_shape_keys
      DATA_PT_texture_space
      DATA_PT_uv_texture
@@ -130,7 +141,7 @@ properties_mask_common
      MASK_PT_transforms
 properties_material
      EEVEE_MATERIAL_PT_context_material
-     EEVEE_MATERIAL_PT_options
+     EEVEE_MATERIAL_PT_settings
      EEVEE_MATERIAL_PT_surface
      EEVEE_MATERIAL_PT_volume
      MATERIAL_PT_custom_props
@@ -151,10 +162,11 @@ properties_object
      OBJECT_PT_custom_props
      OBJECT_PT_delta_transform
      OBJECT_PT_display
-     OBJECT_PT_duplication
+     OBJECT_PT_display_bounds
+     OBJECT_PT_instancing
+     OBJECT_PT_instancing_size
      OBJECT_PT_motion_paths
      OBJECT_PT_motion_paths_display
-     OBJECT_PT_onion_skinning
      OBJECT_PT_relations
      OBJECT_PT_transform
 properties_output
@@ -178,6 +190,7 @@ properties_particle
      PARTICLE_PT_cache
      PARTICLE_PT_children
      PARTICLE_PT_children_clumping
+     PARTICLE_PT_children_clumping_noise
      PARTICLE_PT_children_kink
      PARTICLE_PT_children_parting
      PARTICLE_PT_children_roughness
@@ -203,6 +216,7 @@ properties_particle
      PARTICLE_PT_physics_boids_movement
      PARTICLE_PT_physics_deflection
      PARTICLE_PT_physics_fluid_advanced
+     PARTICLE_PT_physics_fluid_interaction
      PARTICLE_PT_physics_fluid_springs
      PARTICLE_PT_physics_fluid_springs_advanced
      PARTICLE_PT_physics_fluid_springs_viscoelastic
@@ -210,9 +224,6 @@ properties_particle
      PARTICLE_PT_physics_integration
      PARTICLE_PT_physics_relations
      PARTICLE_PT_render
-     PARTICLE_PT_render_billboards_alignment
-     PARTICLE_PT_render_billboards_tilt
-     PARTICLE_PT_render_billboards_uv
      PARTICLE_PT_render_collection
      PARTICLE_PT_render_collection_use_count
      PARTICLE_PT_render_extra
@@ -338,7 +349,7 @@ properties_physics_softbody
      PHYSICS_PT_softbody_field_weights
      PHYSICS_PT_softbody_goal
      PHYSICS_PT_softbody_goal_settings
-     PHYSICS_PT_softbody_goal_strenghts
+     PHYSICS_PT_softbody_goal_strengths
      PHYSICS_PT_softbody_object
      PHYSICS_PT_softbody_simulation
      PHYSICS_PT_softbody_solver
@@ -352,6 +363,7 @@ properties_render
      RENDER_PT_eevee_bloom
      RENDER_PT_eevee_depth_of_field
      RENDER_PT_eevee_film
+     RENDER_PT_eevee_film_overscan
      RENDER_PT_eevee_hair
      RENDER_PT_eevee_indirect_lighting
      RENDER_PT_eevee_indirect_lighting_display
@@ -407,7 +419,6 @@ properties_texture
      TEXTURE_PT_marble
      TEXTURE_PT_musgrave
      TEXTURE_PT_node
-     TEXTURE_PT_node_mapping
      TEXTURE_PT_preview
      TEXTURE_PT_stucci
      TEXTURE_PT_voronoi
@@ -426,6 +437,6 @@ properties_world
      WORLD_PT_context_world
      WORLD_PT_custom_props
      WORLD_PT_viewport_display
-Error: Not freed memory blocks: 1, total unfreed memory 0.000198 MB
+>>> CustomRenderEngine.__del__()
 
 Blender quit
