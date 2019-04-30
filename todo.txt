@@ -1,6 +1,9 @@
 Bugs
 - Camera clipping start doesn't match cycles render, nor OpenGL scene view,
   as ospray only supports setting the clipping end
+- When rendering very large images (25k x 6k pixels) writing the framebuffer
+  to the EXR file segfaults. See https://github.com/OpenImageIO/oiio/issues/2226
+
 
 Fix/improve
 - Correctly release the scene after rendering
@@ -18,9 +21,9 @@ Must haves
 - Cancel render during export of large scenes
 - Caching of large data sets across renders
 - Border render (as a convenience until we have interactive preview render)
+- Interactive preview rendering
 
 Very nice to haves ;-)
-- Interactive preview rendering
 - UI buttons to preload/clear the scene on the server, including
   setting object bboxes of volumes to correct sizes (see also next point)
 - UI button to query bbox/proxy geometry of server-side scene objects.
@@ -56,10 +59,13 @@ Test
 
 Look into
 - How to leverage blender's node system
-- OSPRay's extension modules and scenegraph, mostly w.r.t. model loading
+- OSPRay's extension modules and scenegraph, mostly w.r.t. model loading.
+  Plus look at overlap in functionality with our own plugins. It seems
+  ospray plugins need an ispc component, which makes them less attractive
+  to use for end users (yet another layer to learn).
 - For batch renders there's no need to send the framebuffer for each
-  sample, but not sure we can detect that specific situation. Should
-  look into how cycles handles this case
+  sample, only need the final buffer, but not sure we can detect that 
+  specific situation. Should look into how cycles handles this case
 
 
 protobuf gone

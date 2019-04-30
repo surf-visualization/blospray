@@ -940,6 +940,8 @@ write_framebuffer_exr(const char *fname)
     return st.st_size;
 }
 
+/*
+// Not used atm, as we use sendfile() 
 void 
 send_framebuffer(TCPSocket *sock)
 {
@@ -980,6 +982,7 @@ send_framebuffer(TCPSocket *sock)
     gettimeofday(&t1, NULL);
     printf("Sent framebuffer in %.3f seconds\n", time_diff(t0, t1));
 }
+*/
 
 // Rendering
 
@@ -1139,6 +1142,8 @@ handle_connection(TCPSocket *sock)
             switch (render_result.type())
             {
                 case RenderResult::FRAME:
+                    printf("Frame available, sample %d (%s, %d bytes)\n", render_result.sample(), render_result.file_name().c_str(), render_result.file_size());
+                
                     sock->sendfile(render_result.file_name().c_str());
                 
                     // Remove local file

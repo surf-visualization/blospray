@@ -169,6 +169,7 @@ class Connection:
             if len(r) == 1:
                 
                 render_result = RenderResult()
+                # XXX handle receive error
                 receive_protobuf(self.sock, render_result)
                 
                 if render_result.type == RenderResult.FRAME:

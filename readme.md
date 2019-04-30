@@ -21,15 +21,18 @@ $ ln -sf <blospray-repo>/render_ospray render_ospray
 
 ## Goals and non-goals
 
-Non-goals are:
+The focus of BLOSPRAY is to provide rendering of scientific
+scenes in Blender, with a specific focus on volumetric data. XXX other OSPRAY features
+
+Goals:
+
+- Provide rendering through OSPRAY for scientific datasets
+
+Non-goals:
 
 - Compete with Cycles. Cycles has focus on production rendering of animation,
-artistic, etc.
-
-The focus of BLOSPRAY is to provide rendering of scientific
-  scenes in Blender, with a specific focus on volumetric data. XXX other OSPRAY features
-  
-  
+  artistic, etc.
+    
 
 ## Features
 
