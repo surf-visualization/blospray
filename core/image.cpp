@@ -22,7 +22,7 @@ writePNG(const char *fileName, const osp::vec2i &size, const uint32_t *pixel)
     ImageSpec spec(size.x, size.y, channels, TypeDesc::UINT8);
     out->open(fileName, spec);
     out->write_image(TypeDesc::UINT8, 
-        (uint8_t*)pixel + (size.y-1)*scanlinesize,
+        (uint8_t*)pixel + size_t(size.y-1)*scanlinesize,
         AutoStride,
         -scanlinesize, 
         AutoStride
@@ -53,7 +53,7 @@ writeEXRFramebuffer(const char *fileName, const osp::vec2i &size, const float *p
     ImageSpec spec(size.x, size.y, channels, TypeDesc::FLOAT);
     out->open(fileName, spec);
     out->write_image(TypeDesc::FLOAT, 
-        (uint8_t*)pixel + (size.y-1)*scanlinesize,
+        (uint8_t*)pixel + size_t(size.y-1)*scanlinesize,
         AutoStride,
         -scanlinesize, 
         AutoStride
