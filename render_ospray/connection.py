@@ -117,19 +117,26 @@ class Connection:
     
     def render(self, depsgraph):
         
+        # Signal server to start rendering
+        
         client_message = ClientMessage()
         client_message.type = ClientMessage.START_RENDERING
         send_protobuf(self.sock, client_message)
         
         scene = depsgraph.scene
+        render = scene.render
         
-        scale = scene.render.resolution_percentage / 100.0
-        self.size_x = int(scene.render.resolution_x * scale)
-        self.size_y = int(scene.render.resolution_y * scale)
+        scale = render.resolution_percentage / 100.0
+        self.size_x = int(render.resolution_x * scale)
+        self.size_y = int(render.resolution_y * scale)
+        
         
         print("%d x %d (scale %d%%) -> %d x %d" % \
-            (scene.render.resolution_x, scene.render.resolution_y, scene.render.resolution_percentage,
+            (render.resolution_x, render.resolution_y, render.resolution_percentage,
             self.size_x, self.size_y))
+            
+        if render.use_border:
+            border = (render.border_min_x, render.border_min_y, render.border_max_x, render.border_max_y)
 
         """
         if self.is_preview:
@@ -138,8 +145,7 @@ class Connection:
             self.render_scene(depsgraph)
         """
         
-        # Rendering already started when we sent the scene data in update()
-        # Read back framebuffer (might block)  
+        # Reading back framebuffer (might block)  
         # XXX perhaps send actual RENDER command?
 
         num_pixels = self.width * self.height    
@@ -160,6 +166,8 @@ class Connection:
         
         self.engine.update_stats('', 'Rendering sample %d/%d' % (sample, self.render_samples))
         
+        # XXX this loop blocks too often, might need to move it to a separate thread, 
+        # but OTOH we're already using select() to detect when to read 
         while True:
             
             # Check for incoming render results
@@ -588,23 +596,25 @@ class Connection:
         send_protobuf(self.sock, client_message)
 
         scene = depsgraph.scene
+        render = scene.render
         world = scene.world
                 
         # Image
 
-        perc = scene.render.resolution_percentage
+        perc = render.resolution_percentage
         perc = perc / 100
 
         # XXX should pass full resolution in image_settings below
-        self.width = int(scene.render.resolution_x * perc)
-        self.height = int(scene.render.resolution_y * perc)
+        self.width = int(render.resolution_x * perc)
+        self.height = int(render.resolution_y * perc)
         
         aspect = self.width / self.height
         
         image_settings = ImageSettings()
         image_settings.width = self.width
         image_settings.height = self.height
-        image_settings.percentage = scene.render.resolution_percentage
+        image_settings.percentage = render.resolution_percentage
+        # XXX add render border
 
         # Camera
         
