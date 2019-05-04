@@ -17,7 +17,8 @@ from .messages_pb2 import (
     CameraSettings, ImageSettings, 
     LightSettings, Light, RenderSettings, 
     SceneElement, MeshData, VolumeData, 
-    ClientMessage, VolumeLoadResult, RenderResult
+    ClientMessage, VolumeLoadResult, GeometryLoadResult,
+    RenderResult
 )
 
 # Object to world matrix
@@ -78,6 +79,9 @@ def receive_protobuf(sock, protobuf):
 
     message = b''.join(parts)
     
+    #print('receive_protobuf():\n')
+    #print(message)
+    
     protobuf.ParseFromString(message)
 
 
@@ -113,19 +117,26 @@ class Connection:
     
     def render(self, depsgraph):
         
+        # Signal server to start rendering
+        
         client_message = ClientMessage()
         client_message.type = ClientMessage.START_RENDERING
         send_protobuf(self.sock, client_message)
         
         scene = depsgraph.scene
+        render = scene.render
         
-        scale = scene.render.resolution_percentage / 100.0
-        self.size_x = int(scene.render.resolution_x * scale)
-        self.size_y = int(scene.render.resolution_y * scale)
+        scale = render.resolution_percentage / 100.0
+        self.size_x = int(render.resolution_x * scale)
+        self.size_y = int(render.resolution_y * scale)
+        
         
         print("%d x %d (scale %d%%) -> %d x %d" % \
-            (scene.render.resolution_x, scene.render.resolution_y, scene.render.resolution_percentage,
+            (render.resolution_x, render.resolution_y, render.resolution_percentage,
             self.size_x, self.size_y))
+            
+        if render.use_border:
+            border = (render.border_min_x, render.border_min_y, render.border_max_x, render.border_max_y)
 
         """
         if self.is_preview:
@@ -134,8 +145,7 @@ class Connection:
             self.render_scene(depsgraph)
         """
         
-        # Rendering already started when we sent the scene data in update()
-        # Read back framebuffer (might block)  
+        # Reading back framebuffer (might block)  
         # XXX perhaps send actual RENDER command?
 
         num_pixels = self.width * self.height    
@@ -156,6 +166,8 @@ class Connection:
         
         self.engine.update_stats('', 'Rendering sample %d/%d' % (sample, self.render_samples))
         
+        # XXX this loop blocks too often, might need to move it to a separate thread, 
+        # but OTOH we're already using select() to detect when to read 
         while True:
             
             # Check for incoming render results
@@ -165,6 +177,7 @@ class Connection:
             if len(r) == 1:
                 
                 render_result = RenderResult()
+                # XXX handle receive error
                 receive_protobuf(self.sock, render_result)
                 
                 if render_result.type == RenderResult.FRAME:
@@ -342,17 +355,130 @@ class Connection:
         # Volume object
         
         self.engine.update_stats('', 'Exporting object %s (volume)' % obj.name)
+        
+        properties = customproperties2dict(obj)
         print('Sending properties:')
         print(properties)
         
         element = SceneElement()
         element.type = SceneElement.VOLUME_OBJECT
         element.name = obj.name
-        element.properties = json.dumps(customproperties2dict(obj)) 
+        element.properties = json.dumps(properties) 
         element.object2world[:] = matrix2list(obj.matrix_world)
         element.data_link = mesh.name
         
         send_protobuf(self.sock, element)        
+        
+    # XXX rename to export_ospray_geometry to avoid confusion with blender geometry
+    def export_geometry(self, obj, data, depsgraph):
+        
+        # User-defined geometry (server-side)
+        
+        mesh = obj.data
+        
+        self.engine.update_stats('', 'Exporting mesh %s (geometry)' % mesh.name)
+        
+        element = SceneElement()
+        element.type = SceneElement.GEOMETRY_DATA
+        element.name = mesh.name
+        
+        properties = customproperties2dict(mesh)
+        properties['_plugin'] = mesh.ospray.plugin
+        
+        element.properties = json.dumps(properties)
+        # XXX add a copy of the object's xform, as the volume loading plugin might need it
+        element.object2world[:] = matrix2list(obj.matrix_world)
+        
+        send_protobuf(self.sock, element)   
+        
+        # Wait for geometry to be loaded on the server, signaled
+        # by the return of a result value
+        
+        geometry_load_result = GeometryLoadResult()
+        
+        receive_protobuf(self.sock, geometry_load_result)
+        
+        if not geometry_load_result.success:
+            print('ERROR: geometry loading failed:')
+            print(geometry_load_result.message)
+            return
+         
+        # XXX
+        #id = geometry_load_result.hash
+        id = '12345'
+        print(id)
+        
+        mesh['loaded_id'] = id
+        print('Exported geometry received id %s' % id)
+        
+        # Get geometry bbox 
+        
+        bbox = list(geometry_load_result.bbox)
+        print('Bbox', bbox)
+        
+        """
+        
+        # Update mesh to match bbox
+        # XXX need to check if this is even supported behaviour in the
+        # new depsgraph method, as we're changing data that is only supposed
+        # to be valid during export (as it basically is a private copy of the scene data)
+        
+        verts = [
+            Vector((bbox[0], bbox[1], bbox[2])),
+            Vector((bbox[3], bbox[1], bbox[2])),
+            Vector((bbox[3], bbox[4], bbox[2])),
+            Vector((bbox[0], bbox[4], bbox[2])),
+            Vector((bbox[0], bbox[1], bbox[5])),
+            Vector((bbox[3], bbox[1], bbox[5])),
+            Vector((bbox[3], bbox[4], bbox[5])),
+            Vector((bbox[0], bbox[4], bbox[5]))
+        ]        
+        
+        edges = [
+            (0, 1), (1, 2), (2, 3), (3, 0),
+            (4, 5), (5, 6), (6, 7), (7, 4),
+            (0, 4), (1, 5), (2, 6), (3, 7)
+        ]
+        
+        bm = bmesh.new()
+
+        bm_verts = []
+        for vi, v in enumerate(verts):
+            bm_verts.append(bm.verts.new(v))
+            
+        for i, j in edges:
+            bm.edges.new((bm_verts[i], bm_verts[j]))
+
+        bm.to_mesh(mesh)
+        bm.free()
+        
+        mesh.validate(verbose=True)
+        
+        print([v.co for v in mesh.vertices])
+        """
+
+        """
+        faces = []
+        mesh = bpy.data.meshes.new(name="Volume extent")
+        mesh.from_pydata(verts, edges, faces)
+        mesh.validate(verbose=True)
+        obj.data = mesh
+        """
+        
+        # Geometry object
+        
+        self.engine.update_stats('', 'Exporting object %s (geometry)' % obj.name)
+        print('Sending properties:')
+        print(properties)
+        
+        element = SceneElement()
+        element.type = SceneElement.GEOMETRY_OBJECT
+        element.name = obj.name
+        element.properties = json.dumps(customproperties2dict(obj)) 
+        element.object2world[:] = matrix2list(obj.matrix_world)
+        element.data_link = mesh.name
+        
+        send_protobuf(self.sock, element)
         
         
     def export_mesh(self, mesh, data, depsgraph):
@@ -470,23 +596,25 @@ class Connection:
         send_protobuf(self.sock, client_message)
 
         scene = depsgraph.scene
+        render = scene.render
         world = scene.world
                 
         # Image
 
-        perc = scene.render.resolution_percentage
+        perc = render.resolution_percentage
         perc = perc / 100
 
         # XXX should pass full resolution in image_settings below
-        self.width = int(scene.render.resolution_x * perc)
-        self.height = int(scene.render.resolution_y * perc)
+        self.width = int(render.resolution_x * perc)
+        self.height = int(render.resolution_y * perc)
         
         aspect = self.width / self.height
         
         image_settings = ImageSettings()
         image_settings.width = self.width
         image_settings.height = self.height
-        image_settings.percentage = scene.render.resolution_percentage
+        image_settings.percentage = render.resolution_percentage
+        # XXX add render border
 
         # Camera
         
@@ -627,6 +755,7 @@ class Connection:
 
         #
         # Send scene
+        # XXX why isn't the lights export code below?
         #
         
         # Image settings
@@ -655,6 +784,9 @@ class Connection:
 
             if representation == 'volume':
                 self.export_volume(obj, data, depsgraph)
+                continue
+            elif representation == 'geometry':
+                self.export_geometry(obj, data, depsgraph)
                 continue
             elif representation != 'regular':
                 print('WARNING: object "%s" has unhandled representation type "%s"' % \

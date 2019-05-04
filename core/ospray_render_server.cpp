@@ -2,7 +2,7 @@
 Ospray render server for blospray
 
 Paul Melis, SURFsara <paul.melis@surfsara.nl>
-Copyright (C) 2017-2018
+Copyright (C) 2017-2019
 
 This source file started out as a copy of ospTutorial.c (although not
 much is left of it), as distributed in the OSPRay source code. 
@@ -42,6 +42,8 @@ Hence the original copyright message below.
 
 #include <boost/program_options.hpp>
 #include <ospray/ospray.h>
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/string_cast.hpp>      // to_string()
 
 #include "image.h"
 #include "tcpsocket.h"
@@ -66,11 +68,14 @@ OSPFrameBuffer  framebuffer;
 bool            framebuffer_created = false;
 OSPMaterial     material;   // XXX hack for now
 
-typedef std::map<std::string, OSPModel>     LoadedMeshesMap;
-typedef std::map<std::string, OSPVolume>    LoadedVolumesMap;
+typedef std::map<std::string, OSPModel>         LoadedMeshesMap;
+typedef std::map<std::string, OSPVolume>        LoadedVolumesMap;
+typedef std::map<std::string, ModelInstances>   LoadedGeometriesMap;
 
+// XXX rename to ..._cache
 LoadedMeshesMap     loaded_meshes;
 LoadedVolumesMap    loaded_volumes;
+LoadedGeometriesMap loaded_geometries;
 
 ImageSettings   image_settings;
 RenderSettings  render_settings;
@@ -82,6 +87,11 @@ LightSettings   light_settings;
 typedef std::map<std::string, volume_load_function_t>   VolumeLoadFunctionMap;
 VolumeLoadFunctionMap                                   volume_load_functions;
 
+// Geometry loaders
+
+typedef std::map<std::string, geometry_load_function_t> GeometryLoadFunctionMap;
+GeometryLoadFunctionMap                                 geometry_load_functions;
+
 // Geometry buffers
 
 std::vector<float>      vertex_buffer;
@@ -92,21 +102,33 @@ std::vector<uint32_t>   triangle_buffer;
 
 // Utility
 
-void
-affine3f_from_matrix(osp::affine3f& xform, float *m)
-{
-    xform.l.vx = osp::vec3f{ m[0], m[4], m[8] };
-    xform.l.vy = osp::vec3f{ m[1], m[5], m[9] };
-    xform.l.vz = osp::vec3f{ m[2], m[6], m[10] };
-    xform.p = osp::vec3f{ m[3], m[7], m[11] };
-}
-
 template<typename T>
 void
-object2world_from_protobuf(float *matrix, T& protobuf)
+object2world_from_protobuf(glm::mat4 &matrix, T& protobuf)
 {
-    for (int i = 0; i < 16; i++)
-        matrix[i] = protobuf.object2world(i);   
+    float *M = glm::value_ptr(matrix);
+    
+    // Protobuf elements assumed in row-major order 
+    // (while GLM uses column-major order)
+    M[0] = protobuf.object2world(0);
+    M[1] = protobuf.object2world(4);
+    M[2] = protobuf.object2world(8);
+    M[3] = protobuf.object2world(12);
+
+    M[4] = protobuf.object2world(1);
+    M[5] = protobuf.object2world(5);
+    M[6] = protobuf.object2world(9);
+    M[7] = protobuf.object2world(13);
+    
+    M[8] = protobuf.object2world(2);
+    M[9] = protobuf.object2world(6);
+    M[10] = protobuf.object2world(10);
+    M[11] = protobuf.object2world(14);
+    
+    M[12] = protobuf.object2world(3);
+    M[13] = protobuf.object2world(7);
+    M[14] = protobuf.object2world(11);
+    M[15] = protobuf.object2world(15);    
 }
 
 // Receive methods
@@ -215,11 +237,11 @@ receive_and_add_mesh_object(TCPSocket *sock, const SceneElement& element)
     
     OSPModel model = it->second;
     
-    float obj2world[16];
-    osp::affine3f xform;
+    glm::mat4       obj2world;
+    osp::affine3f   xform;
     
     object2world_from_protobuf(obj2world, element);
-    affine3f_from_matrix(xform, obj2world);
+    affine3f_from_mat4(xform, obj2world);
     
     OSPGeometry instance = ospNewInstance(model, xform);    
     ospAddGeometry(world, instance);    
@@ -233,8 +255,7 @@ receive_and_add_volume_data(TCPSocket *sock, const SceneElement& element)
 {
     // Object-to-world matrix (copy of the parent object)
     
-    float obj2world[16];
-    
+    glm::mat4 obj2world;
     object2world_from_protobuf(obj2world, element);
 
     // Custom properties
@@ -308,12 +329,14 @@ receive_and_add_volume_data(TCPSocket *sock, const SceneElement& element)
     struct timeval t0, t1;
     
     printf("Calling load function\n");
+    printf("... properties = %s\n", properties.dump().c_str());
     
     gettimeofday(&t0, NULL);
     
     OSPVolume   volume;
     float       bbox[6];
     
+    // XXX the properties are passed through parameter called "parameters"
     volume = load_function(bbox, result, properties, obj2world);
     
     gettimeofday(&t1, NULL);
@@ -410,8 +433,7 @@ receive_and_add_volume_object(TCPSocket *sock, const SceneElement& element)
 {
     // Object-to-world matrix
     
-    float obj2world[16];
-    
+    glm::mat4 obj2world;
     object2world_from_protobuf(obj2world, element);
 
     // Custom properties
@@ -519,6 +541,162 @@ receive_and_add_volume_object(TCPSocket *sock, const SceneElement& element)
     return true;
 }
 
+
+bool
+receive_and_add_geometry_data(TCPSocket *sock, const SceneElement& element)
+{
+    // Object-to-world matrix (copy of the parent object)
+    
+    glm::mat4 obj2world;
+    object2world_from_protobuf(obj2world, element);
+
+    // Custom properties
+    
+    const char *encoded_properties = element.properties().c_str();
+    //printf("Received volume properties:\n%s\n", encoded_properties);
+    
+    json properties = json::parse(encoded_properties);
+    
+    // XXX we print the mesh_name here, but that mesh is replaced by the python
+    // export after it receives the volume extents. so a bit confusing as that original
+    // mesh is reported, but that isn't in the scene anymore
+    printf("[GEOMETRY (mesh)] %s\n", element.name().c_str());
+    printf("%s\n", properties.dump().c_str());
+    
+    // Prepare result
+    
+    GeometryLoadResult result;
+    
+    result.set_success(true);
+    
+    // Find load function 
+    
+    geometry_load_function_t load_function = NULL;
+    
+    const std::string& geometry_type = properties["_plugin"];
+    
+    GeometryLoadFunctionMap::iterator it = geometry_load_functions.find(geometry_type);
+    if (it == geometry_load_functions.end())
+    {
+        printf("No load function yet for geometry type '%s'\n", geometry_type.c_str());
+        
+        std::string plugin_name = "geometry_" + geometry_type + ".so";
+        
+        printf("Loading plugin %s\n", plugin_name.c_str());
+        
+        void *plugin = dlopen(plugin_name.c_str(), RTLD_LAZY);
+        
+        if (!plugin) 
+        {
+            result.set_success(false);
+            result.set_message("Failed to open plugin");
+            send_protobuf(sock, result);
+
+            fprintf(stderr, "dlopen() error: %s\n", dlerror());
+            return false;
+        }
+        
+        // Clear previous error
+        dlerror(); 
+        
+        load_function = (geometry_load_function_t) dlsym(plugin, "load");
+        
+        if (load_function == NULL)
+        {
+            result.set_success(false);
+            result.set_message("Failed to get load function from plugin");
+            send_protobuf(sock, result);
+    
+            fprintf(stderr, "dlsym() error: %s\n", dlerror());
+            return false;
+        }
+        
+        geometry_load_functions[geometry_type] = load_function;
+    }
+    else
+        load_function = it->second;
+    
+    // Let load function do its job
+    
+    struct timeval t0, t1;
+    
+    printf("Calling load function\n");
+    
+    gettimeofday(&t0, NULL);
+    
+    float                   bbox[6];
+    ModelInstances          model_instances;
+    
+    load_function(model_instances, bbox, result, properties, obj2world);
+    
+    gettimeofday(&t1, NULL);
+    printf("Load function executed in %.3fs\n", time_diff(t0, t1));
+    
+    if (model_instances.size() == 0)
+        printf("WARNING: geometry load function returned no instances\n");
+    
+    // Load function succeeded
+    
+    result.set_hash(get_sha1(encoded_properties));
+    
+    for (int i = 0; i < 6; i++)
+        result.add_bbox(bbox[i]);
+
+    // Cache loaded geometry object
+    
+    loaded_geometries[element.name()] = model_instances;
+    
+    send_protobuf(sock, result);
+    
+    return true;
+}
+
+bool
+receive_and_add_geometry_object(TCPSocket *sock, const SceneElement& element)
+{
+    // Object-to-world matrix
+    
+    glm::mat4 obj2world;
+    object2world_from_protobuf(obj2world, element);    
+
+    // Custom properties
+    
+    const char *encoded_properties = element.properties().c_str();
+    //printf("Received geometry object properties:\n%s\n", encoded_properties);
+    
+    json properties = json::parse(encoded_properties);
+    
+    printf("[OBJECT %s] (geometry)\n", element.name().c_str());
+    printf("........ --> %s\n", element.data_link().c_str());
+    
+    LoadedGeometriesMap::iterator it = loaded_geometries.find(element.data_link());
+    
+    if (it == loaded_geometries.end())
+    {
+        printf("WARNING: linked geometry data '%s' not loaded!\n", element.data_link().c_str());
+        return false;
+    }
+    
+    // Create instance(s)    
+    
+    ModelInstances  model_instances = it->second;
+    glm::mat4       xform; 
+    
+    for (ModelInstances::const_iterator it = model_instances.begin(); it != model_instances.end(); ++it)
+    {
+        const OSPModel& model = it->first;
+        const glm::mat4& instance_xform = it->second;
+        xform = obj2world * instance_xform;
+        //printf("xform = %s\n", glm::to_string(xform).c_str());
+        
+        OSPGeometry instance = ospNewInstance(model, affine3f_from_mat4(xform));
+            ospAddGeometry(world, instance);    
+        ospRelease(instance);
+    }
+    
+    return true;
+}
+
 // XXX currently has big memory leak as we never release the new objects ;-)
 bool
 receive_scene(TCPSocket *sock)
@@ -551,7 +729,7 @@ receive_scene(TCPSocket *sock)
         render_settings.background_color(0),
         render_settings.background_color(1),
         render_settings.background_color(2),
-        1.0f);
+        0.0f);
     
     ospSet1i(renderer, "aoSamples", render_settings.ao_samples());
     ospSet1i(renderer, "shadowsEnabled", render_settings.shadows_enabled());
@@ -692,12 +870,17 @@ receive_scene(TCPSocket *sock)
     // Setup world and scene objects
     
     world = ospNewModel();
+        // Use ospSet1i for now, even though the value is a bool
+        // See https://github.com/ospray/ospray/issues/277
+        ospSet1i(world, "compactMode", 1);
+    ospCommit(world);
     
     SceneElement element;
     
     // XXX check return value
     receive_protobuf(sock, element);
     
+    // XXX use function table
     while (element.type() != SceneElement::NONE)
     {
         if (element.type() == SceneElement::MESH_DATA)
@@ -715,6 +898,14 @@ receive_scene(TCPSocket *sock)
         else if (element.type() == SceneElement::VOLUME_OBJECT)
         {
             receive_and_add_volume_object(sock, element);
+        }
+        else if (element.type() == SceneElement::GEOMETRY_DATA)
+        {
+            receive_and_add_geometry_data(sock, element);
+        }
+        else if (element.type() == SceneElement::GEOMETRY_OBJECT)
+        {
+            receive_and_add_geometry_object(sock, element);
         }
         // else XXX
         
@@ -752,6 +943,8 @@ write_framebuffer_exr(const char *fname)
     return st.st_size;
 }
 
+/*
+// Not used atm, as we use sendfile() 
 void 
 send_framebuffer(TCPSocket *sock)
 {
@@ -767,6 +960,7 @@ send_framebuffer(TCPSocket *sock)
     // Write to OpenEXR file and send *its* contents
     const char *FBFILE = "/dev/shm/orsfb.exr";
     
+    // XXX this also maps/unmaps the framebuffer!
     size_t size = write_framebuffer_exr(FBFILE);
     
     printf("Sending framebuffer as OpenEXR file, %d bytes\n", size);
@@ -784,12 +978,14 @@ send_framebuffer(TCPSocket *sock)
     sock->sendall((uint8_t*)fb, image_size.x*image_size.y*4*4);
 #endif
     
+    // XXX can already unmap after written to file
     // Unmap framebuffer
     ospUnmapFrameBuffer(fb, framebuffer);    
     
     gettimeofday(&t1, NULL);
     printf("Sent framebuffer in %.3f seconds\n", time_diff(t0, t1));
 }
+*/
 
 // Rendering
 
@@ -949,6 +1145,8 @@ handle_connection(TCPSocket *sock)
             switch (render_result.type())
             {
                 case RenderResult::FRAME:
+                    printf("Frame available, sample %d (%s, %d bytes)\n", render_result.sample(), render_result.file_name().c_str(), render_result.file_size());
+                
                     sock->sendfile(render_result.file_name().c_str());
                 
                     // Remove local file
