@@ -1,13 +1,3 @@
-# Can test with blender -P <thisscript.py> -E custom_renderer
-#
-# https://docs.blender.org/api/blender2.8/bpy.types.RenderEngine.html
-#
-# https://github.com/LuxCoreRender/BlendLuxCore/blob/master/engine/__init__.py
-#
-# Luxrender discussion: http://www.luxrender.net/forum/viewtopic.php?f=11&t=11370&start=10
-# https://bitbucket.org/luxrender/luxblend25/commits/branch/LuxCore_RealtimePreview
-
-import time
 import bpy
 import bgl
 
@@ -17,78 +7,43 @@ class CustomRenderEngine(bpy.types.RenderEngine):
     # RenderEngine; define its internal name, visible name and capabilities.
     bl_idname = "CUSTOM"
     bl_label = "Custom"
-    
-    # Enable the availability of material preview renders
     bl_use_preview = True
-    
-    bl_use_shading_nodes = True
-    bl_use_shading_nodes_custom = False     # If True will hide cycles shading nodes
-    
-    def log(self, s):
-        print('[%.3f] (%s) %s' % (time.time(), id(self), s))
-    
 
     # Init is called whenever a new render engine instance is created. Multiple
     # instances may exist at the same time, for example for a viewport and final
     # render.
     def __init__(self):
-        self.log('>>> CustomRenderEngine.__init__()')
-        
         self.scene_data = None
         self.draw_data = None
 
-    # When the render engine instance is destroyed, this is called. Clean up any
+    # When the render engine instance is destroy, this is called. Clean up any
     # render engine data here, for example stopping running render threads.
     def __del__(self):
-        self.log('>>> CustomRenderEngine.__del__()')
+        pass
 
     # This is the method called by Blender for both final renders (F12) and
-    # small preview renders for materials, worlds and lights.
+    # small preview for materials, world and lights.
     def render(self, depsgraph):
-        self.log('>>> CustomRenderEngine.render()')
         scene = depsgraph.scene
         scale = scene.render.resolution_percentage / 100.0
         self.size_x = int(scene.render.resolution_x * scale)
         self.size_y = int(scene.render.resolution_y * scale)
-        
-        self.log("%d x %d (scale %d%%) -> %d x %d" % \
-            (scene.render.resolution_x, scene.render.resolution_y, 
-            scene.render.resolution_percentage,
-            self.size_x, self.size_y))
-            
+
         # Fill the render result with a flat color. The framebuffer is
         # defined as a list of pixels, each pixel itself being a list of
         # R,G,B,A values.
         if self.is_preview:
-            # Preview render
             color = [0.1, 0.2, 0.1, 1.0]
         else:
-            # Full render
             color = [0.2, 0.1, 0.1, 1.0]
 
         pixel_count = self.size_x * self.size_y
-        #rect = [color] * pixel_count
+        rect = [color] * pixel_count
 
         # Here we write the pixel values to the RenderResult
         result = self.begin_result(0, 0, self.size_x, self.size_y)
         layer = result.layers[0].passes["Combined"]
-        #layer.rect = rect
-        
-        N = 4
-        for i in range(1, N+1):
-            
-            self.update_stats('', 'Rendering sample %d/%d' % (i, N))
-            
-            f = i/N
-            color = [f, f, f, 1.0]
-            rect = [color] * pixel_count
-            
-            layer.rect = rect
-            self.log('update_result()')
-            self.update_result(result)
-            
-            time.sleep(1)
-        
+        layer.rect = rect
         self.end_result(result)
 
     # For viewport renders, this method gets called once at the start and
@@ -96,7 +51,6 @@ class CustomRenderEngine(bpy.types.RenderEngine):
     # should be read from Blender in the same thread. Typically a render
     # thread will be started to do the work while keeping Blender responsive.
     def view_update(self, context):
-        self.log('>>> CustomRenderEngine.view_update()')
         region = context.region
         view3d = context.space_data
         depsgraph = context.depsgraph
@@ -135,7 +89,6 @@ class CustomRenderEngine(bpy.types.RenderEngine):
     # Blender will draw overlays for selection and editing on top of the
     # rendered image automatically.
     def view_draw(self, context):
-        self.log('>>> CustomRenderEngine.view_draw()')
         region = context.region
         depsgraph = context.depsgraph
         scene = depsgraph.scene
@@ -163,7 +116,7 @@ class CustomDrawData:
         self.dimensions = dimensions
         width, height = dimensions
 
-        pixels = [0.1, 1, 0.1, 1.0] * width * height
+        pixels = [0.1, 0.2, 0.1, 1.0] * width * height
         pixels = bgl.Buffer(bgl.GL_FLOAT, width * height * 4, pixels)
 
         # Generate texture

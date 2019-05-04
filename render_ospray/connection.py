@@ -208,6 +208,7 @@ class Connection:
                     
                     # Sigh, this needs an image file format. I.e. reading in a raw framebuffer
                     # of floats isn't possible, hence the OpenEXR file
+                    # XXX result.load_from_file(...) would work as well?
                     result.layers[0].load_from_file(FBFILE)
                     
                     self.engine.update_result(result)
@@ -306,6 +307,9 @@ class Connection:
         print('Bbox', bbox)
         
         # Update mesh to match bbox
+        # XXX disable, to see if this fixes a segfault
+        
+        """
         
         verts = [
             Vector((bbox[0], bbox[1], bbox[2])),
@@ -343,6 +347,7 @@ class Connection:
         mesh.validate(verbose=True)
         
         print([v.co for v in mesh.vertices])
+        """
 
         """
         faces = []
