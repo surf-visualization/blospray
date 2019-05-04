@@ -314,7 +314,7 @@ For running:
   `google` and `six.py` in Blender's python library dir:
 
   ```
-  $ cd ~/blender-2.80-...../2.80/python/lib/python3.7
+  $ cd ~/blender-2.80-...../2.80/python/lib/python3.7/site-packages
   $ ln -sf /usr/lib/python3.7/site-packages/six.py six.py
   $ ln -sf /usr/lib/python3.7/site-packages/google google
   ```
