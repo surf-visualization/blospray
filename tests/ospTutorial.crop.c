@@ -63,8 +63,17 @@ void writePPM(const char *fileName,
 int main(int argc, const char **argv) {
   // image size
   osp_vec2i imgSize;
-  imgSize.x = 1024; // width
-  imgSize.y = 768; // height
+  imgSize.x = 256; // width
+  imgSize.y = 256; // height
+    
+  // crop
+  int left = 0;
+  int right = 127;
+  int bottom = 0;
+  int top = 127;
+    
+# define CROP
+    
 
   // camera
   float cam_pos[] = {0.f, 0.f, 0.f};
@@ -76,10 +85,10 @@ int main(int argc, const char **argv) {
                      -1.0f,  1.0f, 3.0f, 0.f,
                       1.0f, -1.0f, 3.0f, 0.f,
                       0.1f,  0.1f, 0.3f, 0.f };
-  float color[] =  { 0.9f, 0.5f, 0.5f, 1.0f,
+  float color[] =  { 0.9f, 0.1f, 0.1f, 1.0f,
                      0.8f, 0.8f, 0.8f, 1.0f,
                      0.8f, 0.8f, 0.8f, 1.0f,
-                     0.5f, 0.9f, 0.5f, 1.0f };
+                     0.1f, 0.9f, 0.1f, 1.0f };
   int32_t index[] = { 0, 1, 2,
                       1, 2, 3 };
 
@@ -95,8 +104,17 @@ int main(int argc, const char **argv) {
   ospSet3fv(camera, "pos", cam_pos);
   ospSet3fv(camera, "dir", cam_view);
   ospSet3fv(camera, "up",  cam_up);
-  ospSet2f(camera, "imageStart", 0.5f, 0.5f);
-  ospSet2f(camera, "imageEnd", 0.5f, 0.8f);
+#ifdef CROP
+  ospSet2f(camera, "imageStart", 1.0f*left/imgSize.x, 1.0f*bottom/imgSize.y);
+  ospSet2f(camera, "imageEnd", 1.0f*(right+1.0f)/imgSize.x, 1.0f*(top+1.0f)/imgSize.y);
+  imgSize.x = right - left + 1;
+  imgSize.y = top - bottom + 1;
+  /*
+  // setting the crop to the full image gives pixel-perfect alignment
+  ospSet2f(camera, "imageStart", 0.0f, 0.0f);
+  ospSet2f(camera, "imageEnd", 1.0f, 1.0f);
+  */
+#endif
   ospCommit(camera); // commit each object to indicate modifications are done
 
 
@@ -150,17 +168,15 @@ int main(int argc, const char **argv) {
   // render one frame
   ospRenderFrame(framebuffer, renderer, OSP_FB_COLOR | OSP_FB_ACCUM);
 
-  // access framebuffer and write its content as PPM file
-  const uint32_t * fb = (uint32_t*)ospMapFrameBuffer(framebuffer, OSP_FB_COLOR);
-  writePPM("firstFrame.ppm", &imgSize, fb);
-  ospUnmapFrameBuffer(fb, framebuffer);
-
-  // render 10 more frames, which are accumulated to result in a better converged image
-  for (int frames = 0; frames < 10; frames++)
+  for (int frames = 0; frames < 64; frames++)
     ospRenderFrame(framebuffer, renderer, OSP_FB_COLOR | OSP_FB_ACCUM);
 
-  fb = (uint32_t*)ospMapFrameBuffer(framebuffer, OSP_FB_COLOR);
-  writePPM("accumulatedFrame.ppm", &imgSize, fb);
+  const uint32_t *fb = (uint32_t*)ospMapFrameBuffer(framebuffer, OSP_FB_COLOR);
+#ifdef CROP 
+  writePPM("crop.ppm", &imgSize, fb);
+#else
+  writePPM("full.ppm", &imgSize, fb);
+#endif
   ospUnmapFrameBuffer(fb, framebuffer);
 
   // final cleanups

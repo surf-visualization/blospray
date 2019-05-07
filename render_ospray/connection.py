@@ -603,8 +603,7 @@ class Connection:
         # Image
         
         image_settings = ImageSettings()
-        image_settings.width = self.framebuffer_width
-        image_settings.height = self.framebuffer_height
+
         #image_settings.percentage = render.resolution_percentage
         
         if render.use_border:
@@ -617,7 +616,29 @@ class Connection:
             # with the specified image region, so we don't have a direct
             # equivalent of only rendering a sub-region of the full
             # framebuffer as in blender :-/
-            image_settings.border[:] = [render.border_min_x, render.border_min_y, render.border_max_x, render.border_max_y]
+            
+            min_x = render.border_min_x
+            min_y = render.border_min_y
+            max_x = render.border_max_x
+            max_y = render.border_max_y
+            
+            left = int(min_x*self.framebuffer_width)
+            right = int(max_x*self.framebuffer_width)
+            bottom = int(min_y*self.framebuffer_height)
+            top = int(max_y*self.framebuffer_height)
+            
+            # Crop region in ospray is set in normalized screen-space coordinates,
+            # i.e. bottom-left of pixel (i,j) is (i,j), but top-right is (i+1,j+1)
+            image_settings.border[:] = [
+                left/self.framebuffer_width, bottom/self.framebuffer_height, 
+                (right+1)/self.framebuffer_width, (top+1)/self.framebuffer_height
+            ]
+            
+            self.framebuffer_width = right - left + 1
+            self.framebuffer_height = top - bottom + 1
+            
+        image_settings.width = self.framebuffer_width
+        image_settings.height = self.framebuffer_height
 
         # Camera
         
