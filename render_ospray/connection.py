@@ -94,6 +94,8 @@ class Connection:
         self.host = host
         self.port = port
         
+        self.framebuffer_width = self.framebuffer_height = None
+        
     def close(self):
         # XXX send bye
         self.sock.close()
@@ -117,27 +119,6 @@ class Connection:
     
     def render(self, depsgraph):
         
-        # Signal server to start rendering
-        
-        client_message = ClientMessage()
-        client_message.type = ClientMessage.START_RENDERING
-        send_protobuf(self.sock, client_message)
-        
-        scene = depsgraph.scene
-        render = scene.render
-        
-        scale = render.resolution_percentage / 100.0
-        self.size_x = int(render.resolution_x * scale)
-        self.size_y = int(render.resolution_y * scale)
-        
-        
-        print("%d x %d (scale %d%%) -> %d x %d" % \
-            (render.resolution_x, render.resolution_y, render.resolution_percentage,
-            self.size_x, self.size_y))
-            
-        if render.use_border:
-            border = (render.border_min_x, render.border_min_y, render.border_max_x, render.border_max_y)
-
         """
         if self.is_preview:
             self.render_preview(depsgraph)
@@ -145,17 +126,22 @@ class Connection:
             self.render_scene(depsgraph)
         """
         
-        # Reading back framebuffer (might block)  
-        # XXX perhaps send actual RENDER command?
+        # Signal server to start rendering
+        
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.START_RENDERING
+        send_protobuf(self.sock, client_message)
+                
+        # Read back successive framebuffer samples
 
-        num_pixels = self.width * self.height    
+        num_pixels = self.framebuffer_width * self.framebuffer_height
         bytes_left = num_pixels * 4*4
 
         framebuffer = numpy.zeros(bytes_left, dtype=numpy.uint8)
         
         t0 = time.time()
         
-        result = self.engine.begin_result(0, 0, self.width, self.height)
+        result = self.engine.begin_result(0, 0, self.framebuffer_width, self.framebuffer_height)
         # Only Combined and Depth seem to be available
         layer = result.layers[0].passes["Combined"] 
         
@@ -185,7 +171,7 @@ class Connection:
                     """
                     # XXX Slow: get as raw block of floats
                     print('[%6.3f] _read_framebuffer start' % (time.time()-t0))
-                    self._read_framebuffer(framebuffer, self.width, self.height)            
+                    self._read_framebuffer(framebuffer, self.framebuffer_width, self.framebuffer_height)            
                     print('[%6.3f] _read_framebuffer end' % (time.time()-t0))
                     
                     pixels = framebuffer.view(numpy.float32).reshape((num_pixels, 4))
@@ -199,7 +185,7 @@ class Connection:
                     self.update_result(result)
                     """
                     
-                    # XXX both receiving into a file, and loading from file, block
+                    # XXX both receiving into a file and loading from file block
                     # the blender UI for a short time
                     
                     print('[%6.3f] _read_framebuffer_to_file start' % (time.time()-t0))
@@ -597,29 +583,41 @@ class Connection:
         
         client_message = ClientMessage()
         client_message.type = ClientMessage.UPDATE_SCENE
-        client_message.clear_scene = True   # XXX   Add a UI bool for this flag
+        client_message.clear_scene = True                   # XXX   Add a UI bool for this flag
         send_protobuf(self.sock, client_message)
 
         scene = depsgraph.scene
         render = scene.render
         world = scene.world
+        
+        scale = render.resolution_percentage / 100.0
+        self.framebuffer_width = int(render.resolution_x * scale)
+        self.framebuffer_height = int(render.resolution_y * scale)
+        
+        aspect = self.framebuffer_width / self.framebuffer_height        
+        
+        print("%d x %d (scale %d%%) -> %d x %d (aspect %.3f)" % \
+            (render.resolution_x, render.resolution_y, render.resolution_percentage,
+            self.framebuffer_width, self.framebuffer_height, aspect))
                 
         # Image
-
-        perc = render.resolution_percentage
-        perc = perc / 100
-
-        # XXX should pass full resolution in image_settings below
-        self.width = int(render.resolution_x * perc)
-        self.height = int(render.resolution_y * perc)
-        
-        aspect = self.width / self.height
         
         image_settings = ImageSettings()
-        image_settings.width = self.width
-        image_settings.height = self.height
-        image_settings.percentage = render.resolution_percentage
-        # XXX add render border
+        image_settings.width = self.framebuffer_width
+        image_settings.height = self.framebuffer_height
+        #image_settings.percentage = render.resolution_percentage
+        
+        if render.use_border:
+            # XXX nice, in ospray the render region is set on the camera,
+            # while in blender it is a render setting, but we pass it as
+            # image settings :)
+            
+            # Blender: X to the right, Y up, i.e. (0,0) is lower-left, same
+            # as ospray. BUT: ospray always fills up the complete framebuffer
+            # with the specified image region, so we don't have a direct
+            # equivalent of only rendering a sub-region of the full
+            # framebuffer as in blender :-/
+            image_settings.border[:] = [render.border_min_x, render.border_min_y, render.border_max_x, render.border_max_y]
 
         # Camera
         
@@ -633,6 +631,7 @@ class Connection:
         
         camera_settings.aspect = aspect
         camera_settings.clip_start = cam_data.clip_start
+        # XXX no far clip in ospray :)
         
         if cam_data.type == 'PERSP':
             camera_settings.type = CameraSettings.PERSPECTIVE
@@ -677,7 +676,7 @@ class Connection:
         self.render_samples = render_settings.samples = scene.ospray.samples
         render_settings.ao_samples = scene.ospray.ao_samples
         render_settings.shadows_enabled = scene.ospray.shadows_enabled
-        
+                    
         # Lights
         
         self.engine.update_stats('', 'Exporting lights')

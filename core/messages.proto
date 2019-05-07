@@ -107,7 +107,8 @@ message ImageSettings
 {
     uint32  width = 1;
     uint32  height = 2;
-    uint32  percentage = 3;
+    //uint32  percentage = 3;
+    repeated float border = 4;
 }
 
 message CameraSettings

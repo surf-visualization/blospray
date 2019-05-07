@@ -703,8 +703,6 @@ receive_scene(TCPSocket *sock)
 {
     // Image settings
     
-    // XXX use percentage value? or is that handled in the blender side?
-    
     receive_protobuf(sock, image_settings);
     
     if (image_size.x != image_settings.width() || image_size.y != image_settings.height())
@@ -788,6 +786,15 @@ receive_scene(TCPSocket *sock)
         ospSetf(camera, "focusDistance", camera_settings.dof_focus_distance());
         ospSetf(camera, "apertureRadius", camera_settings.dof_aperture());
     }
+    
+    if (image_settings.border_size() == 4)
+    {
+        printf("%f, %f -> %f, %f\n", image_settings.border(0), image_settings.border(1),
+            image_settings.border(2), image_settings.border(3));
+        ospSet2f(camera, "imageStart", image_settings.border(0), image_settings.border(1));
+        ospSet2f(camera, "imageEnd", image_settings.border(2), image_settings.border(3));
+    }
+    
     ospCommit(camera); 
     
     ospSetObject(renderer, "camera", camera);
@@ -909,6 +916,7 @@ receive_scene(TCPSocket *sock)
         }
         // else XXX
         
+        // Get next element
         // XXX check return value
         receive_protobuf(sock, element);
     }
