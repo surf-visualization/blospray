@@ -26,7 +26,7 @@ load_as_structured(float *bbox, VolumeLoadResult &result,
     ospSetData(volume, "voxelData", voxelData);
     ospRelease(voxelData);
 
-    ospSetString(volume,"voxelType", voxelType.c_str());
+    ospSetString(volume, "voxelType", voxelType.c_str());
     ospSet3i(volume, "dimensions", dims[0], dims[1], dims[2]);
     
     float origin[3] = { 0.0f, 0.0f, 0.0f };

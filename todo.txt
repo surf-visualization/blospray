@@ -2,6 +2,8 @@ Bugs
 - Camera clipping start doesn't match cycles render, nor OpenGL scene view.
   And ospray only supports setting the clipping start, not a far clip value.
 - Add top-level exception handling in the server
+- The background alpha seems to be ignored (or always 0) when using the path
+  tracer renderer
 - https://developer.blender.org/T59089 (get evee render instead of custom one)
 - https://developer.blender.org/T64295 (custom props not updating in UI)
 
@@ -14,6 +16,7 @@ Fix/improve
   For area lights the intensity value in ospray is per unit area, so scaling the
   light larger leads to more light in the scene. This is different from cycles,
   where changing the size keeps the scene lighting the same.
+- Allow parenting a plane mesh to a volume to set slice planes
 
 Must haves
 - Light UI panel
