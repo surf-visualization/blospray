@@ -464,6 +464,7 @@ receive_and_add_volume_object(TCPSocket *sock, const SceneElement& element)
     ospSetVec3f(volume, "xfm.p", osp::vec3f{ obj2world[3], obj2world[7], obj2world[11] });
 #endif
 
+    // XXX this check disregards the representation type set on the object
     if (properties.find("isovalues") != properties.end())
     {
         // Isosurfacing
@@ -508,6 +509,7 @@ receive_and_add_volume_object(TCPSocket *sock, const SceneElement& element)
             float plane[4];
             for (int i = 0; i < 4; i++)
                 plane[i] = slice_plane_prop[i];
+            printf("plane: %.3f, %3f, %.3f, %.3f\n", plane[0], plane[1], plane[2], plane[3]);
             
             OSPData planeData = ospNewData(4, OSP_FLOAT, plane);
             ospCommit(planeData);

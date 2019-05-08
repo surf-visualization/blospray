@@ -803,7 +803,7 @@ class Connection:
             representation = obj.ospray.representation
             print('Object %s, representation %s' % (obj.name, representation))
 
-            if representation in ['volume', 'volume_isosurfaces']:
+            if representation in ['volume', 'volume_isosurfaces', 'volume_slices']:
                 self.export_volume(obj, data, depsgraph)
                 continue
             elif representation == 'geometry':
