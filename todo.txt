@@ -5,7 +5,7 @@ Bugs
   to the EXR file segfaults. See https://github.com/OpenImageIO/oiio/issues/2226
 - JSON exceptions on the server should be handled at the top-level
 - isovalues.blend test: move volume props from object to mesh
-- https://developer.blender.org/T59089
+- https://developer.blender.org/T59089 (get evee render instead of custom one)
 
 Fix/improve
 - Correctly release the scene after rendering
@@ -20,9 +20,8 @@ Must haves
 - TF editor in Blender
 - Better error handling and recovery
 - Better handling of instancing and (particle system) duplication, i.e. don't duplicate mesh
-- Cancel render during export of large scenes
+- Cancel render during export of large scenes (if this is even possible)
 - Caching of large data sets across renders
-- Border render (as a convenience until we have interactive preview render)
 - Interactive preview rendering
 
 Very nice to haves ;-)

@@ -1,13 +1,32 @@
 # BLOSPRAY - OSPRay as a Blender render engine
 
-...
+The focus of BLOSPRAY is to provide high-quality rendering of scientific
+data in Blender 2.8x, with a specific focus on volumetric data and use in
+an High-Performance Computing context. To accomplish this BLOSPRAY integrates 
+the [OSPRay](http://www.ospray.org/) ray tracing engine from Intel in Blender 
+as an external renderer.
 
 Note that this project is developed for Blender 2.8x, as that
 will become the new stable version in a couple of months.
 Blender 2.7x is not supported at the moment and probably won't be,
-as the Python API isn't fully compatible with 2.8x.
+as the Python API isn't fully compatible with 2.8x. Plus, 2.8x is the future.
+
+## Goals and non-goals
+
+Goals:
+
+- Provide rendering through OSPRAY for scientific datasets
+
+
+BLOSPRAY does not aim to compete with Cycles (the builtin renderer of Blender),
+as it has a different focus. Cycles provides production rendering of animations
+and stills, focusing (more or less) on artistic workloads. Instead, BLOSPRAY focuses 
+on rendering scenes containing (large) scientific datasets, where 
+efficient handling and rendering of the data is usually a more important goal 
+(and challenge) than production of photo-realistic imagery.
 
 ## Usage
+
 
 BLOSPRAY is a Blender add-on, but is not being distributed separately
 as it is in heavy development.
@@ -19,37 +38,31 @@ $ cd ..../blender-2.8/2.80/scripts/addons
 $ ln -sf <blospray-repo>/render_ospray render_ospray
 ```
 
-## Goals and non-goals
-
-The focus of BLOSPRAY is to provide rendering of scientific
-scenes in Blender, with a specific focus on volumetric data. XXX other OSPRAY features
-
-Goals:
-
-- Provide rendering through OSPRAY for scientific datasets
-
-Non-goals:
-
-- Compete with Cycles. Cycles has focus on production rendering of animation,
-  artistic, etc.
-    
-
 ## Features
 
 ### Plugins
 
 There is a rudimentary plugin system that can be used to set up
-custom scene elements in OSPRay directly. This is especially useful when working with large scientific datasets for which it is infeasible or unattractive to load into Blender. Instead, one can use a proxy object, such as a cube mesh, and attach a plugin to it. During rendering BLOSPRAY will call the plugin to load the actual scene data associated with the proxy. In this way Blender scene creation, such as camera animation or lighting, can be done as usual as the proxy object shows the bounding box of the data and can even be transformed.
+custom scene elements that are represented by a proxy object in Blender,
+but whose full representation and rendering is stored on the server side
+in OSPRay. This is especially useful when working with large scientific datasets 
+for which it is infeasible or unattractive to load into Blender. Instead, one 
+can use a proxy object, such as a cube mesh to represent a rectangular volume, 
+and attach a plugin to it in Blender. During rendering BLOSPRAY will call the 
+plugin to load the actual scene data associated with the proxy on the server. 
+In this way Blender scene creation, such as camera animation or lighting, can be 
+done in the usual way as the proxy object shows the bounding box of the data 
+and can even be transformed.
 
 The original use case for plugins (and even BLOSPRAY itself) was
-to make it easy to use volume rendering in a Blender scene. Blender's
-own volume rendering support is geared towards the built-in 
-smoke and fire simulations and isn't really a good fit for
-scientific datasets, plus it is very hard to get volume data
-into Blender anyway for that use case. 
+to make it easy to use high-quality volume rendering of scientific data in a 
+Blender scene. Blender's own volume rendering support is geared towards the built-in 
+smoke and fire simulations and isn't really a good fit for scientific datasets.
+Plus it is very hard to get generic volume data into Blender.
 
-Apart from volumes, plugins can be used for other types of scene contact as well, like polygonal geometry.
-But this is currently not supported yet in BLOSPRAY.
+Apart from volumes, plugins can be used for other types of scene content as well, 
+like polygonal geometry or OSPRay's builtin geometry types like sphere and
+streamlines. 
 
 Note that BLOSPRAY plugins are different from OSPRay's own "extensions", that
 are also loadable at run-time. The latter are meant for extending OSPRay itself
@@ -63,22 +76,65 @@ BLOSPRAY consists of two parts:
 1. a Python addon (directory `render_ospray`) that implements the Blender render engine. It handles scene export, showing the rendered result, etc.
 2. a render server (`ospray_render_server`) that receives the scene from Blender, calls OSPRay routines to do the actual rendering and sends back the image result.
 
-The original reason for this two-part setup is that there currently is no Python API for OSPRay, so direct integration in Blender is not straightforward. Neither is there a command-line OSPRay utility that takes as input a scene description in some format and outputs a rendered image.
+The original reason for this two-part setup is that there currently is no 
+Python API for OSPRay, so direct integration in Blender is not straightforward. 
+Neither is there a command-line OSPRay utility that takes as input a scene 
+description in some format and outputs a rendered image.
 
 Plus, the client-server setup also has some advantages:
 
-- The separate render server can be run on a remote system, for example an HPC system that holds a large scientific dataset to be rendered. This offloads most of the compute-intensive rendering workload and necessity to hold data to be rendered locally away from the system running Blender.
-- It should be feasible to use OSPRay's [Parallel Rendering with MPI](http://www.ospray.org/documentation.html#parallel-rendering-with-mpi) mode, by providing a variant of the render server as an MPI program.
-- BLOSPRAY development becomes slightly easier as both Blender and the render server can be independently restarted in case of crashes or bugs.
-- The network protocol is (currently) not strongly tied to Blender, so the render server can be used in other situations as well.
+- The separate render server can be run on a remote system, for example an HPC system 
+  that holds a large scientific dataset to be rendered. This offloads most of the 
+  compute-intensive rendering workload and storage requirements of the data to be rendered 
+  away from the system running Blender.
 
-Of course, this client-server setup does introduce some overhead, in terms of network latency and data (de)serialization. But in practice this overhead is small compared to actual render times. 
-In future, caching of data on the server can help in reducing the overhead even further.
+- It makes it feasible to use OSPRay's [Parallel Rendering with MPI](http://www.ospray.org/documentation.html#parallel-rendering-with-mpi) 
+  mode, by providing a variant of the render server as an MPI program. Again,
+  this parallel version of the server can be run remotely on an HPC system.
 
-Note that the render server currently doesn't support multiple different Blender scenes,
-or even different users, at the same time. 
+- The network protocol is (currently) not strongly tied to Blender, so the render server can be used in other contexts as well.
+
+- BLOSPRAY development becomes slightly easier as both Blender and the render 
+  server can be independently restarted in case of crashes or bugs.
+
+Of course, this client-server setup does introduce some overhead, in terms of 
+network latency and data (de)serialization. But in practice this overhead is 
+small compared to actual render times. In future, caching of data on the server 
+between renders can help in reducing the overhead even further.
+
+Note that the render server currently doesn't support loading multiple different 
+Blender scenes (or serve different users) at the same time. 
 
 ## Supported elements
+
+BLOSPRAY is still in its early stages of development, but the following 
+basic functionality and integration with Blender features is already available:
+
+* Export and rendering of polygonal geometry from Blender
+* Point, sun, spot and area lights
+* Perspective and orthographic cameras, depth of field
+* Border render (to render only part of an image)
+* Object transformations and parenting
+* Instancing (i.e. having several Objects link to the same Data)
+* Rudimentary support for volume and geometry plugins
+
+Major features that are currently missing:
+
+* Interactive preview render (which is ironic, given that real-time interactive rendering
+  is one of OSPRay's main features)
+* Materials 
+* Volume transfer function editing
+* Motion blur (which is not supported by OSPRay itself)
+* Texturing
+
+Other missing features that could be of interest:
+
+* HDRI lighting
+
+Integration within the Blender UI, mostly panels for editing properties and such, 
+is also very rudimentary. Some properties are currently only settable using the 
+Custom Properties on objects and meshes.
+
 
 | Meshes | |
 | ------ |-|
@@ -124,14 +180,14 @@ or even different users, at the same time.
 
 XXX These notes are work-in-progress.
 
-Within OSPray there's three levels at which volumetric data and its rendering 
+Within OSPRay there's three levels at which volumetric data and its rendering 
 is handled:
 
-1. The raw volume data. In OSPRay these are stored in data buffers creating using `ospNewData()`.
+1. The raw volume data. In OSPRay these are stored in generic data buffers created using `ospNewData()`.
    These buffers only contain basic properties relating to the data, such as the type
    of value (e.g. `float`), number of values (but not volume dimension) and data sharing flags.
    
-2. The volume object, i.e. an `OSPVolume`. This object references the data buffer
+2. The volume object, i.e. `OSPVolume`. This object references the data buffer
    holding the raw volume data and also holds volume-specific properties. These
    properties relate both to the volume itself (e.g. grid spacing and data range), 
    but also to rendering the volume (e.g. sampling rate to use and the
@@ -141,9 +197,9 @@ is handled:
 3. Geometry derived from volumetric data, specifically isosurfaces and slice planes.
    In OSPRay these two types of derived geometry are rendered implicitly based on
    ray traversal of the volumetric data, so no explicit isosurface or slice plane geometry
-   is created. As such, these geometry objects contain a reference to a volume
+   needs to be created. As such, these geometry objects contain a reference to a volume
    object but are of type `OSPGeometry` themselves. These can also be added
-   to the OSPRay scene, independent from the addition of the `OSPVolume` object.
+   to the OSPRay scene, independent from the addition of the referenced `OSPVolume` object.
    
 When working with volumetric objects in Blender it makes sense to have some
 flexibility in handling these three levels, mostly to allow sharing
@@ -156,8 +212,8 @@ As two of the levels refer to another level sharing is conceptually easy, but in
 practice a bit suboptimal. This has to do with the embedding of the three levels
 within Blender in a way that fits Blender's concepts and workflow. Blender itself
 only uses two levels: "objects" which refer to "object data" [^1]. Here, the object holds general
-information, such as the 3D transformation to apply, while the object data holds the
-per-type data. For example, mesh object data holds the 3D geometry and has a reference
+information, such as the object-to-world 3D transformation to apply, while the object data holds the
+data specific to the type of object. For example, mesh object data holds the 3D geometry and has a reference
 to the material to use. As such, the mesh data is the natural place to 
 query data on the 3D extent of a 3D surface, while the object referencing
 the mesh data determines where in the 3D scene the mesh is located based on
@@ -169,7 +225,6 @@ can try to come up with some guiding principles and corresponding design choices
 - Reusing a volume object (level 2) is probably more common than reusing
   raw volume data (level 1). 
   
-
 - Having a 3D representation of a volume in the scene is a necessity. This representation
 can be as simple as a cube mesh for rectangular domains or a more complex shape
 for unstructured volumetric grids. The most natural 3D object to use for this is
@@ -302,11 +357,12 @@ OSPRay itself also has some limitations, some of which we can work around, some 
 
 For building:
 
+* OSPRay 1.8.x
 * OpenImageIO
 * Google protobuf (C/C++ libraries)
 
-* Uses https://github.com/nlohmann/json/blob/develop/single_include/nlohmann/json.hpp
-  (included in the sources)
+* The code uses https://github.com/nlohmann/json/blob/develop/single_include/nlohmann/json.hpp
+  (but this is included in the sources)
 
 For running:
 
