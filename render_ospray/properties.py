@@ -102,12 +102,12 @@ class RenderOspraySettingsScene(PropertyGroup):
         
         
 class RenderOspraySettingsWorld(PropertyGroup):
-    
-    # XXX add alpha
+        
     background_color: FloatVectorProperty(  
         name="Background color",
         subtype='COLOR',
-        default=(1.0, 1.0, 1.0),
+        size=4,
+        default=(1.0, 1.0, 1.0, 1.0),        
         min=0.0, max=1.0,
         description='Background color (bgColor)'
         )

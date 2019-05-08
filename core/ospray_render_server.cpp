@@ -727,7 +727,7 @@ receive_scene(TCPSocket *sock)
         render_settings.background_color(0),
         render_settings.background_color(1),
         render_settings.background_color(2),
-        0.0f);
+        render_settings.background_color(3));
     
     ospSet1i(renderer, "aoSamples", render_settings.ao_samples());
     ospSet1i(renderer, "shadowsEnabled", render_settings.shadows_enabled());
@@ -804,7 +804,7 @@ receive_scene(TCPSocket *sock)
     receive_protobuf(sock, light_settings);
     
     const int num_lights = light_settings.lights_size();
-    OSPLight *osp_lights = new OSPLight[num_lights+1];
+    OSPLight *osp_lights = new OSPLight[num_lights+1];      // Scene lights + ambient light
     OSPLight osp_light;
     
     for (int i = 0; i < num_lights; i++)
@@ -830,7 +830,7 @@ receive_scene(TCPSocket *sock)
         }
         else if (light.type() == Light::AREA)            
         {
-            // XXX blender's area light is more general than ospray quad light
+            // XXX blender's area light is more general than ospray's quad light
             osp_light = osp_lights[i] = ospNewLight3("quad");
             ospSet3f(osp_light, "edge1", light.edge1(0), light.edge1(1), light.edge1(2));
             ospSet3f(osp_light, "edge2", light.edge2(0), light.edge2(1), light.edge2(2));

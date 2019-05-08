@@ -150,7 +150,7 @@ message RenderSettings
     uint32          samples = 2;
     uint32          ao_samples = 3;
     
-    repeated float  background_color = 4;   // RGB only atm
+    repeated float  background_color = 4;   // RGBA
     
     bool            shadows_enabled = 5;
 }

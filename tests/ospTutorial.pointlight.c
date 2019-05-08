@@ -128,13 +128,18 @@ int main(int argc, const char **argv) {
   OSPRenderer renderer = ospNewRenderer("scivis"); // choose Scientific Visualization renderer
 
   // create and setup light for Ambient Occlusion
-  OSPLight light = ospNewLight3("ambient");
+  OSPLight light = ospNewLight3("point");
+  ospSet3f(light, "position", 0.0f, 1.0f, 0.0f);
+  ospSet1f(light, "radius", 0.0f);
+  ospSet1f(light, "intensity", 1.0f);
   ospCommit(light);
+  
   OSPData lights = ospNewData(1, OSP_LIGHT, &light, 0);
   ospCommit(lights);
 
   // complete setup of renderer
   ospSet1i(renderer, "aoSamples", 1);
+  ospSet1i(renderer, "shadowsEnabled", 1);
   ospSet1f(renderer, "bgColor", 1.0f); // white, transparent
   ospSetObject(renderer, "model",  world);
   ospSetObject(renderer, "camera", camera);

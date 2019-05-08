@@ -110,6 +110,7 @@ Blender scenes (or serve different users) at the same time.
 BLOSPRAY is still in its early stages of development, but the following 
 basic functionality and integration with Blender features is already available:
 
+* SciVis and Path tracer renderer?
 * Export and rendering of polygonal geometry from Blender
 * Point, sun, spot and area lights
 * Perspective and orthographic cameras, depth of field
@@ -357,9 +358,10 @@ OSPRay itself also has some limitations, some of which we can work around, some 
 
 For building:
 
-* OSPRay 1.8.x
-* OpenImageIO
-* Google protobuf (C/C++ libraries)
+* OSPRay 1.8.x (XXX link)
+* GLM (XXX link)
+* OpenImageIO (XXX link)
+* Google protobuf (C/C++ libraries) (XXX link)
 
 * The code uses https://github.com/nlohmann/json/blob/develop/single_include/nlohmann/json.hpp
   (but this is included in the sources)

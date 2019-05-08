@@ -1,16 +1,21 @@
 Bugs
-- Camera clipping start doesn't match cycles render, nor OpenGL scene view,
-  as ospray only supports setting the clipping end
-- When rendering very large images (25k x 6k pixels) writing the framebuffer
-  to the EXR file segfaults. See https://github.com/OpenImageIO/oiio/issues/2226
-- JSON exceptions on the server should be handled at the top-level
+- Camera clipping start doesn't match cycles render, nor OpenGL scene view.
+  And ospray only supports setting the clipping start, no far clip value.
+- Add top-level exception handling in the server
 - isovalues.blend test: move volume props from object to mesh
 - https://developer.blender.org/T59089 (get evee render instead of custom one)
+- https://developer.blender.org/T64295 (custom props not updating in UI)
 
 Fix/improve
 - Correctly release the scene after rendering
 - If possible, get rid of OpenEXR as intermediate framebuffer file
   (depends on possibilities of blender API)
+- Setting of background alpha (currently hardcoded at full transparency)
+- Point and spot lights need a very high intensity value to contribute
+  substantial light to the scene, while the sun light at 1 is already enough.
+  For area lights the intensity value in ospray is per unit area, so scaling the
+  light larger leads to more light in the scene. This is different from cycles,
+  where changing the size keeps the scene lighting the same.
 
 Must haves
 - Light UI panel
@@ -18,11 +23,12 @@ Must haves
 - Camera UI panel
 - More render settings in the UI
 - TF editor in Blender
+- Interactive preview rendering
 - Better error handling and recovery
 - Better handling of instancing and (particle system) duplication, i.e. don't duplicate mesh
 - Cancel render during export of large scenes (if this is even possible)
 - Caching of large data sets across renders
-- Interactive preview rendering
+- Allow plugins to provide user-defined proxy geometry, not just a bbox
 
 Very nice to haves ;-)
 - UI buttons to preload/clear the scene on the server, including
@@ -42,7 +48,6 @@ Nice to haves
   of angel.blend in 3840x2160 @ 4 spp takes 40.972s on the server,
   but 46.90s on the blender side (i.e. +14.5% longer)
 - Textured geometry
-- Allow plugins to provide user-defined proxy geometry, not just a bbox
 - Provide a list of render presets
 
 Obscure to haves
@@ -59,17 +64,14 @@ Decide
   
 
 Test
-
+...
 
 Look into
 - How to leverage blender's node system
 - OSPRay's extension modules and scenegraph, mostly w.r.t. model loading.
   Plus look at overlap in functionality with our own plugins. It seems
   ospray plugins need an ispc component, which makes them less attractive
-  to use for end users (yet another layer to learn).
+  to use for end users (yet another tool/syntax to learn).
 - For batch renders there's no need to send the framebuffer for each
   sample, only need the final buffer, but not sure we can detect that 
   specific situation. Should look into how cycles handles this case
-
-
-protobuf gone

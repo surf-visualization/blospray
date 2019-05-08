@@ -692,7 +692,6 @@ class Connection:
         
         render_settings = RenderSettings()
         render_settings.renderer = scene.ospray.renderer
-        # XXX doesn't specify the alpha value, only rgb
         render_settings.background_color[:] = world.ospray.background_color
         self.render_samples = render_settings.samples = scene.ospray.samples
         render_settings.ao_samples = scene.ospray.ao_samples
@@ -765,13 +764,10 @@ class Connection:
                 position = obj.matrix_world @ position
                 edge1 = obj.matrix_world @ edge1 - position
                 edge2 = obj.matrix_world @ edge2 - position
-                print(position, edge1, edge2)
                 
                 light.position[:] = position
-                # XXX See https://github.com/ospray/ospray/issues/290
-                # Swap edge1 and edge2 for now
-                light.edge1[:] = edge2
-                light.edge2[:] = edge1
+                light.edge1[:] = edge1
+                light.edge2[:] = edge2
             
             lights.append(light)
                 
