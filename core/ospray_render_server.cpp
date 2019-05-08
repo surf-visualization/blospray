@@ -511,7 +511,7 @@ receive_and_add_volume_object(TCPSocket *sock, const SceneElement& element)
                 plane[i] = slice_plane_prop[i];
             printf("plane: %.3f, %3f, %.3f, %.3f\n", plane[0], plane[1], plane[2], plane[3]);
             
-            OSPData planeData = ospNewData(4, OSP_FLOAT, plane);
+            OSPData planeData = ospNewData(1, OSP_FLOAT4, plane);
             ospCommit(planeData);
             
             OSPGeometry slices = ospNewGeometry("slices");
