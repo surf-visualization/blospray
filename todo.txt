@@ -1,8 +1,7 @@
 Bugs
 - Camera clipping start doesn't match cycles render, nor OpenGL scene view.
-  And ospray only supports setting the clipping start, no far clip value.
+  And ospray only supports setting the clipping start, not a far clip value.
 - Add top-level exception handling in the server
-- isovalues.blend test: move volume props from object to mesh
 - https://developer.blender.org/T59089 (get evee render instead of custom one)
 - https://developer.blender.org/T64295 (custom props not updating in UI)
 
@@ -10,7 +9,6 @@ Fix/improve
 - Correctly release the scene after rendering
 - If possible, get rid of OpenEXR as intermediate framebuffer file
   (depends on possibilities of blender API)
-- Setting of background alpha (currently hardcoded at full transparency)
 - Point and spot lights need a very high intensity value to contribute
   substantial light to the scene, while the sun light at 1 is already enough.
   For area lights the intensity value in ospray is per unit area, so scaling the
