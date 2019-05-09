@@ -82,6 +82,11 @@ RenderSettings  render_settings;
 CameraSettings  camera_settings;
 LightSettings   light_settings;
 
+// Plugin registry
+
+typedef std::map<std::string, Registry*>    PluginRegistryMap;
+PluginRegistryMap                           plugin_registry_map;
+
 // Volume loaders
 
 typedef std::map<std::string, volume_load_function_t>   VolumeLoadFunctionMap;
@@ -283,12 +288,14 @@ receive_and_add_volume_data(TCPSocket *sock, const SceneElement& element)
     
     const std::string& volume_type = properties["_plugin"];
     
-    VolumeLoadFunctionMap::iterator it = volume_load_functions.find(volume_type);
-    if (it == volume_load_functions.end())
+    PluginRegistryMap::iterator it = plugin_registry_map.find(volume_type);
+    if (it == plugin_registry_map.end())
     {
-        printf("No load function yet for volume type '%s'\n", volume_type.c_str());
+        printf("No registry entries yet for volume type '%s'\n", volume_type.c_str());
         
         std::string plugin_name = "volume_" + volume_type + ".so";
+        
+        // Open plugin shared library
         
         printf("Loading plugin %s\n", plugin_name.c_str());
         
@@ -304,25 +311,30 @@ receive_and_add_volume_data(TCPSocket *sock, const SceneElement& element)
             return false;
         }
         
+        // Get plugin registry
+        
         // Clear previous error
         dlerror(); 
         
-        load_function = (volume_load_function_t) dlsym(plugin, "load");
-        
-        if (load_function == NULL)
+        Registry *registry = (Registry*) dlsym(plugin, "registry");
+                
+        if (registry == NULL)
         {
             result.set_success(false);
-            result.set_message("Failed to get load function from plugin");
+            result.set_message("Failed to get registry from plugin");
             send_protobuf(sock, result);
-    
+            
+            // XXX dlclose()
+     
             fprintf(stderr, "dlsym() error: %s\n", dlerror());
             return false;
         }
         
-        volume_load_functions[volume_type] = load_function;
+        load_function = registry->volume_load_function;
+        plugin_registry_map[volume_type] = registry;
     }
     else
-        load_function = it->second;
+        load_function = it->second->volume_load_function;
     
     // Let load function do its job
     
@@ -1098,6 +1110,10 @@ handle_connection(TCPSocket *sock)
             
             switch (client_message.type())
             {
+                // GET_CACHE_ENTRIES    (volumes and meshes)
+                // GET_VOLUME_EXTENT    (volume plugin)
+                // GET_GEOMETRY_EXTENT  (geometry plugin)
+                
                 case ClientMessage::UPDATE_SCENE:
                     // XXX handle clear_scene 
                     // XXX check res
