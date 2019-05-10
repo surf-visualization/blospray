@@ -7,8 +7,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include "json.hpp"
-#include "util.h"
+#include "util.h"       // XXX for ...?
 #include "plugin.h"
 
 using json = nlohmann::json;

@@ -6,11 +6,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include "json.hpp"
-#include "util.h"
 #include "plugin.h"
-
-using json = nlohmann::json;
 
 OSPGeometry
 add_plane(float cx, float cy, float cz, float sx, float sy)

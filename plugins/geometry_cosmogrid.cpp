@@ -4,10 +4,7 @@
 #include <stdint.h>
 #include "uhdf5.h"
 
-#include "json.hpp"
 #include "plugin.h"
-
-using json = nlohmann::json;
 
 const char      *data_file;
 OSPModel        model;

@@ -84,8 +84,9 @@ LightSettings   light_settings;
 
 // Plugin registry
 
-typedef std::map<std::string, PluginFunctions*> PluginFunctionsMap;
-PluginFunctionsMap                              plugin_functions_map;
+typedef std::map<std::string, PluginDefinition> PluginDefinitionsMap;
+
+PluginDefinitionsMap plugin_definitions;
 
 // Geometry buffers
 
@@ -245,14 +246,14 @@ receive_and_add_mesh_object(TCPSocket *sock, const SceneElement& element)
     return true;
 }
 
-// Loads plugin shared lib if not loaded before
-PluginFunctions*
-get_plugin_functions(LoadFunctionResult &result, const std::string& name)
+// Loads plugin shared library if not already loaded
+bool
+ensure_plugin_is_loaded(LoadFunctionResult &result, const std::string& name)
 {
-    PluginFunctionsMap::iterator it = plugin_functions_map.find(name);
+    PluginDefinitionsMap::iterator it = plugin_definitions.find(name);
     
-    if (it != plugin_functions_map.end())
-        return it->second;
+    if (it != plugin_definitions.end())
+        return true;
     
     printf("Plugin '%s' not loaded yet\n", name.c_str());
     
@@ -270,30 +271,42 @@ get_plugin_functions(LoadFunctionResult &result, const std::string& name)
         result.set_message("Failed to open plugin");            
 
         fprintf(stderr, "dlopen() error: %s\n", dlerror());
-        return NULL;
+        return false;
     }
     
     // Get plugin functions
             
     dlerror();  // Clear previous error
     
-    PluginFunctions *functions = (PluginFunctions*) dlsym(plugin, "functions");
+    plugin_initialization_function *initialize = (plugin_initialization_function*) dlsym(plugin, "initialize");
             
-    if (functions == NULL)
+    if (initialize == NULL)
     {
         result.set_success(false);
-        result.set_message("Failed to get functions from plugin");            
+        result.set_message("Failed to get initialization function from plugin!");            
  
         fprintf(stderr, "dlsym() error: %s\n", dlerror());
         
         dlclose(plugin);
         
-        return NULL;
+        return false;
+    }
+    
+    PluginDefinition definition;
+    
+    if (!initialize(&definition))
+    {
+        result.set_success(false);
+        result.set_message("Plugin failed to initialize!");            
+ 
+        dlclose(plugin);
+        
+        return false;
     }
         
-    plugin_functions_map[name] = functions;
+    plugin_definitions[name] = definition;
     
-    return functions;
+    return true;
 }
 
 bool
@@ -325,18 +338,16 @@ receive_and_add_volume_data(TCPSocket *sock, const SceneElement& element)
     
     // Find load function 
                 
-    const std::string& volume_type = properties["_plugin"];
+    const std::string& plugin = properties["_plugin"];
     
-    PluginFunctions *functions = get_plugin_functions(result, volume_type);
-    
-    if (functions == NULL)
+    if (!ensure_plugin_is_loaded(result, plugin))
     {
         // Something went wrong...
         send_protobuf(sock, result);
         return false;
     }
     
-    volume_load_function_t load_function = functions->volume_load_function;
+    volume_load_function_t load_function = plugin_definitions[plugin].functions.volume_load_function;
     
     // Let load function do its job
     
@@ -586,19 +597,17 @@ receive_and_add_geometry_data(TCPSocket *sock, const SceneElement& element)
     result.set_success(true);
     
     // Find load function 
-                
-    const std::string& geometry_type = properties["_plugin"];
     
-    PluginFunctions *functions = get_plugin_functions(result, geometry_type);
+    const std::string& plugin = properties["_plugin"];
     
-    if (functions == NULL)
+    if (!ensure_plugin_is_loaded(result, plugin))
     {
         // Something went wrong...
         send_protobuf(sock, result);
         return false;
     }
     
-    geometry_load_function_t load_function = functions->geometry_load_function;
+    geometry_load_function_t load_function = plugin_definitions[plugin].functions.geometry_load_function;
 
     // Let load function do its job
     

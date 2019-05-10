@@ -6,11 +6,16 @@
 #include <glm/matrix.hpp>
 
 #include "messages.pb.h"        
+#include "json.hpp"
 
 using json = nlohmann::json;
 
 typedef std::pair<OSPModel, glm::mat4>  ModelInstance;
 typedef std::vector<ModelInstance>      ModelInstances;
+
+//
+// Functions
+//
  
 // XXX what are the object2world parameters for? Merely to directly
 // transform an unstructured volume ourselves (which OSPRAY doesn't support?)
@@ -59,6 +64,67 @@ typedef struct
     //generate_geometry_function -> list of (OSPModel, xform)
 }
 PluginFunctions;
+
+//
+// Parameters
+//
+
+enum ParameterType
+{  
+    PARAM_INT,
+    PARAM_FLOAT,
+    PARAM_BOOL,
+    PARAM_STRING,
+    PARAM_USER,                 // User-defined, value is passed verbatim as JSON value
+    
+    PARAM_LAST
+};
+
+enum ParameterFlags
+{
+    FLAG_NONE       = 0x0,
+    
+    FLAG_VOLUME     = 0x1,      // Parameter applies to volume
+    FLAG_GEOMETRY   = 0x2,      // Parameter applies to geometry
+    
+    //FLAG_OPTIONAL   = 0x10,     // Parameter is optional
+};
+
+
+// List of parameters understood by the plugin. This is both for
+// documentation for users of the plugin, as well as doing checks
+// on parameters to/by the plugin.
+// XXX how about using a piece of json text to specify these parameters?
+// pros: easy to write, can send directly to client, can easily include default values
+// cons: would need something like c++11 raw strings to easily include in the source code (or keep them in a separate file, but that's nasty)
+
+// XXX don't need the typedef in C++?
+typedef struct 
+{
+    const char      *name;
+    ParameterType   type;
+    int             length;
+    int             flags;
+    const char      *description;
+} 
+PluginParameter;
+
+typedef PluginParameter PluginParameters[];
+
+#define PARAMETERS_DONE     {NULL, PARAM_LAST, 0, FLAG_NONE, NULL}      
+
+//
+// Initialization
+//
+
+typedef struct
+{
+    PluginParameter     *parameters;
+    PluginFunctions     functions;
+}
+PluginDefinition;
+
+typedef bool plugin_initialization_function(PluginDefinition *def);
 
 
 /*

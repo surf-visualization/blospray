@@ -2,14 +2,10 @@
 #include <stdint.h>
 #include <ospray/ospray.h>
 #include "json.hpp"
-#include "util.h"
-#include "messages.pb.h"        // VolumeLoadResult
 #include "plugin.h"
-
-using json = nlohmann::json;
+#include "util.h"       // float_swap()
 
 // XXX check for existence of "file", "header_skip", etc. entries in parameters[]
-
 
 static OSPVolume
 load_as_structured(float *bbox, LoadFunctionResult &result,
@@ -323,12 +319,52 @@ load(float *bbox, LoadFunctionResult &result, const json &parameters, const glm:
     return volume;
 }
 
-PluginFunctions
+// XXX header_skip -> header-skip?
+static PluginParameters 
+parameters = {
+    
+    // Name, type, length, flags, description
+    {"dimensions",          PARAM_FLOAT,    3, FLAG_VOLUME, 
+        "Dimension of the volume in number of voxels per axis"},
+        
+    {"header_skip",         PARAM_INT,      1, FLAG_VOLUME,//|FLAG_OPTIONAL, 
+        "Number of header bytes to skip"},
+        
+    {"file",                PARAM_STRING,   1, FLAG_VOLUME, 
+        "File to read"},
+        
+    {"voxel_type",          PARAM_STRING,   1, FLAG_VOLUME, 
+        "Voxel data type (uchar, float)"},
+        
+    {"data_range",          PARAM_FLOAT,    2, FLAG_VOLUME, 
+        "Data range of the volume"},
+        
+    {"endian_flip",         PARAM_BOOL,     1, FLAG_VOLUME,//|FLAG_OPTIONAL, 
+        "Endian-flip the data during reading"},
+        
+    {"make_unstructured",   PARAM_BOOL,     1, FLAG_VOLUME,//|FLAG_OPTIONAL, 
+        "Create an OSPRay unstructured volume (which can be transformed)"},
+        
+    PARAMETERS_DONE         // Sentinel (signals end of list)
+};
+
+static PluginFunctions
 functions = {
 
-    NULL,
-    load,
+    NULL,   // Volume extent
+    load,   // Volume load
 
-    NULL
+    NULL    // Geometry extent
 };
+
+extern "C" bool
+initialize(PluginDefinition *def)
+{
+    def->parameters = parameters;
+    def->functions = functions;
+    
+    // Do any other plugin-specific initialization here
+    
+    return true;
+}
 
