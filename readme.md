@@ -123,7 +123,7 @@ basic functionality and integration with Blender features is already available:
 * Depth of field
 * Border render (to render only part of an image)
 * Object transformations and parenting
-* Instancing (i.e. having several Objects link to the same Data)
+* Instancing 
 * Vertex colors on Blender meshes
 * Rudimentary support for volume and geometry plugins
 
