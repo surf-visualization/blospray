@@ -2,7 +2,7 @@
 
 | Blender scene | Final render by OSPRay through BLOSPRAY |
 |-------|--------|
-| ![](blender.png) | ![](blospray.png) | 
+| ![](docs/blender.png) | ![](blospraydocs/.png) | 
 
 The focus of BLOSPRAY is to provide high-quality rendering of scientific
 data in [Blender](https://www.blender.org) 2.8x, with a specific focus on volumetric data and use in
