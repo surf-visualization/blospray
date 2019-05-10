@@ -119,10 +119,12 @@ basic functionality and integration with Blender features is already available:
 * SciVis and path tracer renderer 
 * Export and rendering of polygonal geometry from Blender
 * Point, sun, spot and area lights
-* Perspective and orthographic cameras, depth of field
+* Perspective and orthographic cameras. OSPRay's panoramic camera (which is similar to Cycles equirectangular camera, but without any options)
+* Depth of field
 * Border render (to render only part of an image)
 * Object transformations and parenting
 * Instancing (i.e. having several Objects link to the same Data)
+* Vertex colors on Blender meshes
 * Rudimentary support for volume and geometry plugins
 
 Major features that are currently missing:

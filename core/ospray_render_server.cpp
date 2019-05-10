@@ -84,18 +84,8 @@ LightSettings   light_settings;
 
 // Plugin registry
 
-typedef std::map<std::string, Registry*>    PluginRegistryMap;
-PluginRegistryMap                           plugin_registry_map;
-
-// Volume loaders
-
-typedef std::map<std::string, volume_load_function_t>   VolumeLoadFunctionMap;
-VolumeLoadFunctionMap                                   volume_load_functions;
-
-// Geometry loaders
-
-typedef std::map<std::string, geometry_load_function_t> GeometryLoadFunctionMap;
-GeometryLoadFunctionMap                                 geometry_load_functions;
+typedef std::map<std::string, PluginFunctions*> PluginFunctionsMap;
+PluginFunctionsMap                              plugin_functions_map;
 
 // Geometry buffers
 
@@ -255,6 +245,57 @@ receive_and_add_mesh_object(TCPSocket *sock, const SceneElement& element)
     return true;
 }
 
+// Loads plugin shared lib if not loaded before
+PluginFunctions*
+get_plugin_functions(LoadFunctionResult &result, const std::string& name)
+{
+    PluginFunctionsMap::iterator it = plugin_functions_map.find(name);
+    
+    if (it != plugin_functions_map.end())
+        return it->second;
+    
+    printf("Plugin '%s' not loaded yet\n", name.c_str());
+    
+    std::string plugin_file = name + ".so";
+    
+    // Open plugin shared library
+    
+    printf("Loading plugin %s (%s)\n", name.c_str(), plugin_file.c_str());
+    
+    void *plugin = dlopen(plugin_file.c_str(), RTLD_LAZY);
+    
+    if (!plugin) 
+    {
+        result.set_success(false);
+        result.set_message("Failed to open plugin");            
+
+        fprintf(stderr, "dlopen() error: %s\n", dlerror());
+        return NULL;
+    }
+    
+    // Get plugin functions
+            
+    dlerror();  // Clear previous error
+    
+    PluginFunctions *functions = (PluginFunctions*) dlsym(plugin, "functions");
+            
+    if (functions == NULL)
+    {
+        result.set_success(false);
+        result.set_message("Failed to get functions from plugin");            
+ 
+        fprintf(stderr, "dlsym() error: %s\n", dlerror());
+        
+        dlclose(plugin);
+        
+        return NULL;
+    }
+        
+    plugin_functions_map[name] = functions;
+    
+    return functions;
+}
+
 bool
 receive_and_add_volume_data(TCPSocket *sock, const SceneElement& element)
 {
@@ -278,63 +319,24 @@ receive_and_add_volume_data(TCPSocket *sock, const SceneElement& element)
     
     // Prepare result
     
-    VolumeLoadResult result;
+    LoadFunctionResult result;
     
     result.set_success(true);
     
     // Find load function 
-    
-    volume_load_function_t load_function = NULL;
-    
+                
     const std::string& volume_type = properties["_plugin"];
     
-    PluginRegistryMap::iterator it = plugin_registry_map.find(volume_type);
-    if (it == plugin_registry_map.end())
+    PluginFunctions *functions = get_plugin_functions(result, volume_type);
+    
+    if (functions == NULL)
     {
-        printf("No registry entries yet for volume type '%s'\n", volume_type.c_str());
-        
-        std::string plugin_name = "volume_" + volume_type + ".so";
-        
-        // Open plugin shared library
-        
-        printf("Loading plugin %s\n", plugin_name.c_str());
-        
-        void *plugin = dlopen(plugin_name.c_str(), RTLD_LAZY);
-        
-        if (!plugin) 
-        {
-            result.set_success(false);
-            result.set_message("Failed to open plugin");
-            send_protobuf(sock, result);
-
-            fprintf(stderr, "dlopen() error: %s\n", dlerror());
-            return false;
-        }
-        
-        // Get plugin registry
-        
-        // Clear previous error
-        dlerror(); 
-        
-        Registry *registry = (Registry*) dlsym(plugin, "registry");
-                
-        if (registry == NULL)
-        {
-            result.set_success(false);
-            result.set_message("Failed to get registry from plugin");
-            send_protobuf(sock, result);
-            
-            // XXX dlclose()
-     
-            fprintf(stderr, "dlsym() error: %s\n", dlerror());
-            return false;
-        }
-        
-        load_function = registry->volume_load_function;
-        plugin_registry_map[volume_type] = registry;
+        // Something went wrong...
+        send_protobuf(sock, result);
+        return false;
     }
-    else
-        load_function = it->second->volume_load_function;
+    
+    volume_load_function_t load_function = functions->volume_load_function;
     
     // Let load function do its job
     
@@ -579,57 +581,25 @@ receive_and_add_geometry_data(TCPSocket *sock, const SceneElement& element)
     
     // Prepare result
     
-    GeometryLoadResult result;
+    LoadFunctionResult result;
     
     result.set_success(true);
     
     // Find load function 
-    
-    geometry_load_function_t load_function = NULL;
-    
+                
     const std::string& geometry_type = properties["_plugin"];
     
-    GeometryLoadFunctionMap::iterator it = geometry_load_functions.find(geometry_type);
-    if (it == geometry_load_functions.end())
+    PluginFunctions *functions = get_plugin_functions(result, geometry_type);
+    
+    if (functions == NULL)
     {
-        printf("No load function yet for geometry type '%s'\n", geometry_type.c_str());
-        
-        std::string plugin_name = "geometry_" + geometry_type + ".so";
-        
-        printf("Loading plugin %s\n", plugin_name.c_str());
-        
-        void *plugin = dlopen(plugin_name.c_str(), RTLD_LAZY);
-        
-        if (!plugin) 
-        {
-            result.set_success(false);
-            result.set_message("Failed to open plugin");
-            send_protobuf(sock, result);
-
-            fprintf(stderr, "dlopen() error: %s\n", dlerror());
-            return false;
-        }
-        
-        // Clear previous error
-        dlerror(); 
-        
-        load_function = (geometry_load_function_t) dlsym(plugin, "load");
-        
-        if (load_function == NULL)
-        {
-            result.set_success(false);
-            result.set_message("Failed to get load function from plugin");
-            send_protobuf(sock, result);
-    
-            fprintf(stderr, "dlsym() error: %s\n", dlerror());
-            return false;
-        }
-        
-        geometry_load_functions[geometry_type] = load_function;
+        // Something went wrong...
+        send_protobuf(sock, result);
+        return false;
     }
-    else
-        load_function = it->second;
     
+    geometry_load_function_t load_function = functions->geometry_load_function;
+
     // Let load function do its job
     
     struct timeval t0, t1;

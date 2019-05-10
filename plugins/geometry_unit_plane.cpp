@@ -83,7 +83,7 @@ add_plane(float cx, float cy, float cz, float sx, float sy)
 
 extern "C" 
 void
-load(ModelInstances& model_instances, float *bbox, GeometryLoadResult &result, const json &parameters, const glm::mat4& object2world)
+load(ModelInstances& model_instances, float *bbox, LoadFunctionResult &result, const json &parameters, const glm::mat4& object2world)
 {    
     OSPGeometry plane_geom = add_plane(0.0f, 0.0f, 0.0f, 1.0f, 1.0f);
     
@@ -106,12 +106,14 @@ load(ModelInstances& model_instances, float *bbox, GeometryLoadResult &result, c
     bbox[5] = 1.0f;
 }
 
-Registry    
-registry = {
+PluginFunctions    
+functions = {
 
-    //NULL,
+    // Volume
+    NULL,
     NULL,
 
+    // Geometry
     load
 };
 

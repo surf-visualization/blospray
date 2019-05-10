@@ -18,6 +18,14 @@ Fix/improve
   where changing the size keeps the scene lighting the same.
 - Allow parenting a plane mesh to a volume to set slice planes
 
+Tests/examples:
+- Check grid.blend test, seems some custom props are on the wrong element, 
+  plus get segfault in json parsing
+- Check "volume" prop in some of the tests, isn't needed anymore is it?
+- Isovalues2 test uses transform on structured volume
+- slice.blend not working?
+- xmas missing data
+
 Must haves
 - Light UI panel
 - Volume UI panel
@@ -50,6 +58,8 @@ Nice to haves
   but 46.90s on the blender side (i.e. +14.5% longer)
 - Textured geometry
 - Provide a list of render presets
+- Allow plugin parameters to use environment variables, so blend files
+  can use non-hardcoded values for things like file paths
 
 Obscure to haves
 - Handle multiple concurrent renders in Blender
