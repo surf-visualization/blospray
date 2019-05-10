@@ -1,5 +1,7 @@
 # BLOSPRAY - OSPRay as a Blender render engine
 
+![](image.png)
+
 The focus of BLOSPRAY is to provide high-quality rendering of scientific
 data in [Blender](https://www.blender.org) 2.8x, with a specific focus on volumetric data and use in
 an High-Performance Computing context. To accomplish this BLOSPRAY integrates 
@@ -26,6 +28,10 @@ efficient handling and rendering of the data is usually a more important goal
 (and challenge) than production of photo-realistic imagery.
 
 ## Features
+
+![](blender.png)
+
+![](blospray.png)
 
 ### Supported scene elements and features
 
