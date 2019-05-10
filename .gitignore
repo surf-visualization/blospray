@@ -5,3 +5,4 @@ bin/
 imgui.ini
 
 *.blend1
+*.ppm

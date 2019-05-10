@@ -17,7 +17,7 @@ from .messages_pb2 import (
     CameraSettings, ImageSettings, 
     LightSettings, Light, RenderSettings, 
     SceneElement, MeshData, VolumeData, 
-    ClientMessage, VolumeLoadResult, GeometryLoadResult,
+    ClientMessage, LoadFunctionResult,
     RenderResult
 )
 
@@ -94,6 +94,8 @@ class Connection:
         self.host = host
         self.port = port
         
+        self.framebuffer_width = self.framebuffer_height = None
+        
     def close(self):
         # XXX send bye
         self.sock.close()
@@ -117,20 +119,6 @@ class Connection:
     
     def render(self, depsgraph):
         
-        client_message = ClientMessage()
-        client_message.type = ClientMessage.START_RENDERING
-        send_protobuf(self.sock, client_message)
-        
-        scene = depsgraph.scene
-        
-        scale = scene.render.resolution_percentage / 100.0
-        self.size_x = int(scene.render.resolution_x * scale)
-        self.size_y = int(scene.render.resolution_y * scale)
-        
-        print("%d x %d (scale %d%%) -> %d x %d" % \
-            (scene.render.resolution_x, scene.render.resolution_y, scene.render.resolution_percentage,
-            self.size_x, self.size_y))
-
         """
         if self.is_preview:
             self.render_preview(depsgraph)
@@ -138,18 +126,22 @@ class Connection:
             self.render_scene(depsgraph)
         """
         
-        # Rendering already started when we sent the scene data in update()
-        # Read back framebuffer (might block)  
-        # XXX perhaps send actual RENDER command?
+        # Signal server to start rendering
+        
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.START_RENDERING
+        send_protobuf(self.sock, client_message)
+                
+        # Read back successive framebuffer samples
 
-        num_pixels = self.width * self.height    
+        num_pixels = self.framebuffer_width * self.framebuffer_height
         bytes_left = num_pixels * 4*4
 
         framebuffer = numpy.zeros(bytes_left, dtype=numpy.uint8)
         
         t0 = time.time()
         
-        result = self.engine.begin_result(0, 0, self.width, self.height)
+        result = self.engine.begin_result(0, 0, self.framebuffer_width, self.framebuffer_height)
         # Only Combined and Depth seem to be available
         layer = result.layers[0].passes["Combined"] 
         
@@ -160,6 +152,8 @@ class Connection:
         
         self.engine.update_stats('', 'Rendering sample %d/%d' % (sample, self.render_samples))
         
+        # XXX this loop blocks too often, might need to move it to a separate thread, 
+        # but OTOH we're already using select() to detect when to read 
         while True:
             
             # Check for incoming render results
@@ -177,7 +171,7 @@ class Connection:
                     """
                     # XXX Slow: get as raw block of floats
                     print('[%6.3f] _read_framebuffer start' % (time.time()-t0))
-                    self._read_framebuffer(framebuffer, self.width, self.height)            
+                    self._read_framebuffer(framebuffer, self.framebuffer_width, self.framebuffer_height)            
                     print('[%6.3f] _read_framebuffer end' % (time.time()-t0))
                     
                     pixels = framebuffer.view(numpy.float32).reshape((num_pixels, 4))
@@ -191,7 +185,7 @@ class Connection:
                     self.update_result(result)
                     """
                     
-                    # XXX both receiving into a file, and loading from file, block
+                    # XXX both receiving into a file and loading from file block
                     # the blender UI for a short time
                     
                     print('[%6.3f] _read_framebuffer_to_file start' % (time.time()-t0))
@@ -200,6 +194,7 @@ class Connection:
                     
                     # Sigh, this needs an image file format. I.e. reading in a raw framebuffer
                     # of floats isn't possible, hence the OpenEXR file
+                    # XXX result.load_from_file(...) would work as well?
                     result.layers[0].load_from_file(FBFILE)
                     
                     self.engine.update_result(result)
@@ -277,16 +272,16 @@ class Connection:
         # Wait for volume to be loaded on the server, signaled
         # by the return of a result value
         
-        volume_load_result = VolumeLoadResult()
+        load_function_result = LoadFunctionResult()
         
-        receive_protobuf(self.sock, volume_load_result)
+        receive_protobuf(self.sock, load_function_result)
         
-        if not volume_load_result.success:
+        if not load_function_result.success:
             print('ERROR: volume loading failed:')
-            print(volume_load_result.message)
+            print(load_function_result.message)
             return
             
-        id = volume_load_result.hash
+        id = load_function_result.hash
         print(id)
         
         mesh['loaded_id'] = id
@@ -294,10 +289,13 @@ class Connection:
         
         # Get volume bbox 
         
-        bbox = list(volume_load_result.bbox)
+        bbox = list(load_function_result.bbox)
         print('Bbox', bbox)
         
         # Update mesh to match bbox
+        # XXX disable, to see if this fixes a segfault
+        
+        """
         
         verts = [
             Vector((bbox[0], bbox[1], bbox[2])),
@@ -335,6 +333,7 @@ class Connection:
         mesh.validate(verbose=True)
         
         print([v.co for v in mesh.vertices])
+        """
 
         """
         faces = []
@@ -386,17 +385,17 @@ class Connection:
         # Wait for geometry to be loaded on the server, signaled
         # by the return of a result value
         
-        geometry_load_result = GeometryLoadResult()
+        load_function_result = LoadFunctionResult()
         
-        receive_protobuf(self.sock, geometry_load_result)
+        receive_protobuf(self.sock, load_function_result)
         
-        if not geometry_load_result.success:
+        if not load_function_result.success:
             print('ERROR: geometry loading failed:')
-            print(geometry_load_result.message)
+            print(load_function_result.message)
             return
          
         # XXX
-        #id = geometry_load_result.hash
+        #id = load_function_result.hash
         id = '12345'
         print(id)
         
@@ -405,7 +404,7 @@ class Connection:
         
         # Get geometry bbox 
         
-        bbox = list(geometry_load_result.bbox)
+        bbox = list(load_function_result.bbox)
         print('Bbox', bbox)
         
         """
@@ -584,27 +583,62 @@ class Connection:
         
         client_message = ClientMessage()
         client_message.type = ClientMessage.UPDATE_SCENE
-        client_message.clear_scene = True   # XXX   Add a UI bool for this flag
+        client_message.clear_scene = True                   # XXX   Add a UI bool for this flag
         send_protobuf(self.sock, client_message)
 
         scene = depsgraph.scene
+        render = scene.render
         world = scene.world
+        
+        scale = render.resolution_percentage / 100.0
+        self.framebuffer_width = int(render.resolution_x * scale)
+        self.framebuffer_height = int(render.resolution_y * scale)
+        
+        aspect = self.framebuffer_width / self.framebuffer_height        
+        
+        print("%d x %d (scale %d%%) -> %d x %d (aspect %.3f)" % \
+            (render.resolution_x, render.resolution_y, render.resolution_percentage,
+            self.framebuffer_width, self.framebuffer_height, aspect))
                 
         # Image
-
-        perc = scene.render.resolution_percentage
-        perc = perc / 100
-
-        # XXX should pass full resolution in image_settings below
-        self.width = int(scene.render.resolution_x * perc)
-        self.height = int(scene.render.resolution_y * perc)
-        
-        aspect = self.width / self.height
         
         image_settings = ImageSettings()
-        image_settings.width = self.width
-        image_settings.height = self.height
-        image_settings.percentage = scene.render.resolution_percentage
+
+        #image_settings.percentage = render.resolution_percentage
+        
+        if render.use_border:
+            # XXX nice, in ospray the render region is set on the camera,
+            # while in blender it is a render setting, but we pass it as
+            # image settings :)
+            
+            # Blender: X to the right, Y up, i.e. (0,0) is lower-left, same
+            # as ospray. BUT: ospray always fills up the complete framebuffer
+            # with the specified image region, so we don't have a direct
+            # equivalent of only rendering a sub-region of the full
+            # framebuffer as in blender :-/
+            
+            min_x = render.border_min_x
+            min_y = render.border_min_y
+            max_x = render.border_max_x
+            max_y = render.border_max_y
+            
+            left = int(min_x*self.framebuffer_width)
+            right = int(max_x*self.framebuffer_width)
+            bottom = int(min_y*self.framebuffer_height)
+            top = int(max_y*self.framebuffer_height)
+            
+            # Crop region in ospray is set in normalized screen-space coordinates,
+            # i.e. bottom-left of pixel (i,j) is (i,j), but top-right is (i+1,j+1)
+            image_settings.border[:] = [
+                left/self.framebuffer_width, bottom/self.framebuffer_height, 
+                (right+1)/self.framebuffer_width, (top+1)/self.framebuffer_height
+            ]
+            
+            self.framebuffer_width = right - left + 1
+            self.framebuffer_height = top - bottom + 1
+            
+        image_settings.width = self.framebuffer_width
+        image_settings.height = self.framebuffer_height
 
         # Camera
         
@@ -618,6 +652,7 @@ class Connection:
         
         camera_settings.aspect = aspect
         camera_settings.clip_start = cam_data.clip_start
+        # XXX no far clip in ospray :)
         
         if cam_data.type == 'PERSP':
             camera_settings.type = CameraSettings.PERSPECTIVE
@@ -657,12 +692,11 @@ class Connection:
         
         render_settings = RenderSettings()
         render_settings.renderer = scene.ospray.renderer
-        # XXX doesn't specify the alpha value, only rgb
         render_settings.background_color[:] = world.ospray.background_color
         self.render_samples = render_settings.samples = scene.ospray.samples
         render_settings.ao_samples = scene.ospray.ao_samples
         render_settings.shadows_enabled = scene.ospray.shadows_enabled
-        
+                    
         # Lights
         
         self.engine.update_stats('', 'Exporting lights')
@@ -730,13 +764,10 @@ class Connection:
                 position = obj.matrix_world @ position
                 edge1 = obj.matrix_world @ edge1 - position
                 edge2 = obj.matrix_world @ edge2 - position
-                print(position, edge1, edge2)
                 
                 light.position[:] = position
-                # XXX See https://github.com/ospray/ospray/issues/290
-                # Swap edge1 and edge2 for now
-                light.edge1[:] = edge2
-                light.edge2[:] = edge1
+                light.edge1[:] = edge1
+                light.edge2[:] = edge2
             
             lights.append(light)
                 
@@ -772,7 +803,7 @@ class Connection:
             representation = obj.ospray.representation
             print('Object %s, representation %s' % (obj.name, representation))
 
-            if representation == 'volume':
+            if representation in ['volume', 'volume_isosurfaces', 'volume_slices']:
                 self.export_volume(obj, data, depsgraph)
                 continue
             elif representation == 'geometry':

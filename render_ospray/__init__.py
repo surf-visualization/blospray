@@ -28,22 +28,16 @@ PORT = 5909
 class OsprayRenderEngine(bpy.types.RenderEngine):
     bl_idname = "OSPRAY"
     bl_label = "OSPRay"
-    bl_use_preview = False                  # Enable the availability of material preview renders
-    bl_use_shading_nodes = True
+    bl_use_preview = False                  # Availability of material preview renders
+    bl_use_shading_nodes = True             # XXX?
     bl_use_shading_nodes_custom = False     # If True will hide cycles shading nodes
     
     def __init__(self):
-        print('>>> CustomRenderEngine.__init__()')
+        print('>>> OsprayRenderEngine.__init__()')
         super(OsprayRenderEngine, self).__init__()
         
-        #self.texture = Buffer(GL_INT, 1)
-        #glGenTextures(1, self.texture)
-        #self.texture_id = self.texture[0]
-        
-        #self.texture_format = GL_RGBA
-                    
     def __del__(self):
-        print('>>> CustomRenderEngine.__del__()')
+        print('>>> OsprayRenderEngine.__del__()')
         
     def update(self, data, depsgraph):
         """
@@ -54,8 +48,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         """
         print('>>> CustomRenderEngine.update()')
         
-        scene = depsgraph.scene
-        ospray = scene.ospray
+        ospray = depsgraph.scene.ospray
         
         self.connection = Connection(self, ospray.host, ospray.port)
 
@@ -66,7 +59,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
     # in another method.
     def render(self, depsgraph):
         """Render scene into an image"""
-        print('>>> CustomRenderEngine.render()')
+        print('>>> OsprayRenderEngine.render()')
         
         self.connection.render(depsgraph)
         
@@ -77,7 +70,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
     
     def NO_view_update(self, context):
         """Update on data changes for viewport render"""
-        print('>>> CustomRenderEngine.view_update()')
+        print('>>> OsprayRenderEngine.view_update()')
         
         region = context.region
         view_camera_offset = list(context.region_data.view_camera_offset)
@@ -107,13 +100,13 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
     
     def NO_update_script_node(self, node):
         """Compile shader script node"""
-        print('>>> CustomRenderEngine.update_script_node()')
+        print('>>> OsprayRenderEngine.update_script_node()')
         
     # Implementation of the actual rendering
 
     # In this example, we fill the preview renders with a flat green color.
     def render_preview(self, depsgraph):
-        print('>>> CustomRenderEngine.render_preview()')
+        print('>>> OsprayRenderEngine.render_preview()')
         
         pixel_count = self.size_x * self.size_y
 
@@ -129,7 +122,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         
     # In this example, we fill the full renders with a flat blue color.
     def render_scene(self, depsgraph):
-        print('>>> CustomRenderEngine.render_scene()')
+        print('>>> OsprayRenderEngine.render_scene()')
         
         pixel_count = self.size_x * self.size_y
 

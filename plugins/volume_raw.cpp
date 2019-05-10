@@ -12,7 +12,7 @@ using json = nlohmann::json;
 
 
 static OSPVolume
-load_as_structured(float *bbox, VolumeLoadResult &result,
+load_as_structured(float *bbox, LoadFunctionResult &result,
     const json &parameters, const glm::mat4 &/*object2world*/, 
     const int32_t *dims, const std::string& voxelType, OSPDataType dataType, void *grid_field_values)
 {
@@ -26,7 +26,7 @@ load_as_structured(float *bbox, VolumeLoadResult &result,
     ospSetData(volume, "voxelData", voxelData);
     ospRelease(voxelData);
 
-    ospSetString(volume,"voxelType", voxelType.c_str());
+    ospSetString(volume, "voxelType", voxelType.c_str());
     ospSet3i(volume, "dimensions", dims[0], dims[1], dims[2]);
     
     float origin[3] = { 0.0f, 0.0f, 0.0f };
@@ -68,7 +68,7 @@ load_as_structured(float *bbox, VolumeLoadResult &result,
 
 static OSPVolume
 load_as_unstructured(
-    float *bbox, VolumeLoadResult &result,
+    float *bbox, LoadFunctionResult &result,
     const json &parameters, const glm::mat4 &object2world, 
     const int32_t *dims, const std::string& voxelType, OSPDataType dataType, void *grid_field_values)
 {    
@@ -189,7 +189,7 @@ load_as_unstructured(
 
 extern "C"
 OSPVolume
-load(float *bbox, VolumeLoadResult &result, const json &parameters, const glm::mat4 &object2world)
+load(float *bbox, LoadFunctionResult &result, const json &parameters, const glm::mat4 &object2world)
 {
     char msg[1024];
         
@@ -323,12 +323,12 @@ load(float *bbox, VolumeLoadResult &result, const json &parameters, const glm::m
     return volume;
 }
 
-Registry    
-registry = {
+PluginFunctions
+functions = {
 
-    //NULL,
+    NULL,
     load,
 
-    //NULL
+    NULL
 };
 

@@ -107,7 +107,8 @@ message ImageSettings
 {
     uint32  width = 1;
     uint32  height = 2;
-    uint32  percentage = 3;
+    //uint32  percentage = 3;
+    repeated float border = 4;
 }
 
 message CameraSettings
@@ -149,7 +150,7 @@ message RenderSettings
     uint32          samples = 2;
     uint32          ao_samples = 3;
     
-    repeated float  background_color = 4;   // RGB only atm
+    repeated float  background_color = 4;   // RGBA
     
     bool            shadows_enabled = 5;
 }
@@ -196,16 +197,7 @@ message LightSettings
 // Plugins
 // Returned by load function in plugin
 
-message VolumeLoadResult
-{
-    bool            success = 1;
-    string          message = 2;
-    
-    string          hash = 3;
-    repeated float  bbox = 4;
-}
-
-message GeometryLoadResult
+message LoadFunctionResult
 {
     bool            success = 1;
     string          message = 2;

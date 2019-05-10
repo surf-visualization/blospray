@@ -1,6 +1,6 @@
 # Can test with blender -P <thisscript.py> -E custom_renderer
 #
-# https://docs.blender.org/api/2.79/bpy.types.RenderEngine.html
+# https://docs.blender.org/api/blender2.8/bpy.types.RenderEngine.html
 #
 # https://github.com/LuxCoreRender/BlendLuxCore/blob/master/engine/__init__.py
 #
@@ -9,199 +9,255 @@
 
 import time
 import bpy
-#from bgl import *
+import bgl
+
 
 class CustomRenderEngine(bpy.types.RenderEngine):
     # These three members are used by blender to set up the
     # RenderEngine; define its internal name, visible name and capabilities.
-    bl_idname = "TEST"
-    bl_label = "TEST"
+    bl_idname = "CUSTOM"
+    bl_label = "Custom"
     
     # Enable the availability of material preview renders
-    bl_use_preview = False
+    bl_use_preview = True
     
     bl_use_shading_nodes = True
     bl_use_shading_nodes_custom = False     # If True will hide cycles shading nodes
     
     def log(self, s):
         print('[%.3f] (%s) %s' % (time.time(), id(self), s))
-
     
+
+    # Init is called whenever a new render engine instance is created. Multiple
+    # instances may exist at the same time, for example for a viewport and final
+    # render.
     def __init__(self):
         self.log('>>> CustomRenderEngine.__init__()')
-        super(CustomRenderEngine, self).__init__()
         
-        #self.texture = Buffer(GL_INT, 1)
-        #glGenTextures(1, self.texture)
-        #self.texture_id = self.texture[0]
-        
-        #self.texture_format = GL_RGBA
-        
+        self.scene_data = None
+        self.draw_data = None
+
+    # When the render engine instance is destroyed, this is called. Clean up any
+    # render engine data here, for example stopping running render threads.
     def __del__(self):
         self.log('>>> CustomRenderEngine.__del__()')
-        
-    def update(self, data, depsgraph):
-        """
-        Export scene data for (final or material preview) render
-        
-        Note that this method is always called, even when re-rendering
-        exactly the same scene or moving just the camera.
-        """
-        self.log('>>> CustomRenderEngine.update()')
-        print('data', data)
-        print('depsgraph', depsgraph)
-        print('depsgraph mode =', depsgraph.mode)
-        print('%d object instances' % len(depsgraph.object_instances))
-        
-        for instance in depsgraph.object_instances:
-            print(instance)
-            print(instance.is_instance, instance.instance_object)
-            print(instance.matrix_world)
-            print('parent', instance.parent)
-            print('object', instance.object)
-            obj = instance.object
-            if obj.type == 'MESH':
-                mesh = obj.data
-                print('mesh', mesh.name)
-                print('%d v, %d p' % (len(mesh.vertices), len(mesh.polygons)))
-        
-        #depsgraph.debug_relations_graphviz('depsgraph.dot')
-        #depsgraph.debug_stats_gnuplot('depsgraph.dat', 'script')   #XXX
-        
-        scene = depsgraph.scene
-        camera = scene.camera
-        
-    # This is the only method called by blender, in this example
-    # we use it to detect preview rendering and call the implementation
-    # in another method.
+
+    # This is the method called by Blender for both final renders (F12) and
+    # small preview renders for materials, worlds and lights.
     def render(self, depsgraph):
-        """Render scene into an image"""
         self.log('>>> CustomRenderEngine.render()')
-        
         scene = depsgraph.scene
         scale = scene.render.resolution_percentage / 100.0
         self.size_x = int(scene.render.resolution_x * scale)
         self.size_y = int(scene.render.resolution_y * scale)
-        print("%d x %d (scale %d%%) -> %d x %d" % \
-            (scene.render.resolution_x, scene.render.resolution_y, scene.render.resolution_percentage,
+        
+        self.log("%d x %d (scale %d%%) -> %d x %d" % \
+            (scene.render.resolution_x, scene.render.resolution_y, 
+            scene.render.resolution_percentage,
             self.size_x, self.size_y))
-        
-        #self.size_x = 960
-        #self.size_y = 540
-
-        if self.is_preview:
-            self.render_preview(depsgraph)
-        else:
-            self.render_scene(depsgraph)
             
-    # If the two view_... methods are defined the interactive rendered
-    # mode becomes available
-    
+        # Fill the render result with a flat color. The framebuffer is
+        # defined as a list of pixels, each pixel itself being a list of
+        # R,G,B,A values.
+        if self.is_preview:
+            # Preview render
+            color = [0.1, 0.2, 0.1, 1.0]
+        else:
+            # Full render
+            color = [0.2, 0.1, 0.1, 1.0]
+
+        pixel_count = self.size_x * self.size_y
+        #rect = [color] * pixel_count
+
+        # Here we write the pixel values to the RenderResult
+        result = self.begin_result(0, 0, self.size_x, self.size_y)
+        layer = result.layers[0].passes["Combined"]
+        #layer.rect = rect
+        
+        N = 4
+        for i in range(1, N+1):
+            
+            self.update_stats('', 'Rendering sample %d/%d' % (i, N))
+            
+            f = i/N
+            color = [f, f, f, 1.0]
+            rect = [color] * pixel_count
+            
+            layer.rect = rect
+            self.log('update_result()')
+            self.update_result(result)
+            
+            time.sleep(1)
+        
+        self.end_result(result)
+
+    # For viewport renders, this method gets called once at the start and
+    # whenever the scene or 3D viewport changes. This method is where data
+    # should be read from Blender in the same thread. Typically a render
+    # thread will be started to do the work while keeping Blender responsive.
     def view_update(self, context):
-        """Update on data changes for viewport render"""
         self.log('>>> CustomRenderEngine.view_update()')
-        
+        region = context.region
+        view3d = context.space_data
         depsgraph = context.depsgraph
-        print('%d object instances' % len(depsgraph.object_instances))
-        print('%d updates:' % len(depsgraph.updates))
-        for update in depsgraph.updates:
-            print(('ID %s, geom %s, xform %s' % (update.id, update.is_dirty_geometry, update.is_dirty_transform)))
-        
-        region = context.region
-        view_camera_offset = list(context.region_data.view_camera_offset)
-        view_camera_zoom = context.region_data.view_camera_zoom
-        print(region.width, region.height)
-        print(view_camera_offset, view_camera_zoom)
-        
-        width = region.width
-        height = region.height
-        channels_per_pixel = 4
-        
-        #self.buffer = Buffer(GL_UNSIGNED_BYTE, [width * height * channels_per_pixel])
+        scene = depsgraph.scene
 
+        # Get viewport dimensions
+        dimensions = region.width, region.height
+
+        if not self.scene_data:
+            # First time initialization
+            self.scene_data = []
+            first_time = True
+
+            # Loop over all datablocks used in the scene.
+            for datablock in depsgraph.ids:
+                pass
+        else:
+            first_time = False
+
+            # Test which datablocks changed
+            for update in depsgraph.updates:
+                print("Datablock updated: ", update.id.name)
+
+            # Test if any material was added, removed or changed.
+            if depsgraph.id_type_update('MATERIAL'):
+                print("Materials updated")
+
+        # Loop over all object instances in the scene.
+        if first_time or depsgraph.id_type_update('OBJECT'):
+            for instance in depsgraph.object_instances:
+                pass
+
+    # For viewport renders, this method is called whenever Blender redraws
+    # the 3D viewport. The renderer is expected to quickly draw the render
+    # with OpenGL, and not perform other expensive work.
+    # Blender will draw overlays for selection and editing on top of the
+    # rendered image automatically.
     def view_draw(self, context):
-        """Draw viewport render"""
-        # Note: some changes in blender do not cause a view_update(),
-        # but only a view_draw()
         self.log('>>> CustomRenderEngine.view_draw()')
-        # XXX need to draw ourselves with OpenGL bgl module :-/
         region = context.region
-        view_camera_offset = list(context.region_data.view_camera_offset)
-        view_camera_zoom = context.region_data.view_camera_zoom
-        print(region.width, region.height)
-        print(view_camera_offset, view_camera_zoom)
-        
-        
-        
-        
-    # Nodes
-    
-    def update_script_node(self, node):
-        """Compile shader script node"""
-        self.log('>>> CustomRenderEngine.update_script_node()')
-        
-    # Implementation of the actual rendering
+        depsgraph = context.depsgraph
+        scene = depsgraph.scene
 
-    # In this example, we fill the preview renders with a flat green color.
-    def render_preview(self, depsgraph):
-        self.log('>>> CustomRenderEngine.render_preview()')
-        
-        pixel_count = self.size_x * self.size_y
+        # Get viewport dimensions
+        dimensions = region.width, region.height
 
-        # The framebuffer is defined as a list of pixels, each pixel
-        # itself being a list of R,G,B,A values
-        green_rect = [[0.0, 1.0, 0.0, 1.0]] * pixel_count
+        # Bind shader that converts from scene linear to display space,
+        bgl.glEnable(bgl.GL_BLEND)
+        bgl.glBlendFunc(bgl.GL_ONE, bgl.GL_ONE_MINUS_SRC_ALPHA);
+        self.bind_display_space_shader(scene)
 
-        # Here we write the pixel values to the RenderResult
-        result = self.begin_result(0, 0, self.size_x, self.size_y)
-        layer = result.layers[0].passes["Combined"]
-        layer.rect = green_rect
-        self.end_result(result)
-        
-    # In this example, we fill the full renders with a flat blue color.
-    def render_scene(self, depsgraph):
-        self.log('>>> CustomRenderEngine.render_scene()')
-        
-        pixel_count = self.size_x * self.size_y
+        if not self.draw_data or self.draw_data.dimensions != dimensions:
+            self.draw_data = CustomDrawData(dimensions)
 
-        # The framebuffer is defined as a list of pixels, each pixel
-        # itself being a list of R,G,B,A values
-        blue_rect = [[0.0, 0.0, 1.0, 1.0]] * pixel_count
+        self.draw_data.draw()
 
-        # Here we write the pixel values to the RenderResult
-        result = self.begin_result(0, 0, self.size_x, self.size_y)
-        layer = result.layers[0].passes["Combined"]
-        layer.rect = blue_rect
-        self.end_result(result)
+        self.unbind_display_space_shader()
+        bgl.glDisable(bgl.GL_BLEND)
 
+
+class CustomDrawData:
+    def __init__(self, dimensions):
+        # Generate dummy float image buffer
+        self.dimensions = dimensions
+        width, height = dimensions
+
+        pixels = [0.1, 1, 0.1, 1.0] * width * height
+        pixels = bgl.Buffer(bgl.GL_FLOAT, width * height * 4, pixels)
+
+        # Generate texture
+        self.texture = bgl.Buffer(bgl.GL_INT, 1)
+        bgl.glGenTextures(1, self.texture)
+        bgl.glActiveTexture(bgl.GL_TEXTURE0)
+        bgl.glBindTexture(bgl.GL_TEXTURE_2D, self.texture[0])
+        bgl.glTexImage2D(bgl.GL_TEXTURE_2D, 0, bgl.GL_RGBA16F, width, height, 0, bgl.GL_RGBA, bgl.GL_FLOAT, pixels)
+        bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
+        bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
+        bgl.glBindTexture(bgl.GL_TEXTURE_2D, 0)
+
+        # Bind shader that converts from scene linear to display space,
+        # use the scene's color management settings.
+        shader_program = bgl.Buffer(bgl.GL_INT, 1)
+        bgl.glGetIntegerv(bgl.GL_CURRENT_PROGRAM, shader_program);
+
+        # Generate vertex array
+        self.vertex_array = bgl.Buffer(bgl.GL_INT, 1)
+        bgl.glGenVertexArrays(1, self.vertex_array)
+        bgl.glBindVertexArray(self.vertex_array[0])
+
+        texturecoord_location = bgl.glGetAttribLocation(shader_program[0], "texCoord");
+        position_location = bgl.glGetAttribLocation(shader_program[0], "pos");
+
+        bgl.glEnableVertexAttribArray(texturecoord_location);
+        bgl.glEnableVertexAttribArray(position_location);
+
+        # Generate geometry buffers for drawing textured quad
+        position = [0.0, 0.0, width, 0.0, width, height, 0.0, height]
+        position = bgl.Buffer(bgl.GL_FLOAT, len(position), position)
+        texcoord = [0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0]
+        texcoord = bgl.Buffer(bgl.GL_FLOAT, len(texcoord), texcoord)
+
+        self.vertex_buffer = bgl.Buffer(bgl.GL_INT, 2)
+
+        bgl.glGenBuffers(2, self.vertex_buffer)
+        bgl.glBindBuffer(bgl.GL_ARRAY_BUFFER, self.vertex_buffer[0])
+        bgl.glBufferData(bgl.GL_ARRAY_BUFFER, 32, position, bgl.GL_STATIC_DRAW)
+        bgl.glVertexAttribPointer(position_location, 2, bgl.GL_FLOAT, bgl.GL_FALSE, 0, None)
+
+        bgl.glBindBuffer(bgl.GL_ARRAY_BUFFER, self.vertex_buffer[1])
+        bgl.glBufferData(bgl.GL_ARRAY_BUFFER, 32, texcoord, bgl.GL_STATIC_DRAW)
+        bgl.glVertexAttribPointer(texturecoord_location, 2, bgl.GL_FLOAT, bgl.GL_FALSE, 0, None)
+
+        bgl.glBindBuffer(bgl.GL_ARRAY_BUFFER, 0)
+        bgl.glBindVertexArray(0)
+
+    def __del__(self):
+        bgl.glDeleteBuffers(2, self.vertex_buffer)
+        bgl.glDeleteVertexArrays(1, self.vertex_array)
+        bgl.glBindTexture(bgl.GL_TEXTURE_2D, 0)
+        bgl.glDeleteTextures(1, self.texture)
+
+    def draw(self):
+        bgl.glActiveTexture(bgl.GL_TEXTURE0)
+        bgl.glBindTexture(bgl.GL_TEXTURE_2D, self.texture[0])
+        bgl.glBindVertexArray(self.vertex_array[0])
+        bgl.glDrawArrays(bgl.GL_TRIANGLE_FAN, 0, 4);
+        bgl.glBindVertexArray(0)
+        bgl.glBindTexture(bgl.GL_TEXTURE_2D, 0)
+
+
+# RenderEngines also need to tell UI Panels that they are compatible with.
+# We recommend to enable all panels marked as BLENDER_RENDER, and then
+# exclude any panels that are replaced by custom panels registered by the
+# render engine, or that are not supported.
+def get_panels():
+    exclude_panels = {
+        'VIEWLAYER_PT_filter',
+        'VIEWLAYER_PT_layer_passes',
+    }
+
+    panels = []
+    for panel in bpy.types.Panel.__subclasses__():
+        if hasattr(panel, 'COMPAT_ENGINES') and 'BLENDER_RENDER' in panel.COMPAT_ENGINES:
+            if panel.__name__ not in exclude_panels:
+                panels.append(panel)
+
+    return panels
 
 def register():
     # Register the RenderEngine
     bpy.utils.register_class(CustomRenderEngine)
 
-    # RenderEngines also need to tell UI Panels that they are compatible
-    # Otherwise most of the UI will be empty when the engine is selected.
-    # In this example, we need to see the main render image button and
-    # the material preview panel.
-    from bl_ui import (
-            properties_render,
-            properties_material,
-            )
-    
-    #properties_render.RENDER_PT_evee_render.COMPAT_ENGINES.add(CustomRenderEngine.bl_idname)
-    #properties_material.MATERIAL_PT_preview.COMPAT_ENGINES.add(CustomRenderEngine.bl_idname)
-
+    for panel in get_panels():
+        panel.COMPAT_ENGINES.add('CUSTOM')
 
 def unregister():
     bpy.utils.unregister_class(CustomRenderEngine)
 
-    from bl_ui import (
-            properties_render,
-            properties_material,
-            )
-    
-    #properties_render.RENDER_PT_render.COMPAT_ENGINES.remove(CustomRenderEngine.bl_idname)
-    #properties_material.MATERIAL_PT_preview.COMPAT_ENGINES.remove(CustomRenderEngine.bl_idname)
+    for panel in get_panels():
+        if 'CUSTOM' in panel.COMPAT_ENGINES:
+            panel.COMPAT_ENGINES.remove('CUSTOM')
 
 
 if __name__ == "__main__":

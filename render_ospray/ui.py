@@ -64,7 +64,7 @@ class RENDER_PT_OSPRAY_RENDERING(Panel):
 
 class OBJECT_PT_OSPRAY(Panel):
     bl_idname = 'OBJECT_PT_OSPRAY'
-    bl_label = 'OSPray Settings'
+    bl_label = 'OSPRay Settings'
     bl_space_type = 'PROPERTIES'   
     bl_region_type = 'WINDOW'    
     bl_context = 'object'  
@@ -102,7 +102,7 @@ class DATA_PT_OSPRAY_MESH(Panel):
     @classmethod
     def poll(cls, context):
         mesh = context.mesh
-        return ((context.engine in cls.COMPAT_ENGINES) and  mesh)
+        return ((context.engine in cls.COMPAT_ENGINES) and mesh)
             
     def draw(self, context):
         layout = self.layout

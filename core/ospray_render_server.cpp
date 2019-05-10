@@ -82,15 +82,10 @@ RenderSettings  render_settings;
 CameraSettings  camera_settings;
 LightSettings   light_settings;
 
-// Volume loaders
+// Plugin registry
 
-typedef std::map<std::string, volume_load_function_t>   VolumeLoadFunctionMap;
-VolumeLoadFunctionMap                                   volume_load_functions;
-
-// Geometry loaders
-
-typedef std::map<std::string, geometry_load_function_t> GeometryLoadFunctionMap;
-GeometryLoadFunctionMap                                 geometry_load_functions;
+typedef std::map<std::string, PluginFunctions*> PluginFunctionsMap;
+PluginFunctionsMap                              plugin_functions_map;
 
 // Geometry buffers
 
@@ -250,6 +245,57 @@ receive_and_add_mesh_object(TCPSocket *sock, const SceneElement& element)
     return true;
 }
 
+// Loads plugin shared lib if not loaded before
+PluginFunctions*
+get_plugin_functions(LoadFunctionResult &result, const std::string& name)
+{
+    PluginFunctionsMap::iterator it = plugin_functions_map.find(name);
+    
+    if (it != plugin_functions_map.end())
+        return it->second;
+    
+    printf("Plugin '%s' not loaded yet\n", name.c_str());
+    
+    std::string plugin_file = name + ".so";
+    
+    // Open plugin shared library
+    
+    printf("Loading plugin %s (%s)\n", name.c_str(), plugin_file.c_str());
+    
+    void *plugin = dlopen(plugin_file.c_str(), RTLD_LAZY);
+    
+    if (!plugin) 
+    {
+        result.set_success(false);
+        result.set_message("Failed to open plugin");            
+
+        fprintf(stderr, "dlopen() error: %s\n", dlerror());
+        return NULL;
+    }
+    
+    // Get plugin functions
+            
+    dlerror();  // Clear previous error
+    
+    PluginFunctions *functions = (PluginFunctions*) dlsym(plugin, "functions");
+            
+    if (functions == NULL)
+    {
+        result.set_success(false);
+        result.set_message("Failed to get functions from plugin");            
+ 
+        fprintf(stderr, "dlsym() error: %s\n", dlerror());
+        
+        dlclose(plugin);
+        
+        return NULL;
+    }
+        
+    plugin_functions_map[name] = functions;
+    
+    return functions;
+}
+
 bool
 receive_and_add_volume_data(TCPSocket *sock, const SceneElement& element)
 {
@@ -273,56 +319,24 @@ receive_and_add_volume_data(TCPSocket *sock, const SceneElement& element)
     
     // Prepare result
     
-    VolumeLoadResult result;
+    LoadFunctionResult result;
     
     result.set_success(true);
     
     // Find load function 
-    
-    volume_load_function_t load_function = NULL;
-    
+                
     const std::string& volume_type = properties["_plugin"];
     
-    VolumeLoadFunctionMap::iterator it = volume_load_functions.find(volume_type);
-    if (it == volume_load_functions.end())
-    {
-        printf("No load function yet for volume type '%s'\n", volume_type.c_str());
-        
-        std::string plugin_name = "volume_" + volume_type + ".so";
-        
-        printf("Loading plugin %s\n", plugin_name.c_str());
-        
-        void *plugin = dlopen(plugin_name.c_str(), RTLD_LAZY);
-        
-        if (!plugin) 
-        {
-            result.set_success(false);
-            result.set_message("Failed to open plugin");
-            send_protobuf(sock, result);
-
-            fprintf(stderr, "dlopen() error: %s\n", dlerror());
-            return false;
-        }
-        
-        // Clear previous error
-        dlerror(); 
-        
-        load_function = (volume_load_function_t) dlsym(plugin, "load");
-        
-        if (load_function == NULL)
-        {
-            result.set_success(false);
-            result.set_message("Failed to get load function from plugin");
-            send_protobuf(sock, result);
+    PluginFunctions *functions = get_plugin_functions(result, volume_type);
     
-            fprintf(stderr, "dlsym() error: %s\n", dlerror());
-            return false;
-        }
-        
-        volume_load_functions[volume_type] = load_function;
+    if (functions == NULL)
+    {
+        // Something went wrong...
+        send_protobuf(sock, result);
+        return false;
     }
-    else
-        load_function = it->second;
+    
+    volume_load_function_t load_function = functions->volume_load_function;
     
     // Let load function do its job
     
@@ -464,6 +478,7 @@ receive_and_add_volume_object(TCPSocket *sock, const SceneElement& element)
     ospSetVec3f(volume, "xfm.p", osp::vec3f{ obj2world[3], obj2world[7], obj2world[11] });
 #endif
 
+    // XXX this check disregards the representation type set on the object
     if (properties.find("isovalues") != properties.end())
     {
         // Isosurfacing
@@ -508,8 +523,9 @@ receive_and_add_volume_object(TCPSocket *sock, const SceneElement& element)
             float plane[4];
             for (int i = 0; i < 4; i++)
                 plane[i] = slice_plane_prop[i];
+            printf("plane: %.3f, %3f, %.3f, %.3f\n", plane[0], plane[1], plane[2], plane[3]);
             
-            OSPData planeData = ospNewData(4, OSP_FLOAT, plane);
+            OSPData planeData = ospNewData(1, OSP_FLOAT4, plane);
             ospCommit(planeData);
             
             OSPGeometry slices = ospNewGeometry("slices");
@@ -565,57 +581,25 @@ receive_and_add_geometry_data(TCPSocket *sock, const SceneElement& element)
     
     // Prepare result
     
-    GeometryLoadResult result;
+    LoadFunctionResult result;
     
     result.set_success(true);
     
     // Find load function 
-    
-    geometry_load_function_t load_function = NULL;
-    
+                
     const std::string& geometry_type = properties["_plugin"];
     
-    GeometryLoadFunctionMap::iterator it = geometry_load_functions.find(geometry_type);
-    if (it == geometry_load_functions.end())
+    PluginFunctions *functions = get_plugin_functions(result, geometry_type);
+    
+    if (functions == NULL)
     {
-        printf("No load function yet for geometry type '%s'\n", geometry_type.c_str());
-        
-        std::string plugin_name = "geometry_" + geometry_type + ".so";
-        
-        printf("Loading plugin %s\n", plugin_name.c_str());
-        
-        void *plugin = dlopen(plugin_name.c_str(), RTLD_LAZY);
-        
-        if (!plugin) 
-        {
-            result.set_success(false);
-            result.set_message("Failed to open plugin");
-            send_protobuf(sock, result);
-
-            fprintf(stderr, "dlopen() error: %s\n", dlerror());
-            return false;
-        }
-        
-        // Clear previous error
-        dlerror(); 
-        
-        load_function = (geometry_load_function_t) dlsym(plugin, "load");
-        
-        if (load_function == NULL)
-        {
-            result.set_success(false);
-            result.set_message("Failed to get load function from plugin");
-            send_protobuf(sock, result);
-    
-            fprintf(stderr, "dlsym() error: %s\n", dlerror());
-            return false;
-        }
-        
-        geometry_load_functions[geometry_type] = load_function;
+        // Something went wrong...
+        send_protobuf(sock, result);
+        return false;
     }
-    else
-        load_function = it->second;
     
+    geometry_load_function_t load_function = functions->geometry_load_function;
+
     // Let load function do its job
     
     struct timeval t0, t1;
@@ -703,8 +687,6 @@ receive_scene(TCPSocket *sock)
 {
     // Image settings
     
-    // XXX use percentage value? or is that handled in the blender side?
-    
     receive_protobuf(sock, image_settings);
     
     if (image_size.x != image_settings.width() || image_size.y != image_settings.height())
@@ -729,7 +711,7 @@ receive_scene(TCPSocket *sock)
         render_settings.background_color(0),
         render_settings.background_color(1),
         render_settings.background_color(2),
-        0.0f);
+        render_settings.background_color(3));
     
     ospSet1i(renderer, "aoSamples", render_settings.ao_samples());
     ospSet1i(renderer, "shadowsEnabled", render_settings.shadows_enabled());
@@ -788,6 +770,15 @@ receive_scene(TCPSocket *sock)
         ospSetf(camera, "focusDistance", camera_settings.dof_focus_distance());
         ospSetf(camera, "apertureRadius", camera_settings.dof_aperture());
     }
+    
+    if (image_settings.border_size() == 4)
+    {
+        printf("%f, %f -> %f, %f\n", image_settings.border(0), image_settings.border(1),
+            image_settings.border(2), image_settings.border(3));
+        ospSet2f(camera, "imageStart", image_settings.border(0), image_settings.border(1));
+        ospSet2f(camera, "imageEnd", image_settings.border(2), image_settings.border(3));
+    }
+    
     ospCommit(camera); 
     
     ospSetObject(renderer, "camera", camera);
@@ -797,7 +788,7 @@ receive_scene(TCPSocket *sock)
     receive_protobuf(sock, light_settings);
     
     const int num_lights = light_settings.lights_size();
-    OSPLight *osp_lights = new OSPLight[num_lights+1];
+    OSPLight *osp_lights = new OSPLight[num_lights+1];      // Scene lights + ambient light
     OSPLight osp_light;
     
     for (int i = 0; i < num_lights; i++)
@@ -823,7 +814,7 @@ receive_scene(TCPSocket *sock)
         }
         else if (light.type() == Light::AREA)            
         {
-            // XXX blender's area light is more general than ospray quad light
+            // XXX blender's area light is more general than ospray's quad light
             osp_light = osp_lights[i] = ospNewLight3("quad");
             ospSet3f(osp_light, "edge1", light.edge1(0), light.edge1(1), light.edge1(2));
             ospSet3f(osp_light, "edge2", light.edge2(0), light.edge2(1), light.edge2(2));
@@ -909,6 +900,7 @@ receive_scene(TCPSocket *sock)
         }
         // else XXX
         
+        // Get next element
         // XXX check return value
         receive_protobuf(sock, element);
     }
@@ -1088,6 +1080,10 @@ handle_connection(TCPSocket *sock)
             
             switch (client_message.type())
             {
+                // GET_CACHE_ENTRIES    (volumes and meshes)
+                // GET_VOLUME_EXTENT    (volume plugin)
+                // GET_GEOMETRY_EXTENT  (geometry plugin)
+                
                 case ClientMessage::UPDATE_SCENE:
                     // XXX handle clear_scene 
                     // XXX check res

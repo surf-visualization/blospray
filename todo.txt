@@ -1,11 +1,13 @@
-Bugs
-- Camera clipping start doesn't match cycles render, nor OpenGL scene view,
-  as ospray only supports setting the clipping end
-- When rendering very large images (25k x 6k pixels) writing the framebuffer
-  to the EXR file segfaults. See https://github.com/OpenImageIO/oiio/issues/2226
-- JSON exceptions on the server should be handled at the top-level
-- isovalues.blend test: move volume props from object to mesh
+Add license
 
+Bugs
+- Camera clipping start doesn't match cycles render, nor OpenGL scene view.
+  And ospray only supports setting the clipping start, not a far clip value.
+- Add top-level exception handling in the server
+- The background alpha seems to be ignored (or always 0) when using the path
+  tracer renderer
+- https://developer.blender.org/T59089 (get evee render instead of custom one)
+- https://developer.blender.org/T64295 (custom props not updating in UI)
 
 Fix/improve
 - Correctly release the scene after rendering
@@ -14,6 +16,23 @@ Fix/improve
 - Move background color settings from World panel to Render panel?
   With cycles it's a World setting, but with ospray it's a parameter
   of the scivis renderer
+- Point and spot lights need a very high intensity value to contribute
+  substantial light to the scene, while the sun light at 1 is already enough.
+  For area lights the intensity value in ospray is per unit area, so scaling the
+  light larger leads to more light in the scene. This is different from cycles,
+  where changing the size keeps the scene lighting the same.
+- Allow parenting a plane mesh to a volume to set slice planes
+- Improve the caching of scene elements, e.g. by having the the client get
+  a list of elements from the server including hashes to figure out what
+  data to send/update. Also check use of exported_meshes in connection.py
+
+Tests/examples:
+- Check grid.blend test, seems some custom props are on the wrong element, 
+  plus get segfault in json parsing
+- Check "volume" prop in some of the tests, isn't needed anymore is it?
+- Isovalues2 test uses transform on structured volume
+- slice.blend not working?
+- xmas missing data
 
 Must haves
 - Light UI panel
@@ -21,13 +40,13 @@ Must haves
 - Camera UI panel
 - More render settings in the UI
 - TF editor in Blender
+- Interactive preview rendering
 - Better error handling and recovery
 - Better handling of instancing and (particle system) duplication, i.e. don't duplicate mesh
-- Cancel render during export of large scenes
+- Cancel render during export of large scenes (if this is even possible)
 - Caching of large data sets across renders
-- Border render (as a convenience until we have interactive preview render)
-  Use imageStart and imageEnd parameters on the camera
 - Interactive preview rendering
+- Allow plugins to provide user-defined proxy geometry, not just a bbox
 
 Very nice to haves ;-)
 - UI buttons to preload/clear the scene on the server, including
@@ -35,7 +54,9 @@ Very nice to haves ;-)
 - UI button to query bbox/proxy geometry of server-side scene objects.
   We currently do this implicitly during the scene export phase of
   rendering, but since we're operating on a depsgraph copy this actually
-  will not work. So the user should query the bbox/proxies manually.
+  will not work (nor should we try to update the bbox mesh at that point). 
+  So the user should query the bbox/proxies manually outside of the rendering
+  step.
 
 Nice to haves
 - Start/stop server during rendering automatically
@@ -45,8 +66,9 @@ Nice to haves
   of angel.blend in 3840x2160 @ 4 spp takes 40.972s on the server,
   but 46.90s on the blender side (i.e. +14.5% longer)
 - Textured geometry
-- Allow plugins to provide user-defined proxy geometry, not just a bbox
 - Provide a list of render presets
+- Allow plugin parameters to use environment variables, so blend files
+  can use non-hardcoded values for things like file paths
 
 Obscure to haves
 - Handle multiple concurrent renders in Blender
@@ -62,17 +84,14 @@ Decide
   
 
 Test
-
+...
 
 Look into
 - How to leverage blender's node system
 - OSPRay's extension modules and scenegraph, mostly w.r.t. model loading.
   Plus look at overlap in functionality with our own plugins. It seems
   ospray plugins need an ispc component, which makes them less attractive
-  to use for end users (yet another layer to learn).
+  to use for end users (yet another tool/syntax to learn).
 - For batch renders there's no need to send the framebuffer for each
   sample, only need the final buffer, but not sure we can detect that 
   specific situation. Should look into how cycles handles this case
-
-
-protobuf gone

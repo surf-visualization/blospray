@@ -1,4 +1,5 @@
 // Need to set RBC_DATA_PATH for the server process before the plugin is used
+// XXX turn into plugin parameter
 #include <cstdio>
 #include <stdint.h>
 #include <ospray/ospray.h>
@@ -240,7 +241,7 @@ add_ground_plane()
 
 extern "C" 
 void
-load(ModelInstances& model_instances, float *bbox, GeometryLoadResult &result, const json &parameters, const glm::mat4& object2world)
+load(ModelInstances& model_instances, float *bbox, LoadFunctionResult &result, const json &parameters, const glm::mat4& object2world)
 {    
     rbc_data_path = getenv("RBC_DATA_PATH");
     if (!rbc_data_path)
@@ -366,10 +367,10 @@ load(ModelInstances& model_instances, float *bbox, GeometryLoadResult &result, c
     bbox[5] = 1000.0f;
 }
 
-Registry    
-registry = {
+PluginFunctions    
+functions = {
 
-    //NULL,
+    NULL,
     NULL,
 
     load

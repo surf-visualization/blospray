@@ -1,4 +1,5 @@
-// Need to set data_path for the server process before the plugin is used
+// Need to set COSMOGRID_DATA_FILE for the server process before the plugin is used
+// XXX pass file as plugin parameter
 #include <cstdio>
 #include <stdint.h>
 #include "uhdf5.h"
@@ -134,7 +135,7 @@ load_points(const char *fname, int max_points, float sphere_radius, float sphere
 
 extern "C" 
 void
-load(ModelInstances& model_instances, float *bbox, GeometryLoadResult &result, const json &parameters, const glm::mat4 &object2world)
+load(ModelInstances& model_instances, float *bbox, LoadFunctionResult &result, const json &parameters, const glm::mat4 &object2world)
 {    
     data_file = getenv("COSMOGRID_DATA_FILE");
     if (!data_file)
@@ -178,10 +179,10 @@ load(ModelInstances& model_instances, float *bbox, GeometryLoadResult &result, c
     bbox[5] = 1.0f;
 }
 
-Registry    
-registry = {
+PluginFunctions    
+functions = {
 
-    //NULL,
+    NULL,
     NULL,
 
     load
