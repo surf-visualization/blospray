@@ -43,75 +43,7 @@ entry in the `Render Engine` dropdown on the `Render` properties tab.
 
 ## Features
 
-### Render server
-
-BLOSPRAY consists of two parts:
-
-1. a Python addon (directory `render_ospray`) that implements the Blender render engine. It handles scene export, retrieving the rendered image from OSPRay and other things.
-2. a render server (`bin/ospray_render_server`) that receives the scene from Blender, calls OSPRay routines to do the actual rendering and sends back the image result.
-
-The original reason for this two-part setup is that there currently is no 
-Python API for OSPRay, so direct integration in Blender is not straightforward. 
-Neither is there a command-line OSPRay utility that takes as input a scene 
-description in some format and outputs a rendered image.
-
-Plus, the client-server setup also has some advantages:
-
-- The separate render server can be run on a remote system, for example an HPC system 
-  that holds a large scientific dataset to be rendered. This offloads most of the 
-  compute-intensive rendering workload and storage requirements of the data to be rendered 
-  away from the system running Blender.
-
-- It makes it feasible to use OSPRay's [Parallel Rendering with MPI](http://www.ospray.org/documentation.html#parallel-rendering-with-mpi) 
-  mode, by providing a variant of the render server as an MPI program. Again,
-  this parallel version of the server can be run remotely on an HPC system.
-
-- The network protocol is (currently) not strongly tied to Blender, so the render server can be used in other contexts as well.
-
-- BLOSPRAY development becomes slightly easier as both Blender and the render 
-  server can be independently restarted in case of crashes or bugs.
-
-Of course, this client-server setup does introduce some overhead, in terms of 
-network latency and data (de)serialization. But in practice this overhead is 
-small compared to actual render times. In future, caching of data on the server 
-between renders can help in reducing the overhead even further.
-
-Note that the render server currently doesn't support loading multiple different 
-Blender scenes (or serve different users) at the same time. 
-
-### Plugins
-
-There is a rudimentary plugin system that can be used to set up
-custom scene elements that are represented by a proxy object in Blender,
-but whose full representation and rendering is stored on the server side
-in OSPRay. The original use case for plugins (and even BLOSPRAY itself) was
-to make it easy to use OSPRay's high-quality volume rendering of scientific data in a 
-Blender scene. Blender's own volume rendering support is geared towards the built-in 
-smoke and fire simulations and isn't really a good fit for scientific datasets.
-Plus it is very hard to get generic volume data into Blender.
-Apart from volumes, plugins can be used for other types of scene content as well, 
-like polygonal geometry or OSPRay's builtin geometry types like spheres and
-streamlines. Basically anything scene element that can be created with the OSPRay API.
-
-The plugin system is especially useful when working with large scientific datasets 
-for which it is infeasible or unattractive to load into Blender. Instead, one 
-can use a proxy object, such as a cube mesh to represent a rectangular volume, 
-in a Blender scene and attach a plugin to it. During rendering BLOSPRAY will call the 
-plugin to load the actual scene data associated with the proxy on the server. 
-In this way Blender scene creation, including camera animation and lighting, can be 
-done in the usual way as the proxy object shows the bounding box of the data 
-and can even be transformed and animated.
-
-A nice benefit of writing a plugin in C++ is that it is usually much more efficient
-to load a large dataset directly into memory than having to go through the
-Blender Python API in order to accomplish the same.
-
-Note that BLOSPRAY plugins are different from OSPRay's own "Extensions", that
-are also loadable at run-time. The latter are meant for extending OSPRay itself
-with, for example, a new geometry type. BLOSPRAY plugins serve to extend *Blender*
-with new types of scene elements that are then rendered in OSPRay.
-
-## Supported elements
+### Supported scene elements and features
 
 BLOSPRAY is still in its early stages of development, but the following 
 basic functionality and integration with Blender features is already available:
@@ -184,6 +116,73 @@ Custom Properties on objects and meshes.
 | Percentage | :heavy_check_mark: |
 | UI panels | :o: |
 
+### Render server
+
+BLOSPRAY consists of two parts:
+
+1. a Python addon (directory `render_ospray`) that implements the Blender render engine. It handles scene export, retrieving the rendered image from OSPRay and other things.
+2. a render server (`bin/ospray_render_server`) that receives the scene from Blender, calls OSPRay routines to do the actual rendering and sends back the image result.
+
+The original reason for this two-part setup is that there currently is no 
+Python API for OSPRay, so direct integration in Blender is not straightforward. 
+Neither is there a command-line OSPRay utility that takes as input a scene 
+description in some format and outputs a rendered image.
+
+Plus, the client-server setup also has some advantages:
+
+- The separate render server can be run on a remote system, for example an HPC system 
+  that holds a large scientific dataset to be rendered. This offloads most of the 
+  compute-intensive rendering workload and storage requirements of the data to be rendered 
+  away from the system running Blender.
+
+- It makes it feasible to use OSPRay's [Parallel Rendering with MPI](http://www.ospray.org/documentation.html#parallel-rendering-with-mpi) 
+  mode, by providing a variant of the render server as an MPI program. Again,
+  this parallel version of the server can be run remotely on an HPC system.
+
+- The network protocol is (currently) not strongly tied to Blender, so the render server can be used in other contexts as well.
+
+- BLOSPRAY development becomes slightly easier as both Blender and the render 
+  server can be independently restarted in case of crashes or bugs.
+
+Of course, this client-server setup does introduce some overhead, in terms of 
+network latency and data (de)serialization. But in practice this overhead is 
+small compared to actual render times. In future, caching of data on the server 
+between renders can help in reducing the overhead even further.
+
+Note that the render server currently doesn't support loading multiple different 
+Blender scenes (or serve different users) at the same time. 
+
+### Plugins
+
+There is a rudimentary plugin system that can be used to set up
+custom scene elements that are represented by a proxy object in Blender,
+but whose full representation and rendering is stored on the server side
+in OSPRay. The original use case for plugins (and even BLOSPRAY itself) was
+to make it easy to use OSPRay's high-quality volume rendering of scientific data in a 
+Blender scene. Blender's own volume rendering support is geared towards the built-in 
+smoke and fire simulations and isn't really a good fit for scientific datasets.
+Plus it is very hard to get generic volume data into Blender.
+Apart from volumes, plugins can be used for other types of scene content as well, 
+like polygonal geometry or OSPRay's builtin geometry types like spheres and
+streamlines. Basically anything scene element that can be created with the OSPRay API.
+
+The plugin system is especially useful when working with large scientific datasets 
+for which it is infeasible or unattractive to load into Blender. Instead, one 
+can use a proxy object, such as a cube mesh to represent a rectangular volume, 
+in a Blender scene and attach a plugin to it. During rendering BLOSPRAY will call the 
+plugin to load the actual scene data associated with the proxy on the server. 
+In this way Blender scene creation, including camera animation and lighting, can be 
+done in the usual way as the proxy object shows the bounding box of the data 
+and can even be transformed and animated.
+
+A nice benefit of writing a plugin in C++ is that it is usually much more efficient
+to load a large dataset directly into memory than having to go through the
+Blender Python API in order to accomplish the same.
+
+Note that BLOSPRAY plugins are different from OSPRay's own "Extensions", that
+are also loadable at run-time. The latter are meant for extending OSPRay itself
+with, for example, a new geometry type. BLOSPRAY plugins serve to extend *Blender*
+with new types of scene elements that are then rendered in OSPRay.
 
 ## Known limitations and bugs
 
