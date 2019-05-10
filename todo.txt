@@ -1,3 +1,5 @@
+Add license
+
 Bugs
 - Camera clipping start doesn't match cycles render, nor OpenGL scene view.
   And ospray only supports setting the clipping start, not a far clip value.

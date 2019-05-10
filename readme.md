@@ -119,14 +119,17 @@ In this way Blender scene creation, including camera animation and lighting, can
 done in the usual way as the proxy object shows the bounding box of the data 
 and can even be transformed and animated.
 
-A nice benefit of writing a plugin in C++ is that it is usually much more efficient
-to load a large dataset directly into memory than having to go through the
-Blender Python API in order to accomplish the same.
+A nice benefit of writing a plugin in C++ is that it allows on to load a large 
+dataset directly into memory, without having to go through the
+Blender Python API in order to accomplish the same. The latter is usually
+less efficient.
 
-Note that BLOSPRAY plugins are different from OSPRay's own "Extensions", that
-are also loadable at run-time. The latter are meant for extending OSPRay itself
+Note that BLOSPRAY plugins are different from OSPRay's own [Extensions](http://www.ospray.org/documentation.html#loading-ospray-extensions-at-runtime), 
+that are also loadable at run-time. The latter are meant for extending OSPRay itself
 with, for example, a new geometry type. BLOSPRAY plugins serve to extend *Blender*
 with new types of scene elements that are then rendered in OSPRay.
+
+
 
 ## Known limitations and bugs
 
