@@ -29,9 +29,8 @@ efficient handling and rendering of the data is usually a more important goal
 
 ## Features
 
-![](blender.png)
-
-![](blospray.png)
+|-------|--------|
+| ![](blender.png) | ![](blospray.png) | 
 
 ### Supported scene elements and features
 
