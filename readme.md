@@ -164,7 +164,10 @@ with new types of scene elements that are then rendered in OSPRay.
 
 Some of these we can work around, some of these we can't:
 
-* Only the Scivis renderer supports volume rendering, the Path Trace renderer currently does not
+* OSPRay's SciVis and Path Tracer renderer do not have the same features:
+
+    - Only the Scivis renderer supports volume rendering
+    - Realistic materials are only available in the Path Tracer
 
 * In OSPRay structured grid volumes currently cannot be transformed with an 
   arbitrary affine transformation (see [this issue](https://github.com/ospray/ospray/issues/159)
