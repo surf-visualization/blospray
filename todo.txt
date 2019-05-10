@@ -17,6 +17,9 @@ Fix/improve
   light larger leads to more light in the scene. This is different from cycles,
   where changing the size keeps the scene lighting the same.
 - Allow parenting a plane mesh to a volume to set slice planes
+- Improve the caching of scene elements, e.g. by having the the client get
+  a list of elements from the server including hashes to figure out what
+  data to send/update. Also check use of exported_meshes in connection.py
 
 Tests/examples:
 - Check grid.blend test, seems some custom props are on the wrong element, 

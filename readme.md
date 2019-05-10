@@ -32,10 +32,10 @@ efficient handling and rendering of the data is usually a more important goal
 BLOSPRAY is still in its early stages of development, but the following 
 basic functionality and integration with Blender features is already available:
 
-* SciVis and path tracer renderer 
-* Export and rendering of polygonal geometry from Blender
+* OSPRay's SciVis and Path Tracer renderers
+* Export and rendering of polygonal geometry 
 * Point, sun, spot and area lights
-* Perspective and orthographic cameras. OSPRay's panoramic camera (which is similar to Cycles equirectangular camera, but without any options)
+* Perspective and orthographic cameras, plus OSPRay's panoramic camera (which is similar to Cycles` equirectangular camera, but without any parameters to tweak)
 * Depth of field
 * Border render (to render only part of an image)
 * Object transformations and parenting
@@ -47,72 +47,31 @@ Major features that are currently missing:
 
 * Interactive preview render (which is ironic, given that real-time interactive rendering
   is one of OSPRay's main features)
-* Materials
+* Material editing
 * Volume transfer function editing
 * Motion blur (which is not supported by OSPRay itself)
+* Parallel rendering mode through MPI
+
+Other features that might be of interest in the HPC context that are missing:
+
 * Texturing
-
-Other missing features that could be of interest:
-
 * HDRI lighting
 
 Integration within the Blender UI, mostly panels for editing properties and such, 
 is also very rudimentary. Some properties are currently only settable using the 
 Custom Properties on objects and meshes.
 
-
-| Meshes | |
-| ------ |-|
-| Normals           | :heavy_check_mark: |
-| Vertex colors     | :heavy_check_mark: |
-| Modifiers         | :heavy_check_mark: |
-| Materials         | :x: |
-| Textures          | :x: |
-| UI panels | :x: |
-
-| Volumes | | |
-| ------- |-|-|
-| Isosurfaces | :heavy_check_mark: | Support through custom property |
-| Slice planes | :o: | Support for 1 plane through custom property |
-| AMR | :o: | No specific support, atm, but plugins can create AMR volumes |
-| Transfer functions | :x: | No UI yet |
-| UI panels | :x: |
-
-| Lights | |
-| ------ |-|
-| Point | :heavy_check_mark: |
-| Sun | :heavy_check_mark: |
-| Spot | :heavy_check_mark: |
-| Area | :heavy_check_mark: |
-| HDRI | :x: |
-| UI panels | :x: |
-
-| Cameras | | |
-| ------- |-|-|
-| Perspective | :heavy_check_mark: | |
-| Orthographic | :x: | |
-| DOF | :heavy_check_mark: | |
-| UI panels | :x: | |
-
-| Render settings | |
-| --------------- |-|
-| Resolution | :heavy_check_mark: |
-| Percentage | :heavy_check_mark: |
-| UI panels | :o: |
-
 ### Render server
 
 BLOSPRAY consists of two parts:
 
-1. a Python addon (directory `render_ospray`) that implements the Blender render engine. It handles scene export, retrieving the rendered image from OSPRay and other things.
+1. a Python addon (directory `render_ospray`) that implements the Blender external render engine. It handles scene export to OSPRay, retrieving the rendered image from OSPRay and other things.
 2. a render server (`bin/ospray_render_server`) that receives the scene from Blender, calls OSPRay routines to do the actual rendering and sends back the image result.
 
 The original reason for this two-part setup is that there currently is no 
 Python API for OSPRay, so direct integration in Blender is not straightforward. 
 Neither is there a command-line OSPRay utility that takes as input a scene 
-description in some format and outputs a rendered image.
-
-Plus, the client-server setup also has some advantages:
+description in some format and outputs a rendered image. Plus, the client-server setup also has some advantages:
 
 - The separate render server can be run on a remote system, for example an HPC system 
   that holds a large scientific dataset to be rendered. This offloads most of the 
@@ -134,7 +93,8 @@ small compared to actual render times. In future, caching of data on the server
 between renders can help in reducing the overhead even further.
 
 Note that the render server currently doesn't support loading multiple different 
-Blender scenes (or serve different users) at the same time. 
+Blender scenes or serving different users at the same time. And there is also 
+a manual action required to start/stop the render server.
 
 ### Plugins
 
@@ -190,14 +150,14 @@ with new types of scene elements that are then rendered in OSPRay.
 
 * Volumes can only use point-based values, not cell-based values
 
-* All meshes are converted to triangle meshes before being passed to OSPRay
+* All Blender meshes are converted to triangle meshes before being passed to OSPRay
 
 
 OSPRay itself also has some limitations, some of which we can work around, some of which we can't:
 
 * Only the Scivis renderer supports volume rendering, the Path Trace renderer currently does not
 
-* In OSPray structured grid volumes currently cannot be transformed with an 
+* In OSPRay structured grid volumes currently cannot be transformed with an 
   arbitrary affine transformation (see [this issue](https://github.com/ospray/ospray/issues/159)
   and [this issue](https://github.com/ospray/ospray/issues/48)). 
   We work around this limitation in two ways in the `volume_raw` plugin:
@@ -206,7 +166,7 @@ OSPRay itself also has some limitations, some of which we can work around, some 
     scaling and placement of a structured volume (these get passed to the `gridOrigin`
     and `gridSpacing` values of an `OSPVolume`). See **tests/grid.blend** for an example.
     
-  - By setting a custom property `unstructured` to `1` on the volume object 
+  - By setting a custom property `make_unstructured` to `1` on the volume object 
     the structured grid is converted to an unstructured one, whose vertices *can* be transformed. 
     Of course, this increases memory usage and decreases render performance, but makes 
     it possible to handle volumes in the same general way as other 
@@ -215,7 +175,7 @@ OSPRay itself also has some limitations, some of which we can work around, some 
 * Volumes are limited in their size, due to the relevant ISPC-based
   code being built in 32-bit mode. See [this issue](https://github.com/ospray/ospray/issues/239).
   Development work on OSPRay is currently underway to turn the ISPC-based
-  parts into regular C++, which should lift this restriction.
+  parts into regular C++, which should lift this restriction (XXX link to issue).
   
 * Unstructured volumes can only contain float values (i.e. not integers).
   See [here](https://github.com/ospray/ospray/issues/289)
@@ -223,7 +183,8 @@ OSPRay itself also has some limitations, some of which we can work around, some 
 * The OSPRay orthographic camera does not support depth-of-field
   
 * Blender supports multiple colors per vertex (basically one per vertex per face loop),
-  while OSPRay only supports a single value per vertex. XXX need to double-check this
+  while OSPRay only supports a single value per vertex (XXX need to double-check this). 
+  During export the vertex colors are reduced to a single color per vertex
   
 * OSPRay does not support motion blur
 
