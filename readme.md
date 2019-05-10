@@ -193,22 +193,6 @@ OSPRay itself also has some limitations, some of which we can work around, some 
 
 * All rendering is done on the CPU, because, well ... it's OSPRay ;-)
 
-## Installation
-
-
-BLOSPRAY is a Blender add-on, but is not being distributed separately
-as the focus currently is getting to a releasable state in terms of features.
-Currently, the way to install it is to clone this repository and then
-make a symlink to the `render_ospray` directory in the Blender addon directory:
-
-```
-$ cd ..../blender-2.8/2.80/scripts/addons
-$ ln -sf <blospray-repo>/render_ospray render_ospray
-```
-
-Within Blender enable the `Render: OSPRay` addon. You should now have a new `OSPRay`
-entry in the `Render Engine` dropdown on the `Render` properties tab.
-
 ## Dependencies
 
 For building:
@@ -218,8 +202,8 @@ For building:
 * [OpenImageIO](https://sites.google.com/site/openimageio/home)
 * [Google protobuf (C/C++ libraries)](https://developers.google.com/protocol-buffers/)
 
-* The code uses https://github.com/nlohmann/json/blob/develop/single_include/nlohmann/json.hpp
-  (but this is included in the sources)
+* The code uses the [JSON for Modern C++](https://github.com/nlohmann/json) library,
+  which is included in the sources
 
 For running:
 
@@ -234,4 +218,23 @@ For running:
   $ ln -sf /usr/lib/python3.7/site-packages/six.py six.py
   $ ln -sf /usr/lib/python3.7/site-packages/google google
   ```
+
+## Building
+
+BLOSPRAY uses CMake for building
+
+## Installation
+
+BLOSPRAY is a Blender add-on, but is not being distributed separately
+as the focus currently is getting to a releasable state in terms of features.
+Currently, the way to install it is to clone this repository and then
+make a symlink to the `render_ospray` directory in the Blender addon directory:
+
+```
+$ cd ..../blender-2.8/2.80/scripts/addons
+$ ln -sf <blospray-repo>/render_ospray render_ospray
+```
+
+Within Blender enable the `Render: OSPRay` addon. You should now have a new `OSPRay`
+entry in the `Render Engine` dropdown on the `Render` properties tab.
 
