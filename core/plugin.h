@@ -84,8 +84,8 @@ enum ParameterFlags
 {
     FLAG_NONE       = 0x0,
     
-    FLAG_VOLUME     = 0x1,      // Parameter applies to volume
-    FLAG_GEOMETRY   = 0x2,      // Parameter applies to geometry
+    FLAG_VOLUME     = 0x1,      // Parameter applies to volume generation
+    FLAG_GEOMETRY   = 0x2,      // Parameter applies to geometry generation
     
     //FLAG_OPTIONAL   = 0x10,     // Parameter is optional
 };

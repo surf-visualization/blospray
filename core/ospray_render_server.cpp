@@ -255,6 +255,8 @@ ensure_plugin_is_loaded(LoadFunctionResult &result, const std::string& name)
     if (it != plugin_definitions.end())
         return true;
     
+    // Plugin not loaded yet (or failed to load previous time)
+    
     printf("Plugin '%s' not loaded yet\n", name.c_str());
     
     std::string plugin_file = name + ".so";
@@ -305,6 +307,15 @@ ensure_plugin_is_loaded(LoadFunctionResult &result, const std::string& name)
     }
         
     plugin_definitions[name] = definition;
+    
+    printf("Plugin parameters:\n");
+    
+    PluginParameter *p = definition.parameters;
+    while (p->name)
+    {
+        printf("[%s] type %d, length %d, flags 0x%02x - %s\n", p->name, p->type, p->length, p->flags, p->description);
+        p++;
+    }
     
     return true;
 }
