@@ -15,14 +15,15 @@ will become the new stable version in a couple of months.
 Blender 2.7x is not supported at the moment and probably won't be,
 as the Python API isn't fully compatible with 2.8x. Plus, 2.8x is the future.
 
-## Goals and non-goals
+## Goals 
 
 Goals:
 
-- Provide rendering through OSPRAY for scientific datasets
+- Flexible and high-quality rendering of large scientific datasets using OSPRAY 
+- Provide a way to add user-specific types of data as
+  scene elements *without having to import that data into Blender*
 
-
-BLOSPRAY does not aim to compete with Cycles (the builtin renderer of Blender),
+Note that BLOSPRAY does not aim to compete with Cycles (the builtin renderer of Blender),
 as it has a different focus. Cycles provides production rendering of animations
 and stills, focusing (more or less) on artistic workloads. Instead, BLOSPRAY focuses 
 on rendering scenes containing (large) scientific datasets, where 
@@ -36,15 +37,15 @@ efficient handling and rendering of the data is usually a more important goal
 BLOSPRAY is still in its early stages of development, but the following 
 basic functionality and integration with Blender features is already available:
 
-* OSPRay's SciVis and Path Tracer renderers
+* Supports OSPRay's SciVis and Path Tracer renderers
 * Export and rendering of polygonal geometry 
-* Point, sun, spot and area lights
-* Perspective and orthographic cameras, plus OSPRay's panoramic camera (which is similar to Cycles` equirectangular camera, but without any parameters to tweak)
-* Depth of field
-* Border render (to render only part of an image)
 * Object transformations and parenting
 * Instancing 
 * Vertex colors on Blender meshes
+* Point, sun, spot and area lights
+* Perspective and orthographic cameras, plus OSPRay's panoramic camera (which is similar to Cycles` equirectangular camera, but without any parameters to tweak)
+* Depth of field
+* Border render (i.e. render only part of an image)
 * Rudimentary support for volume and geometry plugins
 
 Major features that are currently missing:
@@ -214,18 +215,10 @@ For running:
 * Numpy
 * Google protobuf (Python modules)
 
-  To make Blender find the necessary protobuf packages add symlinks to
-  `google` and `six.py` in Blender's python library dir:
-
-  ```
-  $ cd ~/blender-2.80-...../2.80/python/lib/python3.7/site-packages
-  $ ln -sf /usr/lib/python3.7/site-packages/six.py six.py
-  $ ln -sf /usr/lib/python3.7/site-packages/google google
-  ```
-
 ## Building
 
-BLOSPRAY uses CMake for building
+BLOSPRAY uses CMake for building in the usual way. There's currently 
+only a very small set of BLOSPRAY specific switches that can be tweaked.
 
 ## Installation
 
@@ -235,10 +228,18 @@ Currently, the way to install it is to clone this repository and then
 make a symlink to the `render_ospray` directory in the Blender addon directory:
 
 ```
-$ cd ..../blender-2.8/2.80/scripts/addons
+$ cd <blender-2.8>/2.80/scripts/addons
 $ ln -sf <blospray-repo>/render_ospray render_ospray
 ```
 
 Within Blender enable the `Render: OSPRay` addon. You should now have a new `OSPRay`
 entry in the `Render Engine` dropdown on the `Render` properties tab.
 
+To make Blender find the necessary protobuf packages add symlinks to
+`google` and `six.py` in Blender's python library dir:
+
+  ```
+  $ cd <blender-2.8>/2.80/python/lib/python3.7/site-packages
+  $ ln -sf /usr/lib/python3.7/site-packages/six.py six.py
+  $ ln -sf /usr/lib/python3.7/site-packages/google google
+  ```
