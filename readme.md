@@ -160,8 +160,9 @@ with new types of scene elements that are then rendered in OSPRay.
 
 * All Blender meshes are converted to triangle meshes before being passed to OSPRay
 
+### Limitations specific to OSPRay 
 
-OSPRay itself also has some limitations, some of which we can work around, some of which we can't:
+Some of these we can work around, some of these we can't:
 
 * Only the Scivis renderer supports volume rendering, the Path Trace renderer currently does not
 
