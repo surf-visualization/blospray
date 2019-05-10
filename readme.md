@@ -29,6 +29,7 @@ efficient handling and rendering of the data is usually a more important goal
 
 ## Features
 
+| Blender scene | Final render by OSPRay |
 |-------|--------|
 | ![](blender.png) | ![](blospray.png) | 
 
