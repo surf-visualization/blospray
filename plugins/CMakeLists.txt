@@ -14,9 +14,9 @@ target_include_directories(volume_raw
     ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-# geometry_unit_square
+# geometry_plane
 
-add_library(geometry_plane SHARED geometry_unit_plane.cpp)
+add_library(geometry_plane SHARED geometry_plane.cpp)
 set_target_properties(geometry_plane PROPERTIES PREFIX "")   
 target_link_libraries(geometry_plane PUBLIC ${OSPRAY_LIBRARIES})
 
