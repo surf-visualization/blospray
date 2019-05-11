@@ -27,6 +27,7 @@ Fix/improve
   a list of elements from the server including hashes to figure out what
   data to send/update. Also check use of exported_meshes in connection.py
 - Add checkbox for adaptive volume sampling, as it is enabled by default
+- Return export report/errors as text and store them in text area on Blender side
 
 Tests/examples:
 - Check grid.blend test, seems some custom props are on the wrong element, 

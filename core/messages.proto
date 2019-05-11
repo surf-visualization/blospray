@@ -83,24 +83,6 @@ message MeshData
     uint32          num_triangles = 11;
 }
 
-message VolumeData
-{
-    // XXX which flags?
-    
-    uint32          flags = 1;
-    string          name = 2;
-    string          properties = 3;
-    
-    repeated float  object2world = 10;   // XXX We like to know the volume xform, as we  might need to apply it to the vertices directly, i.e. can't instantiate without the matrix
-}
-
-message GeometryData
-{
-    uint32          flags = 1;
-    string          name = 2;
-    string          properties = 3;
-}
-
 // Settings
 
 message ImageSettings

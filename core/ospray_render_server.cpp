@@ -687,9 +687,6 @@ receive_and_add_geometry_data(TCPSocket *sock, const SceneElement& element)
     
     json parameters = json::parse(encoded_parameters);
     
-    // XXX we print the mesh_name here, but that mesh is replaced by the python
-    // export after it receives the volume extents. so a bit confusing as that original
-    // mesh is reported, but that isn't in the scene anymore
     printf("[GEOMETRY (mesh)] %s\n", element.name().c_str());
     printf("Parameters:\n");
     printf("%s\n", parameters.dump(4).c_str());

@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.split(__file__)[0])
 from .messages_pb2 import (
     CameraSettings, ImageSettings, 
     LightSettings, Light, RenderSettings, 
-    SceneElement, MeshData, VolumeData, 
+    SceneElement, MeshData, 
     ClientMessage, LoadFunctionResult,
     RenderResult
 )
