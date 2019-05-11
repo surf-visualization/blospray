@@ -127,124 +127,7 @@ object2world_from_protobuf(glm::mat4 &matrix, T& protobuf)
     M[15] = protobuf.object2world(15);    
 }
 
-// Receive methods
-
-bool
-receive_and_add_mesh_data(TCPSocket *sock, const SceneElement& element)
-{
-    printf("[MESH] %s\n", element.name().c_str());
-    
-    if (loaded_meshes.find(element.name()) != loaded_meshes.end())
-        printf("WARNING: mesh '%s' already loaded!\n", element.name().c_str());
-    
-    MeshData    mesh_data;
-    OSPData     data;
-    
-    if (!receive_protobuf(sock, mesh_data))
-        return false;
-    
-    uint32_t nv, nt, flags;
-    
-    nv = mesh_data.num_vertices();
-    nt = mesh_data.num_triangles();
-    flags = mesh_data.flags();
-    
-    printf("...... %d vertices, %d triangles, flags 0x%08x\n", nv, nt, flags);
-    
-    vertex_buffer.reserve(nv*3);    
-    if (sock->recvall(&vertex_buffer[0], nv*3*sizeof(float)) == -1)
-        return false;
-    
-    if (flags & MeshData::NORMALS)
-    {
-        printf("...... Mesh has normals\n");
-        normal_buffer.reserve(nv*3);
-        if (sock->recvall(&normal_buffer[0], nv*3*sizeof(float)) == -1)
-            return false;        
-    }
-        
-    if (flags & MeshData::VERTEX_COLORS)
-    {
-        printf("...... Mesh has vertex colors\n");
-        vertex_color_buffer.reserve(nv*4);
-        if (sock->recvall(&vertex_color_buffer[0], nv*4*sizeof(float)) == -1)
-            return false;        
-    }
-    
-    triangle_buffer.reserve(nt*3);
-    if (sock->recvall(&triangle_buffer[0], nt*3*sizeof(uint32_t)) == -1)
-        return false;
-    
-    OSPGeometry mesh = ospNewGeometry("triangles");
-  
-        data = ospNewData(nv, OSP_FLOAT3, &vertex_buffer[0]);   
-        ospCommit(data);
-        ospSetData(mesh, "vertex", data);
-        ospRelease(data);
-
-        if (flags & MeshData::NORMALS)
-        {
-            data = ospNewData(nv, OSP_FLOAT3, &normal_buffer[0]);
-            ospCommit(data);
-            ospSetData(mesh, "vertex.normal", data);
-            ospRelease(data);
-        }
-
-        if (flags & MeshData::VERTEX_COLORS)
-        {
-            data = ospNewData(nv, OSP_FLOAT4, &vertex_color_buffer[0]);
-            ospCommit(data);
-            ospSetData(mesh, "vertex.color", data);
-            ospRelease(data);
-        }
-        
-        data = ospNewData(nt, OSP_INT3, &triangle_buffer[0]);            
-        ospCommit(data);
-        ospSetData(mesh, "index", data);
-        ospRelease(data);
-
-        // XXX for now
-        ospSetMaterial(mesh, material);
-    
-    ospCommit(mesh);
-    
-    OSPModel model = ospNewModel();
-    ospAddGeometry(model, mesh);
-    ospRelease(mesh);
-        
-    loaded_meshes[element.name()] = model;
-    
-    return true;
-}
-
-bool
-receive_and_add_mesh_object(TCPSocket *sock, const SceneElement& element)
-{
-    printf("[OBJECT] %s (mesh)\n", element.name().c_str());
-    printf("........ --> %s\n", element.data_link().c_str());
-    
-    LoadedMeshesMap::iterator it = loaded_meshes.find(element.data_link());
-    
-    if (it == loaded_meshes.end())
-    {
-        printf("WARNING: linked mesh data '%s' not loaded!\n", element.data_link().c_str());
-        return false;
-    }
-    
-    OSPModel model = it->second;
-    
-    glm::mat4       obj2world;
-    osp::affine3f   xform;
-    
-    object2world_from_protobuf(obj2world, element);
-    affine3f_from_mat4(xform, obj2world);
-    
-    OSPGeometry instance = ospNewInstance(model, xform);    
-    ospAddGeometry(world, instance);    
-    ospRelease(instance);
-    
-    return true;
-}
+// Plugin handling
 
 // If needed, loads plugin shared library and initializes plugin
 bool
@@ -402,8 +285,127 @@ check_parameters(LoadFunctionResult& result, const PluginParameter *plugin_param
     return ok;
 }
 
+// Receive methods
+
 bool
-receive_and_add_volume_data(TCPSocket *sock, const SceneElement& element)
+receive_and_add_blender_mesh_data(TCPSocket *sock, const SceneElement& element)
+{
+    printf("%s [MESH]\n", element.name().c_str());
+    
+    if (loaded_meshes.find(element.name()) != loaded_meshes.end())
+        printf("WARNING: mesh '%s' already loaded!\n", element.name().c_str());
+    
+    MeshData    mesh_data;
+    OSPData     data;
+    
+    if (!receive_protobuf(sock, mesh_data))
+        return false;
+    
+    uint32_t nv, nt, flags;
+    
+    nv = mesh_data.num_vertices();
+    nt = mesh_data.num_triangles();
+    flags = mesh_data.flags();
+    
+    printf("...... %d vertices, %d triangles, flags 0x%08x\n", nv, nt, flags);
+    
+    vertex_buffer.reserve(nv*3);    
+    if (sock->recvall(&vertex_buffer[0], nv*3*sizeof(float)) == -1)
+        return false;
+    
+    if (flags & MeshData::NORMALS)
+    {
+        printf("...... Mesh has normals\n");
+        normal_buffer.reserve(nv*3);
+        if (sock->recvall(&normal_buffer[0], nv*3*sizeof(float)) == -1)
+            return false;        
+    }
+        
+    if (flags & MeshData::VERTEX_COLORS)
+    {
+        printf("...... Mesh has vertex colors\n");
+        vertex_color_buffer.reserve(nv*4);
+        if (sock->recvall(&vertex_color_buffer[0], nv*4*sizeof(float)) == -1)
+            return false;        
+    }
+    
+    triangle_buffer.reserve(nt*3);
+    if (sock->recvall(&triangle_buffer[0], nt*3*sizeof(uint32_t)) == -1)
+        return false;
+    
+    OSPGeometry mesh = ospNewGeometry("triangles");
+  
+        data = ospNewData(nv, OSP_FLOAT3, &vertex_buffer[0]);   
+        ospCommit(data);
+        ospSetData(mesh, "vertex", data);
+        ospRelease(data);
+
+        if (flags & MeshData::NORMALS)
+        {
+            data = ospNewData(nv, OSP_FLOAT3, &normal_buffer[0]);
+            ospCommit(data);
+            ospSetData(mesh, "vertex.normal", data);
+            ospRelease(data);
+        }
+
+        if (flags & MeshData::VERTEX_COLORS)
+        {
+            data = ospNewData(nv, OSP_FLOAT4, &vertex_color_buffer[0]);
+            ospCommit(data);
+            ospSetData(mesh, "vertex.color", data);
+            ospRelease(data);
+        }
+        
+        data = ospNewData(nt, OSP_INT3, &triangle_buffer[0]);            
+        ospCommit(data);
+        ospSetData(mesh, "index", data);
+        ospRelease(data);
+
+        // XXX for now
+        ospSetMaterial(mesh, material);
+    
+    ospCommit(mesh);
+    
+    OSPModel model = ospNewModel();
+    ospAddGeometry(model, mesh);
+    ospRelease(mesh);
+        
+    loaded_meshes[element.name()] = model;
+    
+    return true;
+}
+
+bool
+receive_and_add_blender_mesh_object(TCPSocket *sock, const SceneElement& element)
+{
+    printf("%s [OBJECT]\n", element.name().c_str());
+    printf("........ --> %s (blender mesh)\n", element.data_link().c_str());
+    
+    LoadedMeshesMap::iterator it = loaded_meshes.find(element.data_link());
+    
+    if (it == loaded_meshes.end())
+    {
+        printf("WARNING: linked mesh data '%s' not loaded!\n", element.data_link().c_str());
+        return false;
+    }
+    
+    OSPModel model = it->second;
+    
+    glm::mat4       obj2world;
+    osp::affine3f   xform;
+    
+    object2world_from_protobuf(obj2world, element);
+    affine3f_from_mat4(xform, obj2world);
+    
+    OSPGeometry instance = ospNewInstance(model, xform);    
+    ospAddGeometry(world, instance);    
+    ospRelease(instance);
+    
+    return true;
+}
+
+bool
+receive_and_add_ospray_volume_data(TCPSocket *sock, const SceneElement& element)
 {
     // Object-to-world matrix (copy of the parent object)
     
@@ -420,7 +422,7 @@ receive_and_add_volume_data(TCPSocket *sock, const SceneElement& element)
     // XXX we print the mesh_name here, but that mesh is replaced by the python
     // export after it receives the volume extents. so a bit confusing as that original
     // mesh is reported, but that isn't in the scene anymore
-    printf("[VOLUME (mesh)] %s\n", element.name().c_str());
+    printf("%s [VOLUME]\n", element.name().c_str());
     printf("Parameters:\n");
     printf("%s\n", parameters.dump(4).c_str());
     
@@ -458,7 +460,8 @@ receive_and_add_volume_data(TCPSocket *sock, const SceneElement& element)
     struct timeval t0, t1;
     
     printf("Calling load function\n");
-    printf("... parameters = %s\n", parameters.dump().c_str());
+    printf("Parameters:\n");
+    printf("%s\n", parameters.dump(4).c_str());
     
     gettimeofday(&t0, NULL);
     
@@ -557,7 +560,7 @@ receive_and_add_volume_data(TCPSocket *sock, const SceneElement& element)
     
 
 bool
-receive_and_add_volume_object(TCPSocket *sock, const SceneElement& element)
+receive_and_add_ospray_volume_object(TCPSocket *sock, const SceneElement& element)
 {
     // Object-to-world matrix
     
@@ -571,8 +574,8 @@ receive_and_add_volume_object(TCPSocket *sock, const SceneElement& element)
     
     json parameters = json::parse(encoded_parameters);
     
-    printf("[VOLUME (object)] %s\n", element.name().c_str());
-    printf("........ --> %s\n", element.data_link().c_str());
+    printf("%s [OBJECT]\n", element.name().c_str());
+    printf("........ --> %s (ospray volume)\n", element.data_link().c_str());
     
     LoadedVolumesMap::iterator it = loaded_volumes.find(element.data_link());
     
@@ -673,7 +676,7 @@ receive_and_add_volume_object(TCPSocket *sock, const SceneElement& element)
 
 
 bool
-receive_and_add_geometry_data(TCPSocket *sock, const SceneElement& element)
+receive_and_add_ospray_geometry_data(TCPSocket *sock, const SceneElement& element)
 {
     // Object-to-world matrix (copy of the parent object)
     
@@ -687,7 +690,7 @@ receive_and_add_geometry_data(TCPSocket *sock, const SceneElement& element)
     
     json parameters = json::parse(encoded_parameters);
     
-    printf("[GEOMETRY (mesh)] %s\n", element.name().c_str());
+    printf("%s [GEOMETRY] (ospray geometry)\n", element.name().c_str());
     printf("Parameters:\n");
     printf("%s\n", parameters.dump(4).c_str());
     
@@ -725,6 +728,8 @@ receive_and_add_geometry_data(TCPSocket *sock, const SceneElement& element)
     struct timeval t0, t1;
     
     printf("Calling load function\n");
+    printf("Parameters:\n");
+    printf("%s\n", parameters.dump(4).c_str());
     
     gettimeofday(&t0, NULL);
     
@@ -756,7 +761,7 @@ receive_and_add_geometry_data(TCPSocket *sock, const SceneElement& element)
 }
 
 bool
-receive_and_add_geometry_object(TCPSocket *sock, const SceneElement& element)
+receive_and_add_ospray_geometry_object(TCPSocket *sock, const SceneElement& element)
 {
     // Object-to-world matrix
     
@@ -770,8 +775,8 @@ receive_and_add_geometry_object(TCPSocket *sock, const SceneElement& element)
     
     json parameters = json::parse(encoded_parameters);
     
-    printf("[OBJECT %s] (geometry)\n", element.name().c_str());
-    printf("........ --> %s\n", element.data_link().c_str());
+    printf("%s [OBJECT]\n", element.name().c_str());
+    printf("........ --> %s (ospray geometry)\n", element.data_link().c_str());
     
     LoadedGeometriesMap::iterator it = loaded_geometries.find(element.data_link());
     
@@ -840,7 +845,8 @@ receive_scene(TCPSocket *sock)
     
     receive_protobuf(sock, camera_settings);
     
-    printf("[CAMERA] %s (%s)\n", camera_settings.object_name().c_str(), camera_settings.camera_name().c_str());
+    printf("%s [OBJECT] (camera)\n", camera_settings.object_name().c_str());
+    printf("........ --> %s (camera)\n", camera_settings.camera_name().c_str());
     
     float cam_pos[3], cam_viewdir[3], cam_updir[3];
     
@@ -915,7 +921,8 @@ receive_scene(TCPSocket *sock)
     {
         const Light& light = light_settings.lights(i);
         
-        printf("[LIGHT] %s (%s)\n", light.object_name().c_str(), light.light_name().c_str());
+        printf("%s [OBJECT] (object)\n", light.object_name().c_str());
+        printf("........ --> %s (blender light)\n", light.light_name().c_str());
         
         if (light.type() == Light::POINT)
         {
@@ -994,29 +1001,29 @@ receive_scene(TCPSocket *sock)
     // XXX use function table
     while (element.type() != SceneElement::NONE)
     {
-        if (element.type() == SceneElement::MESH_DATA)
+        if (element.type() == SceneElement::BLENDER_MESH_DATA)
         {
-            receive_and_add_mesh_data(sock, element);
+            receive_and_add_blender_mesh_data(sock, element);
         }
-        else if (element.type() == SceneElement::MESH_OBJECT)
+        else if (element.type() == SceneElement::BLENDER_MESH_OBJECT)
         {
-            receive_and_add_mesh_object(sock, element);
+            receive_and_add_blender_mesh_object(sock, element);
         }
-        else if (element.type() == SceneElement::VOLUME_DATA)
+        else if (element.type() == SceneElement::OSPRAY_VOLUME_DATA)
         {
-            receive_and_add_volume_data(sock, element);
+            receive_and_add_ospray_volume_data(sock, element);
         }
-        else if (element.type() == SceneElement::VOLUME_OBJECT)
+        else if (element.type() == SceneElement::OSPRAY_VOLUME_OBJECT)
         {
-            receive_and_add_volume_object(sock, element);
+            receive_and_add_ospray_volume_object(sock, element);
         }
-        else if (element.type() == SceneElement::GEOMETRY_DATA)
+        else if (element.type() == SceneElement::OSPRAY_GEOMETRY_DATA)
         {
-            receive_and_add_geometry_data(sock, element);
+            receive_and_add_ospray_geometry_data(sock, element);
         }
-        else if (element.type() == SceneElement::GEOMETRY_OBJECT)
+        else if (element.type() == SceneElement::OSPRAY_GEOMETRY_OBJECT)
         {
-            receive_and_add_geometry_object(sock, element);
+            receive_and_add_ospray_geometry_object(sock, element);
         }
         // else XXX
         

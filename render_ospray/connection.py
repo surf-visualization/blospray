@@ -253,16 +253,16 @@ class Connection:
     # Scene export
     #
     
-    def export_volume(self, obj, data, depsgraph):
+    def export_ospray_volume(self, obj, data, depsgraph):
         
         # Volume data (i.e. mesh)
         
         mesh = obj.data
         
-        self.engine.update_stats('', 'Exporting mesh %s (volume)' % mesh.name)
+        self.engine.update_stats('', 'Exporting mesh %s (ospray volume)' % mesh.name)
         
         element = SceneElement()
-        element.type = SceneElement.VOLUME_DATA
+        element.type = SceneElement.OSPRAY_VOLUME_DATA
         element.name = mesh.name
         
         parameters = customproperties2dict(mesh)
@@ -354,14 +354,14 @@ class Connection:
         
         # Volume object
         
-        self.engine.update_stats('', 'Exporting object %s (volume)' % obj.name)
+        self.engine.update_stats('', 'Exporting object %s (ospray volume)' % obj.name)
         
         parameters = customproperties2dict(obj)
         print('Sending parameters:')
         print(parameters)
         
         element = SceneElement()
-        element.type = SceneElement.VOLUME_OBJECT
+        element.type = SceneElement.OSPRAY_VOLUME_OBJECT
         element.name = obj.name
         element.parameters = json.dumps(parameters) 
         element.object2world[:] = matrix2list(obj.matrix_world)
@@ -369,24 +369,23 @@ class Connection:
         
         send_protobuf(self.sock, element)        
         
-    # XXX rename to export_ospray_geometry to avoid confusion with blender geometry
-    def export_geometry(self, obj, data, depsgraph):
+    def export_ospray_geometry(self, obj, data, depsgraph):
         
         # User-defined geometry (server-side)
         
         mesh = obj.data
         
-        self.engine.update_stats('', 'Exporting mesh %s (geometry)' % mesh.name)
+        self.engine.update_stats('', 'Exporting mesh %s (ospray geometry)' % mesh.name)
         
         element = SceneElement()
-        element.type = SceneElement.GEOMETRY_DATA
+        element.type = SceneElement.OSPRAY_GEOMETRY_DATA
         element.name = mesh.name
         
         parameters = customproperties2dict(mesh)
         parameters['_plugin'] = mesh.ospray.plugin
         
         element.parameters = json.dumps(parameters)
-        # XXX add a copy of the object's xform, as the volume loading plugin might need it
+        # XXX add a copy of the object's xform, as the geometry loading plugin might need it
         element.object2world[:] = matrix2list(obj.matrix_world)
         
         send_protobuf(self.sock, element)   
@@ -467,12 +466,12 @@ class Connection:
         
         # Geometry object
         
-        self.engine.update_stats('', 'Exporting object %s (geometry)' % obj.name)
+        self.engine.update_stats('', 'Exporting object %s (ospray geometry)' % obj.name)
         print('Sending parameters:')
         print(parameters)
         
         element = SceneElement()
-        element.type = SceneElement.GEOMETRY_OBJECT
+        element.type = SceneElement.OSPRAY_GEOMETRY_OBJECT
         element.name = obj.name
         element.parameters = json.dumps(customproperties2dict(obj)) 
         element.object2world[:] = matrix2list(obj.matrix_world)
@@ -486,7 +485,7 @@ class Connection:
         self.engine.update_stats('', 'Exporting mesh %s' % mesh.name)
     
         element = SceneElement()
-        element.type = SceneElement.MESH_DATA
+        element.type = SceneElement.BLENDER_MESH_DATA
         element.name = mesh.name
         element.parameters = json.dumps(customproperties2dict(mesh))        
         send_protobuf(self.sock, element)      
@@ -813,10 +812,10 @@ class Connection:
             print('Object %s, representation %s' % (obj.name, representation))
 
             if representation in ['volume', 'volume_isosurfaces', 'volume_slices']:
-                self.export_volume(obj, data, depsgraph)
+                self.export_ospray_volume(obj, data, depsgraph)
                 continue
             elif representation == 'geometry':
-                self.export_geometry(obj, data, depsgraph)
+                self.export_ospray_geometry(obj, data, depsgraph)
                 continue
             elif representation != 'regular':
                 print('WARNING: object "%s" has unhandled representation type "%s"' % \
@@ -847,7 +846,7 @@ class Connection:
             self.engine.update_stats('', 'Exporting object %s (mesh)' % obj.name)
             
             element = SceneElement()
-            element.type = SceneElement.MESH_OBJECT
+            element.type = SceneElement.BLENDER_MESH_OBJECT
             element.name = obj.name
             element.data_link = mesh.name
             element.parameters = json.dumps(customproperties2dict(mesh))

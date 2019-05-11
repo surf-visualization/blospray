@@ -48,16 +48,16 @@ message SceneElement
         NONE = 0;       // Used for signaling last object was sent
         
         // Regular Blender mesh
-        MESH_OBJECT = 10;
-        MESH_DATA = 11;
+        BLENDER_MESH_OBJECT = 10;
+        BLENDER_MESH_DATA = 11;
         
         // Volume
-        VOLUME_OBJECT = 20;
-        VOLUME_DATA = 21;
+        OSPRAY_VOLUME_OBJECT = 20;
+        OSPRAY_VOLUME_DATA = 21;
         
         // Geometry 
-        GEOMETRY_OBJECT = 30;
-        GEOMETRY_DATA = 31;
+        OSPRAY_GEOMETRY_OBJECT = 30;
+        OSPRAY_GEOMETRY_DATA = 31;
     }
     
     Type            type = 1;

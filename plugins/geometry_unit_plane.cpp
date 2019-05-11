@@ -81,7 +81,10 @@ extern "C"
 void
 load(ModelInstances& model_instances, float *bbox, LoadFunctionResult &result, const json &parameters, const glm::mat4& object2world)
 {    
-    OSPGeometry plane_geom = add_plane(0.0f, 0.0f, 0.0f, 1.0f, 1.0f);
+    const float size_x = parameters["size_x"];
+    const float size_y = parameters["size_y"];
+    
+    OSPGeometry plane_geom = add_plane(0.0f, 0.0f, 0.0f, size_x, size_y);
     
     OSPModel model = ospNewModel();
         ospAddGeometry(model, plane_geom);
@@ -102,14 +105,33 @@ load(ModelInstances& model_instances, float *bbox, LoadFunctionResult &result, c
     bbox[5] = 1.0f;
 }
 
-PluginFunctions    
+static PluginParameters 
+parameters = {
+    
+    {"size_x",          PARAM_FLOAT,    1, FLAG_GEOMETRY, "Size in X"},
+    {"size_y",          PARAM_FLOAT,    1, FLAG_GEOMETRY, "Size in Y"},
+        
+    PARAMETERS_DONE         // Sentinel (signals end of list)
+};
+
+static PluginFunctions
 functions = {
 
-    // Volume
-    NULL,
-    NULL,
+    NULL,   // Volume extent
+    NULL,   // Volume load
 
-    // Geometry
-    load
+    load    // Geometry extent
 };
+
+extern "C" bool
+initialize(PluginDefinition *def)
+{
+    def->parameters = parameters;
+    def->functions = functions;
+    
+    // Do any other plugin-specific initialization here
+    
+    return true;
+}
+
 
