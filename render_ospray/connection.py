@@ -37,7 +37,7 @@ def matrix2list(m):
         values.extend(list(row))
     return values
     
-def customproperties2dict(obj):
+def customproperties2dict(obj, filepath_keys=['file']):
     user_keys = [k for k in obj.keys() if k[0] != '_']
     properties = {}
     for k in user_keys:
@@ -50,10 +50,11 @@ def customproperties2dict(obj):
             # XXX assumes simple type that can be serialized to json
             properties[k] = v
             
-    if 'file' in properties:
-        # XXX might not always be called 'file'
-        # //... -> full path
-        properties['file'] = bpy.path.abspath(properties['file'])
+    for k in filepath_keys:
+        if k in properties:
+            # Convert blendfile-relative paths to full paths, e.g.
+            # //.../file.name -> /.../.../file.name
+            properties[k] = bpy.path.abspath(properties[k])
         
     return properties
     
@@ -168,6 +169,8 @@ class Connection:
                 
                 if render_result.type == RenderResult.FRAME:
                     
+                    # New framebuffer (for a single pixel sample) is available
+                    
                     """
                     # XXX Slow: get as raw block of floats
                     print('[%6.3f] _read_framebuffer start' % (time.time()-t0))
@@ -185,6 +188,9 @@ class Connection:
                     self.update_result(result)
                     """
                     
+                    # We read the framebuffer file content from the server
+                    # and locally write it to FBFILE, which then gets loaded by Blender
+                    
                     # XXX both receiving into a file and loading from file block
                     # the blender UI for a short time
                     
@@ -194,8 +200,11 @@ class Connection:
                     
                     # Sigh, this needs an image file format. I.e. reading in a raw framebuffer
                     # of floats isn't possible, hence the OpenEXR file
-                    # XXX result.load_from_file(...) would work as well?
+                    # XXX result.load_from_file(...), instead of result.layers[0].load_from_file(...), would work as well?
                     result.layers[0].load_from_file(FBFILE)
+                    
+                    # Remove file
+                    os.unlink(FBFILE)
                     
                     self.engine.update_result(result)
                     
@@ -878,6 +887,8 @@ class Connection:
             #self.update_stats('%d bytes left' % bytes_left, 'Reading back framebuffer')
         
     def _read_framebuffer_to_file(self, fname, size):
+        
+        print('_read_framebuffer_to_file(%s, %d)' % (fname, size))
         
         # XXX use select() in a loop, to allow UI updates more frequently
         

@@ -1050,6 +1050,7 @@ render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
         if (render_input_queue.size() > 0)
         {
             ClientMessage cm = render_input_queue.pop();
+            
             if (cm.type() == ClientMessage::CANCEL_RENDERING)
             {
                 printf("{render thread} Canceling rendering\n");
@@ -1164,12 +1165,16 @@ handle_connection(TCPSocket *sock)
             switch (render_result.type())
             {
                 case RenderResult::FRAME:
+                    // New framebuffer (for a single sample) available, send
+                    // it to the client
+                
                     printf("Frame available, sample %d (%s, %d bytes)\n", render_result.sample(), render_result.file_name().c_str(), render_result.file_size());
                 
                     sock->sendfile(render_result.file_name().c_str());
                 
-                    // Remove local file
+                    // Remove local framebuffer file
                     unlink(render_result.file_name().c_str());
+                
                     break;
                 
                 case RenderResult::CANCELED:
