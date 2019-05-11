@@ -200,7 +200,7 @@ message LightSettings
 message LoadFunctionResult
 {
     bool            success = 1;
-    string          message = 2;
+    string          message = 2;        // XXX use JSON for returning multiple lines/messages?
     
     string          hash = 3;
     repeated float  bbox = 4;

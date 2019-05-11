@@ -45,3 +45,5 @@ add_subdirectory(core)
 # Plugins
 add_subdirectory(plugins)
 
+# Tests
+add_subdirectory(tests)

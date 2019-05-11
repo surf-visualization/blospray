@@ -73,7 +73,7 @@ enum ParameterType
 {  
     PARAM_INT,
     PARAM_FLOAT,
-    PARAM_BOOL,
+    //PARAM_BOOL,               // XXX disabled for now, as Blender custom properties don't suppport bool values, use integer 0 or 1 instead
     PARAM_STRING,
     PARAM_USER,                 // User-defined, value is passed verbatim as JSON value
     
@@ -103,7 +103,7 @@ typedef struct
 {
     const char      *name;
     ParameterType   type;
-    int             length;
+    int             length;     // XXX check that length > 0
     int             flags;
     const char      *description;
 } 

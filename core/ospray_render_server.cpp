@@ -321,6 +321,88 @@ ensure_plugin_is_loaded(LoadFunctionResult &result, const std::string& name)
 }
 
 bool
+check_parameters(LoadFunctionResult& result, const PluginParameter *plugin_parameters, const json &actual_parameters)
+{
+    // We don't return false on the first error, but keep checking for any subsequent errors
+    bool ok = true;
+    
+    for (const PluginParameter *pdef = plugin_parameters; pdef->name; pdef++)
+    {
+        const char *name = pdef->name;
+        const int length = pdef->length;
+        const ParameterType type = pdef->type;
+        
+        // XXX param might be optional in future
+        if (actual_parameters.find(name) == actual_parameters.end())
+        {
+            printf("Missing parameter '%s'!\n", name);
+            ok = false;
+            continue;
+        }
+        
+        const json &value = actual_parameters[name];
+        
+        if (length > 1)
+        {
+            // Array value
+            if (!value.is_array())
+            {
+                printf("Expected array of length %d for parameter '%s'!\n", length, name);
+                ok = false;
+                continue;
+            }
+            
+            // XXX check array items
+        }
+        else 
+        {
+            // Scalar value
+            if (!value.is_primitive())
+            {
+                printf("Expected primitive value for parameter '%s', but found array of length %d!\n", name, value.size());
+                ok = false;
+                continue;
+            }
+                
+            switch (type)
+            {
+            case PARAM_INT:
+                if (!value.is_number_integer())
+                {
+                    printf("Expected integer value for parameter '%s'!\n", name);
+                    ok = false;
+                    continue;
+                }
+                break;
+                
+            case PARAM_FLOAT:
+                if (!value.is_number_float())
+                {
+                    printf("Expected float value for parameter '%s'!\n", name);
+                    ok = false;
+                    continue;
+                }
+                break;
+                
+            //case PARAM_BOOL:
+            case PARAM_STRING:
+                if (!value.is_string())
+                {
+                    printf("Expected string value for parameter '%s'!\n", name);
+                    ok = false;
+                    continue;
+                }
+                
+            case PARAM_USER:
+                break;
+            }
+        }
+    }
+    
+    return ok;
+}
+
+bool
 receive_and_add_volume_data(TCPSocket *sock, const SceneElement& element)
 {
     // Object-to-world matrix (copy of the parent object)
@@ -339,7 +421,8 @@ receive_and_add_volume_data(TCPSocket *sock, const SceneElement& element)
     // export after it receives the volume extents. so a bit confusing as that original
     // mesh is reported, but that isn't in the scene anymore
     printf("[VOLUME (mesh)] %s\n", element.name().c_str());
-    printf("%s\n", parameters.dump().c_str());
+    printf("Parameters:\n");
+    printf("%s\n", parameters.dump(4).c_str());
     
     // Prepare result
     
@@ -358,11 +441,17 @@ receive_and_add_volume_data(TCPSocket *sock, const SceneElement& element)
         return false;
     }
     
-    volume_load_function_t load_function = plugin_definitions[plugin].functions.volume_load_function;
+    PluginDefinition& definition = plugin_definitions[plugin];
+    volume_load_function_t load_function = definition.functions.volume_load_function;
     
     // Check parameters passed to load function
-    // XXX
     
+    if (!check_parameters(result, definition.parameters, parameters))
+    {
+        // Something went wrong...
+        send_protobuf(sock, result);
+        return false;
+    }
 
     // Call load function
     
@@ -602,7 +691,8 @@ receive_and_add_geometry_data(TCPSocket *sock, const SceneElement& element)
     // export after it receives the volume extents. so a bit confusing as that original
     // mesh is reported, but that isn't in the scene anymore
     printf("[GEOMETRY (mesh)] %s\n", element.name().c_str());
-    printf("%s\n", parameters.dump().c_str());
+    printf("Parameters:\n");
+    printf("%s\n", parameters.dump(4).c_str());
     
     // Prepare result
     
@@ -621,7 +711,17 @@ receive_and_add_geometry_data(TCPSocket *sock, const SceneElement& element)
         return false;
     }
     
-    geometry_load_function_t load_function = plugin_definitions[plugin].functions.geometry_load_function;
+    PluginDefinition& definition = plugin_definitions[plugin];
+    geometry_load_function_t load_function = definition.functions.geometry_load_function;
+    
+    // Check parameters
+    
+    if (!check_parameters(result, definition.parameters, parameters))
+    {
+        // Something went wrong...
+        send_protobuf(sock, result);
+        return false;
+    }
 
     // Let load function do its job
     

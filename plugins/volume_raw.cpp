@@ -10,7 +10,7 @@
 static OSPVolume
 load_as_structured(float *bbox, LoadFunctionResult &result,
     const json &parameters, const glm::mat4 &/*object2world*/, 
-    const int32_t *dims, const std::string& voxelType, OSPDataType dataType, void *grid_field_values)
+    const int32_t *dims, const std::string &voxelType, OSPDataType dataType, void *grid_field_values)
 {
     fprintf(stderr, "WARNING: structured volumes in OSPRay currently don't support object-to-world transformations\n");
     
@@ -66,7 +66,7 @@ static OSPVolume
 load_as_unstructured(
     float *bbox, LoadFunctionResult &result,
     const json &parameters, const glm::mat4 &object2world, 
-    const int32_t *dims, const std::string& voxelType, OSPDataType dataType, void *grid_field_values)
+    const int32_t *dims, const std::string &voxelType, OSPDataType dataType, void *grid_field_values)
 {    
     if (voxelType != "float")
     {
@@ -339,10 +339,10 @@ parameters = {
     {"data_range",          PARAM_FLOAT,    2, FLAG_VOLUME, 
         "Data range of the volume"},
         
-    {"endian_flip",         PARAM_BOOL,     1, FLAG_VOLUME,//|FLAG_OPTIONAL, 
+    {"endian_flip",         /*PARAM_BOOL*/ PARAM_INT,     1, FLAG_VOLUME,//|FLAG_OPTIONAL, 
         "Endian-flip the data during reading"},
         
-    {"make_unstructured",   PARAM_BOOL,     1, FLAG_VOLUME,//|FLAG_OPTIONAL, 
+    {"make_unstructured",   /*PARAM_BOOL*/ PARAM_INT,     1, FLAG_VOLUME,//|FLAG_OPTIONAL, 
         "Create an OSPRay unstructured volume (which can be transformed)"},
         
     PARAMETERS_DONE         // Sentinel (signals end of list)
