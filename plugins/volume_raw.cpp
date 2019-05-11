@@ -12,7 +12,7 @@ load_as_structured(float *bbox, LoadFunctionResult &result,
     const json &parameters, const glm::mat4 &/*object2world*/, 
     const int32_t *dims, const std::string &voxelType, OSPDataType dataType, void *grid_field_values)
 {
-    fprintf(stderr, "WARNING: structured volumes in OSPRay currently don't support object-to-world transformations\n");
+    fprintf(stderr, "WARNING: volume loaded as structured, OSPRay currently doesn't support object-to-world transformation on it\n");
     
     OSPVolume volume = ospNewVolume("shared_structured_volume");
     
@@ -185,7 +185,7 @@ load_as_unstructured(
 
 extern "C"
 OSPVolume
-load(float *bbox, LoadFunctionResult &result, const json &parameters, const glm::mat4 &object2world)
+load(float *bbox, float *data_range, LoadFunctionResult &result, const json &parameters, const glm::mat4 &object2world)
 {
     char msg[1024];
         
@@ -312,6 +312,15 @@ load(float *bbox, LoadFunctionResult &result, const json &parameters, const glm:
         float minval = parameters["data_range"][0];
         float maxval = parameters["data_range"][1];
         ospSet2f(volume, "voxelRange", minval, maxval);
+        
+        data_range[0] = minval;
+        data_range[1] = maxval;
+    }
+    else
+    {
+        // XXX
+        data_range[0] = 0.0f;
+        data_range[1] = 1.0f;
     }
 
     ospCommit(volume);
@@ -336,7 +345,7 @@ parameters = {
     {"voxel_type",          PARAM_STRING,   1, FLAG_VOLUME, 
         "Voxel data type (uchar, float)"},
         
-    {"data_range",          PARAM_FLOAT,    2, FLAG_VOLUME, 
+    {"data_range",          PARAM_FLOAT,    2, FLAG_VOLUME,     // Could make this optional and then determine the range during loading
         "Data range of the volume"},
         
     {"endian_flip",         /*PARAM_BOOL*/ PARAM_INT,     1, FLAG_VOLUME,//|FLAG_OPTIONAL, 

@@ -26,6 +26,7 @@ typedef std::vector<ModelInstance>      ModelInstances;
 
 typedef OSPVolume (*volume_load_function_t)(
     float *bbox, 
+    float *data_range,
     LoadFunctionResult &result, 
     const json &parameters, 
     const glm::mat4 &object2world

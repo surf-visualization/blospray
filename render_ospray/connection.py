@@ -38,7 +38,7 @@ def matrix2list(m):
     return values
     
 def customproperties2dict(obj, filepath_keys=['file']):
-    user_keys = [k for k in obj.keys() if k[0] != '_']
+    user_keys = [k for k in obj.keys() if k not in ['_RNA_UI', 'ospray']]
     properties = {}
     for k in user_keys:
         v = obj[k]
@@ -253,26 +253,59 @@ class Connection:
     # Scene export
     #
     
+    def _process_properties(self, obj, properties):
+        """
+        Get Blender custom properties set on obj.
+        Custom properties starting with an underscore become 
+        element properties (key without the underscore), all the others
+        become plugin parameters (set in the key plugin_parameters)
+        *if a property key 'plugin' is set.
+        """
+        
+        plugin_parameters = None
+        if 'plugin' in properties:
+            if 'plugin_parameters' in properties:
+                plugin_parameters = properties['plugin_parameters']
+            else:
+                plugin_parameters = properties['plugin_parameters'] = {}
+            
+        custom_properties = customproperties2dict(obj)
+        for k, v in custom_properties.items():
+            print('k', k, 'v', v)
+            if k[0] == '_':
+                # This might overwrite one of the already defined properties above
+                print(properties, k, v)
+                properties[k[1:]] = v
+            elif plugin_parameters is not None:
+                plugin_parameters[k] = v
+    
     def export_ospray_volume(self, obj, data, depsgraph):
         
         # Volume data (i.e. mesh)
         
         mesh = obj.data
         
-        self.engine.update_stats('', 'Exporting mesh %s (ospray volume)' % mesh.name)
+        msg = 'Exporting mesh %s (ospray volume)' % mesh.name
+        self.engine.update_stats('', msg)
+        print(msg)
         
+        # Properties
+        
+        properties = {}
+        properties['plugin'] = mesh.ospray.plugin
+        properties['sampling_rate'] = mesh.ospray.sampling_rate
+        properties['gradient_shading'] = mesh.ospray.gradient_shading
+        properties['pre_integration'] = mesh.ospray.pre_integration
+        properties['single_shade'] = mesh.ospray.single_shade
+        self._process_properties(mesh, properties)
+
+        print('Sending properties:')
+        print(properties)
+
         element = SceneElement()
         element.type = SceneElement.OSPRAY_VOLUME_DATA
         element.name = mesh.name
-        
-        parameters = customproperties2dict(mesh)
-        parameters['_plugin'] = mesh.ospray.plugin
-        parameters['_sampling_rate'] = mesh.ospray.sampling_rate
-        parameters['_gradient_shading'] = mesh.ospray.gradient_shading
-        parameters['_pre_integration'] = mesh.ospray.pre_integration
-        parameters['_single_shade'] = mesh.ospray.single_shade
-        
-        element.parameters = json.dumps(parameters)
+        element.properties = json.dumps(properties)
         # XXX add a copy of the object's xform, as the volume loading plugin might need it
         element.object2world[:] = matrix2list(obj.matrix_world)
         
@@ -354,16 +387,21 @@ class Connection:
         
         # Volume object
         
-        self.engine.update_stats('', 'Exporting object %s (ospray volume)' % obj.name)
+        msg = 'Exporting object %s (ospray volume)' % obj.name
+        self.engine.update_stats('', msg)
+        print(msg)
         
-        parameters = customproperties2dict(obj)
-        print('Sending parameters:')
-        print(parameters)
+        properties = {}
+        properties['representation'] = obj.ospray.representation
+        self._process_properties(obj, properties)
+
+        print('Sending properties:')
+        print(properties)
         
         element = SceneElement()
         element.type = SceneElement.OSPRAY_VOLUME_OBJECT
         element.name = obj.name
-        element.parameters = json.dumps(parameters) 
+        element.properties = json.dumps(properties)
         element.object2world[:] = matrix2list(obj.matrix_world)
         element.data_link = mesh.name
         
@@ -375,16 +413,24 @@ class Connection:
         
         mesh = obj.data
         
-        self.engine.update_stats('', 'Exporting mesh %s (ospray geometry)' % mesh.name)
+        msg = 'Exporting mesh %s (ospray geometry)' % mesh.name
+        self.engine.update_stats('', msg)
+        print(msg)
+        
+        # Properties
+        
+        properties = {}
+        properties['plugin'] = mesh.ospray.plugin
+        
+        self._process_properties(mesh, properties)
+
+        print('Sending properties:')
+        print(properties)
         
         element = SceneElement()
         element.type = SceneElement.OSPRAY_GEOMETRY_DATA
         element.name = mesh.name
-        
-        parameters = customproperties2dict(mesh)
-        parameters['_plugin'] = mesh.ospray.plugin
-        
-        element.parameters = json.dumps(parameters)
+        element.properties = json.dumps(properties)
         # XXX add a copy of the object's xform, as the geometry loading plugin might need it
         element.object2world[:] = matrix2list(obj.matrix_world)
         
@@ -466,14 +512,21 @@ class Connection:
         
         # Geometry object
         
-        self.engine.update_stats('', 'Exporting object %s (ospray geometry)' % obj.name)
-        print('Sending parameters:')
-        print(parameters)
+        msg = 'Exporting object %s (ospray geometry)' % obj.name
+        self.engine.update_stats('', msg)
+        print(msg)
+        
+        properties = {}
+        
+        self._process_properties(obj, properties)
+
+        print('Sending properties:')
+        print(properties)
         
         element = SceneElement()
         element.type = SceneElement.OSPRAY_GEOMETRY_OBJECT
         element.name = obj.name
-        element.parameters = json.dumps(customproperties2dict(obj)) 
+        element.properties = json.dumps(properties)
         element.object2world[:] = matrix2list(obj.matrix_world)
         element.data_link = mesh.name
         
@@ -482,12 +535,21 @@ class Connection:
         
     def export_mesh(self, mesh, data, depsgraph):
         
-        self.engine.update_stats('', 'Exporting mesh %s' % mesh.name)
+        msg = 'Exporting mesh %s' % mesh.name
+        self.engine.update_stats('', msg)
+        print(msg)
+        
+        properties = {}
+        
+        self._process_properties(mesh, properties)
+
+        print('Sending properties:')
+        print(properties)
     
         element = SceneElement()
         element.type = SceneElement.BLENDER_MESH_DATA
         element.name = mesh.name
-        element.parameters = json.dumps(customproperties2dict(mesh))        
+        element.properties = json.dumps(properties)
         send_protobuf(self.sock, element)      
         
         mesh_data = MeshData()
@@ -587,7 +649,9 @@ class Connection:
 
     def export_scene(self, data, depsgraph):
         
-        self.engine.update_stats('', 'Exporting scene')
+        msg = 'Exporting scene'
+        self.engine.update_stats('', msg)
+        print(msg)
         
         client_message = ClientMessage()
         client_message.type = ClientMessage.UPDATE_SCENE
@@ -727,7 +791,6 @@ class Connection:
             data = obj.data
             xform = obj.matrix_world
             
-            parameters = customproperties2dict(data)
             ospray_data = data.ospray
             
             light = Light()
@@ -809,7 +872,7 @@ class Connection:
                 continue
                 
             representation = obj.ospray.representation
-            print('Object %s, representation %s' % (obj.name, representation))
+            print('Scene object %s, representation %s' % (obj.name, representation))
 
             if representation in ['volume', 'volume_isosurfaces', 'volume_slices']:
                 self.export_ospray_volume(obj, data, depsgraph)
@@ -845,11 +908,18 @@ class Connection:
 
             self.engine.update_stats('', 'Exporting object %s (mesh)' % obj.name)
             
+            properties = {}
+            
+            self._process_properties(mesh, properties)
+
+            print('Sending properties:')
+            print(properties)
+            
             element = SceneElement()
             element.type = SceneElement.BLENDER_MESH_OBJECT
             element.name = obj.name
             element.data_link = mesh.name
-            element.parameters = json.dumps(customproperties2dict(mesh))
+            element.properties = json.dumps(properties)
             if instance.is_instance:
                 print('%s (%s) is instance' % (obj.name, mesh.name))
                 element.object2world[:] = matrix2list(instance.matrix_world)

@@ -133,6 +133,12 @@ object2world_from_protobuf(glm::mat4 &matrix, T& protobuf)
 bool
 ensure_plugin_is_loaded(LoadFunctionResult &result, const std::string& name)
 {
+    if (name == "")
+    {
+        printf("No plugin name provided!\n");
+        return false;
+    }
+    
     PluginDefinitionsMap::iterator it = plugin_definitions.find(name);
     
     if (it != plugin_definitions.end())
@@ -196,7 +202,7 @@ ensure_plugin_is_loaded(LoadFunctionResult &result, const std::string& name)
     PluginParameter *p = definition.parameters;
     while (p->name)
     {
-        printf("[%s] type %d, length %d, flags 0x%02x - %s\n", p->name, p->type, p->length, p->flags, p->description);
+        printf("... [%s] type %d, length %d, flags 0x%02x - %s\n", p->name, p->type, p->length, p->flags, p->description);
         p++;
     }
     
@@ -218,7 +224,7 @@ check_parameters(LoadFunctionResult& result, const PluginParameter *plugin_param
         // XXX param might be optional in future
         if (actual_parameters.find(name) == actual_parameters.end())
         {
-            printf("Missing parameter '%s'!\n", name);
+            printf("ERROR: Missing parameter '%s'!\n", name);
             ok = false;
             continue;
         }
@@ -230,7 +236,7 @@ check_parameters(LoadFunctionResult& result, const PluginParameter *plugin_param
             // Array value
             if (!value.is_array())
             {
-                printf("Expected array of length %d for parameter '%s'!\n", length, name);
+                printf("ERROR: Expected array of length %d for parameter '%s'!\n", length, name);
                 ok = false;
                 continue;
             }
@@ -242,7 +248,7 @@ check_parameters(LoadFunctionResult& result, const PluginParameter *plugin_param
             // Scalar value
             if (!value.is_primitive())
             {
-                printf("Expected primitive value for parameter '%s', but found array of length %d!\n", name, value.size());
+                printf("ERROR: Expected primitive value for parameter '%s', but found array of length %d!\n", name, value.size());
                 ok = false;
                 continue;
             }
@@ -252,7 +258,7 @@ check_parameters(LoadFunctionResult& result, const PluginParameter *plugin_param
             case PARAM_INT:
                 if (!value.is_number_integer())
                 {
-                    printf("Expected integer value for parameter '%s'!\n", name);
+                    printf("ERROR: Expected integer value for parameter '%s'!\n", name);
                     ok = false;
                     continue;
                 }
@@ -261,7 +267,7 @@ check_parameters(LoadFunctionResult& result, const PluginParameter *plugin_param
             case PARAM_FLOAT:
                 if (!value.is_number_float())
                 {
-                    printf("Expected float value for parameter '%s'!\n", name);
+                    printf("ERROR: Expected float value for parameter '%s'!\n", name);
                     ok = false;
                     continue;
                 }
@@ -271,7 +277,7 @@ check_parameters(LoadFunctionResult& result, const PluginParameter *plugin_param
             case PARAM_STRING:
                 if (!value.is_string())
                 {
-                    printf("Expected string value for parameter '%s'!\n", name);
+                    printf("ERROR: Expected string value for parameter '%s'!\n", name);
                     ok = false;
                     continue;
                 }
@@ -293,7 +299,7 @@ receive_and_add_blender_mesh_data(TCPSocket *sock, const SceneElement& element)
     printf("%s [MESH]\n", element.name().c_str());
     
     if (loaded_meshes.find(element.name()) != loaded_meshes.end())
-        printf("WARNING: mesh '%s' already loaded!\n", element.name().c_str());
+        printf("WARNING: mesh '%s' already loaded, overwriting!\n", element.name().c_str());
     
     MeshData    mesh_data;
     OSPData     data;
@@ -414,17 +420,17 @@ receive_and_add_ospray_volume_data(TCPSocket *sock, const SceneElement& element)
 
     // From Blender custom properties
     
-    const char *encoded_parameters = element.parameters().c_str();
-    //printf("Received volume parameters:\n%s\n", encoded_parameters);
+    const char *encoded_properties = element.properties().c_str();
+    //printf("Received volume properties:\n%s\n", encoded_properties);
     
-    json parameters = json::parse(encoded_parameters);
+    const json &properties = json::parse(encoded_properties);
     
     // XXX we print the mesh_name here, but that mesh is replaced by the python
     // export after it receives the volume extents. so a bit confusing as that original
     // mesh is reported, but that isn't in the scene anymore
     printf("%s [VOLUME]\n", element.name().c_str());
-    printf("Parameters:\n");
-    printf("%s\n", parameters.dump(4).c_str());
+    printf("Properties:\n");
+    printf("%s\n", properties.dump(4).c_str());
     
     // Prepare result
     
@@ -434,7 +440,7 @@ receive_and_add_ospray_volume_data(TCPSocket *sock, const SceneElement& element)
     
     // Find load function 
                 
-    const std::string& plugin = parameters["_plugin"];
+    const std::string& plugin = properties["plugin"];
     
     if (!ensure_plugin_is_loaded(result, plugin))
     {
@@ -448,7 +454,9 @@ receive_and_add_ospray_volume_data(TCPSocket *sock, const SceneElement& element)
     
     // Check parameters passed to load function
     
-    if (!check_parameters(result, definition.parameters, parameters))
+    const json& plugin_parameters = properties["plugin_parameters"];
+    
+    if (!check_parameters(result, definition.parameters, plugin_parameters))
     {
         // Something went wrong...
         send_protobuf(sock, result);
@@ -460,15 +468,13 @@ receive_and_add_ospray_volume_data(TCPSocket *sock, const SceneElement& element)
     struct timeval t0, t1;
     
     printf("Calling load function\n");
-    printf("Parameters:\n");
-    printf("%s\n", parameters.dump(4).c_str());
-    
     gettimeofday(&t0, NULL);
     
     OSPVolume   volume;
     float       bbox[6];
+    float       data_range[2];
     
-    volume = load_function(bbox, result, parameters, obj2world);
+    volume = load_function(bbox, data_range, result, plugin_parameters, obj2world);
     
     gettimeofday(&t1, NULL);
     printf("Load function executed in %.3fs\n", time_diff(t0, t1));
@@ -483,30 +489,32 @@ receive_and_add_ospray_volume_data(TCPSocket *sock, const SceneElement& element)
     
     // Load function succeeded
     
-    result.set_hash(get_sha1(encoded_parameters));
+    // XXX disable for now
+    //result.set_hash(get_sha1(encoded_parameters));
+    result.set_hash("12345");
     
     for (int i = 0; i < 6; i++)
         result.add_bbox(bbox[i]);
     
-    // Set up further volume parameters
+    // Set up further volume properties
     
-    if (parameters.find("_sampling_rate") != parameters.end())
-        ospSetf(volume,  "samplingRate", parameters["_sampling_rate"].get<float>());
+    if (properties.find("sampling_rate") != properties.end())
+        ospSetf(volume,  "samplingRate", properties["sampling_rate"].get<float>());
     else
         ospSetf(volume,  "samplingRate", 0.1f);
     
-    if (parameters.find("_gradient_shading") != parameters.end())
-        ospSet1i(volume,  "gradientShadingEnabled", parameters["_gradient_shading"].get<bool>());
+    if (properties.find("gradient_shading") != properties.end())
+        ospSet1i(volume,  "gradientShadingEnabled", properties["gradient_shading"].get<bool>());
     else
         ospSet1i(volume,  "gradientShadingEnabled", false);
     
-    if (parameters.find("_pre_integration") != parameters.end())
-        ospSet1i(volume,  "preIntegration", parameters["_pre_integration"].get<bool>());
+    if (properties.find("pre_integration") != properties.end())
+        ospSet1i(volume,  "preIntegration", properties["pre_integration"].get<bool>());
     else
         ospSet1i(volume,  "preIntegration", false);    
     
-    if (parameters.find("_single_shade") != parameters.end())
-        ospSet1i(volume,  "singleShade", parameters["_single_shade"].get<bool>());
+    if (properties.find("single_shade") != properties.end())
+        ospSet1i(volume,  "singleShade", properties["single_shade"].get<bool>());
     else
         ospSet1i(volume,  "singleShade", true);  
     
@@ -527,12 +535,15 @@ receive_and_add_ospray_volume_data(TCPSocket *sock, const SceneElement& element)
 
     OSPTransferFunction tf = ospNewTransferFunction("piecewise_linear");
     
-        if (parameters.find("data_range") != parameters.end())
+        if (properties.find("data_range") != properties.end())
         {
-            float minval = parameters["data_range"][0];
-            float maxval = parameters["data_range"][1];
+            // Override data range provided by the plugin
+            float minval = properties["data_range"][0];
+            float maxval = properties["data_range"][1];
             ospSet2f(tf, "valueRange", minval, maxval);
         }
+        else
+            ospSet2f(tf, "valueRange", data_range[0], data_range[1]);
         
         OSPData color_data = ospNewData(cool2warm_entries, OSP_FLOAT3, tf_colors);
         ospSetData(tf, "colors", color_data);
@@ -569,13 +580,15 @@ receive_and_add_ospray_volume_object(TCPSocket *sock, const SceneElement& elemen
 
     // From Blender custom properties
     
-    const char *encoded_parameters = element.parameters().c_str();
-    //printf("Received volume parameters:\n%s\n", encoded_parameters);
+    const char *encoded_properties = element.properties().c_str();
+    //printf("Received volume properties:\n%s\n", encoded_properties);
     
-    json parameters = json::parse(encoded_parameters);
+    const json &properties = json::parse(encoded_properties);
     
     printf("%s [OBJECT]\n", element.name().c_str());
     printf("........ --> %s (ospray volume)\n", element.data_link().c_str());
+    printf("Properties:\n");
+    printf("%s\n", properties.dump(4).c_str());
     
     LoadedVolumesMap::iterator it = loaded_volumes.find(element.data_link());
     
@@ -595,14 +608,15 @@ receive_and_add_ospray_volume_object(TCPSocket *sock, const SceneElement& elemen
     ospSetVec3f(volume, "xfm.p", osp::vec3f{ obj2world[3], obj2world[7], obj2world[11] });
 #endif
 
-    // XXX this check disregards the representation type set on the object
-    if (parameters.find("isovalues") != parameters.end())
+    // XXX need to use the representation property set 
+    
+    if (properties.find("isovalues") != properties.end())
     {
         // Isosurfacing
         
-        printf("Representing volume with isosurface(s)\n");
+        printf("Property 'isovalues' set, representing volume with isosurface(s)\n");
         
-        json isovalues_prop = parameters["isovalues"];
+        json isovalues_prop = properties["isovalues"];
         int n = isovalues_prop.size();
 
         float *isovalues = new float[n];
@@ -627,13 +641,13 @@ receive_and_add_ospray_volume_object(TCPSocket *sock, const SceneElement& elemen
         ospAddGeometry(world, isosurface);
         ospRelease(isosurface);
     }
-    else if (parameters.find("slice_plane") != parameters.end())
+    else if (properties.find("slice_plane") != properties.end())
     {
         // Slice plane (only a single one supported, atm)
         
-        printf("Representing volume with slice plane\n");
+        printf("Property 'slice_plane' set, representing volume with slice plane\n");
         
-        json slice_plane_prop = parameters["slice_plane"];
+        json slice_plane_prop = properties["slice_plane"];
         
         if (slice_plane_prop.size() == 4)
         {
@@ -685,14 +699,14 @@ receive_and_add_ospray_geometry_data(TCPSocket *sock, const SceneElement& elemen
 
     // Custom parameters
     
-    const char *encoded_parameters = element.parameters().c_str();
-    //printf("Received volume parameters:\n%s\n", encoded_parameters);
+    const char *encoded_properties = element.properties().c_str();
+    //printf("Received geeomtry properties:\n%s\n", encoded_properties);
     
-    json parameters = json::parse(encoded_parameters);
+    const json &properties = json::parse(encoded_properties);
     
     printf("%s [GEOMETRY] (ospray geometry)\n", element.name().c_str());
-    printf("Parameters:\n");
-    printf("%s\n", parameters.dump(4).c_str());
+    printf("Properties:\n");
+    printf("%s\n", properties.dump(4).c_str());
     
     // Prepare result
     
@@ -702,7 +716,7 @@ receive_and_add_ospray_geometry_data(TCPSocket *sock, const SceneElement& elemen
     
     // Find load function 
     
-    const std::string& plugin = parameters["_plugin"];
+    const std::string& plugin = properties["plugin"];
     
     if (!ensure_plugin_is_loaded(result, plugin))
     {
@@ -716,7 +730,9 @@ receive_and_add_ospray_geometry_data(TCPSocket *sock, const SceneElement& elemen
     
     // Check parameters
     
-    if (!check_parameters(result, definition.parameters, parameters))
+    const json& plugin_parameters = properties["plugin_parameters"];
+    
+    if (!check_parameters(result, definition.parameters, plugin_parameters))
     {
         // Something went wrong...
         send_protobuf(sock, result);
@@ -728,15 +744,12 @@ receive_and_add_ospray_geometry_data(TCPSocket *sock, const SceneElement& elemen
     struct timeval t0, t1;
     
     printf("Calling load function\n");
-    printf("Parameters:\n");
-    printf("%s\n", parameters.dump(4).c_str());
-    
     gettimeofday(&t0, NULL);
     
     float                   bbox[6];
     ModelInstances          model_instances;
     
-    load_function(model_instances, bbox, result, parameters, obj2world);
+    load_function(model_instances, bbox, result, plugin_parameters, obj2world);
     
     gettimeofday(&t1, NULL);
     printf("Load function executed in %.3fs\n", time_diff(t0, t1));
@@ -746,7 +759,9 @@ receive_and_add_ospray_geometry_data(TCPSocket *sock, const SceneElement& elemen
     
     // Load function succeeded
     
-    result.set_hash(get_sha1(encoded_parameters));
+    // XXX disable for now
+    //result.set_hash(get_sha1(encoded_parameters));
+    result.set_hash("12345");
     
     for (int i = 0; i < 6; i++)
         result.add_bbox(bbox[i]);
@@ -770,13 +785,15 @@ receive_and_add_ospray_geometry_object(TCPSocket *sock, const SceneElement& elem
 
     // From Blender custom properties
     
-    const char *encoded_parameters = element.parameters().c_str();
-    //printf("Received geometry object parameters:\n%s\n", encoded_parameters);
+    const char *encoded_properties = element.properties().c_str();
+    //printf("Received geometry object properties:\n%s\n", encoded_properties);
     
-    json parameters = json::parse(encoded_parameters);
+    const json &properties = json::parse(encoded_properties);
     
     printf("%s [OBJECT]\n", element.name().c_str());
     printf("........ --> %s (ospray geometry)\n", element.data_link().c_str());
+    printf("Properties:\n");
+    printf("%s\n", properties.dump(4).c_str());
     
     LoadedGeometriesMap::iterator it = loaded_geometries.find(element.data_link());
     
