@@ -62,7 +62,7 @@ message SceneElement
     
     Type            type = 1;
     string          name = 2;
-    string          properties = 3;
+    string          parameters = 3;
     
     repeated float  object2world = 10;
     string          data_link = 11;

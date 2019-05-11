@@ -246,7 +246,7 @@ receive_and_add_mesh_object(TCPSocket *sock, const SceneElement& element)
     return true;
 }
 
-// Loads plugin shared library if not already loaded
+// If needed, loads plugin shared library and initializes plugin
 bool
 ensure_plugin_is_loaded(LoadFunctionResult &result, const std::string& name)
 {
@@ -275,10 +275,10 @@ ensure_plugin_is_loaded(LoadFunctionResult &result, const std::string& name)
         fprintf(stderr, "dlopen() error: %s\n", dlerror());
         return false;
     }
-    
-    // Get plugin functions
             
     dlerror();  // Clear previous error
+    
+    // Initialize plugin 
     
     plugin_initialization_function *initialize = (plugin_initialization_function*) dlsym(plugin, "initialize");
             
@@ -328,18 +328,18 @@ receive_and_add_volume_data(TCPSocket *sock, const SceneElement& element)
     glm::mat4 obj2world;
     object2world_from_protobuf(obj2world, element);
 
-    // Custom properties
+    // From Blender custom properties
     
-    const char *encoded_properties = element.properties().c_str();
-    //printf("Received volume properties:\n%s\n", encoded_properties);
+    const char *encoded_parameters = element.parameters().c_str();
+    //printf("Received volume parameters:\n%s\n", encoded_parameters);
     
-    json properties = json::parse(encoded_properties);
+    json parameters = json::parse(encoded_parameters);
     
     // XXX we print the mesh_name here, but that mesh is replaced by the python
     // export after it receives the volume extents. so a bit confusing as that original
     // mesh is reported, but that isn't in the scene anymore
     printf("[VOLUME (mesh)] %s\n", element.name().c_str());
-    printf("%s\n", properties.dump().c_str());
+    printf("%s\n", parameters.dump().c_str());
     
     // Prepare result
     
@@ -349,7 +349,7 @@ receive_and_add_volume_data(TCPSocket *sock, const SceneElement& element)
     
     // Find load function 
                 
-    const std::string& plugin = properties["_plugin"];
+    const std::string& plugin = parameters["_plugin"];
     
     if (!ensure_plugin_is_loaded(result, plugin))
     {
@@ -360,20 +360,23 @@ receive_and_add_volume_data(TCPSocket *sock, const SceneElement& element)
     
     volume_load_function_t load_function = plugin_definitions[plugin].functions.volume_load_function;
     
-    // Let load function do its job
+    // Check parameters passed to load function
+    // XXX
+    
+
+    // Call load function
     
     struct timeval t0, t1;
     
     printf("Calling load function\n");
-    printf("... properties = %s\n", properties.dump().c_str());
+    printf("... parameters = %s\n", parameters.dump().c_str());
     
     gettimeofday(&t0, NULL);
     
     OSPVolume   volume;
     float       bbox[6];
     
-    // XXX the properties are passed through parameter called "parameters"
-    volume = load_function(bbox, result, properties, obj2world);
+    volume = load_function(bbox, result, parameters, obj2world);
     
     gettimeofday(&t1, NULL);
     printf("Load function executed in %.3fs\n", time_diff(t0, t1));
@@ -388,30 +391,30 @@ receive_and_add_volume_data(TCPSocket *sock, const SceneElement& element)
     
     // Load function succeeded
     
-    result.set_hash(get_sha1(encoded_properties));
+    result.set_hash(get_sha1(encoded_parameters));
     
     for (int i = 0; i < 6; i++)
         result.add_bbox(bbox[i]);
     
     // Set up further volume parameters
     
-    if (properties.find("_sampling_rate") != properties.end())
-        ospSetf(volume,  "samplingRate", properties["_sampling_rate"].get<float>());
+    if (parameters.find("_sampling_rate") != parameters.end())
+        ospSetf(volume,  "samplingRate", parameters["_sampling_rate"].get<float>());
     else
         ospSetf(volume,  "samplingRate", 0.1f);
     
-    if (properties.find("_gradient_shading") != properties.end())
-        ospSet1i(volume,  "gradientShadingEnabled", properties["_gradient_shading"].get<bool>());
+    if (parameters.find("_gradient_shading") != parameters.end())
+        ospSet1i(volume,  "gradientShadingEnabled", parameters["_gradient_shading"].get<bool>());
     else
         ospSet1i(volume,  "gradientShadingEnabled", false);
     
-    if (properties.find("_pre_integration") != properties.end())
-        ospSet1i(volume,  "preIntegration", properties["_pre_integration"].get<bool>());
+    if (parameters.find("_pre_integration") != parameters.end())
+        ospSet1i(volume,  "preIntegration", parameters["_pre_integration"].get<bool>());
     else
         ospSet1i(volume,  "preIntegration", false);    
     
-    if (properties.find("_single_shade") != properties.end())
-        ospSet1i(volume,  "singleShade", properties["_single_shade"].get<bool>());
+    if (parameters.find("_single_shade") != parameters.end())
+        ospSet1i(volume,  "singleShade", parameters["_single_shade"].get<bool>());
     else
         ospSet1i(volume,  "singleShade", true);  
     
@@ -432,10 +435,10 @@ receive_and_add_volume_data(TCPSocket *sock, const SceneElement& element)
 
     OSPTransferFunction tf = ospNewTransferFunction("piecewise_linear");
     
-        if (properties.find("data_range") != properties.end())
+        if (parameters.find("data_range") != parameters.end())
         {
-            float minval = properties["data_range"][0];
-            float maxval = properties["data_range"][1];
+            float minval = parameters["data_range"][0];
+            float maxval = parameters["data_range"][1];
             ospSet2f(tf, "valueRange", minval, maxval);
         }
         
@@ -472,12 +475,12 @@ receive_and_add_volume_object(TCPSocket *sock, const SceneElement& element)
     glm::mat4 obj2world;
     object2world_from_protobuf(obj2world, element);
 
-    // Custom properties
+    // From Blender custom properties
     
-    const char *encoded_properties = element.properties().c_str();
-    //printf("Received volume properties:\n%s\n", encoded_properties);
+    const char *encoded_parameters = element.parameters().c_str();
+    //printf("Received volume parameters:\n%s\n", encoded_parameters);
     
-    json properties = json::parse(encoded_properties);
+    json parameters = json::parse(encoded_parameters);
     
     printf("[VOLUME (object)] %s\n", element.name().c_str());
     printf("........ --> %s\n", element.data_link().c_str());
@@ -501,13 +504,13 @@ receive_and_add_volume_object(TCPSocket *sock, const SceneElement& element)
 #endif
 
     // XXX this check disregards the representation type set on the object
-    if (properties.find("isovalues") != properties.end())
+    if (parameters.find("isovalues") != parameters.end())
     {
         // Isosurfacing
         
         printf("Representing volume with isosurface(s)\n");
         
-        json isovalues_prop = properties["isovalues"];
+        json isovalues_prop = parameters["isovalues"];
         int n = isovalues_prop.size();
 
         float *isovalues = new float[n];
@@ -532,13 +535,13 @@ receive_and_add_volume_object(TCPSocket *sock, const SceneElement& element)
         ospAddGeometry(world, isosurface);
         ospRelease(isosurface);
     }
-    else if (properties.find("slice_plane") != properties.end())
+    else if (parameters.find("slice_plane") != parameters.end())
     {
         // Slice plane (only a single one supported, atm)
         
         printf("Representing volume with slice plane\n");
         
-        json slice_plane_prop = properties["slice_plane"];
+        json slice_plane_prop = parameters["slice_plane"];
         
         if (slice_plane_prop.size() == 4)
         {
@@ -588,18 +591,18 @@ receive_and_add_geometry_data(TCPSocket *sock, const SceneElement& element)
     glm::mat4 obj2world;
     object2world_from_protobuf(obj2world, element);
 
-    // Custom properties
+    // Custom parameters
     
-    const char *encoded_properties = element.properties().c_str();
-    //printf("Received volume properties:\n%s\n", encoded_properties);
+    const char *encoded_parameters = element.parameters().c_str();
+    //printf("Received volume parameters:\n%s\n", encoded_parameters);
     
-    json properties = json::parse(encoded_properties);
+    json parameters = json::parse(encoded_parameters);
     
     // XXX we print the mesh_name here, but that mesh is replaced by the python
     // export after it receives the volume extents. so a bit confusing as that original
     // mesh is reported, but that isn't in the scene anymore
     printf("[GEOMETRY (mesh)] %s\n", element.name().c_str());
-    printf("%s\n", properties.dump().c_str());
+    printf("%s\n", parameters.dump().c_str());
     
     // Prepare result
     
@@ -609,7 +612,7 @@ receive_and_add_geometry_data(TCPSocket *sock, const SceneElement& element)
     
     // Find load function 
     
-    const std::string& plugin = properties["_plugin"];
+    const std::string& plugin = parameters["_plugin"];
     
     if (!ensure_plugin_is_loaded(result, plugin))
     {
@@ -631,7 +634,7 @@ receive_and_add_geometry_data(TCPSocket *sock, const SceneElement& element)
     float                   bbox[6];
     ModelInstances          model_instances;
     
-    load_function(model_instances, bbox, result, properties, obj2world);
+    load_function(model_instances, bbox, result, parameters, obj2world);
     
     gettimeofday(&t1, NULL);
     printf("Load function executed in %.3fs\n", time_diff(t0, t1));
@@ -641,7 +644,7 @@ receive_and_add_geometry_data(TCPSocket *sock, const SceneElement& element)
     
     // Load function succeeded
     
-    result.set_hash(get_sha1(encoded_properties));
+    result.set_hash(get_sha1(encoded_parameters));
     
     for (int i = 0; i < 6; i++)
         result.add_bbox(bbox[i]);
@@ -663,12 +666,12 @@ receive_and_add_geometry_object(TCPSocket *sock, const SceneElement& element)
     glm::mat4 obj2world;
     object2world_from_protobuf(obj2world, element);    
 
-    // Custom properties
+    // From Blender custom properties
     
-    const char *encoded_properties = element.properties().c_str();
-    //printf("Received geometry object properties:\n%s\n", encoded_properties);
+    const char *encoded_parameters = element.parameters().c_str();
+    //printf("Received geometry object parameters:\n%s\n", encoded_parameters);
     
-    json properties = json::parse(encoded_properties);
+    json parameters = json::parse(encoded_parameters);
     
     printf("[OBJECT %s] (geometry)\n", element.name().c_str());
     printf("........ --> %s\n", element.data_link().c_str());

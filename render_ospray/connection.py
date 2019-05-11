@@ -256,14 +256,14 @@ class Connection:
         element.type = SceneElement.VOLUME_DATA
         element.name = mesh.name
         
-        properties = customproperties2dict(mesh)
-        properties['_plugin'] = mesh.ospray.plugin
-        properties['_sampling_rate'] = mesh.ospray.sampling_rate
-        properties['_gradient_shading'] = mesh.ospray.gradient_shading
-        properties['_pre_integration'] = mesh.ospray.pre_integration
-        properties['_single_shade'] = mesh.ospray.single_shade
+        parameters = customproperties2dict(mesh)
+        parameters['_plugin'] = mesh.ospray.plugin
+        parameters['_sampling_rate'] = mesh.ospray.sampling_rate
+        parameters['_gradient_shading'] = mesh.ospray.gradient_shading
+        parameters['_pre_integration'] = mesh.ospray.pre_integration
+        parameters['_single_shade'] = mesh.ospray.single_shade
         
-        element.properties = json.dumps(properties)
+        element.parameters = json.dumps(parameters)
         # XXX add a copy of the object's xform, as the volume loading plugin might need it
         element.object2world[:] = matrix2list(obj.matrix_world)
         
@@ -347,14 +347,14 @@ class Connection:
         
         self.engine.update_stats('', 'Exporting object %s (volume)' % obj.name)
         
-        properties = customproperties2dict(obj)
-        print('Sending properties:')
-        print(properties)
+        parameters = customproperties2dict(obj)
+        print('Sending parameters:')
+        print(parameters)
         
         element = SceneElement()
         element.type = SceneElement.VOLUME_OBJECT
         element.name = obj.name
-        element.properties = json.dumps(properties) 
+        element.parameters = json.dumps(parameters) 
         element.object2world[:] = matrix2list(obj.matrix_world)
         element.data_link = mesh.name
         
@@ -373,10 +373,10 @@ class Connection:
         element.type = SceneElement.GEOMETRY_DATA
         element.name = mesh.name
         
-        properties = customproperties2dict(mesh)
-        properties['_plugin'] = mesh.ospray.plugin
+        parameters = customproperties2dict(mesh)
+        parameters['_plugin'] = mesh.ospray.plugin
         
-        element.properties = json.dumps(properties)
+        element.parameters = json.dumps(parameters)
         # XXX add a copy of the object's xform, as the volume loading plugin might need it
         element.object2world[:] = matrix2list(obj.matrix_world)
         
@@ -459,13 +459,13 @@ class Connection:
         # Geometry object
         
         self.engine.update_stats('', 'Exporting object %s (geometry)' % obj.name)
-        print('Sending properties:')
-        print(properties)
+        print('Sending parameters:')
+        print(parameters)
         
         element = SceneElement()
         element.type = SceneElement.GEOMETRY_OBJECT
         element.name = obj.name
-        element.properties = json.dumps(customproperties2dict(obj)) 
+        element.parameters = json.dumps(customproperties2dict(obj)) 
         element.object2world[:] = matrix2list(obj.matrix_world)
         element.data_link = mesh.name
         
@@ -479,7 +479,7 @@ class Connection:
         element = SceneElement()
         element.type = SceneElement.MESH_DATA
         element.name = mesh.name
-        element.properties = json.dumps(customproperties2dict(mesh))        
+        element.parameters = json.dumps(customproperties2dict(mesh))        
         send_protobuf(self.sock, element)      
         
         mesh_data = MeshData()
@@ -719,7 +719,7 @@ class Connection:
             data = obj.data
             xform = obj.matrix_world
             
-            properties = customproperties2dict(data)
+            parameters = customproperties2dict(data)
             ospray_data = data.ospray
             
             light = Light()
@@ -841,7 +841,7 @@ class Connection:
             element.type = SceneElement.MESH_OBJECT
             element.name = obj.name
             element.data_link = mesh.name
-            element.properties = json.dumps(customproperties2dict(mesh))
+            element.parameters = json.dumps(customproperties2dict(mesh))
             if instance.is_instance:
                 print('%s (%s) is instance' % (obj.name, mesh.name))
                 element.object2world[:] = matrix2list(instance.matrix_world)
