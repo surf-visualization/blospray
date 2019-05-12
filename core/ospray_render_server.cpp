@@ -57,15 +57,13 @@ using json = nlohmann::json;
 
 const int   PORT = 5909;
 
-// image size
-osp::vec2i  image_size;
-
 OSPModel        world;
 OSPCamera       camera;
 OSPRenderer     renderer;
 OSPFrameBuffer  framebuffer;
+osp::vec2i      framebuffer_size = {0, 0};
 bool            framebuffer_created = false;
-OSPMaterial     material;   // XXX hack for now
+OSPMaterial     material;                       // XXX hack for now
 
 typedef std::map<std::string, OSPModel>         LoadedMeshesMap;
 typedef std::map<std::string, OSPVolume>        LoadedVolumesMap;
@@ -829,15 +827,15 @@ receive_scene(TCPSocket *sock)
     
     receive_protobuf(sock, image_settings);
     
-    if (image_size.x != image_settings.width() || image_size.y != image_settings.height())
+    if (framebuffer_size.x != image_settings.width() || framebuffer_size.y != image_settings.height())
     {
-        image_size.x = image_settings.width() ;
-        image_size.y = image_settings.height();
+        framebuffer_size.x = image_settings.width() ;
+        framebuffer_size.y = image_settings.height();
         
         if (framebuffer_created)
             ospRelease(framebuffer);
         
-        framebuffer = ospNewFrameBuffer(image_size, OSP_FB_RGBA32F, OSP_FB_COLOR | /*OSP_FB_DEPTH |*/ OSP_FB_ACCUM);            
+        framebuffer = ospNewFrameBuffer(framebuffer_size, OSP_FB_RGBA32F, OSP_FB_COLOR | /*OSP_FB_DEPTH |*/ OSP_FB_ACCUM);            
         framebuffer_created = true;
     }
     
@@ -1067,7 +1065,7 @@ write_framebuffer_exr(const char *fname)
     // Access framebuffer 
     const float *fb = (float*)ospMapFrameBuffer(framebuffer, OSP_FB_COLOR);
     
-    writeEXRFramebuffer(fname, image_size, fb);
+    writeEXRFramebuffer(fname, framebuffer_size, fb);
     
     // Unmap framebuffer
     ospUnmapFrameBuffer(fb, framebuffer);    
@@ -1105,12 +1103,12 @@ send_framebuffer(TCPSocket *sock)
     sock->sendfile(FBFILE);
 #else
     // Send directly
-    bufsize = image_size.x*image_size.y*4*4;
+    bufsize = framebuffer_size.x*framebuffer_size.y*4*4;
     
     printf("Sending %d bytes of framebuffer data\n", bufsize);
     
     sock->send(&bufsize, 4);
-    sock->sendall((uint8_t*)fb, image_size.x*image_size.y*4*4);
+    sock->sendall((uint8_t*)fb, framebuffer_size.x*framebuffer_size.y*4*4);
 #endif
     
     // XXX can already unmap after written to file
@@ -1337,10 +1335,6 @@ main(int argc, const char **argv)
     // Initialize OSPRay.
     // OSPRay parses (and removes) its commandline parameters, e.g. "--osp:debug"
     ospInit(&argc, argv);
-    
-    // Framebuffer "init"
-    image_size.x = image_size.y = 0;
-    framebuffer_created = false;
     
     // Server loop
     
