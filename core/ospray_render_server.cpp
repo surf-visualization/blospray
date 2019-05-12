@@ -390,7 +390,7 @@ receive_and_add_blender_mesh_object(TCPSocket *sock, const SceneElement& element
     
     if (it == loaded_meshes.end())
     {
-        printf("WARNING: linked mesh data '%s' not loaded!\n", element.data_link().c_str());
+        printf("WARNING: linked mesh data '%s' not found!\n", element.data_link().c_str());
         return false;
     }
     
@@ -593,7 +593,7 @@ receive_and_add_ospray_volume_object(TCPSocket *sock, const SceneElement& elemen
     
     if (it == loaded_volumes.end())
     {
-        printf("WARNING: linked volume data '%s' not loaded!\n", element.data_link().c_str());
+        printf("WARNING: linked volume data '%s' not found!\n", element.data_link().c_str());
         return false;
     }
     
@@ -797,7 +797,7 @@ receive_and_add_ospray_geometry_object(TCPSocket *sock, const SceneElement& elem
     
     if (it == loaded_geometries.end())
     {
-        printf("WARNING: linked geometry data '%s' not loaded!\n", element.data_link().c_str());
+        printf("WARNING: linked geometry data '%s' not found!\n", element.data_link().c_str());
         return false;
     }
     

@@ -52,7 +52,7 @@ Must haves
 - Better handling of instancing and (particle system) duplication, i.e. don't duplicate mesh
 - Cancel render during export of large scenes (if this is even possible)
 - Caching of large data sets across renders
-- Interactive preview rendering
+- Interactive preview rendering, including adaptive accumulation
 - Allow plugins to provide user-defined proxy geometry, not just a bbox
 
 Very nice to haves ;-)
@@ -77,11 +77,11 @@ Nice to haves
 - Allow plugin parameters to use environment variables, so blend files
   can use non-hardcoded values for things like file paths
 - Allow depth buffer to be returned to blender
+- Log file for the server
 
 Obscure to haves
 - Handle multiple concurrent renders in Blender
 - Optimize scene when Blender instances are used
-- Log file for the server
 
 Decide
 - Protobuf is very nice for the combo data layout description, 
@@ -102,3 +102,4 @@ Look into
   to use for end users (yet another tool/syntax to learn).
 - ospray 2.0 async rendering support
 - ospray 2.0 model clipping
+- ospray_sg

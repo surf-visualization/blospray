@@ -17,6 +17,8 @@ allow plugins to set outline mesh geometry, not just bbox
 
 allow setting slice planes using parenting
 
+ospray 2.0
+
 
 major features for later
 ------------------------
