@@ -146,7 +146,7 @@ with new types of scene elements that are then rendered in OSPRay.
 
 * Caching of scene data on the server, especially for large data loaded by plugins, is planned to be implemented, but isn't there yet. I.e. currently all scene data is re-sent when rendering a new image.
 
-* Only a single (hard-coded) transfer function for volume rendering is supported. Similar for materials on geometry.
+* Only a single (hard-coded) transfer function for volume rendering and slice planes are supported. Similar for materials on geometry.
 
 * Only final renders (i.e. using the F12 key) are supported. Preview rendering is technically feasible, but is not implemented yet.
 

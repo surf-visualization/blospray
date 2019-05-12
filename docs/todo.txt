@@ -9,7 +9,7 @@ Bugs
 - https://developer.blender.org/T59089 (get evee render instead of custom one)
 - https://developer.blender.org/T64295 (custom props not updating in UI)
 
-Fix/improve
+Fix/improve/optimize
 - Correctly release the scene after rendering
 - If possible, get rid of OpenEXR as intermediate framebuffer file
   (depends on possibilities of blender API)
@@ -28,6 +28,12 @@ Fix/improve
   data to send/update. Also check use of exported_meshes in connection.py
 - Add checkbox for adaptive volume sampling, as it is enabled by default
 - Return export report/errors as text and store them in text area on Blender side
+- For batch renders there's no need to send the framebuffer for each
+  sample, only need the final buffer, but not sure we can detect that 
+  specific situation. Should look into how cycles handles this case.
+  Btw, an OSPRenderer has an 'spp' parameter, meaning we could probably
+  render all samples in one go and with less overhead due to not having
+  to send each sample framebuffer from server to blender
 
 Tests/examples:
 - Check "volume" prop in some of the tests, isn't needed anymore is it?
@@ -70,6 +76,7 @@ Nice to haves
 - Provide a list of render presets
 - Allow plugin parameters to use environment variables, so blend files
   can use non-hardcoded values for things like file paths
+- Allow depth buffer to be returned to blender
 
 Obscure to haves
 - Handle multiple concurrent renders in Blender
@@ -93,6 +100,5 @@ Look into
   Plus look at overlap in functionality with our own plugins. It seems
   ospray plugins need an ispc component, which makes them less attractive
   to use for end users (yet another tool/syntax to learn).
-- For batch renders there's no need to send the framebuffer for each
-  sample, only need the final buffer, but not sure we can detect that 
-  specific situation. Should look into how cycles handles this case
+- ospray 2.0 async rendering support
+- ospray 2.0 model clipping

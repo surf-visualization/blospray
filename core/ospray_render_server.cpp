@@ -40,7 +40,6 @@ Hence the original copyright message below.
 #include <mutex>
 #include <condition_variable>
 
-#include <boost/program_options.hpp>
 #include <ospray/ospray.h>
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/string_cast.hpp>      // to_string()
@@ -625,7 +624,6 @@ receive_and_add_ospray_volume_object(TCPSocket *sock, const SceneElement& elemen
         
         OSPData isovaluesData = ospNewData(n, OSP_FLOAT, isovalues);
         ospCommit(isovaluesData);
-        
         delete [] isovalues;
         
         OSPGeometry isosurface = ospNewGeometry("isosurfaces");
@@ -847,6 +845,7 @@ receive_scene(TCPSocket *sock)
     
     receive_protobuf(sock, render_settings);
     
+    // XXX hmm, we create a new renderer on each new scene
     renderer = ospNewRenderer(render_settings.renderer().c_str());
     
     ospSet4f(renderer, "bgColor", 
@@ -857,6 +856,7 @@ receive_scene(TCPSocket *sock)
     
     ospSet1i(renderer, "aoSamples", render_settings.ao_samples());
     ospSet1i(renderer, "shadowsEnabled", render_settings.shadows_enabled());
+    //ospSet1i(renderer, "spp", 1);
 
     // Update camera
     
@@ -916,8 +916,6 @@ receive_scene(TCPSocket *sock)
     
     if (image_settings.border_size() == 4)
     {
-        printf("%f, %f -> %f, %f\n", image_settings.border(0), image_settings.border(1),
-            image_settings.border(2), image_settings.border(3));
         ospSet2f(camera, "imageStart", image_settings.border(0), image_settings.border(1));
         ospSet2f(camera, "imageEnd", image_settings.border(2), image_settings.border(3));
     }
@@ -983,15 +981,16 @@ receive_scene(TCPSocket *sock)
     }
     
     // Ambient
-    osp_lights[num_lights] = ospNewLight3("ambient");
-    ospSet1f(osp_lights[num_lights], "intensity", light_settings.ambient_intensity());
-    ospSet3f(osp_lights[num_lights], "color", 
+    osp_light = osp_lights[num_lights] = ospNewLight3("ambient");
+    ospSet1f(osp_light, "intensity", light_settings.ambient_intensity());
+    ospSet3f(osp_light, "color", 
         light_settings.ambient_color(0), light_settings.ambient_color(1), light_settings.ambient_color(2));
     
-    ospCommit(osp_lights[num_lights]);
+    ospCommit(osp_light);
     
     OSPData light_data = ospNewData(num_lights+1, OSP_LIGHT, osp_lights);  
     ospCommit(light_data);
+    delete [] osp_lights;
     
     ospSetObject(renderer, "lights", light_data); 
     

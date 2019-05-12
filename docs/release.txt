@@ -1,0 +1,30 @@
+0.1
+
+license
+
+scene management on the server
+
+set basic color of geometry in UI (blender mesh, geometry, isosurfaces)
+
+improved exception handling on server (mostly json parsing)
+
+query and set bbox geometry from UI
+
+
+0.2
+
+allow plugins to set outline mesh geometry, not just bbox
+
+allow setting slice planes using parenting
+
+
+major features for later
+------------------------
+
+interactive preview render
+
+mpi-based parallel rendering
+
+material and tf editing
+
+animation support
