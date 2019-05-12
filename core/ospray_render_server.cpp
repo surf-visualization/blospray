@@ -1,5 +1,5 @@
 /*
-Ospray render server for blospray
+OSPRay render server for BLOSPRAY
 
 Paul Melis, SURFsara <paul.melis@surfsara.nl>
 Copyright (C) 2017-2019
