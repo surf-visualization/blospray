@@ -1,6 +1,6 @@
 # BLOSPRAY - OSPRay as a Blender render engine
 
-| Blender scene | Final render by OSPRay through BLOSPRAY |
+| Blender scene, with proxy object for the volume | Final render by OSPRay through BLOSPRAY |
 |-------|--------|
 | ![](docs/blender.small.png) | ![](docs/blospray.small.png) | 
 
@@ -63,20 +63,22 @@ Other features that might be of interest in the HPC context that are missing:
 * HDRI lighting
 
 Integration within the Blender UI, mostly panels for editing properties and such, 
-is also very rudimentary. Some properties are currently only settable using the 
-Custom Properties on objects and meshes.
+is also very rudimentary. Some properties are currently only settable using Blender
+[custom properties](https://docs.blender.org/manual/en/latest/data_system/custom_properties.html) on objects and meshes.
 
 ### Render server
 
 BLOSPRAY consists of two parts:
 
-1. a Python addon (directory `render_ospray`) that implements the Blender external render engine. It handles scene export to OSPRay, retrieving the rendered image from OSPRay and other things.
-2. a render server (`bin/ospray_render_server`) that receives the scene from Blender, calls OSPRay routines to do the actual rendering and sends back the image result.
+1. A Blender addon (directory `render_ospray`) that implements the Blender external render engine. It handles scene export to OSPRay, retrieving the rendered image from OSPRay and other things.
+2. A standalone render server (`bin/ospray_render_server` after building) that receives the scene from Blender, calls OSPRay routines to do the actual rendering and sends back the image result.
 
 The original reason for this two-part setup is that there currently is no 
 Python API for OSPRay, so direct integration in Blender is not straightforward. 
 Neither is there a command-line OSPRay utility that takes as input a scene 
-description in some format and outputs a rendered image. Plus, the client-server setup also has some advantages:
+description in some format and outputs a rendered image. 
+
+Plus, the client-server setup also has some advantages:
 
 - The separate render server can be run on a remote system, for example an HPC system 
   that holds a large scientific dataset to be rendered. This offloads most of the 
@@ -86,8 +88,9 @@ description in some format and outputs a rendered image. Plus, the client-server
 - It makes it feasible to use OSPRay's [Parallel Rendering with MPI](http://www.ospray.org/documentation.html#parallel-rendering-with-mpi) 
   mode, by providing a variant of the render server as an MPI program. Again,
   this parallel version of the server can be run remotely on an HPC system.
+  Note that this mode is currently not implemented yet.
 
-- The network protocol is (currently) not strongly tied to Blender, so the render server can be used in other contexts as well.
+- The network protocol is currently not strongly tied to Blender, so the render server can be used in other contexts as well.
 
 - BLOSPRAY development becomes slightly easier as both Blender and the render 
   server can be independently restarted in case of crashes or bugs.
@@ -110,10 +113,13 @@ in OSPRay. The original use case for plugins (and even BLOSPRAY itself) was
 to make it easy to use OSPRay's high-quality volume rendering of scientific data in a 
 Blender scene. Blender's own volume rendering support is geared towards the built-in 
 smoke and fire simulations and isn't really a good fit for scientific datasets.
-Plus it is very hard to get generic volume data into Blender.
+Plus it is very hard to get generic volume data (e.g. with multiple components
+per cell) into Blender.
+
 Apart from volumes, plugins can be used for other types of scene content as well, 
 like polygonal geometry or OSPRay's builtin geometry types like spheres and
-streamlines. Basically anything scene element that can be created with the OSPRay API.
+streamlines. Basically any scene element that can be created with the OSPRay API
+can potentially be used during rendering through plugins.
 
 The plugin system is especially useful when working with large scientific datasets 
 for which it is infeasible or unattractive to load into Blender. Instead, one 
@@ -124,7 +130,7 @@ In this way Blender scene creation, including camera animation and lighting, can
 done in the usual way as the proxy object shows the bounding box of the data 
 and can even be transformed and animated.
 
-A nice benefit of writing a plugin in C++ is that it allows on to load a large 
+A nice benefit of writing a plugin in C++ is that it allows one to load a large 
 dataset directly into memory, without having to go through the
 Blender Python API in order to accomplish the same. The latter is usually
 less efficient.
@@ -135,8 +141,9 @@ with, for example, a new geometry type. BLOSPRAY plugins serve to extend *Blende
 with new types of scene elements that are then rendered in OSPRay.
 
 
-
 ## Known limitations and bugs
+
+As BlOSPRAY is in early development some things are currently suboptimal or even impossible:
 
 * The addon provides some UI panels to set OSPRay specific settings, but in other cases we use Blender's [custom properties](https://docs.blender.org/manual/en/dev/data_system/custom_properties.html)
   to pass information to OSPRay. These can even be animated, with certain limitations, but are not a long-term solution. Note also that some builtin UI panels are disabled when the render engine
@@ -156,18 +163,19 @@ with new types of scene elements that are then rendered in OSPRay.
 
 * Command-line (batch) rendering isn't supported in a nice way yet, as the lifetime of the BLOSPRAY server needs to be managed manually.
 
-* Volumes can only use point-based values, not cell-based values
+* Volumes can only use point-based values, not cell-based values (XXX this is a limitation of the volume_raw plugin)
 
-* All Blender meshes are converted to triangle meshes before being passed to OSPRay
+* All Blender meshes are converted to triangle meshes before being passed to BLOSPRAY, as OSPRay only handles triangle meshes
+
 
 ### Limitations specific to OSPRay 
 
 Some of these we can work around, some of these we can't:
 
-* OSPRay's SciVis and Path Tracer renderer do not have the same features:
+* OSPRay's SciVis and Path Tracer renderer do not have the same set of features:
 
     - Only the Scivis renderer supports volume rendering
-    - Realistic materials are only available in the Path Tracer
+    - Only the Path Tracer supports advanced materials, like the principled material
 
 * In OSPRay structured grid volumes currently cannot be transformed with an 
   arbitrary affine transformation (see [this issue](https://github.com/ospray/ospray/issues/159)
@@ -186,8 +194,6 @@ Some of these we can work around, some of these we can't:
     
 * Volumes are limited in their size, due to the relevant ISPC-based
   code being built in 32-bit mode. See [this issue](https://github.com/ospray/ospray/issues/239).
-  Development work on OSPRay is currently underway to turn the ISPC-based
-  parts into regular C++, which should lift this restriction (XXX link to issue).
   
 * Unstructured volumes can only contain float values (i.e. not integers).
   See [here](https://github.com/ospray/ospray/issues/289)
@@ -233,6 +239,7 @@ $ cd blospray
 $ mkdir build
 $ cd build
 $ cmake -GNinja ..
+# Configure, Generate
 $ ninja install
 $ cd ../bin
 $ ls
@@ -241,7 +248,7 @@ geometry_plane.so  ospray_render_server  t_json  volume_raw.so
 
 ## Installation
 
-BLOSPRAY is a Blender add-on, but is not being distributed separately
+Part of BLOSPRAY consists of the Blender add-on, but this is not being distributed separately
 as the focus currently is getting to a releasable state in terms of features.
 Currently, the way to install it is to clone this repository and then
 make a symlink to the `render_ospray` directory in the Blender addon directory:
