@@ -1,3 +1,5 @@
+# Sources from https://docs.blender.org/api/blender2.8/bpy.types.RenderEngine.html
+
 import bpy
 import bgl
 
@@ -116,7 +118,7 @@ class CustomDrawData:
         self.dimensions = dimensions
         width, height = dimensions
 
-        pixels = [0.1, 0.2, 0.1, 1.0] * width * height
+        pixels = [1, 0.2, 0.1, 1.0] * width * height
         pixels = bgl.Buffer(bgl.GL_FLOAT, width * height * 4, pixels)
 
         # Generate texture

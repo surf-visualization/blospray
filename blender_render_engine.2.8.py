@@ -1,6 +1,6 @@
 # Can test with blender -P <thisscript.py> -E custom_renderer
 #
-# https://docs.blender.org/api/blender2.8/bpy.types.RenderEngine.html
+# Sources from https://docs.blender.org/api/blender2.8/bpy.types.RenderEngine.html
 #
 # https://github.com/LuxCoreRender/BlendLuxCore/blob/master/engine/__init__.py
 #
@@ -101,10 +101,13 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         view3d = context.space_data
         depsgraph = context.depsgraph
         scene = depsgraph.scene
-
+        
         # Get viewport dimensions
         dimensions = region.width, region.height
-
+        
+        # XXX Handle first-time scene initialization separately
+        
+        """
         if not self.scene_data:
             # First time initialization
             self.scene_data = []
@@ -121,13 +124,27 @@ class CustomRenderEngine(bpy.types.RenderEngine):
                 print("Datablock updated: ", update.id.name)
 
             # Test if any material was added, removed or changed.
-            if depsgraph.id_type_update('MATERIAL'):
+            if depsgraph.id_type_updated('MATERIAL'):
                 print("Materials updated")
-
+        
         # Loop over all object instances in the scene.
         if first_time or depsgraph.id_type_update('OBJECT'):
             for instance in depsgraph.object_instances:
                 pass
+        """
+
+        # Test which datablocks changed
+        for update in depsgraph.updates:
+            print("Datablock updated: ", update.id.name)
+
+        # Test if any material was added, removed or changed.
+        # See https://docs.blender.org/api/blender2.8/bpy.types.Depsgraph.html?highlight=depsgraph#bpy.types.Depsgraph.id_type_updated
+        # 'ACTION', 'ARMATURE', 'BRUSH', 'CAMERA', 'CACHEFILE', 'CURVE', 'FONT', 'GREASEPENCIL', 'COLLECTION', 'IMAGE', 'KEY', 'LIGHT', 'LIBRARY', 'LINESTYLE', 'LATTICE', 'MASK', 'MATERIAL', 'META', 'MESH', 'MOVIECLIP', 'NODETREE', 'OBJECT', 'PAINTCURVE', 'PALETTE', 'PARTICLE', 'LIGHT_PROBE', 'SCENE', 'SOUND', 'SPEAKER', 'TEXT', 'TEXTURE', 'WINDOWMANAGER', 'WORLD', 'WORKSPACE']
+        if depsgraph.id_type_updated('MATERIAL'):
+            print("Materials updated")
+        if depsgraph.id_type_updated('MESH'):
+            print("Mesh updated")            
+
 
     # For viewport renders, this method is called whenever Blender redraws
     # the 3D viewport. The renderer is expected to quickly draw the render
@@ -163,7 +180,7 @@ class CustomDrawData:
         self.dimensions = dimensions
         width, height = dimensions
 
-        pixels = [0.1, 1, 0.1, 1.0] * width * height
+        pixels = [0.8, 0, 0.1, 1.0] * width * height
         pixels = bgl.Buffer(bgl.GL_FLOAT, width * height * 4, pixels)
 
         # Generate texture
@@ -185,9 +202,10 @@ class CustomDrawData:
         self.vertex_array = bgl.Buffer(bgl.GL_INT, 1)
         bgl.glGenVertexArrays(1, self.vertex_array)
         bgl.glBindVertexArray(self.vertex_array[0])
-
+        
         texturecoord_location = bgl.glGetAttribLocation(shader_program[0], "texCoord");
         position_location = bgl.glGetAttribLocation(shader_program[0], "pos");
+        print(texturecoord_location, position_location)
 
         bgl.glEnableVertexAttribArray(texturecoord_location);
         bgl.glEnableVertexAttribArray(position_location);
