@@ -143,7 +143,7 @@ with new types of scene elements that are then rendered in OSPRay.
 
 ## Known limitations and bugs
 
-As BlOSPRAY is in early development some things are currently suboptimal or even impossible:
+As BlOSPRAY is in early development some things are currently suboptimal or missing:
 
 * The addon provides some UI panels to set OSPRay specific settings, but in other cases we use Blender's [custom properties](https://docs.blender.org/manual/en/dev/data_system/custom_properties.html)
   to pass information to OSPRay. These can even be animated, with certain limitations, but are not a long-term solution. Note also that some builtin UI panels are disabled when the render engine
@@ -269,3 +269,15 @@ To make Blender find the necessary protobuf packages add symlinks to
   $ ln -sf /usr/lib/python3.7/site-packages/six.py six.py
   $ ln -sf /usr/lib/python3.7/site-packages/google google
   ```
+
+## License
+
+BLOSPRAY is licensed under the Apache License, version 2.0 (the same
+license as OSPRay). See LICENSE-2.0.txt for more information.
+
+BLOSPRAY uses the [JSON for Modern C++](https://github.com/nlohmann/json) 
+header-only library, which is included in this source distribution.
+This file has a different license, see its contents.
+
+Some files, mostly separate test files, are not part of BLOSPRAY
+itself. These files are clearly marked in their text.

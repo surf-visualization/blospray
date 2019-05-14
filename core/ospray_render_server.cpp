@@ -1,16 +1,8 @@
-/*
-OSPRay render server for BLOSPRAY
-
-Paul Melis, SURFsara <paul.melis@surfsara.nl>
-Copyright (C) 2017-2019
-
-This source file started out as a copy of ospTutorial.c (although not
-much is left of it), as distributed in the OSPRay source code. 
-Hence the original copyright message below.
-*/
-
 // ======================================================================== //
-// Copyright 2009-2017 Intel Corporation                                    //
+// BLOSPRAY - OSPRay as a Blender render engine                             //
+// Paul Melis, SURFsara <paul.melis@surfsara.nl>                            //
+// ======================================================================== //
+// Copyright 2018-2019 SURFsara                                             //
 //                                                                          //
 // Licensed under the Apache License, Version 2.0 (the "License");          //
 // you may not use this file except in compliance with the License.         //
