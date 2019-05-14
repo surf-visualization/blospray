@@ -1,6 +1,7 @@
 // ======================================================================== //
 // BLOSPRAY - OSPRay as a Blender render engine                             //
 // Paul Melis, SURFsara <paul.melis@surfsara.nl>                            //
+// Plugin API                                                               //
 // ======================================================================== //
 // Copyright 2018-2019 SURFsara                                             //
 //                                                                          //

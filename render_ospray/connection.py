@@ -1,6 +1,7 @@
 # ======================================================================== #
 # BLOSPRAY - OSPRay as a Blender render engine                             #
 # Paul Melis, SURFsara <paul.melis@surfsara.nl>                            #
+# Connection to render server, scene export, result handling               #
 # ======================================================================== #
 # Copyright 2018-2019 SURFsara                                             #
 #                                                                          #

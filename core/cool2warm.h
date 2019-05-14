@@ -1,6 +1,7 @@
 // ======================================================================== //
 // BLOSPRAY - OSPRay as a Blender render engine                             //
 // Paul Melis, SURFsara <paul.melis@surfsara.nl>                            //
+// Cool-to-warm color map analogous to ParaView's Cool to Warm scale        //
 // ======================================================================== //
 // Copyright 2018-2019 SURFsara                                             //
 //                                                                          //

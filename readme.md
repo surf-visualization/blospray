@@ -275,9 +275,11 @@ To make Blender find the necessary protobuf packages add symlinks to
 BLOSPRAY is licensed under the Apache License, version 2.0 (the same
 license as OSPRay). See LICENSE-2.0.txt for more information.
 
-BLOSPRAY uses the [JSON for Modern C++](https://github.com/nlohmann/json) 
-header-only library, which is included in this source distribution.
-This file has a different license, see its contents.
-
 Some files, mostly separate test files, are not part of BLOSPRAY
-itself. These files are clearly marked in their text.
+itself. These files have license information included in their text,
+where appropriate.
+
+BLOSPRAY uses the [JSON for Modern C++](https://github.com/nlohmann/json) 
+header-only library, which is included in this source distribution
+as `core/json.hpp`. This file is not part of BLOSPRAY and has a different 
+license, see its contents.
