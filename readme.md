@@ -19,7 +19,7 @@ as the Python API isn't fully compatible with 2.8x. Plus, 2.8x is the future.
 
 Goals:
 
-- Flexible and high-quality rendering of large scientific datasets using OSPRAY 
+- Flexible and high-quality rendering of large scientific datasets using OSPRay 
 - Provide a way to add user-specific types of data as
   scene elements *without having to import that data into Blender*
 
