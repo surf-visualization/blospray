@@ -224,6 +224,21 @@ For running:
 BLOSPRAY uses CMake for building in the usual way. There's currently 
 only a very small set of BLOSPRAY specific switches that can be tweaked.
 
+The current way to build BLOSPRAY is to make a build directory within
+the source directory and build there. A `make install` will then place
+all files (server, plugins, test files) in a `bin` subdirectory of the sources:
+
+```
+$ cd blospray
+$ mkdir build
+$ cd build
+$ cmake -GNinja ..
+$ ninja install
+$ cd ../bin
+$ ls
+geometry_plane.so  ospray_render_server  t_json  volume_raw.so
+```
+
 ## Installation
 
 BLOSPRAY is a Blender add-on, but is not being distributed separately
