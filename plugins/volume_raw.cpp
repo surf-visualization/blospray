@@ -348,6 +348,26 @@ load(float *bbox, float *data_range, LoadFunctionResult &result, const json &par
     return volume;
 }
 
+extern "C"
+bool
+extent(float *bbox, LoadFunctionResult &result, const json &parameters, const glm::mat4 &/*object2world*/)
+{
+    int32_t dims[3];            // XXX why int and not uint?
+    
+    // XXX should we handle gridOrigin and gridSpacing here?
+    
+    dims[0] = parameters["dimensions"][0];
+    dims[1] = parameters["dimensions"][1];
+    dims[2] = parameters["dimensions"][2];
+    
+    bbox[0] = bbox[1] = bbox[2] = 0.0f;
+    bbox[3] = dims[0];
+    bbox[4] = dims[1];
+    bbox[5] = dims[2];
+    
+    return true;
+}
+
 // XXX header_skip -> header-skip?
 static PluginParameters 
 parameters = {
@@ -380,10 +400,10 @@ parameters = {
 static PluginFunctions
 functions = {
 
-    NULL,   // Volume extent
-    load,   // Volume load
+    extent,     // Volume extent
+    load,       // Volume load
 
-    NULL    // Geometry extent
+    NULL        // Geometry extent
 };
 
 extern "C" bool

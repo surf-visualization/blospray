@@ -151,22 +151,6 @@ typedef bool plugin_initialization_function(PluginDefinition *def);
 /*
 Some notes regarding our plugins:
 
-- Need to pick a better name for Registry, how about PluginFunctions
-
-- Look in more detail into improving error handling and return.
-  VolumeLoadResult and GeometryLoadResult return the exact same
-  lvalues.
-
-- Do we really need to distinguish between volume and geometry plugins?
-  Obviously they generate a different kind of scene element, so we can't
-  use the same load() calls. But is there a need to have separate 
-  volume_XXX.so and geometry_XXX.so types of libs? We could use only a
-  a single blospray_XXX.so type library and have the plugin specify wether
-  it generates geometry, volume or both and fill in the corresponding
-  function in the registry
-  How often does it occur that a plugin would generate both geometry
-  and volumes *from the same input data*?
-
 - How feasible is it for a plugin to compute a bound on the data without
   actually loading that data? Or you can derive the bound from the 
   plugin parameters then it's easy, or if you can read only a file 

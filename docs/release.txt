@@ -1,12 +1,10 @@
 0.1
 
-license
-
 scene management on the server
+- improved exception handling on server (mostly json parsing)
+- clear state in case of errors? or simply manually restart?
 
 set basic color of geometry in UI (blender mesh, geometry, isosurfaces)
-
-improved exception handling on server (mostly json parsing)
 
 query and set bbox geometry from UI
 
@@ -25,8 +23,8 @@ major features for later
 
 interactive preview render
 
-mpi-based parallel rendering
-
 material and tf editing
+
+mpi-based parallel rendering
 
 animation support

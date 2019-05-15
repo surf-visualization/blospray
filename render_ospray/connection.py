@@ -38,7 +38,8 @@ from .messages_pb2 import (
     LightSettings, Light, RenderSettings, 
     SceneElement, MeshData, 
     ClientMessage, LoadFunctionResult,
-    RenderResult
+    RenderResult,
+    VolumeExtentRequest, VolumeExtentFunctionResult
 )
 
 # Object to world matrix
@@ -118,6 +119,52 @@ class Connection:
         self.framebuffer_width = self.framebuffer_height = None
         
     def close(self):
+        # XXX send bye
+        self.sock.close()
+        
+    def update_volume_mesh(self, mesh):
+        """
+        Get volume extent from render server, update mesh
+        """
+        
+        self.sock.connect((self.host, self.port))
+        # XXX hello message
+        
+        # Volume data (i.e. mesh)
+        
+        msg = 'Getting extent for mesh %s (ospray volume)' % mesh.name
+        print(msg)
+        
+        # Properties 
+        
+        properties = {}
+        properties['plugin'] = mesh.ospray.plugin
+        self._process_properties(mesh, properties)
+
+        print('Sending properties:')
+        print(properties)
+        
+        # Request
+        
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.QUERY_VOLUME_EXTENT
+        send_protobuf(self.sock, client_message)
+
+        request = VolumeExtentRequest()
+        request.name = mesh.name
+        request.properties = json.dumps(properties)
+        send_protobuf(self.sock, request)   
+        
+        # Get result
+        extent_result = VolumeExtentFunctionResult()
+        
+        receive_protobuf(self.sock, extent_result)
+        
+        if not extent_result.success:
+            print('ERROR: volume extent query failed:')
+            print(extent_result.message)
+            return
+
         # XXX send bye
         self.sock.close()
 

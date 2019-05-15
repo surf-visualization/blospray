@@ -25,6 +25,7 @@ from bpy.types import (Panel,
                        PropertyGroup,
                        )                       
 
+from .operators import OSPRayUpdateMeshVolumeExtents
    
 class RENDER_PT_OSPRAY_CONNECTION(Panel):
     bl_idname = 'RENDER_PT_OSPRAY_CONNECTION'
@@ -158,12 +159,14 @@ class DATA_PT_OSPRAY_MESH_VOLUME(Panel):
         mesh = context.mesh
         ospray = mesh.ospray
         
+        # XXX align labels to the left
         col = layout.column(align=True)
         col.prop(ospray, 'gradient_shading', text='Gradient shading') 
         col.prop(ospray, 'pre_integration', text='Pre-integration') 
         col.prop(ospray, 'single_shade', text='Single shade') 
         col.prop(ospray, 'sampling_rate', text='Sampling rate') 
-        
+        col.separator()
+        col.operator('ospray.volume_update_mesh', text='Update extent mesh')    # XXX why need this text, doesn't it use bl_label?
     
 class DATA_PT_OSPRAY_LIGHT(Panel):
     bl_idname = 'DATA_PT_OSPRAY_LIGHT'

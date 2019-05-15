@@ -59,7 +59,9 @@ Multiple engines can be instantiated, e.g. when using two 3D viewports,
 each in interactive rendering mode.  
 
   
-  
+https://devtalk.blender.org/t/universal-unique-id-per-object/363/8  
+id(obj) changes on undo...:
+https://blenderartists.org/t/unique-object-id/602113/9
   
   
 https://blender.stackexchange.com/questions/57306/how-to-create-a-custom-ui/57332#57332

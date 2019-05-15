@@ -198,7 +198,7 @@ class RenderOspraySettingsMesh(PropertyGroup):
     
     sampling_rate: FloatProperty(
         name='Sampling rate',
-        description='Sampling rate of the volume as a fraction of the cell size. Thisis  the average number of cells per-sample taken along the ray. This is also sets the minimum step size for adaptive sampling',
+        description='Sampling rate of the volume as a fraction of the cell size. This is the average number of cells per-sample taken along the ray. This is also sets the minimum step size for adaptive sampling',
         default = 0.125,
         min = 0.001,
         max = 100000
