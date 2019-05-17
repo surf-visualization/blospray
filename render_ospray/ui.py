@@ -272,7 +272,7 @@ enabled_panels = {
         #'DATA_PT_camera_background_image',
         'DATA_PT_camera_display',
         'DATA_PT_camera_dof',
-        #'DATA_PT_camera_dof_aperture',     # This is a GPU-specific panel, the regular aperture settings are cycles specific
+        'DATA_PT_camera_dof_aperture',     # This is a GPU-specific panel, the regular aperture settings are cycles specific
         #'DATA_PT_camera_safe_areas',
         #'DATA_PT_camera_stereoscopy',
         'DATA_PT_context_camera',

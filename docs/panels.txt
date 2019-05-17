@@ -1,8 +1,10 @@
 Color management: using fallback mode for management
-Blender 2.80 (sub 60) (hash 9bb47c512f74 built 2019-04-29 11:43:31)
+Color management: Error could not find role data role.
+Blender 2.80 (sub 69) (hash 3022dd2b27fd built 2019-05-17 20:51:16)
 Read prefs: /home/paulm/.config/blender/2.80/config/userpref.blend
 Color management: scene view "Filmic" not found, setting default "Default".
 Color management: scene look "Filmic - Base Contrast" not found, setting default "None".
+found bundled python: /home/paulm/software/blender-git/share/blender/2.80/python
 properties_animviz
 properties_constraint
      BONE_PT_constraints
@@ -379,6 +381,7 @@ properties_render
      RENDER_PT_opengl_film
      RENDER_PT_opengl_lighting
      RENDER_PT_opengl_options
+     RENDER_PT_opengl_sampling
      RENDER_PT_simplify
      RENDER_PT_simplify_greasepencil
      RENDER_PT_simplify_render
@@ -434,9 +437,10 @@ properties_workspace
 properties_world
      EEVEE_WORLD_PT_mist
      EEVEE_WORLD_PT_surface
+     EEVEE_WORLD_PT_volume
      WORLD_PT_context_world
      WORLD_PT_custom_props
      WORLD_PT_viewport_display
->>> CustomRenderEngine.__del__()
+>>> OsprayRenderEngine.__del__()
 
 Blender quit
