@@ -772,6 +772,8 @@ class Connection:
         
         # Depth of field
         camera_settings.dof_focus_distance = 0
+        camera_settings.dof_aperture = 0.0
+        
         if cam_data.dof.use_dof:
             dof_settings = cam_data.dof
             if dof_settings.focus_object is not None:
@@ -781,10 +783,8 @@ class Connection:
             else:
                 camera_settings.dof_focus_distance = dof_settings.focus_distance
             
-        # XXX hook up fstop from UI
-        camera_settings.dof_aperture = 0.0
-        if 'aperture' in cam_data:
-            camera_settings.dof_aperture = cam_data['aperture']
+            # Camera focal length in mm + f-stop -> aperture in m
+            camera_settings.dof_aperture = (0.5 * cam_data.lens / dof_settings.aperture_fstop) / 1000
             
         # Render settings
         
