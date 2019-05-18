@@ -770,11 +770,16 @@ class Connection:
         camera_settings.view_dir[:] = list(cam_xform @ Vector((0, 0, -1)) - cam_obj.location)
         camera_settings.up_dir[:] = list(cam_xform @ Vector((0, 1, 0)) - cam_obj.location)
         
-        # DoF
-        if cam_data.dof.use_dof and cam_data.dof.focus_object is not None:
-            camera_settings.dof_focus_distance = (cam_data.dof.focus_object.location - cam_obj.location).length
-        else:
-            camera_settings.dof_focus_distance = cam_data.focus_distance
+        # Depth of field
+        camera_settings.dof_focus_distance = 0
+        if cam_data.dof.use_dof:
+            dof_settings = cam_data.dof
+            if dof_settings.focus_object is not None:
+                focus_world = dof_settings.focus_object.matrix_world.translation
+                cam_world = cam_obj.matrix_world.translation
+                camera_settings.dof_focus_distance = (focus_world - cam_world).length
+            else:
+                camera_settings.dof_focus_distance = dof_settings.focus_distance
             
         # XXX hook up fstop from UI
         camera_settings.dof_aperture = 0.0
