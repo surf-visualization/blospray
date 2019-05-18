@@ -88,7 +88,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
     # If the two view_... methods are defined the interactive rendered
     # mode becomes available
     
-    def NO_view_update(self, context):
+    def NO_view_update(self, context, depsgraph):
         """Update on data changes for viewport render"""
         print('>>> OsprayRenderEngine.view_update()')
         
@@ -104,7 +104,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         
         self.buffer = Buffer(GL_UNSIGNED_BYTE, [width * height * channels_per_pixel])
 
-    def NO_view_draw(self, context):
+    def NO_view_draw(self, context, depsgraph):
         """Draw viewport render"""
         # Note: some changes in blender do not cause a view_update(),
         # but only a view_draw()

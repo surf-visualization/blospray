@@ -95,11 +95,10 @@ class CustomRenderEngine(bpy.types.RenderEngine):
     # whenever the scene or 3D viewport changes. This method is where data
     # should be read from Blender in the same thread. Typically a render
     # thread will be started to do the work while keeping Blender responsive.
-    def view_update(self, context):
+    def view_update(self, context, depsgraph):
         self.log('>>> CustomRenderEngine.view_update()')
         region = context.region
         view3d = context.space_data
-        depsgraph = context.depsgraph
         scene = depsgraph.scene
         
         # Get viewport dimensions
@@ -151,10 +150,9 @@ class CustomRenderEngine(bpy.types.RenderEngine):
     # with OpenGL, and not perform other expensive work.
     # Blender will draw overlays for selection and editing on top of the
     # rendered image automatically.
-    def view_draw(self, context):
+    def view_draw(self, context, depsgraph):
         self.log('>>> CustomRenderEngine.view_draw()')
         region = context.region
-        depsgraph = context.depsgraph
         scene = depsgraph.scene
 
         # Get viewport dimensions
