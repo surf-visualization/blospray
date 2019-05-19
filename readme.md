@@ -14,7 +14,7 @@ Currently, this software is somewhere between alpha and beta quality,
 as it can already be used to produce useful visualizationz, but lots of
 things are still missing and not all errors are gracefully handled.
 
-In case you give it a try and/or have remarks and questions, let us know
+In case you give it a try and/or have remarks or questions, let us know
 at visualization@surfsara.nl!
 
 ## Goals 
@@ -154,6 +154,8 @@ As BlOSPRAY is in early development some things are currently suboptimal or miss
 * The addon provides some UI panels to set OSPRay specific settings, but in other cases we use Blender's [custom properties](https://docs.blender.org/manual/en/dev/data_system/custom_properties.html)
   to pass information to OSPRay. These can even be animated, with certain limitations, but are not a long-term solution. Note also that some builtin UI panels are disabled when the render engine
   is set to OSPRay as those panels can't directly be used with OSPRay (e.g. they contain Cycles-specific settings).
+  
+* In many cases only often-used parameters on OSPRay 
 
 * Scene management on the render server is currently non-existent. I.e. memory usage increases after each render.  
 
@@ -275,6 +277,11 @@ To make Blender find the necessary protobuf packages add symlinks to
   $ ln -sf /usr/lib/python3.7/site-packages/six.py six.py
   $ ln -sf /usr/lib/python3.7/site-packages/google google
   ```
+
+## Examples
+
+The directory `tests/` contains some examples and tests. Some of these
+need extra data files that are currently not included (mostly due to their size).
 
 ## License
 
