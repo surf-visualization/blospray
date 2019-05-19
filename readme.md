@@ -15,20 +15,23 @@ will become the new stable version in a couple of months.
 Blender 2.7x is not supported at the moment and probably won't be,
 as the Python API isn't fully compatible with 2.8x. Plus, 2.8x is the future.
 
-## Goals 
+Currently, this software is somewhere between alpha and beta quality,
+as it can already be used to produce useful visualizationz, but lots of
+things are still missing and not all errors are gracefully handled.
 
-Goals:
+## Goals 
 
 - Flexible and high-quality rendering of large scientific datasets using OSPRay 
 - Provide a way to add user-specific types of data as
   scene elements *without having to import that data into Blender*
+- Make OSPRay features available to Blender users
 
 Note that BLOSPRAY does not aim to compete with Cycles (the builtin renderer of Blender),
 as it has a different focus. Cycles provides production rendering of animations
 and stills, focusing (more or less) on artistic workloads. Instead, BLOSPRAY focuses 
 on rendering scenes containing (large) scientific datasets, where 
 efficient handling and rendering of the data is usually a more important goal 
-(and challenge) than production of photo-realistic imagery.
+and challenge than production of photo-realistic imagery.
 
 ## Features
 
