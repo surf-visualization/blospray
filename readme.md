@@ -14,6 +14,9 @@ Currently, this software is somewhere between alpha and beta quality,
 as it can already be used to produce useful visualizationz, but lots of
 things are still missing and not all errors are gracefully handled.
 
+In case you give it a try and/or have remarks and questions, let us know
+at visualization@surfsara.nl!
+
 ## Goals 
 
 - Flexible and high-quality rendering of large scientific datasets using OSPRay 
@@ -141,7 +144,7 @@ with new types of scene elements that are then rendered in OSPRay.
 
 ## Known limitations and bugs
 
-Note that this project is developed for Blender 2.8x, as that
+This project is developed for Blender 2.8x (currently in beta), as that
 will become the new stable version in a couple of months.
 Blender 2.7x is not supported at the moment and probably won't be,
 as the Python API isn't fully compatible with 2.8x. Plus, 2.8x is the future.
@@ -158,7 +161,7 @@ As BlOSPRAY is in early development some things are currently suboptimal or miss
 
 * Only a single (hard-coded) transfer function for volume rendering and slice planes are supported. Similar for materials on geometry.
 
-* Only final renders (i.e. using the F12 key) are supported. Preview rendering is technically feasible, but is not implemented yet.
+* Only final (F12 key) renders are supported. Preview rendering is technically feasible, but is not implemented yet.
 
 * Error handling isn't very good yet, causing a lockup in the Blender script in case the BLOSPRAY server does something wrong (like crash ;-))
 
@@ -168,7 +171,7 @@ As BlOSPRAY is in early development some things are currently suboptimal or miss
 
 * Volumes can only use point-based values, not cell-based values (XXX this is a limitation of the volume_raw plugin)
 
-* All Blender meshes are converted to triangle meshes before being passed to BLOSPRAY, as OSPRay only handles triangle meshes
+* All Blender meshes are converted to triangle meshes before being passed to BLOSPRAY, even though OSPRay also supports quad meshes
 
 
 ### Limitations specific to OSPRay 
