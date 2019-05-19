@@ -165,10 +165,12 @@ classes = (
 def register():
     from bpy.utils import register_class
     
+    from . import operators
     from . import properties
     from . import ui
     
     properties.register()
+    operators.register()
     ui.register()
     
     for cls in classes:
@@ -179,9 +181,11 @@ def unregister():
     from bpy.utils import unregister_class
     
     from . import properties
+    from . import operators
     from . import ui
     
     properties.unregister()
+    operators.unregister()
     ui.unregister()
     
     for cls in classes:

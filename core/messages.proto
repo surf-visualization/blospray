@@ -27,8 +27,10 @@ message ClientMessage
         HELLO = 0;          // XXX not used atm
         UPDATE_SCENE = 1;
         
-        START_RENDERING = 10;
-        CANCEL_RENDERING = 11;
+        QUERY_VOLUME_EXTENT = 20;
+        
+        START_RENDERING = 30;
+        CANCEL_RENDERING = 31;
         
         QUIT = 99;
     }
@@ -196,8 +198,8 @@ message LightSettings
 }
 
 // Plugins
-// Returned by load function in plugin
 
+// Returned by load function
 message LoadFunctionResult
 {
     bool            success = 1;
@@ -207,3 +209,20 @@ message LoadFunctionResult
     repeated float  bbox = 4;
 }
 
+// Request for volume extent
+message VolumeExtentRequest
+{
+    string          name = 1;
+    string          properties = 2;
+    
+    //repeated float  object2world = 10;
+}
+
+// Returned by volume extent function
+message VolumeExtentFunctionResult
+{
+    bool            success = 1;
+    string          message = 2;        // XXX use JSON for returning multiple lines/messages?
+    
+    repeated float  bbox = 3;
+}

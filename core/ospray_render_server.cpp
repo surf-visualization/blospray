@@ -1183,6 +1183,25 @@ render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
     printf("Rendering done in %.3f seconds\n", time_diff(t0, t2));
 }
 
+// Querying
+
+bool
+handle_volume_extent_query(TCPSocket *sock)
+{
+    VolumeExtentRequest volume_extent_request;
+    VolumeExtentFunctionResult result;
+    
+    receive_protobuf(sock, volume_extent_request);
+    printf("%s\n", volume_extent_request.DebugString().c_str());
+    
+    result.set_success(true);
+    
+    send_protobuf(sock, result);
+    
+    
+    return true;
+}
+
 // Connection handling
 
 bool
@@ -1213,6 +1232,9 @@ handle_connection(TCPSocket *sock)
                 return false;
             }
             
+            printf("Got client message of type %s\n", ClientMessage_Type_Name(client_message.type()).c_str());
+            printf("%s\n", client_message.DebugString().c_str());
+            
             switch (client_message.type())
             {
                 // GET_CACHE_ENTRIES    (volumes and meshes)
@@ -1222,8 +1244,14 @@ handle_connection(TCPSocket *sock)
                 case ClientMessage::UPDATE_SCENE:
                     // XXX handle clear_scene 
                     // XXX check res
+                    // XXX ignore if rendering
                     receive_scene(sock);
                     break;
+                
+                case ClientMessage::QUERY_VOLUME_EXTENT:
+                    handle_volume_extent_query(sock);
+                
+                    return true;
             
                 case ClientMessage::START_RENDERING:
                     
