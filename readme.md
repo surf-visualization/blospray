@@ -6,14 +6,9 @@
 
 The focus of BLOSPRAY is to provide high-quality rendering of scientific
 data in [Blender](https://www.blender.org) 2.8x, with a specific focus on volumetric data and use in
-an High-Performance Computing context. To accomplish this BLOSPRAY integrates 
+an HPC (High-Performance Computing) context. To accomplish this BLOSPRAY integrates 
 the [OSPRay](http://www.ospray.org/) ray tracing engine from Intel in Blender 
 as an external renderer.
-
-Note that this project is developed for Blender 2.8x, as that
-will become the new stable version in a couple of months.
-Blender 2.7x is not supported at the moment and probably won't be,
-as the Python API isn't fully compatible with 2.8x. Plus, 2.8x is the future.
 
 Currently, this software is somewhere between alpha and beta quality,
 as it can already be used to produce useful visualizationz, but lots of
@@ -145,6 +140,11 @@ with new types of scene elements that are then rendered in OSPRay.
 
 
 ## Known limitations and bugs
+
+Note that this project is developed for Blender 2.8x, as that
+will become the new stable version in a couple of months.
+Blender 2.7x is not supported at the moment and probably won't be,
+as the Python API isn't fully compatible with 2.8x. Plus, 2.8x is the future.
 
 As BlOSPRAY is in early development some things are currently suboptimal or missing:
 
