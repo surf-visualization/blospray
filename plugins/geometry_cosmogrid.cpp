@@ -26,8 +26,8 @@
 
 #include "plugin.h"
 
-const char      *data_file;
-OSPModel        model;
+const char          *data_file;
+OSPGeometricModel   model;
 
 bool
 load_points(const char *fname, int max_points, float sphere_radius, float sphere_opacity)
@@ -117,31 +117,31 @@ load_points(const char *fname, int max_points, float sphere_radius, float sphere
     
     OSPGeometry spheres = ospNewGeometry("spheres");
     
-      OSPData data = ospNewData(num_points, OSP_FLOAT3, positions);
+      OSPData data = ospNewData(num_points, OSP_VEC3F, positions);
       ospCommit(data);
       ospSetData(spheres, "spheres", data);
       
-      ospSet1i(spheres, "bytes_per_sphere", 3*sizeof(float));
-      ospSet1f(spheres, "radius", sphere_radius);
+      ospSetInt(spheres, "bytes_per_sphere", 3*sizeof(float));
+      ospSetFloat(spheres, "radius", sphere_radius);
 
-      //data = ospNewData(num_vertices, OSP_FLOAT4, colors);
+      //data = ospNewData(num_vertices, OSP_VEC4F, colors);
       //ospCommit(data);
       //ospSetData(mesh, "vertex.color", data);
-
-      OSPMaterial material = ospNewMaterial2("scivis", "OBJMaterial");
-      ospSet3f(material, "Kd", 1.0f, 1.0f, 1.0f);
-      ospSet1f(material, "d", sphere_opacity);
-      ospCommit(material);
-      ospSetMaterial(spheres, material);
-      ospRelease(material);
-
+      
     ospCommit(spheres);
   
-    // Create model (for instancing)
+    // Create model (for instancing)    
+
+    OSPMaterial material = ospNewMaterial("scivis", "OBJMaterial");
+        ospSetVec3f(material, "Kd", 1.0f, 1.0f, 1.0f);
+        ospSetFloat(material, "d", sphere_opacity);
+    ospCommit(material);
     
-    model = ospNewModel();
-        ospAddGeometry(model, spheres);
+    model = ospNewGeometricModel(spheres);
+        ospSetObject(model, "material", material);
     ospCommit(model);
+    ospRelease(spheres);
+    ospRelease(material);
     
     delete [] positions;
     delete [] nbcounts;

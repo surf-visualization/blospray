@@ -1,4 +1,7 @@
-Add license
+Port plugin geometry_cosmogrid to new style
+
+
+
 
 Bugs
 - Camera clipping start doesn't match cycles render, nor OpenGL scene view.
