@@ -24,9 +24,9 @@
 #include <stdint.h>
 #include <ospray/ospray.h>
 
-bool    writePNG(const char *fileName, const osp::vec2i &size, const uint32_t *pixel);
-void    writePPM(const char *fileName, const osp::vec2i &size, const uint32_t *pixel);
+bool    writePNG(const char *fileName, int width, int height, const uint32_t *pixel);
+void    writePPM(const char *fileName, int width, int height, const uint32_t *pixel);
 
-bool    writeEXRFramebuffer(const char *fileName, const osp::vec2i &size, const float *pixel);
+bool    writeEXRFramebuffer(const char *fileName, int width, int height, const float *pixel);
 
 #endif

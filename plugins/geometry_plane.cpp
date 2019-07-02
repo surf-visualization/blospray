@@ -76,15 +76,15 @@ add_plane(float cx, float cy, float cz, float sx, float sy)
     
     OSPGeometry mesh = ospNewGeometry("triangles");
   
-      OSPData data = ospNewData(num_vertices, OSP_FLOAT3, vertices);   
+      OSPData data = ospNewData(num_vertices, OSP_VEC3F, vertices);   
       ospCommit(data);
       ospSetData(mesh, "vertex", data);
 
-      data = ospNewData(num_vertices, OSP_FLOAT4, colors);
+      data = ospNewData(num_vertices, OSP_VEC4F, colors);
       ospCommit(data);
       ospSetData(mesh, "vertex.color", data);
 
-      data = ospNewData(num_triangles, OSP_INT3, triangles);            
+      data = ospNewData(num_triangles, OSP_VEC3I, triangles);            
       ospCommit(data);
       ospSetData(mesh, "index", data);
 
@@ -106,9 +106,9 @@ load(ModelInstances& model_instances, float *bbox, LoadFunctionResult &result, c
     
     OSPGeometry plane_geom = add_plane(0.0f, 0.0f, 0.0f, size_x, size_y);
     
-    OSPModel model = ospNewModel();
-        ospAddGeometry(model, plane_geom);
+    OSPGeometricModel model = ospNewGeometricModel(plane_geom);
     ospCommit(model);
+    ospRelease(plane_geom);
     
     // Add instance
     model_instances.push_back(std::make_pair(model, glm::mat4(1.0f)));

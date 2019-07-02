@@ -672,6 +672,7 @@ class Connection:
             normals = numpy.empty(nv*3, dtype=numpy.float32)
             
             for idx, v in enumerate(mesh.vertices):
+                # XXX use .index?
                 n = v.normal
                 normals[3*idx+0] = n.x
                 normals[3*idx+1] = n.y
@@ -691,6 +692,7 @@ class Connection:
                 for loop_index in poly.loop_indices:
                     loop_vert_index = mesh.loops[loop_index].vertex_index
                     color = vcol_data[loop_index].color
+                    # XXX have RGBA vcols in Blender 2.8x
                     vertex_colors[4*loop_vert_index+0] = color[0]
                     vertex_colors[4*loop_vert_index+1] = color[1]
                     vertex_colors[4*loop_vert_index+2] = color[2]

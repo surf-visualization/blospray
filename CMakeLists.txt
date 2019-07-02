@@ -32,7 +32,7 @@ find_package(Threads REQUIRED)
 
 find_package(PkgConfig)
 
-find_package(ospray 1.7 REQUIRED)
+find_package(ospray CONFIG 2.0.0 REQUIRED)
 find_package(Boost COMPONENTS program_options REQUIRED)
 #find_package(glm REQUIRED)
 

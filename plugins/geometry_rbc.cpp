@@ -32,8 +32,8 @@
 
 using json = nlohmann::json;
 
-const char      *rbc_data_path;
-OSPModel        mesh_model_rbc, mesh_model_plt;
+const char          *rbc_data_path;
+OSPGeometricModel   mesh_model_rbc, mesh_model_plt;
 
 bool
 load_cell_models()
@@ -82,35 +82,36 @@ load_cell_models()
     
       // XXX use ospRelease() here?
   
-      OSPData data = ospNewData(num_vertices, OSP_FLOAT3, vertices);    // OSP_FLOAT3A format is also supported for vertex positions
+      OSPData data = ospNewData(num_vertices, OSP_VEC3F, vertices);    // OSP_FLOAT3A format is also supported for vertex positions
       ospCommit(data);
       ospSetData(mesh, "vertex", data);
 
-      data = ospNewData(num_vertices, OSP_FLOAT4, colors);
+      data = ospNewData(num_vertices, OSP_VEC4F, colors);
       ospCommit(data);
       ospSetData(mesh, "vertex.color", data);
 
       // XXX are aligned indices, i.e. OSP_INT4, faster to render?
       // YYY they are not really aligned it seems, merely 4 elements
       // stored for a 3-element vector 
-      data = ospNewData(num_triangles, OSP_INT3, triangles);            // OSP_INT4 format is also supported for triangle indices
+      data = ospNewData(num_triangles, OSP_VEC3I, triangles);            // OSP_INT4 format is also supported for triangle indices
       ospCommit(data);
       ospSetData(mesh, "index", data);
             
-      OSPMaterial material = ospNewMaterial2("scivis", "OBJMaterial");
-    
-      ospSet3f(material, "Kd", 0.8f, 0, 0);
-      ospCommit(material);
-      ospSetMaterial(mesh, material);
-      ospRelease(material);
-
     ospCommit(mesh);
   
     // Create model (for instancing)
+  
+    OSPMaterial material = ospNewMaterial("scivis", "OBJMaterial");
     
-    mesh_model_rbc = ospNewModel();
-        ospAddGeometry(mesh_model_rbc, mesh);
+        ospSetVec3f(material, "Kd", 0.8f, 0, 0);
+        
+    ospCommit(material);
+
+    mesh_model_rbc = ospNewGeometricModel(mesh);
+        ospSetObject(mesh_model_rbc, "material", material);
     ospCommit(mesh_model_rbc);
+    ospRelease(material);
+    ospRelease(mesh);
     
     delete [] vertices;
     delete [] triangles;
@@ -154,33 +155,34 @@ load_cell_models()
     
       // XXX use ospRelease() here?
   
-      data = ospNewData(num_vertices, OSP_FLOAT3, vertices);    // OSP_FLOAT3A format is also supported for vertex positions
+      data = ospNewData(num_vertices, OSP_VEC3F, vertices);    // OSP_FLOAT3A format is also supported for vertex positions
       ospCommit(data);
       ospSetData(mesh, "vertex", data);
 
-      data = ospNewData(num_vertices, OSP_FLOAT4, colors);
+      data = ospNewData(num_vertices, OSP_VEC4F, colors);
       ospCommit(data);
       ospSetData(mesh, "vertex.color", data);
 
       // XXX are aligned indices, i.e. OSP_INT4, faster to render?
-      data = ospNewData(num_triangles, OSP_INT3, triangles);            // OSP_INT4 format is also supported for triangle indices
+      data = ospNewData(num_triangles, OSP_VEC3I, triangles);            // OSP_INT4 format is also supported for triangle indices
       ospCommit(data);
       ospSetData(mesh, "index", data);
     
-      material = ospNewMaterial2("scivis", "OBJMaterial");
-    
-      ospSet3f(material, "Kd", 0.8f, 0.8f, 0.8f);
-      ospCommit(material);
-      ospSetMaterial(mesh, material);
-      ospRelease(material);
-
     ospCommit(mesh);
   
     // Create model (for instancing)
+
+    material = ospNewMaterial("scivis", "OBJMaterial");
     
-    mesh_model_plt = ospNewModel();
-        ospAddGeometry(mesh_model_plt, mesh);
+      ospSetVec3f(material, "Kd", 0.8f, 0.8f, 0.8f);
+    
+    ospCommit(material);
+
+    mesh_model_plt = ospNewGeometricModel(mesh);
+        ospSetObject(mesh_model_plt, "material", material);
     ospCommit(mesh_model_plt);
+    ospRelease(mesh);
+    ospRelease(material);
     
     return true;
 }

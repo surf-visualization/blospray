@@ -27,7 +27,7 @@
 
 // XXX check for existence of "file", "header_skip", etc. entries in parameters[]
 
-static OSPVolume
+static OSPVolumetricModel
 load_as_structured(float *bbox, LoadFunctionResult &result,
     const json &parameters, const glm::mat4 &/*object2world*/, 
     const int32_t *dims, const std::string &voxelType, OSPDataType dataType, void *grid_field_values)
@@ -43,7 +43,7 @@ load_as_structured(float *bbox, LoadFunctionResult &result,
     ospRelease(voxelData);
 
     ospSetString(volume, "voxelType", voxelType.c_str());
-    ospSet3i(volume, "dimensions", dims[0], dims[1], dims[2]);
+    ospSetVec3i(volume, "dimensions", dims[0], dims[1], dims[2]);
     
     float origin[3] = { 0.0f, 0.0f, 0.0f };
     float spacing[3] = { 1.0f, 1.0f, 1.0f };
@@ -64,10 +64,14 @@ load_as_structured(float *bbox, LoadFunctionResult &result,
         spacing[2] = s[2];
     }
     
-    ospSet3f(volume, "gridOrigin", origin[0], origin[1], origin[2]);
-    ospSet3f(volume, "gridSpacing", spacing[0], spacing[1], spacing[2]);
+    ospSetVec3f(volume, "gridOrigin", origin[0], origin[1], origin[2]);
+    ospSetVec3f(volume, "gridSpacing", spacing[0], spacing[1], spacing[2]);
 
     ospCommit(volume);
+    
+    OSPVolumetricModel volume_model = ospNewVolumetricModel(volume);
+    ospCommit(volume_model);
+    ospRelease(volume);
     
     // XXX in the unstructured load function below we pass the bbox of the UNTRANSFORMED volume
     
@@ -79,10 +83,10 @@ load_as_structured(float *bbox, LoadFunctionResult &result,
     bbox[4] = origin[1] + dims[1] * spacing[1];
     bbox[5] = origin[2] + dims[2] * spacing[2];
     
-    return volume;
+    return volume_model;
 }
 
-static OSPVolume
+static OSPVolumetricModel
 load_as_unstructured(
     float *bbox, LoadFunctionResult &result,
     const json &parameters, const glm::mat4 &object2world, 
@@ -165,13 +169,13 @@ load_as_unstructured(
     // Set up volume object
     
     // XXX need to look closer at the specific alignment requirements of using OSP_FLOAT3A
-    OSPData verticesData = ospNewData(num_grid_points, OSP_FLOAT3, vertices);       
+    OSPData verticesData = ospNewData(num_grid_points, OSP_VEC3F, vertices);       
     ospCommit(verticesData);
     
     OSPData fieldData = ospNewData(num_grid_points, dataType, grid_field_values);   
     ospCommit(fieldData);
     
-    OSPData indicesData = ospNewData(num_hexahedrons*2, OSP_INT4, indices);
+    OSPData indicesData = ospNewData(num_hexahedrons*2, OSP_VEC4I, indices);
     ospCommit(indicesData);
     
     OSPVolume volume = ospNewVolume("unstructured_volume");
@@ -189,6 +193,10 @@ load_as_unstructured(
 
     ospCommit(volume);
     
+    OSPVolumetricModel volume_model = ospNewVolumetricModel(volume);
+    ospCommit(volume_model);
+    ospRelease(volume);
+    
     // Note that the volume bounding box is based on the *untransformed*
     // volume, i.e. without applying object2world
     // XXX we ignore gridorigin and gridspacing here, and always assume
@@ -199,12 +207,12 @@ load_as_unstructured(
     bbox[4] = dims[1];
     bbox[5] = dims[2];
     
-    return volume;    
+    return volume_model;    
 }
 
 
 extern "C"
-OSPVolume
+OSPVolumetricModel
 load(float *bbox, float *data_range, LoadFunctionResult &result, const json &parameters, const glm::mat4 &object2world)
 {
     char msg[1024];
@@ -301,27 +309,27 @@ load(float *bbox, float *data_range, LoadFunctionResult &result, const json &par
 
     // Set up volume object
     
-    OSPVolume volume;
+    OSPVolumetricModel volume_model;
     
     if (parameters.find("make_unstructured") != parameters.end() && parameters["make_unstructured"].get<int>())
     {
         // We support using an unstructured volume for now, as we can transform its
         // vertices with the object2world matrix, as volumes currently don't
         // support affine transformations in ospray themselves.
-        volume = load_as_unstructured(  
+        volume_model = load_as_unstructured(  
                     bbox, result,
                     parameters, object2world, 
                     dims, voxelType, dataType, grid_field_values);
     }
     else
     {
-        volume = load_as_structured(
+        volume_model = load_as_structured(
                     bbox, result,
                     parameters, object2world, 
                     dims, voxelType, dataType, grid_field_values);
     }
     
-    if (!volume)
+    if (!volume_model)
     {
         fprintf(stderr, "Volume preparation failed!\n");
         return NULL;
@@ -331,7 +339,7 @@ load(float *bbox, float *data_range, LoadFunctionResult &result, const json &par
     {
         float minval = parameters["data_range"][0];
         float maxval = parameters["data_range"][1];
-        ospSet2f(volume, "voxelRange", minval, maxval);
+        ospSetVec2f(volume_model, "voxelRange", minval, maxval);
         
         data_range[0] = minval;
         data_range[1] = maxval;
@@ -343,9 +351,9 @@ load(float *bbox, float *data_range, LoadFunctionResult &result, const json &par
         data_range[1] = 1.0f;
     }
 
-    ospCommit(volume);
+    ospCommit(volume_model);
     
-    return volume;
+    return volume_model;
 }
 
 extern "C"

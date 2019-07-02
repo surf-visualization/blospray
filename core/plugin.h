@@ -30,8 +30,17 @@
 
 using json = nlohmann::json;
 
-typedef std::pair<OSPModel, glm::mat4>  ModelInstance;
-typedef std::vector<ModelInstance>      ModelInstances;
+// We don't want to return an OSPInstance as we can't apply an extra
+// (object-to-world) transform to that later.
+// XXX OSPModel -> ospray::cpp::GeometricModel
+// XXX ModelInstance -> ospray::cpp::Instance?
+
+// XXX how to handle materials w.r.t. plugin-generated geometry?
+// If we return a GeometricModel as we do now, the material is already
+// set and cannot get overridden on the Blender side.
+
+typedef std::pair<OSPGeometricModel, glm::mat4>     ModelInstance;
+typedef std::vector<ModelInstance>                  ModelInstances;
 
 //
 // Functions
@@ -44,7 +53,7 @@ typedef std::vector<ModelInstance>      ModelInstances;
 // - bbox (min * 3, max * 3)
 // - result to false and set appropriate message. return false resp. NULL
 
-typedef OSPVolume (*volume_load_function_t)(
+typedef OSPVolumetricModel (*volume_load_function_t)(
     float *bbox, 
     float *data_range,
     LoadFunctionResult &result, 
