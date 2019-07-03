@@ -1,8 +1,12 @@
-# Sources from https://docs.blender.org/api/blender2.8/bpy.types.RenderEngine.html
-
+# Sources based on https://docs.blender.org/api/blender2.8/bpy.types.RenderEngine.html
 import bpy
 import bgl
 import time
+import numpy
+
+def log(s):
+    print('[%.6f] %s' % (time.time(), s))
+    
 
 class CustomRenderEngine(bpy.types.RenderEngine):
     # These three members are used by blender to set up the
@@ -15,19 +19,24 @@ class CustomRenderEngine(bpy.types.RenderEngine):
     # instances may exist at the same time, for example for a viewport and final
     # render.
     def __init__(self):
+        log('CustomRenderEngine.__init__()')
         self.scene_data = None
         self.draw_data = None
         
+        self.draw_count = 0
         self.update_count = 0
+        self.dimensions = None
 
     # When the render engine instance is destroy, this is called. Clean up any
     # render engine data here, for example stopping running render threads.
     def __del__(self):
+        log('CustomRenderEngine.__del__()')
         pass
 
     # This is the method called by Blender for both final renders (F12) and
     # small preview for materials, world and lights.
     def render(self, depsgraph):
+        log('CustomRenderEngine.render()')
         scene = depsgraph.scene
         scale = scene.render.resolution_percentage / 100.0
         self.size_x = int(scene.render.resolution_x * scale)
@@ -54,19 +63,19 @@ class CustomRenderEngine(bpy.types.RenderEngine):
     # whenever the scene or 3D viewport changes. This method is where data
     # should be read from Blender in the same thread. Typically a render
     # thread will be started to do the work while keeping Blender responsive.
-    def view_update(self, context):
+    def view_update(self, context, depsgraph):
+        log('CustomRenderEngine.view_update()')
         region = context.region
         view3d = context.space_data
-        depsgraph = context.depsgraph
         scene = depsgraph.scene
 
-        # Get viewport dimensions
-        dimensions = region.width, region.height
-        
         self.update_count += 1
         
         print('--- %d view_update() %s ---' % (self.update_count, time.asctime()))
         
+        # Get viewport dimensions
+        dimensions = region.width, region.height
+                
         types = ['ACTION', 'ARMATURE', 'BRUSH', 'CAMERA', 'CACHEFILE', 'CURVE', 'FONT', 'GREASEPENCIL', 'COLLECTION', 'IMAGE', 'KEY', 'LIGHT', 'LIBRARY', 'LINESTYLE', 'LATTICE', 'MASK', 'MATERIAL', 'META', 'MESH', 'MOVIECLIP', 'NODETREE', 'OBJECT', 'PAINTCURVE', 'PALETTE', 'PARTICLE', 'LIGHT_PROBE', 'SCENE', 'SOUND', 'SPEAKER', 'TEXT', 'TEXTURE', 'WINDOWMANAGER', 'WORLD', 'WORKSPACE']
         for t in types:
             if depsgraph.id_type_updated(t):
@@ -74,24 +83,37 @@ class CustomRenderEngine(bpy.types.RenderEngine):
 
         for update in depsgraph.updates:
             print("Datablock updated: %s (%s)" % (update.id.name, type(update.id)))
-            
-        
 
     # For viewport renders, this method is called whenever Blender redraws
     # the 3D viewport. The renderer is expected to quickly draw the render
     # with OpenGL, and not perform other expensive work.
     # Blender will draw overlays for selection and editing on top of the
     # rendered image automatically.
-    def view_draw(self, context):
-        
-        return
+    def view_draw(self, context, depsgraph):
+        log('CustomRenderEngine.view_draw()')
         
         region = context.region
-        depsgraph = context.depsgraph
+        assert region.type == 'WINDOW'        
+        assert context.space_data.type == 'VIEW_3D'
+        
+        view3d = context.region_data
+        print('perspective %d' % (view3d.is_perspective))
+        print('WINDOW', view3d.window_matrix)
+        #print('PERSPECTIVE', view3d.perspective_matrix)    # = window * view
+        print('VIEW', view3d.view_matrix)
+        
         scene = depsgraph.scene
 
         # Get viewport dimensions
         dimensions = region.width, region.height
+        
+        self.draw_count += 1
+        
+        print('--- %d view_draw() %s ---' % (self.draw_count, time.asctime()))
+        
+        if dimensions != self.dimensions:
+            print('Dimensions changed to %d x %d' % dimensions)
+            self.dimensions = dimensions        
 
         # Bind shader that converts from scene linear to display space,
         bgl.glEnable(bgl.GL_BLEND)
@@ -109,11 +131,14 @@ class CustomRenderEngine(bpy.types.RenderEngine):
 
 class CustomDrawData:
     def __init__(self, dimensions):
+        log('CustomDrawData.__init__()')
+        
         # Generate dummy float image buffer
         self.dimensions = dimensions
         width, height = dimensions
-
-        pixels = [1, 0.2, 0.1, 1.0] * width * height
+        
+        pixels = numpy.full(width*height*4, 0.3, dtype=numpy.float32)
+        #pixels = [0.1, 0.2, 0.1, 1.0] * width * height
         pixels = bgl.Buffer(bgl.GL_FLOAT, width * height * 4, pixels)
 
         # Generate texture
@@ -163,12 +188,16 @@ class CustomDrawData:
         bgl.glBindVertexArray(0)
 
     def __del__(self):
+        log('CustomDrawData.__del__()')
+        
         bgl.glDeleteBuffers(2, self.vertex_buffer)
         bgl.glDeleteVertexArrays(1, self.vertex_array)
         bgl.glBindTexture(bgl.GL_TEXTURE_2D, 0)
         bgl.glDeleteTextures(1, self.texture)
 
     def draw(self):
+        log('CustomDrawData.draw()')
+        
         bgl.glActiveTexture(bgl.GL_TEXTURE0)
         bgl.glBindTexture(bgl.GL_TEXTURE_2D, self.texture[0])
         bgl.glBindVertexArray(self.vertex_array[0])
