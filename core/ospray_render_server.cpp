@@ -365,8 +365,8 @@ receive_and_add_blender_mesh_data(TCPSocket *sock, const SceneElement& element)
     
     ospCommit(mesh);
     
-    // XXX how to set material on geommodel?
     OSPGeometricModel model = ospNewGeometricModel(mesh);
+        //ospSetObject(model, "material", material);
     ospCommit(model);
     ospRelease(mesh);
         
@@ -1010,6 +1010,8 @@ receive_scene(TCPSocket *sock)
         //else
         // XXX HDRI
         
+        printf("........ intensity %.3f, visible %d\n", light.intensity(), light.visible());      
+        
         ospSetVec3f(osp_light, "color", light.color(0), light.color(1), light.color(2));
         ospSetFloat(osp_light, "intensity", light.intensity());    
         ospSetBool(osp_light, "isVisible", light.visible());                      
@@ -1027,6 +1029,9 @@ receive_scene(TCPSocket *sock)
     }
     
     // Ambient
+    printf("Ambient light\n");
+    printf("........ intensity %.3f\n", light_settings.ambient_intensity());      
+    
     osp_light = osp_lights[num_lights] = ospNewLight("ambient");
     ospSetFloat(osp_light, "intensity", light_settings.ambient_intensity());
     ospSetVec3f(osp_light, "color", 
@@ -1034,19 +1039,21 @@ receive_scene(TCPSocket *sock)
     
     ospCommit(osp_light);
     
-    OSPData light_data = ospNewData(num_lights+1, OSP_LIGHT, osp_lights);  
+    OSPData light_data = ospNewData(num_lights+1, OSP_LIGHT, osp_lights, 0);  
     ospCommit(light_data);
-    delete [] osp_lights;
+    //delete [] osp_lights;
     
-    ospSetObject(renderer, "lights", light_data); 
+    ospSetObject(renderer, "lights", light_data);
     
     ospCommit(renderer);
     
     // For now a single material
     
+    /*
     material = ospNewMaterial(render_settings.renderer().c_str(), "OBJMaterial");
         ospSetVec3f(material, "Kd", 0.8f, 0.8f, 0.8f);
     ospCommit(material);
+    */
     
     // Receive scene elements
     
