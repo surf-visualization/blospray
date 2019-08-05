@@ -64,14 +64,13 @@ class CustomRenderEngine(bpy.types.RenderEngine):
     # should be read from Blender in the same thread. Typically a render
     # thread will be started to do the work while keeping Blender responsive.
     def view_update(self, context, depsgraph):
-        log('CustomRenderEngine.view_update()')
+        
+        self.update_count += 1
+        print('--- %d CustomRenderEngine.view_update() ---' % self.update_count)
+        
         region = context.region
         view3d = context.space_data
         scene = depsgraph.scene
-
-        self.update_count += 1
-        
-        print('--- %d view_update() %s ---' % (self.update_count, time.asctime()))
         
         # Get viewport dimensions
         dimensions = region.width, region.height
@@ -90,31 +89,52 @@ class CustomRenderEngine(bpy.types.RenderEngine):
     # Blender will draw overlays for selection and editing on top of the
     # rendered image automatically.
     def view_draw(self, context, depsgraph):
-        log('CustomRenderEngine.view_draw()')
+        
+        # See https://github.com/LuxCoreRender/BlendLuxCore/blob/master/draw/viewport.py
+
+        self.draw_count += 1
+        log('--- %d CustomRenderEngine.view_draw() ---' % self.draw_count)
         
         region = context.region
         assert region.type == 'WINDOW'        
         assert context.space_data.type == 'VIEW_3D'
         
-        view3d = context.region_data
-        print('perspective %d' % (view3d.is_perspective))
-        print('WINDOW', view3d.window_matrix)
-        #print('PERSPECTIVE', view3d.perspective_matrix)    # = window * view
-        print('VIEW', view3d.view_matrix)
+        region_data = context.region_data
+        space_data = context.space_data
+        
+        # view clipping has no effect on these matrices
+        print('WINDOW', region_data.window_matrix)
+        print('PERSPECTIVE', region_data.perspective_matrix)    # = window * view
+        print('VIEW', region_data.view_matrix)
+        
+        print('view location', region_data.view_location)
+        print('view rotation', region_data.view_rotation)       # Quat
+        print('perspective %d' % (region_data.is_perspective))
+        
+        # view3d.perspective_matrix = window_matrix * view_matrix
+        perspective_matrix = region_data.perspective_matrix
+        
+        print('space_data.lens', space_data.lens)   # Always set to viewport lens setting, even when in camera view
+        
+        print('region_data', dir(region_data))
+        print('region_data.view_perspective', region_data.view_perspective) # PERS, ORTHO or CAMERA
+        
+        print('space_data', dir(space_data))
+        print('space_data.camera', space_data.camera)
+        #print('space_data.use_local_camera', space_data.use_local_camera)  # No relation to camera view yes/no
         
         scene = depsgraph.scene
 
         # Get viewport dimensions
         dimensions = region.width, region.height
         
-        self.draw_count += 1
-        
-        print('--- %d view_draw() %s ---' % (self.draw_count, time.asctime()))
-        
         if dimensions != self.dimensions:
             print('Dimensions changed to %d x %d' % dimensions)
             self.dimensions = dimensions        
-
+            
+        print('aspect (dims) %.3f' % (self.dimensions[0]/self.dimensions[1]))
+        print('aspect (window matrix) %.3f' % (region_data.window_matrix[1][1] / region_data.window_matrix[0][0]))
+        
         # Bind shader that converts from scene linear to display space,
         bgl.glEnable(bgl.GL_BLEND)
         bgl.glBlendFunc(bgl.GL_ONE, bgl.GL_ONE_MINUS_SRC_ALPHA);
@@ -127,6 +147,8 @@ class CustomRenderEngine(bpy.types.RenderEngine):
 
         self.unbind_display_space_shader()
         bgl.glDisable(bgl.GL_BLEND)
+        
+        
 
 
 class CustomDrawData:
