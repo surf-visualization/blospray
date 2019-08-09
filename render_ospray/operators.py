@@ -1,4 +1,4 @@
-import bpy
+import bpy, bmesh
 
 from .connection import Connection
 
@@ -6,7 +6,7 @@ class OSPRayUpdateMeshVolumeExtents(bpy.types.Operator):
 
     # XXX unfinished
 
-    """Get volume extent from server"""             # Tooltip
+    """Update volume bounding geometry with plugin bound"""             
     bl_idname = "ospray.volume_update_mesh"
     bl_label = "Update extent mesh"
     bl_options = {'REGISTER'}#, 'UNDO'}             # Enable undo for the operator?
@@ -21,9 +21,21 @@ class OSPRayUpdateMeshVolumeExtents(bpy.types.Operator):
         ospray = scene.ospray
         
         print(msh)
-        connection = Connection(None, ospray.host, ospray.port)
-        connection.update_volume_mesh(msh)
-
+                
+        #connection = Connection(None, ospray.host, ospray.port)
+        #connection.update_volume_mesh(msh)
+        
+        # XXX use fake geometry for now
+        bm = bmesh.new()        
+        verts = []
+        verts.append(bm.verts.new((0, 0, 0)))
+        verts.append(bm.verts.new((1, 1, 1)))
+        verts.append(bm.verts.new((0, 2, 0)))
+        verts.append(bm.verts.new((2, 0, 0)))        
+        bm.faces.new(verts)        
+        bm.to_mesh(msh)
+        msh.update()
+        
         return {'FINISHED'}
 
 
