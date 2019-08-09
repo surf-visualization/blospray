@@ -32,12 +32,83 @@ using json = nlohmann::json;
 
 // We don't want to return an OSPInstance as we can't apply an extra
 // (object-to-world) transform to that later.
-// XXX OSPModel -> ospray::cpp::GeometricModel
-// XXX ModelInstance -> ospray::cpp::Instance?
 
 // XXX how to handle materials w.r.t. plugin-generated geometry?
 // If we return a GeometricModel as we do now, the material is already
 // set and cannot get overridden on the Blender side.
+
+/*
+It's a bit tricky to decide what a geometry/volume plugin should return
+exactly. Depending on user needs one might want to return just an OSPVolume
+and let all the appearance settings get handled on the Blender side. Perhaps 
+a plugin might occassionally also want to specify the transfer function used
+(which would need to go in the VolumetricModel), but that's mostly it.
+
+For geometry the situation is worse. Our cosmogrid plugin returns a 
+"spheres" OSPGeometry and nothing else. But if per-sphere colors would have
+been needed, these would have to go in the OSPGeometricModel parameters "prim.color".
+So the plugin could either provide the color array only, or provide a complete
+OSPGeometry + OSPGeomtricModel setup.
+
+Our rbc plugin returns two OSPGeometry base meshes plus a list of *instances* 
+of those meshes, the latter need to be turned into an OSPInstance each (with an
+OSPGroup of a single mesh in between :-/). Vertex colors are set on the two base 
+geometries. Per-instance colors can not easily be set, other than on two
+OSPGeometricModel's, one for each of the two base meshes.
+
+One way to cope with this is to allow the plugin to choose at what
+"level" in the scene hierarchy it returns data. A plugin could choose
+to return a GeometricModel, in which case the system would need to add
+a Group and Instance before adding to the scene. Or a plugin can return a
+set of OSPInstance's that can directly be added to the OSPWorld.
+
+This does cause a bit of trouble with handling materials set on the Blender
+side, as this can only be applied to an OSPGeometricModel. So if a plugin
+returns an OSPInstance there's no easy way to the material lower in the
+tree, as no iteration/inspection methods are provided by the OSPRAY API.
+It could be overcome by having a plugin method set_material() that
+makes the plugin set a specific user-chosen material to the scene part
+the plugin defined. But it would also mean having a scene_release()
+plugin method to make sure the plugin doesn't hold onto references
+that need to be cleared, as plugins now need to be keep track of scene 
+elements they generated.
+
+Should a plugin specify materials at all? Or should they always be specified
+by the user in Blender, and then passed to the plugin during scene
+construction? But what if the material is altered by the user in Blender?
+
+Materials, especially color, should be editable from the Blender side.
+A plugin can still ignore any color set from Blender, but applying
+user-chosen colors should be the default. The unclear point is how to
+handle per-primitive colors (e.g. cosmogrid particles)? A user could
+specify a color ramp to use (although the ColorRamp node doesn't allow
+values outside the [0,1] range) which then gets applied by the plugin
+for mapping values to colors. It would be an option to add OSPRAY-specific
+shader nodes, but a lot of work...
+
+Plugins should also handle changes in those parts of the scene they
+are responsible for. For example, a user may change a property set 
+on a mesh that is handled by a plugin that would the generated
+geometry or volume to change. 
+
+A set of event handlers is then needed (XXX still not clear at what
+level the plugins generate data)
+
+plugin_loaded
+plugin_unloaded
+
+create_geometry
+update_geometry
+destroy_geometry
+
+create_volume
+update_volume
+destroy_volume
+
+create_scene
+update_scene
+destroy_scene
+*/
 
 typedef std::pair<OSPGeometricModel, glm::mat4>     ModelInstance;
 typedef std::vector<ModelInstance>                  ModelInstances;

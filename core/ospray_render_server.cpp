@@ -397,16 +397,19 @@ receive_and_add_blender_mesh_object(TCPSocket *sock, const SceneElement& element
     object2world_from_protobuf(obj2world, element);
     affine3fv_from_mat4(affine_xform, obj2world);
     
-    OSPInstance instance = ospNewInstance();
-    
-        ospSetAffine3fv(instance, "xfm", affine_xform);
+    OSPGroup group = ospNewGroup();
     
         OSPData data = ospNewData(1, OSP_OBJECT, &model, 0);
-        ospSetData(instance, "geometries", data);
+        ospSetData(group, "geometry", data);
         ospRelease(model);
     
-    ospCommit(instance);
+    ospCommit(group);
     ospRelease(data);
+    
+    OSPInstance instance = ospNewInstance(group);
+        ospSetAffine3fv(instance, "xfm", affine_xform);
+    ospCommit(instance);
+    ospRelease(group);
     
     scene_instances.push_back(instance);
     
@@ -606,8 +609,18 @@ receive_and_add_ospray_volume_object(TCPSocket *sock, const SceneElement& elemen
     
     OSPVolumetricModel volume_model = it->second;
     
-    OSPInstance instance = ospNewInstance();
-    ospSetAffine3fv(instance, "xfm", affine_xform);
+    OSPGroup group = ospNewGroup();
+    
+        OSPData data = ospNewData(1, OSP_OBJECT, &volume_model, 0);
+        ospSetData(group, "volume", data);
+        ospRelease(volume_model);
+        
+    ospCommit(group);    
+    
+    OSPInstance instance = ospNewInstance(group);
+        ospSetAffine3fv(instance, "xfm", affine_xform);
+    ospCommit(instance);
+    ospRelease(group);
     
 #if 0
     // See https://github.com/ospray/ospray/pull/165, support for volume transformations was reverted
@@ -638,7 +651,7 @@ receive_and_add_ospray_volume_object(TCPSocket *sock, const SceneElement& elemen
         
         OSPGeometry isosurface = ospNewGeometry("isosurfaces");
         
-            ospSetObject(isosurface, "volume", volume_model);
+            ospSetObject(isosurface, "volume", volume_model);       // XXX need volume here, not the volume model!
             ospRelease(volume_model);
 
             ospSetData(isosurface, "isovalues", isovaluesData);
@@ -678,7 +691,7 @@ receive_and_add_ospray_volume_object(TCPSocket *sock, const SceneElement& elemen
             
             OSPGeometry slices = ospNewGeometry("slices");
             
-                ospSetObject(slices, "volume", volume_model);
+                ospSetObject(slices, "volume", volume_model);   // XXX need volume here, not the volume model!  
                 ospRelease(volume_model);
 
                 ospSetData(slices, "planes", planeData);
@@ -710,6 +723,7 @@ receive_and_add_ospray_volume_object(TCPSocket *sock, const SceneElement& elemen
         ospCommit(data);
         ospRelease(volume_model);
         
+        // XXX need group in between
         ospSetData(instance, "volumes", data);
         ospCommit(instance);
         ospRelease(data);
