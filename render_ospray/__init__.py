@@ -49,7 +49,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
     bl_idname = "OSPRAY"
     bl_label = "OSPRay"
     bl_use_preview = False                  # Availability of material preview renders
-    bl_use_shading_nodes = True             # XXX?
+    bl_use_shading_nodes = True             # XXX no longer available in 2.8?
     bl_use_shading_nodes_custom = False     # If True will hide cycles shading nodes
     
     def __init__(self):
