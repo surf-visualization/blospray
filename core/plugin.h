@@ -30,13 +30,6 @@
 
 using json = nlohmann::json;
 
-// We don't want to return an OSPInstance as we can't apply an extra
-// (object-to-world) transform to that later.
-
-// XXX how to handle materials w.r.t. plugin-generated geometry?
-// If we return a GeometricModel as we do now, the material is already
-// set and cannot get overridden on the Blender side.
-
 /*
 It's a bit tricky to decide what a geometry/volume plugin should return
 exactly. Depending on user needs one might want to return just an OSPVolume
@@ -110,59 +103,99 @@ update_scene
 destroy_scene
 */
 
-typedef std::pair<OSPGeometricModel, glm::mat4>     ModelInstance;
-typedef std::vector<ModelInstance>                  ModelInstances;
+// For scene plugins: one or more transformed OSPGroup's.
+// We don't pass OSPInstance's here, as the transformation might need
+// to be updated when the corresponding scene element is transformed in
+// Blender, as OSPRay currently doesn't support layering instance transforms.
+
+typedef std::pair<OSPGroup, glm::mat4>      GroupInstance;
+typedef std::vector<GroupInstance>          GroupInstances;
+
+// A plugin can return a bounding mesh, to be used as proxy object
+// in the blender scene. The mesh geometry is defined in the same way
+// as in Blender: vertices, edges and polygons.
+
+class BoundingMesh
+{
+    // Convenience method for constructing an axis-aligned bounding box
+    static BoundingMesh *bbox(float xmin, float ymin, float zmin, float xmax, float ymax, float zmax);
+    
+    BoundingMesh();
+    ~BoundingMesh();
+    
+    // vertices, edges, faces (loops, start, total)
+};
+
 
 //
 // Functions
 //
  
-// XXX what are the object2world parameters for? Merely to directly
-// transform an unstructured volume ourselves (which OSPRAY doesn't support?)
+// XXX rename, as it is not the state of the plugin, but state of one
+// of the "instances" managed by the plugin
+struct PluginState
+{   
+    // Custom properties set on the Blender mesh data.
+    // XXX Will be updated by the server when needed.
+    json            parameters;
+    
+    float           bbox[6];
+    
+    // Bounding geometry, may be NULL
+    BoundingMesh    *bound;
+    
+    // Plugin-specific data for this instance, managed by the plugin
+    void            *data;        
+    
+    // Depending on the type of plugin, one of these three must
+    // be filled in by the plugin.
+    
+    // Volume plugin:
+    OSPVolume       volume;
+    float           *volume_data_range;    
+    
+    // Geometry plugin:
+    OSPGeometry     geometry;    
+    
+    // Scene plugin:
+    GroupInstances  group_instances;    
+};
 
-// Functions should set
-// - bbox (min * 3, max * 3)
-// - result to false and set appropriate message. return false resp. NULL
 
-typedef OSPVolumetricModel (*volume_load_function_t)(
-    float *bbox, 
-    float *data_range,
-    LoadFunctionResult &result, 
-    const json &parameters, 
-    const glm::mat4 &object2world
+typedef void (*plugin_load_function_t)(
 );
 
-typedef bool (*volume_extent_function_t)(
-    float *bbox, 
-    LoadFunctionResult &result, 
-    const json &parameters, 
-    const glm::mat4 &object2world
+typedef void (*plugin_unload_function_t)(    
 );
 
-typedef void (*geometry_load_function_t)(
-    ModelInstances& model_instances, 
-    float *bbox, 
-    LoadFunctionResult &result, 
-    const json &parameters, 
-    const glm::mat4 &object2world
+typedef void (*object_create_function_t)(
+    LoadFunctionResult &result,
+    PluginState *state
+);
+
+typedef void (*clear_data_function_t)(
+    PluginState *state
 );
 
 typedef struct 
 {
-    // Volume plugins
-    volume_extent_function_t    volume_extent_function;
-    volume_load_function_t      volume_load_function;
+    // One-time plugin loading/unloading. Both may be NULL.
+    plugin_load_function_t      plugin_load_function;
+    plugin_unload_function_t    plugin_unload_function;
     
-    // Geometry plugins
-    geometry_load_function_t    geometry_load_function;
+    // Create/destroy the scene element(s) this plugin provides.
+    // Depending on the type of plugin the corresponding fields in
+    // PluginState must be set.
+    // This function may not be NULL.
+    object_create_function_t    object_create_function;    
     
+    // Clear any plugin-specific data from PluginState. May be NULL
+    clear_data_function_t       clear_data_function;
     
-    
-    //compute_volume_bound_function    -> bbox or mesh
-    //generate_volume_function -> OSPVolume
-    
-    //compute_geometry_bound_function -> bbox or mesh
-    //generate_geometry_function -> list of (OSPModel, xform)
+    // Optimization later: allow light-weight updating (if we can
+    // reliably detect what exactly changed)
+    // Properties were updated, update elements
+    //object_update_function_t    object_update_function;
 }
 PluginFunctions;
 
@@ -218,13 +251,22 @@ typedef PluginParameter PluginParameters[];
 // Initialization
 //
 
+enum PluginType
+{
+    PT_GEOMETRY = 1,
+    PT_VOLUME = 2,
+    PT_SCENE = 3
+};
+
 typedef struct
 {
+    PluginType          type;
     PluginParameter     *parameters;
     PluginFunctions     functions;
 }
 PluginDefinition;
 
+// XXX how does this relate with plugin_load_function and plugin_unload_function?
 typedef bool plugin_initialization_function(PluginDefinition *def);
 
 
@@ -246,13 +288,16 @@ Some notes regarding our plugins:
 - Should we store any state in plugins or only pass it through the
   parameters? Plugins only work like functions in the current scheme in that they
   provide data when called that gets owned and managed by the server. 
+  A plugin might also get called more than once for different objects
+  in the scene. Managing these multiple instances should be handled
+  by the server, not the plugin.
   
 - Can we get rid of the object2world xform in the API calls? The only
   reason we have them is because a structured volume in ospray can't
   be arbitrarily transformed, which should get fixed at some point.
   Are there other uses for the parameter outside of ospray?
 
-- Should we add a framenumber/timestamp parameter to the plugin API?
+- How to add a framenumber/timestamp parameter to the plugin API?
 
 */
 

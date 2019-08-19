@@ -53,23 +53,22 @@ const int   PORT = 5909;
 OSPWorld        world;
 std::vector<OSPInstance>    scene_instances;
 OSPCamera       camera;
+std::map<std::string, OSPRenderer>  renderers;
 OSPRenderer     renderer;
 OSPFrameBuffer  framebuffer;
 int             framebuffer_width=0, framebuffer_height=0;
 bool            framebuffer_created = false;
-OSPMaterial     material;                       // XXX hack for now
+OSPMaterial     material;                           // XXX hack for now
+OSPTransferFunction cool2warm_transfer_function;    // XXX hack for now
 
-// In Blender a material is linked to the MESH (object data) by default, so
-// to match this we use an OSPRay GeometricModel, which includes the material
-// A VolumetricModel includes the transfer function.
-typedef std::map<std::string, OSPGeometricModel>    LoadedMeshesMap;
-typedef std::map<std::string, OSPVolumetricModel>   LoadedVolumesMap;
-typedef std::map<std::string, ModelInstances>       LoadedGeometriesMap;
+typedef std::map<std::string, OSPGeometry>      LoadedGeometriesMap;
+typedef std::map<std::string, OSPVolume>        LoadedVolumesMap;
+typedef std::map<std::string, GroupInstances>   LoadedScenesMap;
 
 // XXX rename to ..._cache
-LoadedMeshesMap     loaded_meshes;
-LoadedVolumesMap    loaded_volumes;
-LoadedGeometriesMap loaded_geometries;
+LoadedGeometriesMap     loaded_geometries;
+LoadedVolumesMap        loaded_volumes;
+LoadedScenesMap         loaded_scenes;
 
 ImageSettings   image_settings;
 RenderSettings  render_settings;
@@ -292,7 +291,7 @@ receive_and_add_blender_mesh_data(TCPSocket *sock, const SceneElement& element)
 {
     printf("%s [MESH]\n", element.name().c_str());
     
-    if (loaded_meshes.find(element.name()) != loaded_meshes.end())
+    if (loaded_geometries.find(element.name()) != loaded_geometries.end())
         printf("WARNING: mesh '%s' already loaded, overwriting!\n", element.name().c_str());
     
     MeshData    mesh_data;
@@ -337,7 +336,7 @@ receive_and_add_blender_mesh_data(TCPSocket *sock, const SceneElement& element)
   
         data = ospNewData(nv, OSP_VEC3F, &vertex_buffer[0]);   
         ospCommit(data);
-        ospSetData(mesh, "vertex", data);
+        ospSetData(mesh, "vertex.position", data);
         ospRelease(data);
 
         if (flags & MeshData::NORMALS)
@@ -361,16 +360,9 @@ receive_and_add_blender_mesh_data(TCPSocket *sock, const SceneElement& element)
         ospSetData(mesh, "index", data);
         ospRelease(data);
 
-        // XXX set Blender material?
-    
     ospCommit(mesh);
-    
-    OSPGeometricModel model = ospNewGeometricModel(mesh);
-        //ospSetObject(model, "material", material);
-    ospCommit(model);
-    ospRelease(mesh);
         
-    loaded_meshes[element.name()] = model;
+    loaded_geometries[element.name()] = mesh;
     
     return true;
 }
@@ -381,15 +373,16 @@ receive_and_add_blender_mesh_object(TCPSocket *sock, const SceneElement& element
     printf("%s [OBJECT]\n", element.name().c_str());
     printf("........ --> %s (blender mesh)\n", element.data_link().c_str());
     
-    LoadedMeshesMap::iterator it = loaded_meshes.find(element.data_link());
+    LoadedGeometriesMap::iterator it = loaded_geometries.find(element.data_link());
     
-    if (it == loaded_meshes.end())
+    if (it == loaded_geometries.end())
     {
         printf("WARNING: linked mesh data '%s' not found!\n", element.data_link().c_str());
         return false;
     }
     
-    OSPGeometricModel model = it->second;
+    OSPGeometry geometry = it->second;
+    assert(geometry != NULL);
     
     glm::mat4   obj2world;
     float       affine_xform[12];
@@ -397,15 +390,17 @@ receive_and_add_blender_mesh_object(TCPSocket *sock, const SceneElement& element
     object2world_from_protobuf(obj2world, element);
     affine3fv_from_mat4(affine_xform, obj2world);
     
+    OSPGeometricModel model = ospNewGeometricModel(geometry);        
+        ospSetObject(model, "material", material);
+    ospCommit(model);
+    
+    OSPData models = ospNewData(1, OSP_OBJECT, &model, 0);
     OSPGroup group = ospNewGroup();
-    
-        OSPData data = ospNewData(1, OSP_OBJECT, &model, 0);
-        ospSetData(group, "geometry", data);
-        ospRelease(model);
-    
+        ospSetData(group, "geometry", models);
     ospCommit(group);
-    ospRelease(data);
-    
+    ospRelease(model);        
+    ospRelease(models);
+        
     OSPInstance instance = ospNewInstance(group);
         ospSetAffine3fv(instance, "xfm", affine_xform);
     ospCommit(instance);
@@ -416,24 +411,78 @@ receive_and_add_blender_mesh_object(TCPSocket *sock, const SceneElement& element
     return true;
 }
 
+void
+prepare_renderers()
+{
+    renderers["scivis"] = ospNewRenderer("scivis");
+    
+    material = ospNewMaterial("scivis", "OBJMaterial");
+        ospSetVec3f(material, "Kd", 0.8f, 0.8f, 0.8f);
+    ospCommit(material);
+    
+    renderers["pathtracer"] = ospNewRenderer("pathtracer");    
+}
+
+void
+prepare_builtin_transfer_function()
+{
+    float tf_colors[3*cool2warm_entries];
+    float tf_opacities[cool2warm_entries];
+
+    for (int i = 0; i < cool2warm_entries; i++)
+    {
+        tf_opacities[i]  = cool2warm[4*i+0];
+        tf_colors[3*i+0] = cool2warm[4*i+1];
+        tf_colors[3*i+1] = cool2warm[4*i+2];
+        tf_colors[3*i+2] = cool2warm[4*i+3];
+    }
+
+    cool2warm_transfer_function = ospNewTransferFunction("piecewise_linear");
+    
+        // XXX value range is volumetricmodel specific
+        /*if (properties.find("data_range") != properties.end())
+        {
+            // Override data range provided by the plugin
+            float minval = properties["data_range"][0];
+            float maxval = properties["data_range"][1];
+            ospSetVec2f(cool2warm_transfer_function, "valueRange", minval, maxval);
+        }
+        else        
+            ospSetVec2f(cool2warm_transfer_function, "valueRange", data_range[0], data_range[1]);
+        */    
+    
+        ospSetVec2f(cool2warm_transfer_function, "valueRange", 0.0f, 255.0f);
+        
+        OSPData color_data = ospNewData(cool2warm_entries, OSP_VEC3F, tf_colors);
+        ospSetData(cool2warm_transfer_function, "colors", color_data);
+        ospRelease(color_data);
+        
+        OSPData opacity_data = ospNewData(cool2warm_entries, OSP_FLOAT, tf_opacities);
+        ospSetData(cool2warm_transfer_function, "opacities", opacity_data);
+        ospRelease(opacity_data);
+    
+    ospCommit(cool2warm_transfer_function);    
+}
+
 bool
 receive_and_add_ospray_volume_data(TCPSocket *sock, const SceneElement& element)
 {
-    // Object-to-world matrix (copy of the parent object)
+    // XXX create new state if needed
+    PluginState state;
     
+    /*
+    // Object-to-world matrix (copy of the parent object)   
     glm::mat4 obj2world;
     object2world_from_protobuf(obj2world, element);
+    */
 
     // From Blender custom properties
     
     const char *encoded_properties = element.properties().c_str();
-    //printf("Received volume properties:\n%s\n", encoded_properties);
+    printf("Received volume data properties:\n%s\n", encoded_properties);
     
-    const json &properties = json::parse(encoded_properties);
+    const json &properties = json::parse(encoded_properties);    
     
-    // XXX we print the mesh_name here, but that mesh is replaced by the python
-    // export after it receives the volume extents. so a bit confusing as that original
-    // mesh is reported, but that isn't in the scene anymore
     printf("%s [VOLUME]\n", element.name().c_str());
     printf("Properties:\n");
     printf("%s\n", properties.dump(4).c_str());
@@ -456,7 +505,7 @@ receive_and_add_ospray_volume_data(TCPSocket *sock, const SceneElement& element)
     }
     
     PluginDefinition& definition = plugin_definitions[plugin];
-    volume_load_function_t load_function = definition.functions.volume_load_function;
+    object_create_function_t object_create_function = definition.functions.object_create_function;
     
     // Check parameters passed to load function
     
@@ -468,28 +517,28 @@ receive_and_add_ospray_volume_data(TCPSocket *sock, const SceneElement& element)
         send_protobuf(sock, result);
         return false;
     }
+    
+    state.parameters = plugin_parameters;
 
     // Call load function
     
     struct timeval t0, t1;
     
-    printf("Calling load function\n");
+    printf("Calling object_create function\n");
     gettimeofday(&t0, NULL);
     
-    OSPVolumetricModel  volume_model;
-    float               bbox[6];
-    float               data_range[2];
+    float       bbox[6];
     
-    volume_model = load_function(bbox, data_range, result, plugin_parameters, obj2world);
+    object_create_function(result, &state);
     
     gettimeofday(&t1, NULL);
-    printf("Load function executed in %.3fs\n", time_diff(t0, t1));
+    printf("Object create function executed in %.3fs\n", time_diff(t0, t1));
     
-    if (volume_model == NULL)
+    if (state.volume == NULL)
     {
         send_protobuf(sock, result);
 
-        printf("ERROR: volume load function failed!\n");
+        printf("ERROR: volume object create function failed!\n");
         return false;
     }    
     
@@ -499,76 +548,14 @@ receive_and_add_ospray_volume_data(TCPSocket *sock, const SceneElement& element)
     //result.set_hash(get_sha1(encoded_parameters));
     result.set_hash("12345");
     
+    // XXX get from state
     for (int i = 0; i < 6; i++)
         result.add_bbox(bbox[i]);
-    
-    // Set up further volume properties
-    
-    if (properties.find("sampling_rate") != properties.end())
-        ospSetFloat(volume_model,  "samplingRate", properties["sampling_rate"].get<float>());
-    else
-        ospSetFloat(volume_model,  "samplingRate", 0.1f);
-    
-    if (properties.find("gradient_shading") != properties.end())
-        ospSetBool(volume_model,  "gradientShadingEnabled", properties["gradient_shading"].get<bool>());
-    else
-        ospSetBool(volume_model,  "gradientShadingEnabled", false);
-    
-    if (properties.find("pre_integration") != properties.end())
-        ospSetBool(volume_model,  "preIntegration", properties["pre_integration"].get<bool>());
-    else
-        ospSetBool(volume_model,  "preIntegration", false);    
-    
-    if (properties.find("single_shade") != properties.end())
-        ospSetBool(volume_model,  "singleShade", properties["single_shade"].get<bool>());
-    else
-        ospSetBool(volume_model,  "singleShade", true);  
-    
-    ospSetBool(volume_model, "adaptiveSampling", false);
-    
-    // Transfer function
-    
-    float tf_colors[3*cool2warm_entries];
-    float tf_opacities[cool2warm_entries];
-
-    for (int i = 0; i < cool2warm_entries; i++)
-    {
-        tf_opacities[i]  = cool2warm[4*i+0];
-        tf_colors[3*i+0] = cool2warm[4*i+1];
-        tf_colors[3*i+1] = cool2warm[4*i+2];
-        tf_colors[3*i+2] = cool2warm[4*i+3];
-    }
-
-    OSPTransferFunction tf = ospNewTransferFunction("piecewise_linear");
-    
-        if (properties.find("data_range") != properties.end())
-        {
-            // Override data range provided by the plugin
-            float minval = properties["data_range"][0];
-            float maxval = properties["data_range"][1];
-            ospSetVec2f(tf, "valueRange", minval, maxval);
-        }
-        else
-            ospSetVec2f(tf, "valueRange", data_range[0], data_range[1]);
         
-        OSPData color_data = ospNewData(cool2warm_entries, OSP_VEC3F, tf_colors);
-        ospSetData(tf, "colors", color_data);
-        ospRelease(color_data);
-        
-        OSPData opacity_data = ospNewData(cool2warm_entries, OSP_FLOAT, tf_opacities);
-        ospSetData(tf, "opacities", opacity_data);
-        ospRelease(opacity_data);
-    
-    ospCommit(tf);
-    
-    ospSetObject(volume_model, "transferFunction", tf);
-    ospRelease(tf);
-    
-    ospCommit(volume_model);
-
     // Cache loaded volume object
+    // XXX store value range
     
-    loaded_volumes[element.name()] = volume_model;
+    loaded_volumes[element.name()] = state.volume;
 
     send_protobuf(sock, result);
     
@@ -590,7 +577,7 @@ receive_and_add_ospray_volume_object(TCPSocket *sock, const SceneElement& elemen
     // From Blender custom properties
     
     const char *encoded_properties = element.properties().c_str();
-    //printf("Received volume properties:\n%s\n", encoded_properties);
+    printf("Received volume object properties:\n%s\n", encoded_properties);
     
     const json &properties = json::parse(encoded_properties);
     
@@ -607,20 +594,51 @@ receive_and_add_ospray_volume_object(TCPSocket *sock, const SceneElement& elemen
         return false;
     }
     
-    OSPVolumetricModel volume_model = it->second;
+    OSPVolume volume = it->second;
     
-    OSPGroup group = ospNewGroup();
+    OSPVolumetricModel volume_model = ospNewVolumetricModel(volume);
     
+        // Set up further volume properties
+        // XXX not sure these are handled correctly
+        
+        if (properties.find("sampling_rate") != properties.end())
+            ospSetFloat(volume_model,  "samplingRate", properties["sampling_rate"].get<float>());
+        else
+            ospSetFloat(volume_model,  "samplingRate", 0.1f);
+        
+        if (properties.find("gradient_shading") != properties.end())
+            ospSetBool(volume_model,  "gradientShadingEnabled", properties["gradient_shading"].get<bool>());
+        else
+            ospSetBool(volume_model,  "gradientShadingEnabled", false);
+        
+        if (properties.find("pre_integration") != properties.end())
+            ospSetBool(volume_model,  "preIntegration", properties["pre_integration"].get<bool>());
+        else
+            ospSetBool(volume_model,  "preIntegration", false);    
+        
+        if (properties.find("single_shade") != properties.end())
+            ospSetBool(volume_model,  "singleShade", properties["single_shade"].get<bool>());
+        else
+            ospSetBool(volume_model,  "singleShade", true);  
+        
+        ospSetBool(volume_model, "adaptiveSampling", false);
+        
+        ospSetObject(volume_model, "transferFunction", cool2warm_transfer_function);
+        
+    ospCommit(volume_model);
+    
+    OSPGroup group = ospNewGroup();    
         OSPData data = ospNewData(1, OSP_OBJECT, &volume_model, 0);
         ospSetData(group, "volume", data);
-        ospRelease(volume_model);
-        
+        ospRelease(volume_model);        
     ospCommit(group);    
     
     OSPInstance instance = ospNewInstance(group);
         ospSetAffine3fv(instance, "xfm", affine_xform);
     ospCommit(instance);
     ospRelease(group);
+        
+    scene_instances.push_back(instance);
     
 #if 0
     // See https://github.com/ospray/ospray/pull/165, support for volume transformations was reverted
@@ -629,6 +647,13 @@ receive_and_add_ospray_volume_object(TCPSocket *sock, const SceneElement& elemen
     ospSetVec3f(volume, "xfm.l.vz", osp::vec3f{ obj2world[2], obj2world[6], obj2world[10] });
     ospSetVec3f(volume, "xfm.p", osp::vec3f{ obj2world[3], obj2world[7], obj2world[11] });
 #endif
+
+    return true;
+
+}
+
+/*
+
 
     // XXX need to use the representation property set 
     
@@ -716,26 +741,14 @@ receive_and_add_ospray_volume_object(TCPSocket *sock, const SceneElement& elemen
             fprintf(stderr, "ERROR: slice_plane attribute should contain list of 4 floats values!\n");
         }
     }
-    else
-    {
-        // Represent as volume 
-        OSPData data = ospNewData(1, OSP_OBJECT, &volume_model, 0);
-        ospCommit(data);
-        ospRelease(volume_model);
-        
-        // XXX need group in between
-        ospSetData(instance, "volumes", data);
-        ospCommit(instance);
-        ospRelease(data);
-    }
-    
-    return true;
-}
-
+*/
 
 bool
 receive_and_add_ospray_geometry_data(TCPSocket *sock, const SceneElement& element)
 {
+    // XXX create new state if needed
+    PluginState state;
+    
     // Object-to-world matrix (copy of the parent object)
     
     glm::mat4 obj2world;
@@ -770,11 +783,11 @@ receive_and_add_ospray_geometry_data(TCPSocket *sock, const SceneElement& elemen
     }
     
     PluginDefinition& definition = plugin_definitions[plugin];
-    geometry_load_function_t load_function = definition.functions.geometry_load_function;
+    object_create_function_t object_create_function = definition.functions.object_create_function;
     
-    if (load_function == NULL)
+    if (object_create_function == NULL)
     {
-        printf("Plugin returned NULL load_function!\n");
+        printf("Plugin returned NULL object_create_function!\n");
         exit(-1);
     }
     
@@ -788,37 +801,43 @@ receive_and_add_ospray_geometry_data(TCPSocket *sock, const SceneElement& elemen
         send_protobuf(sock, result);
         return false;
     }
+    
+    state.parameters = plugin_parameters;
 
     // Let load function do its job
     
     struct timeval t0, t1;
+    float bbox[6];
     
-    printf("Calling load function\n");
+    printf("Calling object_create function\n");
     gettimeofday(&t0, NULL);
     
-    float                   bbox[6];
-    ModelInstances          model_instances;
-    
-    load_function(model_instances, bbox, result, plugin_parameters, obj2world);
+    object_create_function(result, &state);    
     
     gettimeofday(&t1, NULL);
-    printf("Load function executed in %.3fs\n", time_diff(t0, t1));
+    printf("Object create function executed in %.3fs\n", time_diff(t0, t1));
     
-    if (model_instances.size() == 0)
-        printf("WARNING: geometry load function returned no instances\n");
-    
+    if (state.geometry == NULL)
+    {
+        send_protobuf(sock, result);
+
+        printf("ERROR: geometry object create function failed!\n");
+        return false;
+    }    
+
     // Load function succeeded
     
     // XXX disable for now
     //result.set_hash(get_sha1(encoded_parameters));
     result.set_hash("12345");
     
+    // XXX get from state
     for (int i = 0; i < 6; i++)
         result.add_bbox(bbox[i]);
 
     // Cache loaded geometry object
     
-    loaded_geometries[element.name()] = model_instances;
+    loaded_geometries[element.name()] = state.geometry;
     
     send_protobuf(sock, result);
     
@@ -853,9 +872,38 @@ receive_and_add_ospray_geometry_object(TCPSocket *sock, const SceneElement& elem
         return false;
     }
     
-    // Create instance(s)    
+    // Create instance 
     
-    ModelInstances  model_instances = it->second;
+    OSPGeometry         geometry = it->second;
+
+    OSPGeometricModel model = ospNewGeometricModel(geometry);
+        // XXX fixed material
+        ospSetObject(model, "material", material);
+    ospCommit(model);
+        
+    OSPGroup group = ospNewGroup();
+        OSPData models = ospNewData(1, OSP_OBJECT, &model, 0);
+        ospSetData(group, "geometry", models);
+        ospRelease(models);
+    ospCommit(group);
+    
+    float affine[13];
+    affine3fv_from_mat4(affine, obj2world);    
+
+    OSPInstance instance = ospNewInstance(group);
+        ospSetAffine3fv(instance, "xfm", affine);
+    ospCommit(instance);
+    ospRelease(group);
+
+    scene_instances.push_back(instance);
+    
+    return true;
+}
+
+/*
+Reuse for scene: group instances
+
+    OSPGeometry     geometry = it->second;
     glm::mat4       xform; 
     
     for (ModelInstances::const_iterator it = model_instances.begin(); it != model_instances.end(); ++it)
@@ -886,9 +934,8 @@ receive_and_add_ospray_geometry_object(TCPSocket *sock, const SceneElement& elem
 
         scene_instances.push_back(instance);
     }
-    
-    return true;
-}
+
+*/
 
 // XXX currently has big memory leak as we never release the new objects ;-)
 bool
@@ -917,9 +964,9 @@ receive_scene(TCPSocket *sock)
     // Render settings
     
     receive_protobuf(sock, render_settings);
-    
-    // XXX hmm, we create a new renderer on each new scene
-    renderer = ospNewRenderer(render_settings.renderer().c_str());
+
+    // Reuse existing renderer
+    renderer = renderers[render_settings.renderer().c_str()];
     
     ospSetVec4f(renderer, "bgColor", 
         render_settings.background_color(0),
@@ -927,8 +974,9 @@ receive_scene(TCPSocket *sock)
         render_settings.background_color(2),
         render_settings.background_color(3));
     
-    ospSetInt(renderer, "aoSamples", render_settings.ao_samples());
-    ospSetBool(renderer, "shadowsEnabled", render_settings.shadows_enabled());
+    ospSetInt(renderer, "aoSamples", render_settings.ao_samples());     // XXX scivis renderer only
+    
+    //ospSetBool(renderer, "shadowsEnabled", render_settings.shadows_enabled());        // XXX removed in 2.0?
     //ospSetInt(renderer, "spp", 1);
 
     // Update camera
@@ -973,11 +1021,11 @@ receive_scene(TCPSocket *sock)
             break;
     }
 
-    ospSetFloat(camera, "aspect", camera_settings.aspect());
+    ospSetFloat(camera, "aspect", camera_settings.aspect());        // XXX panoramic only
     ospSetFloat(camera, "nearClip", camera_settings.clip_start());     
     
-    ospSetVec3fv(camera, "pos", cam_pos);
-    ospSetVec3fv(camera, "dir", cam_viewdir);
+    ospSetVec3fv(camera, "position", cam_pos);
+    ospSetVec3fv(camera, "direction", cam_viewdir);
     ospSetVec3fv(camera, "up",  cam_updir);
     
     if (camera_settings.dof_focus_distance() > 0.0f)
@@ -1012,7 +1060,7 @@ receive_scene(TCPSocket *sock)
         
         if (light.type() == Light::POINT)
         {
-            osp_light = osp_lights[i] = ospNewLight("point");
+            osp_light = osp_lights[i] = ospNewLight("sphere");
         }
         else if (light.type() == Light::SPOT)
         {
@@ -1022,7 +1070,7 @@ receive_scene(TCPSocket *sock)
         }
         else if (light.type() == Light::SUN)
         {
-            osp_light = osp_lights[i] = ospNewLight("directional");
+            osp_light = osp_lights[i] = ospNewLight("distant");
             ospSetFloat(osp_light, "angularDiameter", light.angular_diameter());
         }
         else if (light.type() == Light::AREA)            
@@ -1039,7 +1087,7 @@ receive_scene(TCPSocket *sock)
         
         ospSetVec3f(osp_light, "color", light.color(0), light.color(1), light.color(2));
         ospSetFloat(osp_light, "intensity", light.intensity());    
-        ospSetBool(osp_light, "isVisible", light.visible());                      
+        ospSetBool(osp_light, "visible", light.visible());                      
         
         if (light.type() != Light::SUN)
             ospSetVec3f(osp_light, "position", light.position(0), light.position(1), light.position(2));
@@ -1068,17 +1116,9 @@ receive_scene(TCPSocket *sock)
     ospCommit(light_data);
     //delete [] osp_lights;
     
-    ospSetObject(renderer, "lights", light_data);
+    ospSetObject(renderer, "light", light_data);
     
     ospCommit(renderer);
-    
-    // For now a single material
-    
-    /*
-    material = ospNewMaterial(render_settings.renderer().c_str(), "OBJMaterial");
-        ospSetVec3f(material, "Kd", 0.8f, 0.8f, 0.8f);
-    ospCommit(material);
-    */
     
     // Receive scene elements
     
@@ -1090,27 +1130,27 @@ receive_scene(TCPSocket *sock)
     // XXX use function table
     while (element.type() != SceneElement::NONE)
     {
-        if (element.type() == SceneElement::BLENDER_MESH_DATA)
+        if (element.type() == SceneElement::MESH_DATA)
         {
             receive_and_add_blender_mesh_data(sock, element);
         }
-        else if (element.type() == SceneElement::BLENDER_MESH_OBJECT)
+        else if (element.type() == SceneElement::MESH_OBJECT)
         {
             receive_and_add_blender_mesh_object(sock, element);
         }
-        else if (element.type() == SceneElement::OSPRAY_VOLUME_DATA)
+        else if (element.type() == SceneElement::VOLUME_DATA)
         {
             receive_and_add_ospray_volume_data(sock, element);
         }
-        else if (element.type() == SceneElement::OSPRAY_VOLUME_OBJECT)
+        else if (element.type() == SceneElement::VOLUME_OBJECT)
         {
             receive_and_add_ospray_volume_object(sock, element);
         }
-        else if (element.type() == SceneElement::OSPRAY_GEOMETRY_DATA)
+        else if (element.type() == SceneElement::GEOMETRY_DATA)
         {
             receive_and_add_ospray_geometry_data(sock, element);
         }
-        else if (element.type() == SceneElement::OSPRAY_GEOMETRY_OBJECT)
+        else if (element.type() == SceneElement::GEOMETRY_OBJECT)
         {
             receive_and_add_ospray_geometry_object(sock, element);
         }
@@ -1128,9 +1168,9 @@ receive_scene(TCPSocket *sock)
     scene_instances.clear();
     
     world = ospNewWorld();
-        // See https://github.com/ospray/ospray/issues/277
+        // Check https://github.com/ospray/ospray/issues/277. Is bool setting fixed in 2.0?
         ospSetBool(world, "compactMode", true);
-        ospSetData(world, "instances", instances);
+        ospSetData(world, "instance", instances);
     ospCommit(world);
     ospRelease(instances);
     
@@ -1448,6 +1488,10 @@ main(int argc, const char **argv)
     // Initialize OSPRay.
     // OSPRay parses (and removes) its commandline parameters, e.g. "--osp:debug"
     ospInit(&argc, argv);
+    
+    // Prepare some things
+    prepare_renderers();    
+    prepare_builtin_transfer_function();
     
     // Server loop
     

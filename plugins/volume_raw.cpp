@@ -25,6 +25,8 @@
 #include "plugin.h"
 #include "util.h"       // float_swap()
 
+using json = nlohmann::json;
+
 // XXX check for existence of "file", "header_skip", etc. entries in parameters[]
 
 static OSPVolumetricModel
@@ -376,6 +378,217 @@ extent(float *bbox, LoadFunctionResult &result, const json &parameters, const gl
     return true;
 }
 
+
+
+static OSPVolume
+create_volume(float *bbox, 
+    const json &parameters, const int32_t *dims, const std::string &voxelType, OSPDataType dataType, 
+    void *grid_field_values)
+{
+    float origin[3] = { 0.0f, 0.0f, 0.0f };
+    float spacing[3] = { 1.0f, 1.0f, 1.0f };
+    
+    if (parameters.find("grid_origin") != parameters.end())
+    {
+        auto o = parameters["grid_origin"];
+        origin[0] = o[0];
+        origin[1] = o[1];
+        origin[2] = o[2];
+    }
+
+    if (parameters.find("grid_spacing") != parameters.end())
+    {
+        auto s = parameters["grid_spacing"];
+        spacing[0] = s[0];
+        spacing[1] = s[1];
+        spacing[2] = s[2];
+    }
+    
+    OSPVolume volume = ospNewVolume("shared_structured_volume");
+    
+        OSPData voxelData = ospNewData(dims[0]*dims[1]*dims[2], dataType, grid_field_values, OSP_DATA_SHARED_BUFFER);   
+        ospCommit(voxelData);
+    
+        ospSetData(volume, "voxelData", voxelData);
+        ospRelease(voxelData);
+
+        ospSetString(volume, "voxelType", voxelType.c_str());
+        ospSetVec3i(volume, "dimensions", dims[0], dims[1], dims[2]);
+    
+        ospSetVec3f(volume, "gridOrigin", origin[0], origin[1], origin[2]);
+        ospSetVec3f(volume, "gridSpacing", spacing[0], spacing[1], spacing[2]);
+
+    ospCommit(volume);
+    
+    // bbox of the UNTRANSFORMED volume
+    
+    bbox[0] = origin[0];
+    bbox[1] = origin[1];
+    bbox[2] = origin[2];
+    
+    bbox[3] = origin[0] + dims[0] * spacing[0];
+    bbox[4] = origin[1] + dims[1] * spacing[1];
+    bbox[5] = origin[2] + dims[2] * spacing[2];
+    
+    return volume;
+}
+
+
+
+extern "C"
+void
+create_object(LoadFunctionResult &result, PluginState *state)
+{
+    const json& parameters = state->parameters;
+    
+    char msg[1024];
+        
+    if (parameters.find("volume") == parameters.end() || parameters["volume"].get<std::string>() != "raw")
+    {
+        fprintf(stderr, "WARNING: volume_raw.load() called without property 'volume' set to 'raw'!\n");
+    }
+    
+    // Dimensions
+    
+    int32_t dims[3];            // XXX why int and not uint?
+    uint32_t num_grid_points;
+    
+    dims[0] = parameters["dimensions"][0];
+    dims[1] = parameters["dimensions"][1];
+    dims[2] = parameters["dimensions"][2];
+    
+    num_grid_points = dims[0] * dims[1] * dims[2];
+    
+    // Open file
+    
+    std::string fname = parameters["file"].get<std::string>();
+    
+    FILE *f = fopen(fname.c_str(), "rb");
+    if (!f)
+    {
+        snprintf(msg, 1024, "Could not open file '%s'", fname.c_str());
+        result.set_success(false);
+        result.set_message(msg);
+        fprintf(stderr, "%s\n", msg);
+        return;
+    }
+
+    // XXX check return value?
+    fseek(f, parameters["header_skip"].get<int>(), SEEK_SET);
+    
+    // Prepare data array and read data from file
+    
+    OSPDataType dataType;
+    void *grid_field_values;
+    uint32_t read_size;
+    
+    std::string voxelType = parameters["voxel_type"].get<std::string>();    // XXX rename parameter?
+    
+    if (voxelType == "uchar")
+    {
+        grid_field_values = new uint8_t[num_grid_points];
+        dataType = OSP_UCHAR;
+        read_size = num_grid_points;
+    }
+    else if (voxelType == "ushort")
+    {
+        grid_field_values = new uint16_t[num_grid_points];
+        dataType = OSP_USHORT;
+        read_size = num_grid_points*2;
+    }    
+    else if (voxelType == "float")
+    {
+        grid_field_values = new float[num_grid_points];
+        dataType = OSP_FLOAT;
+        read_size = num_grid_points*sizeof(float);
+    }
+    else 
+    {
+        snprintf(msg, 1024, "ERROR: unhandled voxel data type '%s'!\n", voxelType);
+        result.set_success(false);
+        result.set_message(msg);
+        fprintf(stderr, "%s\n", msg);
+        fclose(f);
+        return;
+    }
+    
+    // XXX check bytes read
+    fread(grid_field_values, 1, read_size, f);   
+    
+    fclose(f);
+    
+    // Endian-flip if needed
+
+    if (parameters.find("endian_flip") != parameters.end() && parameters["endian_flip"].get<int>())
+    {
+        if (voxelType == "float")
+        {
+            float *falues = (float*)grid_field_values;
+            for (int i = 0; i < num_grid_points; i++)
+                falues[i] = float_swap(falues[i]);        
+        }
+        else
+        {
+            fprintf(stderr, "WARNING: no endian flip available for data type '%s'!\n", voxelType);
+        }
+    }
+
+    // Set up volume object
+    
+    OSPVolume volume;
+    
+    /*
+    if (parameters.find("make_unstructured") != parameters.end() && parameters["make_unstructured"].get<int>())
+    {
+        // We support using an unstructured volume for now, as we can transform its
+        // vertices with the object2world matrix, as volumes currently don't
+        // support affine transformations in ospray themselves.
+        volume_model = load_as_unstructured(  
+                    state->bbox, result,
+                    parameters, object2world, 
+                    dims, voxelType, dataType, grid_field_values);
+    }
+    else
+    {
+        volume_model = load_as_structured(
+                    state->bbox, result,
+                    parameters, object2world, 
+                    dims, voxelType, dataType, grid_field_values);
+    }
+    */
+    
+    volume = create_volume(state->bbox, parameters, 
+                dims, voxelType, dataType, grid_field_values);
+    
+    
+    if (!volume)
+    {
+        fprintf(stderr, "Volume preparation failed!\n");
+        return;
+    }
+    
+    if (parameters.find("data_range") != parameters.end())
+    {
+        float minval = parameters["data_range"][0];
+        float maxval = parameters["data_range"][1];
+        ospSetVec2f(volume, "voxelRange", minval, maxval);
+        
+        state->volume_data_range[0] = minval;
+        state->volume_data_range[1] = maxval;
+    }
+    else
+    {
+        // XXX fixed
+        state->volume_data_range[0] = 0.0f;
+        state->volume_data_range[1] = 1.0f;
+    }
+
+    ospCommit(volume);
+    
+    state->volume = volume;
+}
+
+
 // XXX header_skip -> header-skip?
 static PluginParameters 
 parameters = {
@@ -408,19 +621,22 @@ parameters = {
 static PluginFunctions
 functions = {
 
-    extent,     // Volume extent
-    load,       // Volume load
-
-    NULL        // Geometry extent
+    NULL,           // Plugin load
+    NULL,           // Plugin unload
+    
+    create_object,  // Object create
+    
+    NULL,           // Clear data
 };
 
 extern "C" bool
 initialize(PluginDefinition *def)
 {
+    def->type = PT_VOLUME;
     def->parameters = parameters;
     def->functions = functions;
     
-    // Do any other plugin-specific initialization here
+    // XXXX Do any other plugin-specific initialization here
     
     return true;
 }

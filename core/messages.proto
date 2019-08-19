@@ -1,4 +1,4 @@
-// VERSION: 1
+// VERSION: 2
 // ======================================================================== //
 // BLOSPRAY - OSPRay as a Blender render engine                             //
 // Paul Melis, SURFsara <paul.melis@surfsara.nl>                            //
@@ -24,24 +24,33 @@ syntax = "proto3";
 message ClientMessage
 {
     enum Type {
-        HELLO = 0;          // XXX not used atm
-        UPDATE_SCENE = 1;
+        HELLO = 0;                      // XXX not used atm
         
-        QUERY_VOLUME_EXTENT = 20;
+        RETRIEVE_SCENE = 10;
+        CLEAR_SCENE = 11;
+        UPDATE_SCENE = 12;       
         
-        START_RENDERING = 30;
-        CANCEL_RENDERING = 31;
+        UPDATE_OBJECT = 20;
+        UPDATE_DATA = 21;
+
+        DELETE_OBJECT = 30;
+        DELETE_DATA = 31;
+        
+        START_RENDERING = 40;
+        CANCEL_RENDERING = 41;
+        
+        QUERY_VOLUME_EXTENT = 80;
         
         QUIT = 99;
     }
     
     Type    type = 1;
     
-    // HELLO fields
-    uint32  version = 10;       // XXX not used yet
+    // HELLO field
+    uint32  version = 10;               // XXX not used yet
     
-    // UPDATE_SCENE fields
-    bool    clear_scene = 20;
+    // QUERY_VOLUME_EXTENT field
+    string  name = 21;
 }
 
 message RenderResult 
@@ -66,19 +75,35 @@ message RenderResult
 message SceneElement
 {   
     enum Type {
-        NONE = 0;       // Used for signaling last object was sent
+        NONE = 0;                   // Used for signaling last object was sent
         
         // Regular Blender mesh
-        BLENDER_MESH_OBJECT = 10;
-        BLENDER_MESH_DATA = 11;
+        MESH_OBJECT = 10;
+        MESH_DATA = 11;
+
+        // OSPRay geometry 
+        GEOMETRY_OBJECT = 20;
+        GEOMETRY_DATA = 21;
+
+        // OSPRay volume
+        VOLUME_OBJECT = 30;
+        VOLUME_DATA = 31;
         
-        // Volume
-        OSPRAY_VOLUME_OBJECT = 20;
-        OSPRAY_VOLUME_DATA = 21;
+        // OSPRay isosurface
+        ISOSURFACE_OBJECT = 40;
         
-        // Geometry 
-        OSPRAY_GEOMETRY_OBJECT = 30;
-        OSPRAY_GEOMETRY_DATA = 31;
+        // OSPRay slices
+        SLICES_OBJECT = 50;        
+        
+        // OSPRay scene (list of transformed Groups)
+        SCENE_OBJECT = 60;
+        SCENE_DATA = 61;
+        
+        // A single light
+        LIGHT = 100;
+        
+        // The camera to render from
+        CAMERA = 200;
     }
     
     Type            type = 1;
@@ -110,7 +135,7 @@ message ImageSettings
 {
     uint32  width = 1;
     uint32  height = 2;
-    //uint32  percentage = 3;
+    //uint32  percentage = 3;       // XXX can go?
     repeated float border = 4;
 }
 
@@ -199,6 +224,7 @@ message LightSettings
 
 // Plugins
 
+// XXX rename CreateFunctionResult, returned by Create function
 // Returned by load function
 message LoadFunctionResult
 {

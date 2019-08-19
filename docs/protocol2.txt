@@ -1,0 +1,92 @@
+blender enforces unique names *among all data blocks of a given type*
+(with objects in the scene being just another type of data block)
+
+relevant data block types for us:
+
+- cameras
+- lights (bpy.types.PointLight, bpy.types.SunLight, ...)
+- meshes (bpy.types.Mesh)
+- objects (bpy.types.Object)
+
+- materials
+- textures
+- worlds
+
+Even though scene objects (bpy.data.objects[]) appear to be general
+and all have the same Python properties a Mesh object cannot point to 
+PointLight data, or vice versa. The type field of an object describes 
+the limit. Also, all objects regardless of type share the same unique name constraint.
+
+By the way, see bpy.ops.object.convert(), but that only converts TO
+mesh or curve objects.
+
+Note that empties do not have an associated data block. This also highlights
+a weird thing in Blender: even though an empty has a separate properties
+tab (whose tooltip shows "Object Data") for setting the empty type and size,
+the actual type and size of an empty are stored in the object (under empty_display_type
+and empty_display_size)!
+
+
+
+scene sync
+------------
+
+export options:
+- caching = none (always clear scene) | only data-blocks | objects and data-blocks
+  XXX might want to add another option, to only cache mesh data blocks
+- caching of objects/data-blocks is detect by name
+
+# caching may cause issues when an object type has changed
+
+on re-connection with server:
+- retrieve list of known objects and data-blocks, including their types
+  and properties
+  
+known_objects = set()           
+known_datablocks = set()
+
+loop over all scene objects:
+
+    # export datablock by name
+    datablock = object.data
+    
+    # export object by name
+    
+    # this makes sure a data block referenced by an object is always
+    # exported first, even when datablocks are shared
+
+
+delete objects and data blocks on the server that are no longer 
+present in the scene. this handles renames in the most naive and
+inefficient way possible, but it will work robustly
+
+
+protocol
+----------
+
+RETRIEVE_SCENE
+    -> list of objects and datablocks, including their types
+    
+CLEAR_SCENE
+
+# Will overwrite existing object/data-block
+UPDATE_OBJECT      name, type, properties, object2world xform, ...
+UPDATE_DATA_BLOCK  name, type, properties, ...
+
+DELETE_OBJECTS      [name, ...]
+DELETE_DATA_BLOCKS  [name, ...]
+
+SET_RENDER_PARAMETERS
+
+# For both final renders and interactive preview renders
+START_RENDERING     FINAL|PREVIEW, resolution
+    
+    will send stream of framebuffer updates
+    openexr file for final render, RGBA float for preview render (yuck, lots of data)
+        
+<- CANCEL_RENDERING
+-> RENDERING_CANCELLED
+
+OR
+
+-> RENDERING_DONE

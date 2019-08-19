@@ -205,7 +205,7 @@ class Connection:
         # Read back successive framebuffer samples
 
         num_pixels = self.framebuffer_width * self.framebuffer_height
-        bytes_left = num_pixels * 4*4
+        bytes_left = num_pixels*4 * 4
 
         framebuffer = numpy.zeros(bytes_left, dtype=numpy.uint8)
 
@@ -328,7 +328,7 @@ class Connection:
         Custom properties starting with an underscore become
         element properties (key without the underscore), all the others
         become plugin parameters (set in the key plugin_parameters)
-        *if a property key 'plugin' is set.
+        *but only if a property key 'plugin' is set*.
         """
 
         plugin_parameters = None
@@ -372,7 +372,7 @@ class Connection:
         print(properties)
 
         element = SceneElement()
-        element.type = SceneElement.OSPRAY_VOLUME_DATA
+        element.type = SceneElement.VOLUME_DATA
         element.name = mesh.name
         element.properties = json.dumps(properties)
         # XXX add a copy of the object's xform, as the volume loading plugin might need it
@@ -468,7 +468,7 @@ class Connection:
         print(properties)
 
         element = SceneElement()
-        element.type = SceneElement.OSPRAY_VOLUME_OBJECT
+        element.type = SceneElement.VOLUME_OBJECT
         element.name = obj.name
         element.properties = json.dumps(properties)
         element.object2world[:] = matrix2list(obj.matrix_world)
@@ -497,7 +497,7 @@ class Connection:
         print(properties)
 
         element = SceneElement()
-        element.type = SceneElement.OSPRAY_GEOMETRY_DATA
+        element.type = SceneElement.GEOMETRY_DATA
         element.name = mesh.name
         element.properties = json.dumps(properties)
         # XXX add a copy of the object's xform, as the geometry loading plugin might need it
@@ -593,7 +593,7 @@ class Connection:
         print(properties)
 
         element = SceneElement()
-        element.type = SceneElement.OSPRAY_GEOMETRY_OBJECT
+        element.type = SceneElement.GEOMETRY_OBJECT
         element.name = obj.name
         element.properties = json.dumps(properties)
         element.object2world[:] = matrix2list(obj.matrix_world)
@@ -616,7 +616,7 @@ class Connection:
         print(properties)
 
         element = SceneElement()
-        element.type = SceneElement.BLENDER_MESH_DATA
+        element.type = SceneElement.MESH_DATA
         element.name = mesh.name
         element.properties = json.dumps(properties)
         send_protobuf(self.sock, element)
@@ -624,7 +624,7 @@ class Connection:
         mesh_data = MeshData()
         flags = 0
 
-        # Send triangulated geometry
+        # Send (triangulated) geometry
 
         mesh.calc_loop_triangles()
 
@@ -665,6 +665,8 @@ class Connection:
             vertices[3*idx+0] = p.x
             vertices[3*idx+1] = p.y
             vertices[3*idx+2] = p.z
+            
+        print(vertices)
 
         self.sock.send(vertices.tobytes())
 
@@ -694,7 +696,7 @@ class Connection:
                 for loop_index in poly.loop_indices:
                     loop_vert_index = mesh.loops[loop_index].vertex_index
                     color = vcol_data[loop_index].color
-                    # XXX have RGBA vcols in Blender 2.8x
+                    # RGBA vertex colors in Blender 2.8x
                     vertex_colors[4*loop_vert_index+0] = color[0]
                     vertex_colors[4*loop_vert_index+1] = color[1]
                     vertex_colors[4*loop_vert_index+2] = color[2]
@@ -710,6 +712,8 @@ class Connection:
             triangles[3*idx+0] = tri.vertices[0]
             triangles[3*idx+1] = tri.vertices[1]
             triangles[3*idx+2] = tri.vertices[2]
+            
+        print(triangles)
 
         self.sock.send(triangles.tobytes())
 
@@ -726,7 +730,6 @@ class Connection:
 
         client_message = ClientMessage()
         client_message.type = ClientMessage.UPDATE_SCENE
-        client_message.clear_scene = True                   # XXX   Add a UI bool for this flag
         send_protobuf(self.sock, client_message)
 
         scene = depsgraph.scene
@@ -747,12 +750,13 @@ class Connection:
 
         image_settings = ImageSettings()
 
+        # XXX not used, as we apply the percentage
         #image_settings.percentage = render.resolution_percentage
 
         if render.use_border:
-            # XXX nice, in ospray the render region is set on the camera,
-            # while in blender it is a render setting, but we pass it as
-            # image settings :)
+            # XXX nice, in ospray the render region is set on the *camera*,
+            # while in blender it is a *render* setting, but we pass it as
+            # an *image* settings :)
 
             # Blender: X to the right, Y up, i.e. (0,0) is lower-left, same
             # as ospray. BUT: ospray always fills up the complete framebuffer
@@ -878,7 +882,7 @@ class Connection:
 
             light.color[:] = data.color
             light.intensity = ospray_data.intensity
-            light.visible = ospray_data.is_visible      # XXX inconsistent naming
+            light.visible = ospray_data.visible      
 
             if data.type == 'SUN':
                 light.angular_diameter = ospray_data.angular_diameter
@@ -951,6 +955,7 @@ class Connection:
             representation = obj.ospray.representation
             print('Scene object %s, representation %s' % (obj.name, representation))
 
+            # XXX split off iso and slices
             if representation in ['volume', 'volume_isosurfaces', 'volume_slices']:
                 self.export_ospray_volume(obj, data, depsgraph)
                 continue
@@ -993,7 +998,7 @@ class Connection:
             print(properties)
 
             element = SceneElement()
-            element.type = SceneElement.BLENDER_MESH_OBJECT
+            element.type = SceneElement.MESH_OBJECT
             element.name = obj.name
             element.data_link = mesh.name
             element.properties = json.dumps(properties)
@@ -1013,6 +1018,7 @@ class Connection:
 
     # Utility
 
+    """
     def _read_framebuffer(self, framebuffer, width, height):
 
         # XXX use select() in a loop, to allow UI updates more frequently
@@ -1031,7 +1037,8 @@ class Connection:
             sys.stdout.write('.')
             sys.stdout.flush()
             #self.update_stats('%d bytes left' % bytes_left, 'Reading back framebuffer')
-
+    """
+    
     def _read_framebuffer_to_file(self, fname, size):
 
         print('_read_framebuffer_to_file(%s, %d)' % (fname, size))

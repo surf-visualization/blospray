@@ -194,7 +194,7 @@ class DATA_PT_OSPRAY_LIGHT(Panel):
 
         col.prop(blender_light, "color", text="Color")
         col.prop(ospray_light, "intensity", text="Intensity", slider=False)
-        col.prop(ospray_light, "is_visible", text="Visible")
+        col.prop(ospray_light, "visible", text="Visible")
         
         if blender_light.type in {'SUN'}:
             col.prop(ospray_light, "angular_diameter", text="Angular diameter")

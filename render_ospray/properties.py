@@ -224,9 +224,9 @@ class RenderOspraySettingsLight(PropertyGroup):
         max = 100
         )    
         
-    is_visible: BoolProperty(
+    visible: BoolProperty(
         name="Visible",
-        description="Whether the light can be directly seen (isVisible)",
+        description="Whether the light can be directly seen (visible)",
         default = True
         )        
         
