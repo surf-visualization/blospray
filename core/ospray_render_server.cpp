@@ -54,6 +54,7 @@ OSPWorld        world;
 std::vector<OSPInstance>    scene_instances;
 OSPCamera       camera;
 std::map<std::string, OSPRenderer>  renderers;
+std::map<std::string, OSPMaterial>  materials;
 OSPRenderer     renderer;
 OSPFrameBuffer  framebuffer;
 int             framebuffer_width=0, framebuffer_height=0;
@@ -416,11 +417,15 @@ prepare_renderers()
 {
     renderers["scivis"] = ospNewRenderer("scivis");
     
-    material = ospNewMaterial("scivis", "OBJMaterial");
+    material = materials["scivis"] = ospNewMaterial("scivis", "OBJMaterial");
         ospSetVec3f(material, "Kd", 0.8f, 0.8f, 0.8f);
     ospCommit(material);
     
     renderers["pathtracer"] = ospNewRenderer("pathtracer");    
+
+    material = materials["pathtracer"] = ospNewMaterial("pathtracer", "OBJMaterial");
+        ospSetVec3f(material, "Kd", 0.8f, 0.8f, 0.8f);
+    ospCommit(material);
 }
 
 void
