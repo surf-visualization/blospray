@@ -1,0 +1,103 @@
+vec2, vec3, ..., linear3, affine3, etc removed from ospray.h, i.e. C API
+
+
+
+
+
+// ospTutorialUnstructuredVolume.cpp
+
+OSPWorld world = ospNewWorld()
+OSPInstance inst = ospNewInstance()
+
+OSPData instances = ospNewData(1, OSP_OBJECT, &inst)
+ospSetData(world, "instances", instances)
+
+
+OSPGeometry geom = ospNewGeometry("...")
+OSPGeometricModel model = ospNewGeometricModel(geom)
+
+OSPVolume volume = ospNewVolume("...")
+
+OSPData geomModels = ospNewData(1, OSP_OBJECT, &model)
+ospSetObject(inst, "geometries", geomModels)
+
+OSPData volModels = ospNewData(1, OSP_OBJECT, &volume)
+ospSetObject(inst, "volumes", volModels)
+
+
+// tests/ospray_test_fixture.cpp
+
+AddModel(OSPGeometricModel model, affine3f xfm)
+{
+    ...
+    
+    OSPData data = ospNewData(1, OSP_OBJECT, &model);
+
+    OSPInstance instance = ospNewInstance();
+    ospSetAffine3fv(instance, "xfm", (float*)&xfm);
+    ospSetData(instance, "geometries", data);
+
+    ...
+    
+    
+    
+std::vector<OSPInstance> instances;
+
+AddInstance(OSPInstance instance)
+  {
+    ospCommit(instance);
+    instances.push_back(instance);
+  }
+  
+if (!instances.empty()) {
+      OSPData insts =
+          ospNewData(instances.size(), OSP_OBJECT, instances.data());
+      ospSetObject(world, "instances", insts);
+      ospRelease(insts);
+    }
+
+using ospcommon::one;
+
+void AddModel(OSPGeometricModel model, affine3f xfm = one);
+
+
+
+OSPInstance
+-----------
+
+xfm (affine3f)
+
+geometries
+volumes
+
+dynamicScene
+compactMode
+robustMode
+
+
+
+OSPVolumetricModel
+------------------
+
+xfm (affine3f)
+
+
+
+
+OSPWorld
+--------
+
+instances
+
+
+
+affine3f
+--------
+
+
+    affine3f xfm(vec3f(0.01, 0, 0),
+                 vec3f(0, 0.01, 0),
+                 vec3f(0, 0, 0.01),
+                 vec3f(-0.5f * radius, 1.6f * radius, cent));
+                 
+                 
