@@ -1,0 +1,64 @@
+https://devtalk.blender.org/t/custom-nodes-not-showing-as-updated-in-interactive-mode/6762
+appleseed integration, including node trees
+
+-------------------------------------------------------------
+
+https://devtalk.blender.org/t/blender-hangs-on-first-viewport-update-of-custom-renderengine/3018
+luxcore integration, first render bug
+
+
+-------------------------------------------------------------
+
+Undo causes render engine to get re-created?
+Seems to indeed be the case, even with cycles
+
+blender -P blender_render_engine.trace.py
+Start with default scene
+Move the cube around a couple of times, creating multiple levels of undo
+Switch to Custom render engine
+Switch to rendered mode with Z 8
+Again move the cube a few times
+Change viewpoint position a couple of times
+Press Ctrl-Z
+
+Notice in the log output that the RenderEngine instance got deleted and 
+recreated (update counters start at #1 again)
+
+-------------------------------------------------------------
+
+moving the blender window causes a view_draw
+
+
+-------------------------------------------------------------
+
+changing property tabs causes a view_update with nothing marked as changed
+
+-------------------------------------------------------------
+
+a change on a custom property change tags multiple things as updated.
+given a cube object -> cube mesh
+
+
+Changing a property on the cube object:
+
+Type MESH updated
+Type OBJECT updated
+
+Datablock "Cube" updated (<class 'bpy_types.Object'>)
+-- geometry was updated
+-- transform was updated
+Datablock "Cube" updated (<class 'bpy_types.Mesh'>)
+-- geometry was updated
+-- transform was updated
+
+
+Changing a property on the cube mesh:
+
+Type MESH updated
+Type OBJECT updated
+
+Datablock "Cube" updated (<class 'bpy_types.Object'>)
+-- geometry was updated
+Datablock "Cube" updated (<class 'bpy_types.Mesh'>)
+-- geometry was updated
+-- transform was updated

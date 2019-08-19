@@ -1,11 +1,15 @@
 # Sources based on https://docs.blender.org/api/blender2.8/bpy.types.RenderEngine.html
+# blender -P blender_render_engine.trace.py  -p 900 1000 3000 1500 
 import bpy
 import bgl
 import time
 import numpy
 
+t0 = time.time()
+
 def log(s):
-    print('[%.6f] %s' % (time.time(), s))
+    t = '%.6f' % (time.time() - t0)
+    print('%s | %s' % (t, s))
     
 
 class CustomRenderEngine(bpy.types.RenderEngine):
@@ -19,24 +23,37 @@ class CustomRenderEngine(bpy.types.RenderEngine):
     # instances may exist at the same time, for example for a viewport and final
     # render.
     def __init__(self):
-        log('CustomRenderEngine.__init__()')
+        print('-' * 40)
+        log('RENDER ENGINE __init__()')
+        print('-' * 40)
+        print()
+        
         self.scene_data = None
         self.draw_data = None
         
+        self.render_count = 0
         self.draw_count = 0
         self.update_count = 0
         self.dimensions = None
 
-    # When the render engine instance is destroy, this is called. Clean up any
+    # When the render engine instance is destroyed, this is called. Clean up any
     # render engine data here, for example stopping running render threads.
     def __del__(self):
-        log('CustomRenderEngine.__del__()')
-        pass
+        print('-' * 40)
+        log('RENDER ENGINE __del__()')
+        print('-' * 40)
+        print()
 
     # This is the method called by Blender for both final renders (F12) and
     # small preview for materials, world and lights.
     def render(self, depsgraph):
-        log('CustomRenderEngine.render()')
+        
+        self.render_count += 1
+        
+        print('-' * 40)
+        log('render #%d' % self.render_count)
+        print('-' * 40)
+        
         scene = depsgraph.scene
         scale = scene.render.resolution_percentage / 100.0
         self.size_x = int(scene.render.resolution_x * scale)
@@ -58,6 +75,8 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         layer = result.layers[0].passes["Combined"]
         layer.rect = rect
         self.end_result(result)
+        
+        print()
 
     # For viewport renders, this method gets called once at the start and
     # whenever the scene or 3D viewport changes. This method is where data
@@ -66,7 +85,10 @@ class CustomRenderEngine(bpy.types.RenderEngine):
     def view_update(self, context, depsgraph):
         
         self.update_count += 1
-        print('--- %d CustomRenderEngine.view_update() ---' % self.update_count)
+        
+        print('-' * 40)
+        log('view_update #%d' % self.update_count)
+        print('-' * 40)
         
         region = context.region
         view3d = context.space_data
@@ -80,8 +102,16 @@ class CustomRenderEngine(bpy.types.RenderEngine):
             if depsgraph.id_type_updated(t):
                 print("Type %s updated" % t)
 
+        print()
+        
         for update in depsgraph.updates:
-            print("Datablock updated: %s (%s)" % (update.id.name, type(update.id)))
+            print('Datablock "%s" updated (%s)' % (update.id.name, type(update.id)))
+            if update.is_updated_geometry:
+                print('-- geometry was updated')
+            if update.is_updated_transform:
+                print('-- transform was updated')
+                
+        print()
 
     # For viewport renders, this method is called whenever Blender redraws
     # the 3D viewport. The renderer is expected to quickly draw the render
@@ -93,7 +123,10 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         # See https://github.com/LuxCoreRender/BlendLuxCore/blob/master/draw/viewport.py
 
         self.draw_count += 1
-        log('--- %d CustomRenderEngine.view_draw() ---' % self.draw_count)
+        
+        print('-' * 40)
+        log('view_draw #%d' % self.draw_count)
+        print('-' * 40)
         
         region = context.region
         assert region.type == 'WINDOW'        
@@ -116,10 +149,10 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         
         print('space_data.lens', space_data.lens)   # Always set to viewport lens setting, even when in camera view
         
-        print('region_data', dir(region_data))
+        #print('region_data', dir(region_data))
         print('region_data.view_perspective', region_data.view_perspective) # PERS, ORTHO or CAMERA
         
-        print('space_data', dir(space_data))
+        #print('space_data', dir(space_data))
         print('space_data.camera', space_data.camera)
         #print('space_data.use_local_camera', space_data.use_local_camera)  # No relation to camera view yes/no
         
@@ -148,6 +181,7 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         self.unbind_display_space_shader()
         bgl.glDisable(bgl.GL_BLEND)
         
+        print()
         
 
 
