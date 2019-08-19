@@ -772,6 +772,12 @@ receive_and_add_ospray_geometry_data(TCPSocket *sock, const SceneElement& elemen
     PluginDefinition& definition = plugin_definitions[plugin];
     geometry_load_function_t load_function = definition.functions.geometry_load_function;
     
+    if (load_function == NULL)
+    {
+        printf("Plugin returned NULL load_function!\n");
+        exit(-1);
+    }
+    
     // Check parameters
     
     const json& plugin_parameters = properties["plugin_parameters"];
