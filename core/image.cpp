@@ -26,7 +26,8 @@ using namespace OIIO;
 bool
 writePNG(const char *fileName, int width, int height, const uint32_t *pixel)
 {
-    ImageOutput *out = ImageOutput::create(fileName);
+    auto out = ImageOutput::create(fileName);
+    
     if (!out)    
         return false;
     
@@ -47,8 +48,11 @@ writePNG(const char *fileName, int width, int height, const uint32_t *pixel)
         -scanlinesize, 
         AutoStride
     );
-    out->close();
+    
+    out->close();    
+#if OIIO_VERSION < 10903
     ImageOutput::destroy(out);
+#endif
     
     return true;
 }
@@ -57,7 +61,8 @@ writePNG(const char *fileName, int width, int height, const uint32_t *pixel)
 bool
 writeEXRFramebuffer(const char *fileName, int width, int height, const float *pixel)
 {
-    ImageOutput *out = ImageOutput::create(fileName);
+    auto out = ImageOutput::create(fileName);
+    
     if (!out)    
         return false;
     
@@ -78,8 +83,11 @@ writeEXRFramebuffer(const char *fileName, int width, int height, const float *pi
         -scanlinesize, 
         AutoStride
     );
+    
     out->close();
+#if OIIO_VERSION < 10903    
     ImageOutput::destroy(out);
+#endif    
     
     return true;
 }

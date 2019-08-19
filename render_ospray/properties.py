@@ -154,13 +154,13 @@ class RenderOspraySettingsObject(PropertyGroup):
     representation: EnumProperty(
         name='Representation',
         description='Representation',
-        items=[ ('regular', 'Regular', 'Regular blender representation'),
+        items=[ ('regular', 'Regular (Blender)', 'Regular Blender geometry'),
+                ('geometry', 'Geometry', 'Linked data must have geometry plugin set'),
                 ('volume', 'Volume', 'Linked data must have volume plugin set'),
                 ('volume_slices', 'Slices', 'Linked data must have volume plugin set'),
                 ('volume_isosurfaces', 'Isosurfaces', 'Linked data must have volume plugin set'),
                 #('spheres', 'Spheres', ''),
-                #('cylinders', 'Cylinders', ''),
-                ('geometry', 'Geometry', 'Linked data must have geometry plugin set'),
+                #('cylinders', 'Cylinders', ''),                
                ]
         )   
         
