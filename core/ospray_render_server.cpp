@@ -863,15 +863,20 @@ receive_and_add_ospray_geometry_object(TCPSocket *sock, const SceneElement& elem
         float affine[13];
         affine3fv_from_mat4(affine, xform);
         
-        OSPInstance instance = ospNewInstance();
+        OSPGroup group = ospNewGroup();
+        
+            OSPData models = ospNewData(1, OSP_OBJECT, &model, 0);
+            ospSetData(group, "geometry", models);
+            ospRelease(models);
+        
+        ospCommit(group);
+
+        OSPInstance instance = ospNewInstance(group);
         
             ospSetAffine3fv(instance, "xfm", affine);
         
-            OSPData models = ospNewData(1, OSP_OBJECT, &model, 0);
-            ospSetData(instance, "geometries", models);
-            ospRelease(models);
-        
         ospCommit(instance);
+        ospRelease(group);
 
         scene_instances.push_back(instance);
     }
