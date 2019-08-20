@@ -51,7 +51,7 @@ class OSPRayUpdateMeshVolumeExtents(bpy.types.Operator):
         if not result.success:
             print('ERROR: extent query failed:')
             print(result.message)
-            return
+            return {'FAILED'}
             
         # Receive actual geometry
         vertices_len, edges_len, faces_len, loop_len = unpack('<IIII', receive_buffer(sock, 4*4))
@@ -68,26 +68,33 @@ class OSPRayUpdateMeshVolumeExtents(bpy.types.Operator):
         receive_into_numpy_array(sock, loop_start, loop_len*4)
         receive_into_numpy_array(sock, loop_total, loop_len*4)
         
-        print(vertices)
-        print(edges)
-        print(faces)
-        print(loop_start)
-        print(loop_total)
+        #print(vertices)
+        #print(edges)
+        #print(faces)
+        #print(loop_start)
+        #print(loop_total)
 
         # XXX send bye
         sock.close()
+        
+        # XXX use new mesh replace from 2.81 when it becomes available
         
         bm = bmesh.new()        
         
         verts = []
         for x, y, z in vertices.reshape((-1,3)):
-            print(x, y, z)
             verts.append(bm.verts.new((x, y, z)))
             
         for i, j in edges.reshape((-1,2)):
             bm.edges.new((verts[i], verts[j]))
-        
-        #bm.faces.new(verts)        
+            
+        for start, total in zip(loop_start, loop_total):     
+            vv = []
+            for i in range(total):
+                vi = faces[start+i]
+                vv.append(verts[vi])
+            bm.faces.new(vv)   
+            
         bm.to_mesh(mesh)
 
         mesh.update()

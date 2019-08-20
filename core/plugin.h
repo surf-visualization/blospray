@@ -119,6 +119,7 @@ struct BoundingMesh
 {
     // Convenience method for constructing an axis-aligned bounding box (edges only)
     static BoundingMesh *bbox_edges(float xmin, float ymin, float zmin, float xmax, float ymax, float zmax);
+    static BoundingMesh *bbox_mesh(float xmin, float ymin, float zmin, float xmax, float ymax, float zmax);
     
     // Deserialize
     static BoundingMesh *deserialize(const uint8_t *buffer, uint32_t size);

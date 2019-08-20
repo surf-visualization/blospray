@@ -596,7 +596,7 @@ generate(GenerateFunctionResult &result, PluginState *state)
     state->volume_data_range[0] = minval;
     state->volume_data_range[1] = maxval;    
     
-    state->bound = BoundingMesh::bbox_edges(
+    state->bound = BoundingMesh::bbox_mesh(
         bbox[0], bbox[1], bbox[2],
         bbox[3], bbox[4], bbox[5]
     );
