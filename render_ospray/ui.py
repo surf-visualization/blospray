@@ -172,7 +172,8 @@ class DATA_PT_OSPRAY_MESH(Panel):
 
         col.separator()
         # XXX only show this mesh from "ospray-enabled" meshes
-        col.operator('ospray.update_mesh_bound', text='Update extent mesh')    # XXX why need this text, doesn't it use bl_label?
+        # XXX only enable after sync with server once?
+        col.operator('ospray.update_mesh_bound', text='Update bound')    # XXX why need this text, doesn't it use bl_label?
 
     
 """
