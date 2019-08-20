@@ -30,7 +30,7 @@ using json = nlohmann::json;
 // XXX check for existence of "file", "header_skip", etc. entries in parameters[]
 
 static OSPVolumetricModel
-load_as_structured(float *bbox, LoadFunctionResult &result,
+load_as_structured(float *bbox, GenerateFunctionResult &result,
     const json &parameters, const glm::mat4 &/*object2world*/, 
     const int32_t *dims, const std::string &voxelType, OSPDataType dataType, void *grid_field_values)
 {
@@ -90,7 +90,7 @@ load_as_structured(float *bbox, LoadFunctionResult &result,
 
 static OSPVolumetricModel
 load_as_unstructured(
-    float *bbox, LoadFunctionResult &result,
+    float *bbox, GenerateFunctionResult &result,
     const json &parameters, const glm::mat4 &object2world, 
     const int32_t *dims, const std::string &voxelType, OSPDataType dataType, void *grid_field_values)
 {    
@@ -215,7 +215,7 @@ load_as_unstructured(
 
 extern "C"
 OSPVolumetricModel
-load(float *bbox, float *data_range, LoadFunctionResult &result, const json &parameters, const glm::mat4 &object2world)
+load(float *bbox, float *data_range, GenerateFunctionResult &result, const json &parameters, const glm::mat4 &object2world)
 {
     char msg[1024];
         
@@ -360,7 +360,7 @@ load(float *bbox, float *data_range, LoadFunctionResult &result, const json &par
 
 extern "C"
 bool
-extent(float *bbox, LoadFunctionResult &result, const json &parameters, const glm::mat4 &/*object2world*/)
+extent(float *bbox, GenerateFunctionResult &result, const json &parameters, const glm::mat4 &/*object2world*/)
 {
     int32_t dims[3];            // XXX why int and not uint?
     
@@ -437,7 +437,7 @@ create_volume(float *bbox,
 
 extern "C"
 void
-create_object(LoadFunctionResult &result, PluginState *state)
+generate(GenerateFunctionResult &result, PluginState *state)
 {
     const json& parameters = state->parameters;
     
@@ -632,7 +632,7 @@ functions = {
     NULL,           // Plugin load
     NULL,           // Plugin unload
     
-    create_object,  // Object create
+    generate,       // Generate
     
     NULL,           // Clear data
 };

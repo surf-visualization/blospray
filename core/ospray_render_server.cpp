@@ -125,7 +125,7 @@ object2world_from_protobuf(glm::mat4 &matrix, T& protobuf)
 
 // If needed, loads plugin shared library and initializes plugin
 bool
-ensure_plugin_is_loaded(LoadFunctionResult &result, const std::string& name)
+ensure_plugin_is_loaded(GenerateFunctionResult &result, const std::string& name)
 {
     if (name == "")
     {
@@ -204,7 +204,7 @@ ensure_plugin_is_loaded(LoadFunctionResult &result, const std::string& name)
 }
 
 bool
-check_parameters(LoadFunctionResult& result, const PluginParameter *plugin_parameters, const json &actual_parameters)
+check_parameters(GenerateFunctionResult& result, const PluginParameter *plugin_parameters, const json &actual_parameters)
 {
     // We don't return false on the first error, but keep checking for any subsequent errors
     bool ok = true;
@@ -494,11 +494,11 @@ receive_and_add_ospray_volume_data(TCPSocket *sock, const SceneElement& element)
     
     // Prepare result
     
-    LoadFunctionResult result;
+    GenerateFunctionResult result;
     
     result.set_success(true);
     
-    // Find load function 
+    // Find generate function 
                 
     const std::string& plugin = properties["plugin"];
     
@@ -510,7 +510,14 @@ receive_and_add_ospray_volume_data(TCPSocket *sock, const SceneElement& element)
     }
     
     PluginDefinition& definition = plugin_definitions[plugin];
-    object_create_function_t object_create_function = definition.functions.object_create_function;
+    
+    generate_function_t generate_function = definition.functions.generate_function;
+    
+    if (generate_function == NULL)
+    {
+        printf("Plugin returned NULL generate_function!\n");
+        exit(-1);
+    }    
     
     // Check parameters passed to load function
     
@@ -534,10 +541,10 @@ receive_and_add_ospray_volume_data(TCPSocket *sock, const SceneElement& element)
     
     float       bbox[6];
     
-    object_create_function(result, &state);
+    generate_function(result, &state);
     
     gettimeofday(&t1, NULL);
-    printf("Object create function executed in %.3fs\n", time_diff(t0, t1));
+    printf("Generate function executed in %.3fs\n", time_diff(t0, t1));
     
     if (state.volume == NULL)
     {
@@ -772,11 +779,11 @@ receive_and_add_ospray_geometry_data(TCPSocket *sock, const SceneElement& elemen
     
     // Prepare result
     
-    LoadFunctionResult result;
+    GenerateFunctionResult result;
     
     result.set_success(true);
     
-    // Find load function 
+    // Find generate function 
     
     const std::string& plugin = properties["plugin"];
     
@@ -788,11 +795,12 @@ receive_and_add_ospray_geometry_data(TCPSocket *sock, const SceneElement& elemen
     }
     
     PluginDefinition& definition = plugin_definitions[plugin];
-    object_create_function_t object_create_function = definition.functions.object_create_function;
     
-    if (object_create_function == NULL)
+    generate_function_t generate_function = definition.functions.generate_function;
+    
+    if (generate_function == NULL)
     {
-        printf("Plugin returned NULL object_create_function!\n");
+        printf("Plugin returned NULL generate_function!\n");
         exit(-1);
     }
     
@@ -817,16 +825,16 @@ receive_and_add_ospray_geometry_data(TCPSocket *sock, const SceneElement& elemen
     printf("Calling object_create function\n");
     gettimeofday(&t0, NULL);
     
-    object_create_function(result, &state);    
+    generate_function(result, &state);    
     
     gettimeofday(&t1, NULL);
-    printf("Object create function executed in %.3fs\n", time_diff(t0, t1));
+    printf("Generate function executed in %.3fs\n", time_diff(t0, t1));
     
     if (state.geometry == NULL)
     {
         send_protobuf(sock, result);
 
-        printf("ERROR: geometry object create function failed!\n");
+        printf("ERROR: geometry generate function failed!\n");
         return false;
     }    
 

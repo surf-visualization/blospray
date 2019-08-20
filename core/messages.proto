@@ -224,9 +224,8 @@ message LightSettings
 
 // Plugins
 
-// XXX rename CreateFunctionResult, returned by Create function
-// Returned by load function
-message LoadFunctionResult
+// Returned by generate function
+message GenerateFunctionResult
 {
     bool            success = 1;
     string          message = 2;        // XXX use JSON for returning multiple lines/messages?

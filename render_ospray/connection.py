@@ -37,7 +37,7 @@ from .messages_pb2 import (
     CameraSettings, ImageSettings,
     LightSettings, Light, RenderSettings,
     SceneElement, MeshData,
-    ClientMessage, LoadFunctionResult,
+    ClientMessage, GenerateFunctionResult,
     RenderResult,
     VolumeExtentRequest, VolumeExtentFunctionResult
 )
@@ -383,16 +383,16 @@ class Connection:
         # Wait for volume to be loaded on the server, signaled
         # by the return of a result value
 
-        load_function_result = LoadFunctionResult()
+        generate_function_result = GenerateFunctionResult()
 
-        receive_protobuf(self.sock, load_function_result)
+        receive_protobuf(self.sock, generate_function_result)
 
-        if not load_function_result.success:
-            print('ERROR: volume loading failed:')
-            print(load_function_result.message)
+        if not generate_function_result.success:
+            print('ERROR: volume generation failed:')
+            print(generate_function_result.message)
             return
 
-        id = load_function_result.hash
+        id = generate_function_result.hash
         print(id)
 
         mesh['loaded_id'] = id
@@ -400,7 +400,7 @@ class Connection:
 
         # Get volume bbox
 
-        bbox = list(load_function_result.bbox)
+        bbox = list(generate_function_result.bbox)
         print('Bbox', bbox)
 
         # Update mesh to match bbox
@@ -508,17 +508,17 @@ class Connection:
         # Wait for geometry to be loaded on the server, signaled
         # by the return of a result value
 
-        load_function_result = LoadFunctionResult()
+        generate_function_result = GenerateFunctionResult()
 
-        receive_protobuf(self.sock, load_function_result)
+        receive_protobuf(self.sock, generate_function_result)
 
-        if not load_function_result.success:
-            print('ERROR: geometry loading failed:')
-            print(load_function_result.message)
+        if not generate_function_result.success:
+            print('ERROR: geometry generation failed:')
+            print(generate_function_result.message)
             return
 
         # XXX
-        #id = load_function_result.hash
+        #id = generate_function_result.hash
         id = '12345'
         print(id)
 
@@ -527,7 +527,7 @@ class Connection:
 
         # Get geometry bbox
 
-        bbox = list(load_function_result.bbox)
+        bbox = list(generate_function_result.bbox)
         print('Bbox', bbox)
 
         """
