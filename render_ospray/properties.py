@@ -114,11 +114,14 @@ class RenderOspraySettingsScene(PropertyGroup):
         max = 32
         )
         
+    """
+    # XXX removed in 2.0?
     shadows_enabled: BoolProperty(
         name="Shadows",
         description="Compute (hard) shadows (shadowsEnabled)",
         default = True
         )
+    """
         
         
 class RenderOspraySettingsWorld(PropertyGroup):

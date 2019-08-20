@@ -286,10 +286,6 @@ class Connection:
 
         properties = {}
         properties['plugin'] = mesh.ospray.plugin
-        properties['sampling_rate'] = mesh.ospray.sampling_rate
-        properties['gradient_shading'] = mesh.ospray.gradient_shading
-        properties['pre_integration'] = mesh.ospray.pre_integration
-        properties['single_shade'] = mesh.ospray.single_shade
         self._process_properties(mesh, properties)
 
         print('Sending properties:')
@@ -331,6 +327,11 @@ class Connection:
         properties = {}
         properties['representation'] = obj.ospray.representation
         self._process_properties(obj, properties)
+        
+        properties['sampling_rate'] = obj.ospray.sampling_rate
+        #properties['gradient_shading'] = obj.ospray.gradient_shading
+        #properties['pre_integration'] = obj.ospray.pre_integration
+        #properties['single_shade'] = obj.ospray.single_shade        
 
         print('Sending properties:')
         print(properties)
@@ -659,7 +660,7 @@ class Connection:
         render_settings.background_color[:] = world.ospray.background_color
         self.render_samples = render_settings.samples = scene.ospray.samples
         render_settings.ao_samples = scene.ospray.ao_samples
-        render_settings.shadows_enabled = scene.ospray.shadows_enabled
+        #render_settings.shadows_enabled = scene.ospray.shadows_enabled     # XXX removed in 2.0?
 
         # Lights
 

@@ -605,6 +605,7 @@ receive_and_add_ospray_volume_object(TCPSocket *sock, const SceneElement& elemen
         else
             ospSetFloat(volume_model,  "samplingRate", 0.1f);
         
+        /*
         if (properties.find("gradient_shading") != properties.end())
             ospSetBool(volume_model,  "gradientShadingEnabled", properties["gradient_shading"].get<bool>());
         else
@@ -618,9 +619,10 @@ receive_and_add_ospray_volume_object(TCPSocket *sock, const SceneElement& elemen
         if (properties.find("single_shade") != properties.end())
             ospSetBool(volume_model,  "singleShade", properties["single_shade"].get<bool>());
         else
-            ospSetBool(volume_model,  "singleShade", true);  
+            ospSetBool(volume_model,  "singleShade", true);          
         
         ospSetBool(volume_model, "adaptiveSampling", false);
+        */
         
         ospSetObject(volume_model, "transferFunction", cool2warm_transfer_function);
         

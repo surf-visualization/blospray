@@ -80,7 +80,7 @@ class RENDER_PT_OSPRAY_RENDERING(Panel):
         col.prop(ospray, 'renderer', text='Type') 
         col.prop(ospray, 'samples', text='Samples') 
         col.prop(ospray, 'ao_samples', text='AO Samples') 
-        col.prop(ospray, 'shadows_enabled', text='Shadows') 
+        #col.prop(ospray, 'shadows_enabled', text='Shadows')    # XXX Removed in 2.0?
 
 
 class OBJECT_PT_OSPRAY(Panel):
