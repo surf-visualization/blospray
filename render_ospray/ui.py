@@ -25,7 +25,7 @@ from bpy.types import (Panel,
                        PropertyGroup,
                        )                       
 
-from .operators import OSPRayUpdateMeshVolumeExtents
+from .operators import OSPRayUpdateMeshBound
    
 class RENDER_PT_OSPRAY_CONNECTION(Panel):
     bl_idname = 'RENDER_PT_OSPRAY_CONNECTION'
@@ -134,6 +134,10 @@ class DATA_PT_OSPRAY_MESH(Panel):
         
         col = layout.column(align=True)
         col.prop(ospray, 'plugin', text='Plugin') 
+
+        col.separator()
+        # XXX only show this mesh from "ospray-enabled" meshes
+        col.operator('ospray.update_mesh_bound', text='Update extent mesh')    # XXX why need this text, doesn't it use bl_label?
         
 
     
@@ -165,8 +169,6 @@ class DATA_PT_OSPRAY_MESH_VOLUME(Panel):
         col.prop(ospray, 'pre_integration', text='Pre-integration') 
         col.prop(ospray, 'single_shade', text='Single shade') 
         col.prop(ospray, 'sampling_rate', text='Sampling rate') 
-        col.separator()
-        col.operator('ospray.volume_update_mesh', text='Update extent mesh')    # XXX why need this text, doesn't it use bl_label?
     
 class DATA_PT_OSPRAY_LIGHT(Panel):
     bl_idname = 'DATA_PT_OSPRAY_LIGHT'

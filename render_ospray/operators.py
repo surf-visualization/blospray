@@ -7,16 +7,13 @@ from .common import send_protobuf, receive_protobuf, receive_buffer, receive_int
 from .connection import Connection
 from .messages_pb2 import ClientMessage, QueryBoundResult
 
-# XXX generalize to object mesh, it's not specific to a volume
 # XXX if this operator gets called during rendering, then what? :)
 
-class OSPRayUpdateMeshVolumeExtents(bpy.types.Operator):
+class OSPRayUpdateMeshBound(bpy.types.Operator):
     
-    # XXX unfinished
-
     """Update bounding geometry with bound provided by plugin"""             
-    bl_idname = "ospray.volume_update_mesh"
-    bl_label = "Update extent mesh"
+    bl_idname = "ospray.update_mesh_bound"
+    bl_label = "Update bounding mesh from server"
     bl_options = {'REGISTER'}#, 'UNDO'}             # Enable undo for the operator?
 
     def execute(self, context):
@@ -103,7 +100,7 @@ class OSPRayUpdateMeshVolumeExtents(bpy.types.Operator):
         
 
 classes = (
-    OSPRayUpdateMeshVolumeExtents,
+    OSPRayUpdateMeshBound,
 )
 
 def register():
