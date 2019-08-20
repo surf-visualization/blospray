@@ -106,9 +106,43 @@ class OBJECT_PT_OSPRAY(Panel):
         obj = context.object
         ospray = obj.ospray
         
+        # XXX align labels to the left
         col = layout.column(align=True)
         col.prop(ospray, 'representation', text='Representation', expand=True) 
+
+
+class OBJECT_PT_OSPRAY_VOLUME(Panel):
+    bl_idname = 'OBJECT_PT_OSPRAY_VOLUME'
+    bl_label = 'OSPRay Volume Settings'
+    bl_space_type = 'PROPERTIES'   
+    bl_region_type = 'WINDOW'    
+    bl_context = 'object'  
+    
+    COMPAT_ENGINES = {'OSPRAY'}
+    
+    @classmethod
+    def poll(cls, context):
+        obj = context.object
+        return (
+            (context.engine in cls.COMPAT_ENGINES) 
+            and obj and (obj.type in {'MESH'}) 
+            and (obj.ospray.representation in {'volume'})       # XXX also for isosurf and slices?
+        )
+    
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        #layout.use_property_decorate = False
         
+        obj = context.object
+        ospray = obj.ospray
+        
+        # XXX align labels to the left
+        col = layout.column(align=True)
+        #col.prop(ospray, 'gradient_shading', text='Gradient shading') 
+        #col.prop(ospray, 'pre_integration', text='Pre-integration') 
+        #col.prop(ospray, 'single_shade', text='Single shade') 
+        col.prop(ospray, 'sampling_rate', text='Sampling rate') 
     
     
 class DATA_PT_OSPRAY_MESH(Panel):
@@ -133,14 +167,15 @@ class DATA_PT_OSPRAY_MESH(Panel):
         ospray = mesh.ospray
         
         col = layout.column(align=True)
-        col.prop(ospray, 'plugin', text='Plugin') 
+        col.prop(ospray, 'plugin_type', text='Plugin type') 
+        col.prop(ospray, 'plugin', text='Plugin name') 
 
         col.separator()
         # XXX only show this mesh from "ospray-enabled" meshes
         col.operator('ospray.update_mesh_bound', text='Update extent mesh')    # XXX why need this text, doesn't it use bl_label?
-        
 
     
+"""
 class DATA_PT_OSPRAY_MESH_VOLUME(Panel):
     bl_idname = 'DATA_PT_OSPRAY_MESH_VOLUME'
     bl_label = 'OSPRay Volume'
@@ -154,7 +189,7 @@ class DATA_PT_OSPRAY_MESH_VOLUME(Panel):
     def poll(cls, context):
         obj = context.object
         mesh = context.mesh
-        return ((context.engine in cls.COMPAT_ENGINES) and  mesh and (obj.ospray.representation in {'volume', 'volume_slices', 'volume_isosurfaces'}))
+        return ((context.engine in cls.COMPAT_ENGINES) and  mesh and (mesh.ospray.plugin_type in {'volume'}))
             
     def draw(self, context):
         layout = self.layout
@@ -162,13 +197,8 @@ class DATA_PT_OSPRAY_MESH_VOLUME(Panel):
         
         mesh = context.mesh
         ospray = mesh.ospray
-        
-        # XXX align labels to the left
-        col = layout.column(align=True)
-        col.prop(ospray, 'gradient_shading', text='Gradient shading') 
-        col.prop(ospray, 'pre_integration', text='Pre-integration') 
-        col.prop(ospray, 'single_shade', text='Single shade') 
-        col.prop(ospray, 'sampling_rate', text='Sampling rate') 
+"""        
+    
     
 class DATA_PT_OSPRAY_LIGHT(Panel):
     bl_idname = 'DATA_PT_OSPRAY_LIGHT'
@@ -246,8 +276,9 @@ classes = (
     RENDER_PT_OSPRAY_CONNECTION,
     RENDER_PT_OSPRAY_RENDERING,
     OBJECT_PT_OSPRAY,
+    OBJECT_PT_OSPRAY_VOLUME,
     DATA_PT_OSPRAY_MESH,
-    DATA_PT_OSPRAY_MESH_VOLUME,
+    #DATA_PT_OSPRAY_MESH_VOLUME,
     DATA_PT_OSPRAY_LIGHT,
     WORLD_PT_OSPRAY,
 )

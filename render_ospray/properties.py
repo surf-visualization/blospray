@@ -157,27 +157,18 @@ class RenderOspraySettingsObject(PropertyGroup):
         items=[ ('regular', 'Regular (Blender)', 'Regular Blender geometry'),
                 ('geometry', 'Geometry', 'Linked data must have geometry plugin set'),
                 ('volume', 'Volume', 'Linked data must have volume plugin set'),
-                ('volume_slices', 'Slices', 'Linked data must have volume plugin set'),
-                ('volume_isosurfaces', 'Isosurfaces', 'Linked data must have volume plugin set'),
+                ('volume_slices', 'Slices (from Volume)', 'Linked data must have volume plugin set'),
+                ('volume_isosurfaces', 'Isosurfaces (from Volume)', 'Linked data must have volume plugin set'),
                 #('spheres', 'Spheres', ''),
                 #('cylinders', 'Cylinders', ''),                
                ]
         )   
         
-        
-class RenderOspraySettingsMesh(PropertyGroup):
-        
-    plugin: StringProperty(
-        name='Plugin',
-        description='Plugin to use server-side for creating this "object"',
-        default='',
-        maxlen=64,
-        ) 
-        
-    # Properties for a mesh representing an OSPRay volume
+    # Properties for an object representing an OSPRay volume
         
     #voxelrange
     
+    """
     gradient_shading: BoolProperty(
         name='Gradient shading',
         description='Render with surface shading wrt. to normalized gradient',
@@ -195,6 +186,7 @@ class RenderOspraySettingsMesh(PropertyGroup):
         description='Shade only at the point of maximum intensity',
         default = True
         )           
+    """
     
     sampling_rate: FloatProperty(
         name='Sampling rate',
@@ -204,6 +196,26 @@ class RenderOspraySettingsMesh(PropertyGroup):
         max = 100000
         )    
         
+        
+class RenderOspraySettingsMesh(PropertyGroup):
+    
+    plugin_type: EnumProperty(
+        name='Plugin type',
+        description='Type of BLOSPRAY plugin',
+        items=[ ('none', 'None', 'Regular Blender geometry'),
+                ('geometry', 'Geometry', 'A single OSPGeometry'),
+                ('volume', 'Volume', 'A single OSPVolume'),
+                ('scene', 'Scene', 'A set of OSPGroup instances'),
+               ]
+        )       
+        
+    plugin: StringProperty(
+        name='Plugin',
+        description='Plugin to use server-side for creating this "object"',
+        default='',
+        maxlen=64,
+        ) 
+                
 class RenderOspraySettingsLight(PropertyGroup):
     
     # Common
