@@ -1,5 +1,10 @@
 Port plugin geometry_cosmogrid to new style
 
+Broken in ospray 2?
+- path tracer doesn't listen to alpha value in bgColor. it always returns
+  a framebuffer with alpha 0
+- scivis renderer segfaults on almost all scenes
+- 
 
 
 
@@ -93,6 +98,10 @@ Decide
   that users would need to install. Can we locally include protobuf
   in the sources and build process? Or should we get rid of it
   altogether?
+  https://capnproto.org/
+  https://google.github.io/flatbuffers/
+  https://github.com/eigenein/protobuf
+  
   
 
 Test

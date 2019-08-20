@@ -29,7 +29,7 @@
 #include "plugin.h"
 
 OSPGeometry
-add_plane(float cx, float cy, float cz, float sx, float sy)
+create_plane(float cx, float cy, float cz, float sx, float sy)
 {
     uint32_t  num_vertices, num_triangles;
     float     *vertices, *colors;  
@@ -76,17 +76,17 @@ add_plane(float cx, float cy, float cz, float sx, float sy)
     
     OSPGeometry mesh = ospNewGeometry("triangles");
   
-      OSPData data = ospNewData(num_vertices, OSP_VEC3F, vertices);   
-      ospCommit(data);
-      ospSetData(mesh, "vertex", data);
+        OSPData data = ospNewData(num_vertices, OSP_VEC3F, vertices);   
+        ospCommit(data);
+        ospSetData(mesh, "vertex.position", data);
 
-      data = ospNewData(num_vertices, OSP_VEC4F, colors);
-      ospCommit(data);
-      ospSetData(mesh, "vertex.color", data);
+        data = ospNewData(num_vertices, OSP_VEC4F, colors);
+        ospCommit(data);
+        ospSetData(mesh, "vertex.color", data);
 
-      data = ospNewData(num_triangles, OSP_VEC3I, triangles);            
-      ospCommit(data);
-      ospSetData(mesh, "index", data);
+        data = ospNewData(num_triangles, OSP_VEC3I, triangles);            
+        ospCommit(data);
+        ospSetData(mesh, "index", data);
 
     ospCommit(mesh);
     
@@ -97,32 +97,23 @@ add_plane(float cx, float cy, float cz, float sx, float sy)
     return mesh;
 }
 
-extern "C" 
+extern "C"
 void
-load(ModelInstances& model_instances, float *bbox, LoadFunctionResult &result, const json &parameters, const glm::mat4& object2world)
+create_object(LoadFunctionResult &result, PluginState *state)
 {    
-    const float size_x = parameters["size_x"];
-    const float size_y = parameters["size_y"];
+    const float size_x = state->parameters["size_x"];
+    const float size_y = state->parameters["size_y"];
     
-    OSPGeometry plane_geom = add_plane(0.0f, 0.0f, 0.0f, size_x, size_y);
+    state->geometry = create_plane(0.0f, 0.0f, 0.0f, size_x, size_y);    
     
-    OSPGeometricModel model = ospNewGeometricModel(plane_geom);
-    ospCommit(model);
-    ospRelease(plane_geom);
-    
-    // Add instance
-    model_instances.push_back(std::make_pair(model, glm::mat4(1.0f)));
-    
-    printf("Data loaded...\n");
-
     // XXX too large
-    bbox[0] = -1.0f;
-    bbox[1] = -1.0f;
-    bbox[2] = -1.0f;
+    state->bbox[0] = -1.0f;
+    state->bbox[1] = -1.0f;
+    state->bbox[2] = -1.0f;
     
-    bbox[3] = 1.0f;
-    bbox[4] = 1.0f;
-    bbox[5] = 1.0f;
+    state->bbox[3] = 1.0f;
+    state->bbox[4] = 1.0f;
+    state->bbox[5] = 1.0f;    
 }
 
 static PluginParameters 
@@ -137,15 +128,19 @@ parameters = {
 static PluginFunctions
 functions = {
 
-    NULL,   // Volume extent
-    NULL,   // Volume load
-
-    load    // Geometry extent
+    NULL,           // Plugin load
+    NULL,           // Plugin unload
+    
+    create_object,  // Object create
+    
+    NULL,           // Clear data
 };
+
 
 extern "C" bool
 initialize(PluginDefinition *def)
 {
+    def->type = PT_GEOMETRY;
     def->parameters = parameters;
     def->functions = functions;
     

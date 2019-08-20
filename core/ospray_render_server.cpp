@@ -879,7 +879,7 @@ receive_and_add_ospray_geometry_object(TCPSocket *sock, const SceneElement& elem
     
     // Create instance 
     
-    OSPGeometry         geometry = it->second;
+    OSPGeometry geometry = it->second;
 
     OSPGeometricModel model = ospNewGeometricModel(geometry);
         // XXX fixed material

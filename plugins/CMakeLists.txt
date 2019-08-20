@@ -35,9 +35,9 @@ target_include_directories(volume_raw
 
 # geometry_plane
 
-#add_library(geometry_plane SHARED geometry_plane.cpp)
-#set_target_properties(geometry_plane PROPERTIES PREFIX "")   
-#target_link_libraries(geometry_plane PUBLIC ${OSPRAY_LIBRARIES})
+add_library(geometry_plane SHARED geometry_plane.cpp)
+set_target_properties(geometry_plane PROPERTIES PREFIX "")   
+target_link_libraries(geometry_plane PUBLIC ${OSPRAY_LIBRARIES})
 
 # geometry_rbc
 
@@ -81,7 +81,7 @@ endif(PLUGIN_COSMOGRID)
 
 install(TARGETS 
     volume_raw 
-    #geometry_plane
+    geometry_plane
     #geometry_rbc
     DESTINATION bin)
     
