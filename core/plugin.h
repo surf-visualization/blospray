@@ -115,17 +115,28 @@ typedef std::vector<GroupInstance>          GroupInstances;
 // in the blender scene. The mesh geometry is defined in the same way
 // as in Blender: vertices, edges and polygons.
 
-class BoundingMesh
+struct BoundingMesh
 {
-    // Convenience method for constructing an axis-aligned bounding box
-    static BoundingMesh *bbox(float xmin, float ymin, float zmin, float xmax, float ymax, float zmax);
+    // Convenience method for constructing an axis-aligned bounding box (edges only)
+    static BoundingMesh *bbox_edges(float xmin, float ymin, float zmin, float xmax, float ymax, float zmax);
+    
+    // Deserialize
+    static BoundingMesh *deserialize(const uint8_t *buffer);
     
     BoundingMesh();
     ~BoundingMesh();
     
-    // vertices, edges, faces (loops, start, total)
+    uint8_t *serialize() const;    
+    
+    std::vector<float>      vertices;       // x, y, z, ...
+    std::vector<uint32_t>   edges;          // v0, v1, ...
+    std::vector<uint32_t>   faces;          // i, j, k, l, ...
+    std::vector<uint32_t>   loop_start;     
+    std::vector<uint32_t>   loop_total;     
 };
 
+// Yuck
+#include "bounding_mesh.impl"
 
 //
 // Functions
@@ -139,8 +150,6 @@ struct PluginState
     // XXX Will be updated by the server when needed.
     json            parameters;
     
-    float           bbox[6];
-    
     // Bounding geometry, may be NULL
     BoundingMesh    *bound;
     
@@ -152,13 +161,21 @@ struct PluginState
     
     // Volume plugin:
     OSPVolume       volume;
-    float           *volume_data_range;    
+    float           volume_data_range[2];
     
     // Geometry plugin:
     OSPGeometry     geometry;    
     
     // Scene plugin:
-    GroupInstances  group_instances;    
+    GroupInstances  group_instances;  
+
+    PluginState()
+    {
+        bound = nullptr;
+        data = nullptr;
+        volume = nullptr;
+        geometry = nullptr;
+    }
 };
 
 

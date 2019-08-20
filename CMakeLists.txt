@@ -34,7 +34,7 @@ find_package(PkgConfig)
 
 find_package(ospray CONFIG 2.0.0 REQUIRED)
 find_package(Boost COMPONENTS program_options REQUIRED)
-#find_package(glm REQUIRED)
+find_package(glm REQUIRED)
 
 include(FindOpenImageIO)
 
@@ -56,7 +56,7 @@ set(CMAKE_CXX_STANDARD 11)
 
 include_directories(${OSPRAY_INCLUDE_DIRS})
 include_directories(${Boost_INCLUDE_DIR})
-#include_directories(${GLM_INCLUDE_DIRS})
+include_directories(${GLM_INCLUDE_DIRS})
 
 # Server
 add_subdirectory(core)

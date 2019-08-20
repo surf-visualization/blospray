@@ -428,7 +428,7 @@ create_volume(float *bbox,
     
     bbox[3] = origin[0] + dims[0] * spacing[0];
     bbox[4] = origin[1] + dims[1] * spacing[1];
-    bbox[5] = origin[2] + dims[2] * spacing[2];
+    bbox[5] = origin[2] + dims[2] * spacing[2];    
     
     return volume;
 }
@@ -544,6 +544,8 @@ generate(GenerateFunctionResult &result, PluginState *state)
     
     OSPVolume volume;
     
+    float bbox[6];
+    
     /*
     if (parameters.find("make_unstructured") != parameters.end() && parameters["make_unstructured"].get<int>())
     {
@@ -551,21 +553,20 @@ generate(GenerateFunctionResult &result, PluginState *state)
         // vertices with the object2world matrix, as volumes currently don't
         // support affine transformations in ospray themselves.
         volume_model = load_as_unstructured(  
-                    state->bbox, result,
+                    bbox, result,
                     parameters, object2world, 
                     dims, voxelType, dataType, grid_field_values);
     }
     else
     {
         volume_model = load_as_structured(
-                    state->bbox, result,
+                    bbox, result,
                     parameters, object2world, 
                     dims, voxelType, dataType, grid_field_values);
     }
     */
     
-    volume = create_volume(state->bbox, parameters, dims, dataType, grid_field_values);
-    
+    volume = create_volume(bbox, parameters, dims, dataType, grid_field_values);
     
     if (!volume)
     {
@@ -594,6 +595,11 @@ generate(GenerateFunctionResult &result, PluginState *state)
     state->volume = volume;
     state->volume_data_range[0] = minval;
     state->volume_data_range[1] = maxval;    
+    
+    state->bound = BoundingMesh::bbox_edges(
+        bbox[0], bbox[1], bbox[2],
+        bbox[3], bbox[4], bbox[5]
+    );
 }
 
 
@@ -632,8 +638,7 @@ functions = {
     NULL,           // Plugin load
     NULL,           // Plugin unload
     
-    generate,       // Generate
-    
+    generate,       // Generate    
     NULL,           // Clear data
 };
 

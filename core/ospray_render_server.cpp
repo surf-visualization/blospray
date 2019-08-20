@@ -124,6 +124,7 @@ object2world_from_protobuf(glm::mat4 &matrix, T& protobuf)
 // Plugin handling
 
 // If needed, loads plugin shared library and initializes plugin
+// XXX perhaps this operation should have its own result type
 bool
 ensure_plugin_is_loaded(GenerateFunctionResult &result, const std::string& name)
 {
@@ -429,7 +430,7 @@ prepare_renderers()
 }
 
 void
-prepare_builtin_transfer_function()
+prepare_builtin_transfer_function(float minval=0.0f, float maxval=255.0f)
 {
     float tf_colors[3*cool2warm_entries];
     float tf_opacities[cool2warm_entries];
@@ -443,20 +444,8 @@ prepare_builtin_transfer_function()
     }
 
     cool2warm_transfer_function = ospNewTransferFunction("piecewise_linear");
-    
-        // XXX value range is volumetricmodel specific
-        /*if (properties.find("data_range") != properties.end())
-        {
-            // Override data range provided by the plugin
-            float minval = properties["data_range"][0];
-            float maxval = properties["data_range"][1];
-            ospSetVec2f(cool2warm_transfer_function, "valueRange", minval, maxval);
-        }
-        else        
-            ospSetVec2f(cool2warm_transfer_function, "valueRange", data_range[0], data_range[1]);
-        */    
-    
-        ospSetVec2f(cool2warm_transfer_function, "valueRange", 0.0f, 255.0f);
+        
+        ospSetVec2f(cool2warm_transfer_function, "valueRange", minval, maxval);
         
         OSPData color_data = ospNewData(cool2warm_entries, OSP_VEC3F, tf_colors);
         ospSetData(cool2warm_transfer_function, "colors", color_data);
@@ -532,11 +521,11 @@ receive_and_add_ospray_volume_data(TCPSocket *sock, const SceneElement& element)
     
     state.parameters = plugin_parameters;
 
-    // Call load function
+    // Call generate function
     
     struct timeval t0, t1;
     
-    printf("Calling object_create function\n");
+    printf("Calling generate function\n");
     gettimeofday(&t0, NULL);
     
     float       bbox[6];
@@ -550,7 +539,7 @@ receive_and_add_ospray_volume_data(TCPSocket *sock, const SceneElement& element)
     {
         send_protobuf(sock, result);
 
-        printf("ERROR: volume object create function failed!\n");
+        printf("ERROR: volume generate function failed!\n");
         return false;
     }    
     
@@ -560,10 +549,6 @@ receive_and_add_ospray_volume_data(TCPSocket *sock, const SceneElement& element)
     //result.set_hash(get_sha1(encoded_parameters));
     result.set_hash("12345");
     
-    // XXX get from state
-    for (int i = 0; i < 6; i++)
-        result.add_bbox(bbox[i]);
-        
     // Cache loaded volume object
     // XXX store value range
     
@@ -844,10 +829,6 @@ receive_and_add_ospray_geometry_data(TCPSocket *sock, const SceneElement& elemen
     //result.set_hash(get_sha1(encoded_parameters));
     result.set_hash("12345");
     
-    // XXX get from state
-    for (int i = 0; i < 6; i++)
-        result.add_bbox(bbox[i]);
-
     // Cache loaded geometry object
     
     loaded_geometries[element.name()] = state.geometry;
@@ -1348,8 +1329,9 @@ render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
 
 // Querying
 
+/*
 bool
-handle_volume_extent_query(TCPSocket *sock)
+handle_query_bound(TCPSocket *sock)
 {
     VolumeExtentRequest volume_extent_request;
     VolumeExtentFunctionResult result;
@@ -1364,6 +1346,7 @@ handle_volume_extent_query(TCPSocket *sock)
     
     return true;
 }
+*/
 
 // Connection handling
 
@@ -1411,8 +1394,9 @@ handle_connection(TCPSocket *sock)
                     receive_scene(sock);
                     break;
                 
-                case ClientMessage::QUERY_VOLUME_EXTENT:
-                    handle_volume_extent_query(sock);
+                case ClientMessage::QUERY_BOUND:
+                    //handle_query_bound(sock);
+                    printf("WARNING: message ignored atm!\n");
                 
                     return true;
             
