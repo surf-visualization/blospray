@@ -961,7 +961,8 @@ receive_scene(TCPSocket *sock)
         printf("Initializing framebuffer of %dx%d pixels\n", framebuffer_width, framebuffer_height);
         
         framebuffer = ospNewFrameBuffer(framebuffer_width, framebuffer_height, OSP_FB_RGBA32F, OSP_FB_COLOR | /*OSP_FB_DEPTH |*/ OSP_FB_ACCUM);         
-        ospResetAccumulation(framebuffer);        
+        // XXX is this call needed here?
+        ospResetAccumulation(framebuffer);                
         
         framebuffer_created = true;
     }
@@ -969,9 +970,11 @@ receive_scene(TCPSocket *sock)
     // Render settings
     
     receive_protobuf(sock, render_settings);
+    
+    const std::string& renderer_type = render_settings.renderer();
 
     // Reuse existing renderer
-    renderer = renderers[render_settings.renderer().c_str()];
+    renderer = renderers[renderer_type.c_str()];
     
     ospSetVec4f(renderer, "bgColor", 
         render_settings.background_color(0),
@@ -979,7 +982,13 @@ receive_scene(TCPSocket *sock)
         render_settings.background_color(2),
         render_settings.background_color(3));
     
-    ospSetInt(renderer, "aoSamples", render_settings.ao_samples());     // XXX scivis renderer only
+    printf("Background color %f, %f, %f, %f\n", render_settings.background_color(0),
+        render_settings.background_color(1),
+        render_settings.background_color(2),
+        render_settings.background_color(3));
+    
+    if (renderer_type == "scivis")
+        ospSetInt(renderer, "aoSamples", render_settings.ao_samples());     
     
     //ospSetBool(renderer, "shadowsEnabled", render_settings.shadows_enabled());        // XXX removed in 2.0?
     //ospSetInt(renderer, "spp", 1);
@@ -1271,7 +1280,16 @@ render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
         
         gettimeofday(&t1, NULL);
 
-        // XXX OSP_FB_COLOR | OSP_FB_ACCUM
+        /*
+        What to render and how to render it depends on the renderer's parameters. If
+        the framebuffer supports accumulation (i.e., it was created with
+        `OSP_FB_ACCUM`) then successive calls to `ospRenderFrame` will progressively
+        refine the rendered image. If additionally the framebuffer has an
+        `OSP_FB_VARIANCE` channel then `ospRenderFrame` returns an estimate of the
+        current variance of the rendered image, otherwise `inf` is returned. The
+        estimated variance can be used by the application as a quality indicator and
+        thus to decide whether to stop or to continue progressive rendering.
+        */
         ospRenderFrame(framebuffer, renderer, camera, world);
 
         gettimeofday(&t2, NULL);
@@ -1281,7 +1299,7 @@ render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
         sprintf(fname, "/dev/shm/blosprayfb%04d.exr", i);
         
         framebuffer_file_size = write_framebuffer_exr(fname);
-        // XXX check res
+        // XXX check result value
         
         // Signal a new frame is available
         RenderResult rs;
