@@ -39,11 +39,11 @@ add_library(geometry_plane SHARED geometry_plane.cpp)
 set_target_properties(geometry_plane PROPERTIES PREFIX "")   
 target_link_libraries(geometry_plane PUBLIC ${OSPRAY_LIBRARIES})
 
-# geometry_rbc
+# scene_rbc
 
-add_library(geometry_rbc SHARED geometry_rbc.cpp)
-set_target_properties(geometry_rbc PROPERTIES PREFIX "")   
-target_link_libraries(geometry_rbc PUBLIC ${OSPRAY_LIBRARIES})
+add_library(scene_rbc SHARED scene_rbc.cpp)
+set_target_properties(scene_rbc PROPERTIES PREFIX "")   
+target_link_libraries(scene_rbc PUBLIC ${OSPRAY_LIBRARIES})
 
 if(PLUGIN_COSMOGRID)
 
@@ -82,7 +82,7 @@ endif(PLUGIN_COSMOGRID)
 install(TARGETS 
     volume_raw 
     geometry_plane
-    geometry_rbc
+    scene_rbc
     DESTINATION bin)
     
 

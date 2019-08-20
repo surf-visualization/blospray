@@ -128,28 +128,37 @@ object2world_from_protobuf(glm::mat4 &matrix, T& protobuf)
 // If needed, loads plugin shared library and initializes plugin
 // XXX perhaps this operation should have its own result type
 bool
-ensure_plugin_is_loaded(GenerateFunctionResult &result, const std::string& name)
+ensure_plugin_is_loaded(GenerateFunctionResult &result, PluginDefinition &definition, 
+    const std::string& type, const std::string& name)
 {
+    if (type == "")
+    {
+        printf("No plugin type provided!\n");
+        return false;
+    }
+    
     if (name == "")
     {
         printf("No plugin name provided!\n");
         return false;
     }
     
-    PluginDefinitionsMap::iterator it = plugin_definitions.find(name);
+    const std::string internal_name = type + "_" + name;
+    
+    PluginDefinitionsMap::iterator it = plugin_definitions.find(internal_name);
     
     if (it != plugin_definitions.end())
         return true;
     
     // Plugin not loaded yet (or failed to load previous time)
     
-    printf("Plugin '%s' not loaded yet\n", name.c_str());
+    printf("Plugin '%s' not loaded yet\n", internal_name.c_str());
     
-    std::string plugin_file = name + ".so";
+    std::string plugin_file = internal_name + ".so";
     
     // Open plugin shared library
     
-    printf("Loading plugin %s (%s)\n", name.c_str(), plugin_file.c_str());
+    printf("Loading plugin %s (%s)\n", internal_name.c_str(), plugin_file.c_str());
     
     void *plugin = dlopen(plugin_file.c_str(), RTLD_LAZY);
     
@@ -180,8 +189,6 @@ ensure_plugin_is_loaded(GenerateFunctionResult &result, const std::string& name)
         return false;
     }
     
-    PluginDefinition definition;
-    
     if (!initialize(&definition))
     {
         result.set_success(false);
@@ -192,7 +199,7 @@ ensure_plugin_is_loaded(GenerateFunctionResult &result, const std::string& name)
         return false;
     }
         
-    plugin_definitions[name] = definition;
+    plugin_definitions[internal_name] = definition;
     
     printf("Plugin parameters:\n");
     
@@ -491,18 +498,19 @@ receive_and_add_ospray_volume_data(TCPSocket *sock, const SceneElement& element)
     
     // Find generate function 
                 
-    const std::string& plugin = properties["plugin"];
+    const std::string& plugin_name = properties["plugin_name"];
+    const std::string& plugin_type = properties["plugin_type"];
     
-    if (!ensure_plugin_is_loaded(result, plugin))
+    PluginDefinition plugin_definition;
+    
+    if (!ensure_plugin_is_loaded(result, plugin_definition, plugin_type, plugin_name))
     {
         // Something went wrong...
         send_protobuf(sock, result);
         return false;
     }
-    
-    PluginDefinition& definition = plugin_definitions[plugin];
-    
-    generate_function_t generate_function = definition.functions.generate_function;
+            
+    generate_function_t generate_function = plugin_definition.functions.generate_function;
     
     if (generate_function == NULL)
     {
@@ -514,7 +522,7 @@ receive_and_add_ospray_volume_data(TCPSocket *sock, const SceneElement& element)
     
     const json& plugin_parameters = properties["plugin_parameters"];
     
-    if (!check_parameters(result, definition.parameters, plugin_parameters))
+    if (!check_parameters(result, plugin_definition.parameters, plugin_parameters))
     {
         // Something went wrong...
         send_protobuf(sock, result);
@@ -774,18 +782,19 @@ receive_and_add_ospray_geometry_data(TCPSocket *sock, const SceneElement& elemen
     
     // Find generate function 
     
-    const std::string& plugin = properties["plugin"];
+    PluginDefinition plugin_definition;
     
-    if (!ensure_plugin_is_loaded(result, plugin))
+    const std::string &plugin_name = properties["plugin_name"];
+    const std::string &plugin_type = properties["plugin_type"];
+    
+    if (!ensure_plugin_is_loaded(result, plugin_definition, plugin_type, plugin_name))
     {
         // Something went wrong...
         send_protobuf(sock, result);
         return false;
     }
-    
-    PluginDefinition& definition = plugin_definitions[plugin];
-    
-    generate_function_t generate_function = definition.functions.generate_function;
+        
+    generate_function_t generate_function = plugin_definition.functions.generate_function;
     
     if (generate_function == NULL)
     {
@@ -797,7 +806,7 @@ receive_and_add_ospray_geometry_data(TCPSocket *sock, const SceneElement& elemen
     
     const json& plugin_parameters = properties["plugin_parameters"];
     
-    if (!check_parameters(result, definition.parameters, plugin_parameters))
+    if (!check_parameters(result, plugin_definition.parameters, plugin_parameters))
     {
         // Something went wrong...
         send_protobuf(sock, result);

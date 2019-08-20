@@ -285,7 +285,8 @@ class Connection:
         # Properties
 
         properties = {}
-        properties['plugin'] = mesh.ospray.plugin
+        properties['plugin_name'] = mesh.ospray.plugin
+        properties['plugin_type'] = mesh.ospray.plugin_type
         self._process_properties(mesh, properties)
 
         print('Sending properties:')
@@ -358,7 +359,8 @@ class Connection:
         # Properties
 
         properties = {}
-        properties['plugin'] = mesh.ospray.plugin
+        properties['plugin_name'] = mesh.ospray.plugin
+        properties['plugin_type'] = mesh.ospray.plugin_type
 
         self._process_properties(mesh, properties)
 
