@@ -121,12 +121,12 @@ struct BoundingMesh
     static BoundingMesh *bbox_edges(float xmin, float ymin, float zmin, float xmax, float ymax, float zmax);
     
     // Deserialize
-    static BoundingMesh *deserialize(const uint8_t *buffer);
+    static BoundingMesh *deserialize(const uint8_t *buffer, uint32_t size);
     
     BoundingMesh();
     ~BoundingMesh();
     
-    uint8_t *serialize() const;    
+    uint8_t *serialize(uint32_t &size) const;    
     
     std::vector<float>      vertices;       // x, y, z, ...
     std::vector<uint32_t>   edges;          // v0, v1, ...

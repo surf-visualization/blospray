@@ -79,8 +79,10 @@ LightSettings   light_settings;
 // Plugin registry
 
 typedef std::map<std::string, PluginDefinition> PluginDefinitionsMap;
+typedef std::map<std::string, PluginState*>     PluginStateMap;
 
-PluginDefinitionsMap plugin_definitions;
+PluginDefinitionsMap    plugin_definitions;
+PluginStateMap          plugin_state;
 
 // Geometry buffers
 
@@ -461,8 +463,8 @@ prepare_builtin_transfer_function(float minval=0.0f, float maxval=255.0f)
 bool
 receive_and_add_ospray_volume_data(TCPSocket *sock, const SceneElement& element)
 {
-    // XXX create new state if needed
-    PluginState state;
+    PluginState *state = new PluginState;
+    plugin_state[element.name()] = state;       // XXX leaks when overwriting
     
     /*
     // Object-to-world matrix (copy of the parent object)   
@@ -519,7 +521,7 @@ receive_and_add_ospray_volume_data(TCPSocket *sock, const SceneElement& element)
         return false;
     }
     
-    state.parameters = plugin_parameters;
+    state->parameters = plugin_parameters;
 
     // Call generate function
     
@@ -530,12 +532,12 @@ receive_and_add_ospray_volume_data(TCPSocket *sock, const SceneElement& element)
     
     float       bbox[6];
     
-    generate_function(result, &state);
+    generate_function(result, state);
     
     gettimeofday(&t1, NULL);
     printf("Generate function executed in %.3fs\n", time_diff(t0, t1));
     
-    if (state.volume == NULL)
+    if (state->volume == NULL)
     {
         send_protobuf(sock, result);
 
@@ -552,7 +554,7 @@ receive_and_add_ospray_volume_data(TCPSocket *sock, const SceneElement& element)
     // Cache loaded volume object
     // XXX store value range
     
-    loaded_volumes[element.name()] = state.volume;
+    loaded_volumes[element.name()] = state->volume;
 
     send_protobuf(sock, result);
     
@@ -743,13 +745,13 @@ receive_and_add_ospray_volume_object(TCPSocket *sock, const SceneElement& elemen
 bool
 receive_and_add_ospray_geometry_data(TCPSocket *sock, const SceneElement& element)
 {
-    // XXX create new state if needed
-    PluginState state;
+    PluginState *state = new PluginState;
+    plugin_state[element.name()] = state;           // XXX leaks when overwriting
     
-    // Object-to-world matrix (copy of the parent object)
-    
+    /*
+    // Object-to-world matrix (copy of the parent object)    
     glm::mat4 obj2world;
-    object2world_from_protobuf(obj2world, element);
+    object2world_from_protobuf(obj2world, element);*/
 
     // Custom parameters
     
@@ -800,7 +802,7 @@ receive_and_add_ospray_geometry_data(TCPSocket *sock, const SceneElement& elemen
         return false;
     }
     
-    state.parameters = plugin_parameters;
+    state->parameters = plugin_parameters;
 
     // Let load function do its job
     
@@ -810,12 +812,12 @@ receive_and_add_ospray_geometry_data(TCPSocket *sock, const SceneElement& elemen
     printf("Calling object_create function\n");
     gettimeofday(&t0, NULL);
     
-    generate_function(result, &state);    
+    generate_function(result, state);
     
     gettimeofday(&t1, NULL);
     printf("Generate function executed in %.3fs\n", time_diff(t0, t1));
     
-    if (state.geometry == NULL)
+    if (state->geometry == NULL)
     {
         send_protobuf(sock, result);
 
@@ -831,7 +833,7 @@ receive_and_add_ospray_geometry_data(TCPSocket *sock, const SceneElement& elemen
     
     // Cache loaded geometry object
     
-    loaded_geometries[element.name()] = state.geometry;
+    loaded_geometries[element.name()] = state->geometry;
     
     send_protobuf(sock, result);
     
@@ -1329,24 +1331,39 @@ render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
 
 // Querying
 
-/*
 bool
-handle_query_bound(TCPSocket *sock)
+handle_query_bound(TCPSocket *sock, const std::string& name)
 {
-    VolumeExtentRequest volume_extent_request;
-    VolumeExtentFunctionResult result;
+    QueryBoundResult result;
     
-    receive_protobuf(sock, volume_extent_request);
-    printf("%s\n", volume_extent_request.DebugString().c_str());
+    PluginStateMap::const_iterator it = plugin_state.find(name);
+    
+    if (it == plugin_state.end())
+    {        
+        char msg[1024];
+        sprintf(msg, "No plugin state for id '%s'", name.c_str());
+        
+        result.set_success(false);
+        result.set_message(msg);
+        
+        send_protobuf(sock, result);
+        
+        return false;
+    }
+    
+    const PluginState *state = it->second;
+    
+    uint32_t    size;
+    uint8_t     *buffer = state->bound->serialize(size);
     
     result.set_success(true);
+    result.set_result_size(size);
     
-    send_protobuf(sock, result);
-    
+    send_protobuf(sock, result);    
+    sock->sendall(buffer, size);
     
     return true;
 }
-*/
 
 // Connection handling
 
@@ -1395,8 +1412,8 @@ handle_connection(TCPSocket *sock)
                     break;
                 
                 case ClientMessage::QUERY_BOUND:
-                    //handle_query_bound(sock);
-                    printf("WARNING: message ignored atm!\n");
+                    handle_query_bound(sock, client_message.string_value());
+                    //printf("WARNING: message ignored atm!\n");
                 
                     return true;
             

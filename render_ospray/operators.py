@@ -1,14 +1,20 @@
 import bpy, bmesh
+import socket
+from struct import unpack
+import numpy
 
+from .common import send_protobuf, receive_protobuf, receive_buffer, receive_into_numpy_array
 from .connection import Connection
+from .messages_pb2 import ClientMessage, QueryBoundResult
 
-# XXX generalize to object mesh
+# XXX generalize to object mesh, it's not specific to a volume
+# XXX if this operator gets called during rendering, then what? :)
 
 class OSPRayUpdateMeshVolumeExtents(bpy.types.Operator):
     
     # XXX unfinished
 
-    """Update volume bounding geometry with plugin bound"""             
+    """Update bounding geometry with bound provided by plugin"""             
     bl_idname = "ospray.volume_update_mesh"
     bl_label = "Update extent mesh"
     bl_options = {'REGISTER'}#, 'UNDO'}             # Enable undo for the operator?
@@ -16,77 +22,78 @@ class OSPRayUpdateMeshVolumeExtents(bpy.types.Operator):
     def execute(self, context):
 
         obj = context.active_object
-        # XXX check is mesh
-        msh = obj.data
+        assert obj.type == 'MESH'
+        mesh = obj.data
 
         scene = context.scene
         ospray = scene.ospray
         
-        print(msh)
-                
-        #connection = Connection(None, ospray.host, ospray.port)
-        #connection.update_volume_mesh(msh)
-        
-        # XXX use fake geometry for now
-        bm = bmesh.new()        
-        verts = []
-        verts.append(bm.verts.new((0, 0, 0)))
-        verts.append(bm.verts.new((1, 1, 1)))
-        verts.append(bm.verts.new((0, 2, 0)))
-        verts.append(bm.verts.new((2, 0, 0)))        
-        bm.faces.new(verts)        
-        bm.to_mesh(msh)
-        msh.update()
-        
-        return {'FINISHED'}
-        
-    def update_volume_mesh(self, mesh):
-        """
-        Get volume extent from render server, update mesh
-
-        XXX unfinished, copied from connection.py
-        """
-
-        self.sock.connect((self.host, self.port))
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)                
+        sock.connect((ospray.host, ospray.port))
         # XXX hello message
 
         # Volume data (i.e. mesh)
 
-        msg = 'Getting extent for mesh %s (ospray volume)' % mesh.name
-        print(msg)
+        print('Getting extent for mesh %s (ospray volume)' % mesh.name)
 
-        # Properties
-
-        properties = {}
-        properties['plugin'] = mesh.ospray.plugin
-        self._process_properties(mesh, properties)
-
-        print('Sending properties:')
-        print(properties)
-
-        # Request
+        # Send request
 
         client_message = ClientMessage()
-        client_message.type = ClientMessage.QUERY_VOLUME_EXTENT
-        send_protobuf(self.sock, client_message)
-
-        request = VolumeExtentRequest()
-        request.name = mesh.name
-        request.properties = json.dumps(properties)
-        send_protobuf(self.sock, request)
+        client_message.type = ClientMessage.QUERY_BOUND
+        client_message.string_value = mesh.name
+        send_protobuf(sock, client_message)
 
         # Get result
-        extent_result = VolumeExtentFunctionResult()
+        
+        result = QueryBoundResult()        
+        receive_protobuf(sock, result)
 
-        receive_protobuf(self.sock, extent_result)
-
-        if not extent_result.success:
-            print('ERROR: volume extent query failed:')
-            print(extent_result.message)
+        if not result.success:
+            print('ERROR: extent query failed:')
+            print(result.message)
             return
+            
+        # Receive actual geometry
+        vertices_len, edges_len, faces_len, loop_len = unpack('<IIII', receive_buffer(sock, 4*4))
+        
+        vertices = numpy.empty(vertices_len, dtype=numpy.float32)
+        edges = numpy.empty(edges_len, dtype=numpy.uint32)
+        faces = numpy.empty(faces_len, dtype=numpy.uint32)
+        loop_start = numpy.empty(loop_len, dtype=numpy.uint32)
+        loop_total = numpy.empty(loop_len, dtype=numpy.uint32)
+        
+        receive_into_numpy_array(sock, vertices, vertices_len*4)
+        receive_into_numpy_array(sock, edges, edges_len*4)
+        receive_into_numpy_array(sock, faces, faces_len*4)
+        receive_into_numpy_array(sock, loop_start, loop_len*4)
+        receive_into_numpy_array(sock, loop_total, loop_len*4)
+        
+        print(vertices)
+        print(edges)
+        print(faces)
+        print(loop_start)
+        print(loop_total)
 
         # XXX send bye
-        self.sock.close()
+        sock.close()
+        
+        bm = bmesh.new()        
+        
+        verts = []
+        for x, y, z in vertices.reshape((-1,3)):
+            print(x, y, z)
+            verts.append(bm.verts.new((x, y, z)))
+            
+        for i, j in edges.reshape((-1,2)):
+            bm.edges.new((verts[i], verts[j]))
+        
+        #bm.faces.new(verts)        
+        bm.to_mesh(mesh)
+
+        mesh.update()
+        
+        return {'FINISHED'}
+        
 
 classes = (
     OSPRayUpdateMeshVolumeExtents,

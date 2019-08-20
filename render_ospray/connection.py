@@ -33,6 +33,7 @@ import numpy
 
 sys.path.insert(0, os.path.split(__file__)[0])
 
+from .common import send_protobuf, receive_protobuf
 from .messages_pb2 import (
     CameraSettings, ImageSettings,
     LightSettings, Light, RenderSettings,
@@ -77,34 +78,6 @@ def customproperties2dict(obj, filepath_keys=['file']):
             properties[k] = bpy.path.abspath(properties[k])
 
     return properties
-
-def send_protobuf(sock, pb, sendall=False):
-    """Serialize a protobuf object and send it on the socket"""
-    s = pb.SerializeToString()
-    sock.send(pack('<I', len(s)))
-    if sendall:
-        sock.sendall(s)
-    else:
-        sock.send(s)
-
-def receive_protobuf(sock, protobuf):
-    d = sock.recv(4)
-    bufsize = unpack('<I', d)[0]
-
-    parts = []
-    bytes_left = bufsize
-    while bytes_left > 0:
-        d = sock.recv(bytes_left)
-        parts.append(d)
-        bytes_left -= len(d)
-
-    message = b''.join(parts)
-
-    #print('receive_protobuf():\n')
-    #print(message)
-
-    protobuf.ParseFromString(message)
-
 
 class Connection:
 
@@ -590,9 +563,6 @@ class Connection:
         # Image
 
         image_settings = ImageSettings()
-
-        # XXX not used, as we apply the percentage
-        #image_settings.percentage = render.resolution_percentage
 
         if render.use_border:
             # XXX nice, in ospray the render region is set on the *camera*,
