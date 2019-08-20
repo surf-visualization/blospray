@@ -870,7 +870,7 @@ receive_and_add_ospray_geometry_object(TCPSocket *sock, const SceneElement& elem
         return false;
     }
     
-    // Create instance 
+    // Create instance
     
     OSPGeometry geometry = it->second;
 

@@ -18,8 +18,6 @@
 // limitations under the License.                                           //
 // ======================================================================== //
 
-// Need to set RBC_DATA_PATH for the server process before the plugin is used
-// XXX turn into plugin parameter
 #include <cstdio>
 #include <stdint.h>
 #include <ospray/ospray.h>
@@ -27,13 +25,14 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include "util.h"       // XXX for ...?
+//#include "util.h"       // XXX for ...?
 #include "plugin.h"
 
 using json = nlohmann::json;
 
-const char          *rbc_data_path;
+std::string         rbc_data_path;
 OSPGeometricModel   mesh_model_rbc, mesh_model_plt;
+OSPGroup            rbc_group, plt_group;
 
 bool
 load_cell_models()
@@ -46,7 +45,7 @@ load_cell_models()
     
     // Read RBC geometry
     
-    sprintf(fname, "%s/rbc_normal_translated.bin", rbc_data_path);
+    sprintf(fname, "%s/rbc_normal_translated.bin", rbc_data_path.c_str());
     FILE *f = fopen(fname, "rb");
     if (!f)
         return false;
@@ -99,12 +98,10 @@ load_cell_models()
             
     ospCommit(mesh);
   
-    // Create model (for instancing)
+    // Create model
   
-    OSPMaterial material = ospNewMaterial("scivis", "OBJMaterial");
-    
-        ospSetVec3f(material, "Kd", 0.8f, 0, 0);
-        
+    OSPMaterial material = ospNewMaterial("scivis", "OBJMaterial");    
+        ospSetVec3f(material, "Kd", 0.8f, 0, 0);        
     ospCommit(material);
 
     mesh_model_rbc = ospNewGeometricModel(mesh);
@@ -119,7 +116,7 @@ load_cell_models()
     
     // Read PLT geometry
 
-    sprintf(fname, "%s/plt_normal_translated.bin", rbc_data_path);
+    sprintf(fname, "%s/plt_normal_translated.bin", rbc_data_path.c_str());
     f = fopen(fname, "rb");
     if (!f)
         return false;
@@ -157,7 +154,7 @@ load_cell_models()
   
       data = ospNewData(num_vertices, OSP_VEC3F, vertices);    // OSP_FLOAT3A format is also supported for vertex positions
       ospCommit(data);
-      ospSetData(mesh, "vertex", data);
+      ospSetData(mesh, "vertex.position", data);
 
       data = ospNewData(num_vertices, OSP_VEC4F, colors);
       ospCommit(data);
@@ -170,12 +167,10 @@ load_cell_models()
     
     ospCommit(mesh);
   
-    // Create model (for instancing)
+    // Create model
 
     material = ospNewMaterial("scivis", "OBJMaterial");
-    
       ospSetVec3f(material, "Kd", 0.8f, 0.8f, 0.8f);
-    
     ospCommit(material);
 
     mesh_model_plt = ospNewGeometricModel(mesh);
@@ -184,6 +179,20 @@ load_cell_models()
     ospRelease(mesh);
     ospRelease(material);
     
+    // Create groups for instancing
+    
+    rbc_group = ospNewGroup();
+        OSPData models = ospNewData(1, OSP_OBJECT, &mesh_model_rbc, 0);
+        ospSetData(rbc_group, "geometry", models);
+        ospRelease(models);
+    ospCommit(rbc_group);
+
+    plt_group = ospNewGroup();
+        models = ospNewData(1, OSP_OBJECT, &mesh_model_plt, 0);
+        ospSetData(plt_group, "geometry", models);
+        ospRelease(models);
+    ospCommit(plt_group);
+
     return true;
 }
 
@@ -262,15 +271,23 @@ add_ground_plane()
 
 extern "C" 
 void
-load(ModelInstances& model_instances, float *bbox, LoadFunctionResult &result, const json &parameters, const glm::mat4& object2world)
+generate(GenerateFunctionResult &result, PluginState *state)
 {    
-    rbc_data_path = getenv("RBC_DATA_PATH");
-    if (!rbc_data_path)
+    const json& parameters = state->parameters;
+    
+    if (parameters.find("rbc_data_path") != parameters.end())
+        rbc_data_path = parameters["rbc_data_path"];
+    else 
     {
-        fprintf(stderr, "ERROR: RBC_DATA_PATH not set!\n");
-        result.set_success(false);
-        result.set_message("RBC_DATA_PATH not set!");
-        return;
+        const char *s = getenv("RBC_DATA_PATH");
+        if (!s)
+        {
+            fprintf(stderr, "ERROR: RBC_DATA_PATH not set, nor parameter rbc_data_path!\n");
+            result.set_success(false);
+            result.set_message("RBC_DATA_PATH not set, nor parameter rbc_data_path!");
+            return;
+        }
+        rbc_data_path = s;
     }
     
     int max_rbcs = -1;
@@ -306,10 +323,12 @@ load(ModelInstances& model_instances, float *bbox, LoadFunctionResult &result, c
     
     fread(&num_rbc, sizeof(uint32_t), 1, p);
     fread(&num_plt, sizeof(uint32_t), 1, p);
-    fread(&num_wbc, sizeof(uint32_t), 1, p);
+    fread(&num_wbc, sizeof(uint32_t), 1, p);    
     printf("On-disk scene: %d rbc, %d plt, %d wbc\n", num_rbc, num_plt, num_wbc);
 
     // Instantiate RBCs & PLTs
+    
+    GroupInstances &instances = state->group_instances;
     
     if (max_rbcs == -1)
         max_rbcs = num_rbc;
@@ -332,7 +351,7 @@ load(ModelInstances& model_instances, float *bbox, LoadFunctionResult &result, c
         R = glm::rotate(R, glm::radians(rz), glm::vec3(0,0,1));   
         
         // Add instance
-        model_instances.push_back(std::make_pair(mesh_model_rbc, R));
+        instances.push_back(std::make_pair(rbc_group, R));
     }    
     
     // Skip remaining RBCs in scene file
@@ -372,28 +391,55 @@ load(ModelInstances& model_instances, float *bbox, LoadFunctionResult &result, c
         );*/
         
         // Add instance
-        model_instances.push_back(std::make_pair(mesh_model_plt, R));
+        instances.push_back(std::make_pair(plt_group, R));
     }        
     
     fclose(p);        
     
     printf("Data loaded...\n");
-
-    bbox[0] = 0.0f;
-    bbox[1] = 0.0f;
-    bbox[2] = 0.0f;
     
-    bbox[3] = 2000.0f;
-    bbox[4] = 1000.0f;
-    bbox[5] = 1000.0f;
+    state->bound = BoundingMesh::bbox_mesh(
+        0.0f, 0.0f, 0.0f, 
+        2000.0f, 1000.0f, 1000.0f
+    );
 }
 
-PluginFunctions    
+static PluginParameters 
+parameters = {
+    
+    {"rbc_data_path",   PARAM_STRING,   1, FLAG_SCENE, 
+        "Path to data files"},
+        
+    {"num_rbcs",        PARAM_INT,      1, FLAG_SCENE, 
+        "Limit number of RBCs"},
+        
+    {"num_plts",        PARAM_INT,      1, FLAG_SCENE, 
+        "Limit number of PLTs"},
+        
+    PARAMETERS_DONE         // Sentinel (signals end of list)
+};
+
+static PluginFunctions
 functions = {
 
-    NULL,
-    NULL,
-
-    load
+    NULL,           // Plugin load
+    NULL,           // Plugin unload
+    
+    generate,       // Generate    
+    NULL,           // Clear data
 };
+
+
+extern "C" bool
+initialize(PluginDefinition *def)
+{
+    def->type = PT_SCENE;
+    def->parameters = parameters;
+    def->functions = functions;
+    
+    // Do any other plugin-specific initialization here
+    
+    return true;
+}
+
 
