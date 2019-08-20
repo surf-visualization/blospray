@@ -604,7 +604,7 @@ receive_and_add_ospray_volume_object(TCPSocket *sock, const SceneElement& elemen
     OSPVolumetricModel volume_model = ospNewVolumetricModel(volume);
     
         // Set up further volume properties
-        // XXX not sure these are handled correctly
+        // XXX not sure these are handled correctly, and working in API2
         
         if (properties.find("sampling_rate") != properties.end())
             ospSetFloat(volume_model,  "samplingRate", properties["sampling_rate"].get<float>());
@@ -635,7 +635,7 @@ receive_and_add_ospray_volume_object(TCPSocket *sock, const SceneElement& elemen
     OSPGroup group = ospNewGroup();    
         OSPData data = ospNewData(1, OSP_OBJECT, &volume_model, 0);
         ospSetData(group, "volume", data);
-        ospRelease(volume_model);        
+        //ospRelease(volume_model);        
     ospCommit(group);    
     
     OSPInstance instance = ospNewInstance(group);
@@ -1170,7 +1170,7 @@ receive_scene(TCPSocket *sock)
     
     OSPData instances = ospNewData(scene_instances.size(), OSP_OBJECT, &scene_instances[0], 0);
     ospCommit(instances);
-    scene_instances.clear();
+    scene_instances.clear();        // XXX hmm, clearing scene here
     
     world = ospNewWorld();
         // Check https://github.com/ospray/ospray/issues/277. Is bool setting fixed in 2.0?
@@ -1481,6 +1481,20 @@ handle_connection(TCPSocket *sock)
     return true;
 }
 
+// Error/status display
+
+void 
+ospray_error(OSPError e, const char *error)
+{
+    printf("OSPRAY ERROR: %s\n", error);
+}
+
+void 
+ospray_status(const char *message)
+{
+    printf("OSPRAY STATUS: %s\n", message);
+}
+
 // Main
 
 int 
@@ -1493,6 +1507,9 @@ main(int argc, const char **argv)
     // Initialize OSPRay.
     // OSPRay parses (and removes) its commandline parameters, e.g. "--osp:debug"
     ospInit(&argc, argv);
+    
+    ospDeviceSetErrorFunc(ospGetCurrentDevice(), ospray_error);
+    ospDeviceSetStatusFunc(ospGetCurrentDevice(), ospray_status);
     
     // Prepare some things
     prepare_renderers();    

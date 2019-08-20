@@ -382,7 +382,7 @@ extent(float *bbox, LoadFunctionResult &result, const json &parameters, const gl
 
 static OSPVolume
 create_volume(float *bbox, 
-    const json &parameters, const int32_t *dims, const std::string &voxelType, OSPDataType dataType, 
+    const json &parameters, const int32_t *dims, OSPDataType dataType, 
     void *grid_field_values)
 {
     float origin[3] = { 0.0f, 0.0f, 0.0f };
@@ -412,7 +412,7 @@ create_volume(float *bbox,
         ospSetData(volume, "voxelData", voxelData);
         ospRelease(voxelData);
 
-        ospSetString(volume, "voxelType", voxelType.c_str());
+        ospSetInt(volume, "voxelType", dataType);
         ospSetVec3i(volume, "dimensions", dims[0], dims[1], dims[2]);
     
         ospSetVec3f(volume, "gridOrigin", origin[0], origin[1], origin[2]);
@@ -469,7 +469,7 @@ create_object(LoadFunctionResult &result, PluginState *state)
         snprintf(msg, 1024, "Could not open file '%s'", fname.c_str());
         result.set_success(false);
         result.set_message(msg);
-        fprintf(stderr, "%s\n", msg);
+        fprintf(stderr, "ERROR: %s\n", msg);
         return;
     }
 
@@ -502,6 +502,12 @@ create_object(LoadFunctionResult &result, PluginState *state)
         dataType = OSP_FLOAT;
         read_size = num_grid_points*sizeof(float);
     }
+    else if (voxelType == "double")
+    {
+        grid_field_values = new double[num_grid_points];
+        dataType = OSP_DOUBLE;
+        read_size = num_grid_points*sizeof(double);
+    }
     else 
     {
         snprintf(msg, 1024, "ERROR: unhandled voxel data type '%s'!\n", voxelType);
@@ -527,6 +533,7 @@ create_object(LoadFunctionResult &result, PluginState *state)
             for (int i = 0; i < num_grid_points; i++)
                 falues[i] = float_swap(falues[i]);        
         }
+        // XXX handle double swap
         else
         {
             fprintf(stderr, "WARNING: no endian flip available for data type '%s'!\n", voxelType);
@@ -557,35 +564,36 @@ create_object(LoadFunctionResult &result, PluginState *state)
     }
     */
     
-    volume = create_volume(state->bbox, parameters, 
-                dims, voxelType, dataType, grid_field_values);
+    volume = create_volume(state->bbox, parameters, dims, dataType, grid_field_values);
     
     
     if (!volume)
     {
-        fprintf(stderr, "Volume preparation failed!\n");
+        fprintf(stderr, "ERROR: volume preparation failed!\n");
         return;
     }
     
+    float minval, maxval;
+    
     if (parameters.find("data_range") != parameters.end())
     {
-        float minval = parameters["data_range"][0];
-        float maxval = parameters["data_range"][1];
-        ospSetVec2f(volume, "voxelRange", minval, maxval);
-        
-        state->volume_data_range[0] = minval;
-        state->volume_data_range[1] = maxval;
+        minval = parameters["data_range"][0];
+        maxval = parameters["data_range"][1];
     }
     else
     {
         // XXX fixed
-        state->volume_data_range[0] = 0.0f;
-        state->volume_data_range[1] = 1.0f;
+        minval = 0.0f;
+        maxval = 1.0f;
     }
 
+    ospSetVec2f(volume, "voxelRange", minval, maxval);
+    
     ospCommit(volume);
     
     state->volume = volume;
+    state->volume_data_range[0] = minval;
+    state->volume_data_range[1] = maxval;    
 }
 
 
