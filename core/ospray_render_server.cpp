@@ -147,68 +147,70 @@ ensure_plugin_is_loaded(GenerateFunctionResult &result, PluginDefinition &defini
     
     PluginDefinitionsMap::iterator it = plugin_definitions.find(internal_name);
     
-    if (it != plugin_definitions.end())
-        return true;
-    
-    // Plugin not loaded yet (or failed to load previous time)
-    
-    printf("Plugin '%s' not loaded yet\n", internal_name.c_str());
-    
-    std::string plugin_file = internal_name + ".so";
-    
-    // Open plugin shared library
-    
-    printf("Loading plugin %s (%s)\n", internal_name.c_str(), plugin_file.c_str());
-    
-    void *plugin = dlopen(plugin_file.c_str(), RTLD_LAZY);
-    
-    if (!plugin) 
-    {
-        result.set_success(false);
-        result.set_message("Failed to open plugin");            
+    if (it == plugin_definitions.end())
+    {    
+        // Plugin not loaded yet (or failed to load the previous attempt)
+        
+        printf("Plugin '%s' not loaded yet\n", internal_name.c_str());
+        
+        std::string plugin_file = internal_name + ".so";
+        
+        // Open plugin shared library
+        
+        printf("Loading plugin %s (%s)\n", internal_name.c_str(), plugin_file.c_str());
+        
+        void *plugin = dlopen(plugin_file.c_str(), RTLD_LAZY);
+        
+        if (!plugin) 
+        {
+            result.set_success(false);
+            result.set_message("Failed to open plugin");            
 
-        fprintf(stderr, "dlopen() error: %s\n", dlerror());
-        return false;
-    }
+            fprintf(stderr, "dlopen() error: %s\n", dlerror());
+            return false;
+        }
+                
+        dlerror();  // Clear previous error
+        
+        // Initialize plugin 
+        
+        plugin_initialization_function *initialize = (plugin_initialization_function*) dlsym(plugin, "initialize");
+                
+        if (initialize == NULL)
+        {
+            result.set_success(false);
+            result.set_message("Failed to get initialization function from plugin!");            
+     
+            fprintf(stderr, "dlsym() error: %s\n", dlerror());
             
-    dlerror();  // Clear previous error
-    
-    // Initialize plugin 
-    
-    plugin_initialization_function *initialize = (plugin_initialization_function*) dlsym(plugin, "initialize");
+            dlclose(plugin);
             
-    if (initialize == NULL)
-    {
-        result.set_success(false);
-        result.set_message("Failed to get initialization function from plugin!");            
- 
-        fprintf(stderr, "dlsym() error: %s\n", dlerror());
+            return false;
+        }
         
-        dlclose(plugin);
-        
-        return false;
-    }
+        if (!initialize(&definition))
+        {
+            result.set_success(false);
+            result.set_message("Plugin failed to initialize!");            
+     
+            dlclose(plugin);
+            
+            return false;
+        }
+            
+        plugin_definitions[internal_name] = definition;
     
-    if (!initialize(&definition))
-    {
-        result.set_success(false);
-        result.set_message("Plugin failed to initialize!");            
- 
-        dlclose(plugin);
+        printf("Plugin parameters:\n");
         
-        return false;
+        PluginParameter *p = definition.parameters;
+        while (p->name)
+        {
+            printf("... [%s] type %d, length %d, flags 0x%02x - %s\n", p->name, p->type, p->length, p->flags, p->description);
+            p++;
+        }
     }
-        
-    plugin_definitions[internal_name] = definition;
-    
-    printf("Plugin parameters:\n");
-    
-    PluginParameter *p = definition.parameters;
-    while (p->name)
-    {
-        printf("... [%s] type %d, length %d, flags 0x%02x - %s\n", p->name, p->type, p->length, p->flags, p->description);
-        p++;
-    }
+    else
+        definition = plugin_definitions[internal_name];
     
     return true;
 }

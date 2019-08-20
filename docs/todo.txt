@@ -72,6 +72,8 @@ Very nice to haves ;-)
   will not work (nor should we try to update the bbox mesh at that point). 
   So the user should query the bbox/proxies manually outside of the rendering
   step.
+- Detect that a new blender file was loaded and clear the server scene
+  automatically
 
 Nice to haves
 - Start/stop server during rendering automatically

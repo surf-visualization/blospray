@@ -251,12 +251,12 @@ class Connection:
         Get Blender custom properties set on obj.
         Custom properties starting with an underscore become
         element properties (key without the underscore), all the others
-        become plugin parameters (set in the key plugin_parameters)
-        *but only if a property key 'plugin' is set*.
+        become plugin parameters, set in the key "plugin_parameters",
+        *but only if a property key 'plugin_name' is set*.
         """
 
         plugin_parameters = None
-        if 'plugin' in properties:
+        if 'plugin_name' in properties:
             if 'plugin_parameters' in properties:
                 plugin_parameters = properties['plugin_parameters']
             else:
