@@ -121,54 +121,6 @@ class Connection:
         # XXX send bye
         self.sock.close()
 
-    def update_volume_mesh(self, mesh):
-        """
-        Get volume extent from render server, update mesh
-
-        XXX unfinished
-        """
-
-        self.sock.connect((self.host, self.port))
-        # XXX hello message
-
-        # Volume data (i.e. mesh)
-
-        msg = 'Getting extent for mesh %s (ospray volume)' % mesh.name
-        print(msg)
-
-        # Properties
-
-        properties = {}
-        properties['plugin'] = mesh.ospray.plugin
-        self._process_properties(mesh, properties)
-
-        print('Sending properties:')
-        print(properties)
-
-        # Request
-
-        client_message = ClientMessage()
-        client_message.type = ClientMessage.QUERY_VOLUME_EXTENT
-        send_protobuf(self.sock, client_message)
-
-        request = VolumeExtentRequest()
-        request.name = mesh.name
-        request.properties = json.dumps(properties)
-        send_protobuf(self.sock, request)
-
-        # Get result
-        extent_result = VolumeExtentFunctionResult()
-
-        receive_protobuf(self.sock, extent_result)
-
-        if not extent_result.success:
-            print('ERROR: volume extent query failed:')
-            print(extent_result.message)
-            return
-
-        # XXX send bye
-        self.sock.close()
-
     def update(self, data, depsgraph):
         print(data)
         print(depsgraph)
@@ -339,10 +291,10 @@ class Connection:
 
         custom_properties = customproperties2dict(obj)
         for k, v in custom_properties.items():
-            print('k', k, 'v', v)
+            #print('k', k, 'v', v)
             if k[0] == '_':
                 # This might overwrite one of the already defined properties above
-                print(properties, k, v)
+                #print(properties, k, v)
                 properties[k[1:]] = v
             elif plugin_parameters is not None:
                 plugin_parameters[k] = v
@@ -396,62 +348,6 @@ class Connection:
 
         mesh['loaded_id'] = id
         print('Exported volume received id %s' % id)
-
-        # Get volume bbox
-
-        bbox = list(generate_function_result.bbox)
-        print('Bbox', bbox)
-
-        # Update mesh to match bbox
-        # XXX disable, to see if this fixes a segfault
-
-        """
-
-        verts = [
-            Vector((bbox[0], bbox[1], bbox[2])),
-            Vector((bbox[3], bbox[1], bbox[2])),
-            Vector((bbox[3], bbox[4], bbox[2])),
-            Vector((bbox[0], bbox[4], bbox[2])),
-            Vector((bbox[0], bbox[1], bbox[5])),
-            Vector((bbox[3], bbox[1], bbox[5])),
-            Vector((bbox[3], bbox[4], bbox[5])),
-            Vector((bbox[0], bbox[4], bbox[5]))
-        ]
-
-        edges = [
-            (0, 1), (1, 2), (2, 3), (3, 0),
-            (4, 5), (5, 6), (6, 7), (7, 4),
-            (0, 4), (1, 5), (2, 6), (3, 7)
-        ]
-
-        bm = bmesh.new()
-        bm.from_mesh(mesh)
-
-        bm_verts = []
-
-        bm.verts.ensure_lookup_table()
-        for vi, v in enumerate(verts):
-            #bm_verts.append(bm.verts.new(v))
-            bm.verts[vi].co = v
-
-        #for i, j in edges:
-        #    bm.edges.new((bm_verts[i], bm_verts[j]))
-
-        bm.to_mesh(mesh)
-        bm.free()
-
-        mesh.validate(verbose=True)
-
-        print([v.co for v in mesh.vertices])
-        """
-
-        """
-        faces = []
-        mesh = bpy.data.meshes.new(name="Volume extent")
-        mesh.from_pydata(verts, edges, faces)
-        mesh.validate(verbose=True)
-        obj.data = mesh
-        """
 
         # Volume object
 
@@ -611,7 +507,7 @@ class Connection:
             vertices[3*idx+1] = p.y
             vertices[3*idx+2] = p.z
             
-        print(vertices)
+        #print(vertices)
 
         self.sock.send(vertices.tobytes())
 
@@ -1001,52 +897,52 @@ class Connection:
 
 
 
-        """
+"""
 
-        # Update mesh to match bbox
-        # XXX need to check if this is even supported behaviour in the
-        # new depsgraph method, as we're changing data that is only supposed
-        # to be valid during export (as it basically is a private copy of the scene data)
+# Update mesh to match bbox
+# XXX need to check if this is even supported behaviour in the
+# new depsgraph method, as we're changing data that is only supposed
+# to be valid during export (as it basically is a private copy of the scene data)
 
-        verts = [
-            Vector((bbox[0], bbox[1], bbox[2])),
-            Vector((bbox[3], bbox[1], bbox[2])),
-            Vector((bbox[3], bbox[4], bbox[2])),
-            Vector((bbox[0], bbox[4], bbox[2])),
-            Vector((bbox[0], bbox[1], bbox[5])),
-            Vector((bbox[3], bbox[1], bbox[5])),
-            Vector((bbox[3], bbox[4], bbox[5])),
-            Vector((bbox[0], bbox[4], bbox[5]))
-        ]
+verts = [
+    Vector((bbox[0], bbox[1], bbox[2])),
+    Vector((bbox[3], bbox[1], bbox[2])),
+    Vector((bbox[3], bbox[4], bbox[2])),
+    Vector((bbox[0], bbox[4], bbox[2])),
+    Vector((bbox[0], bbox[1], bbox[5])),
+    Vector((bbox[3], bbox[1], bbox[5])),
+    Vector((bbox[3], bbox[4], bbox[5])),
+    Vector((bbox[0], bbox[4], bbox[5]))
+]
 
-        edges = [
-            (0, 1), (1, 2), (2, 3), (3, 0),
-            (4, 5), (5, 6), (6, 7), (7, 4),
-            (0, 4), (1, 5), (2, 6), (3, 7)
-        ]
+edges = [
+    (0, 1), (1, 2), (2, 3), (3, 0),
+    (4, 5), (5, 6), (6, 7), (7, 4),
+    (0, 4), (1, 5), (2, 6), (3, 7)
+]
 
-        bm = bmesh.new()
+bm = bmesh.new()
 
-        bm_verts = []
-        for vi, v in enumerate(verts):
-            bm_verts.append(bm.verts.new(v))
+bm_verts = []
+for vi, v in enumerate(verts):
+    bm_verts.append(bm.verts.new(v))
 
-        for i, j in edges:
-            bm.edges.new((bm_verts[i], bm_verts[j]))
+for i, j in edges:
+    bm.edges.new((bm_verts[i], bm_verts[j]))
 
-        bm.to_mesh(mesh)
-        bm.free()
+bm.to_mesh(mesh)
+bm.free()
 
-        mesh.validate(verbose=True)
+mesh.validate(verbose=True)
 
-        print([v.co for v in mesh.vertices])
-        """
+print([v.co for v in mesh.vertices])
+"""
 
-        """
-        faces = []
-        mesh = bpy.data.meshes.new(name="Volume extent")
-        mesh.from_pydata(verts, edges, faces)
-        mesh.validate(verbose=True)
-        obj.data = mesh
-        """
+"""
+faces = []
+mesh = bpy.data.meshes.new(name="Volume extent")
+mesh.from_pydata(verts, edges, faces)
+mesh.validate(verbose=True)
+obj.data = mesh
+"""
 

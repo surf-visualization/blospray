@@ -2,8 +2,10 @@ import bpy, bmesh
 
 from .connection import Connection
 
-class OSPRayUpdateMeshVolumeExtents(bpy.types.Operator):
+# XXX generalize to object mesh
 
+class OSPRayUpdateMeshVolumeExtents(bpy.types.Operator):
+    
     # XXX unfinished
 
     """Update volume bounding geometry with plugin bound"""             
@@ -37,7 +39,54 @@ class OSPRayUpdateMeshVolumeExtents(bpy.types.Operator):
         msh.update()
         
         return {'FINISHED'}
+        
+    def update_volume_mesh(self, mesh):
+        """
+        Get volume extent from render server, update mesh
 
+        XXX unfinished, copied from connection.py
+        """
+
+        self.sock.connect((self.host, self.port))
+        # XXX hello message
+
+        # Volume data (i.e. mesh)
+
+        msg = 'Getting extent for mesh %s (ospray volume)' % mesh.name
+        print(msg)
+
+        # Properties
+
+        properties = {}
+        properties['plugin'] = mesh.ospray.plugin
+        self._process_properties(mesh, properties)
+
+        print('Sending properties:')
+        print(properties)
+
+        # Request
+
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.QUERY_VOLUME_EXTENT
+        send_protobuf(self.sock, client_message)
+
+        request = VolumeExtentRequest()
+        request.name = mesh.name
+        request.properties = json.dumps(properties)
+        send_protobuf(self.sock, request)
+
+        # Get result
+        extent_result = VolumeExtentFunctionResult()
+
+        receive_protobuf(self.sock, extent_result)
+
+        if not extent_result.success:
+            print('ERROR: volume extent query failed:')
+            print(extent_result.message)
+            return
+
+        # XXX send bye
+        self.sock.close()
 
 classes = (
     OSPRayUpdateMeshVolumeExtents,
