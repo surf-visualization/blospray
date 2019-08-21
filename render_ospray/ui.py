@@ -27,8 +27,8 @@ from bpy.types import (Panel,
 
 from .operators import OSPRayUpdateMeshBound
    
-class RENDER_PT_OSPRAY_CONNECTION(Panel):
-    bl_idname = 'RENDER_PT_OSPRAY_CONNECTION'
+class OSPRAY_RENDER_PT_connection(Panel):
+    #bl_idname = 'OSPRAY_RENDER_PT_connection'
     bl_label = 'Connection'
     bl_space_type = 'PROPERTIES'   
     bl_region_type = 'WINDOW'    
@@ -54,8 +54,8 @@ class RENDER_PT_OSPRAY_CONNECTION(Panel):
         col.prop(ospray, 'port') 
         
         
-class RENDER_PT_OSPRAY_RENDERING(Panel):
-    bl_idname = 'RENDER_PT_OSPRAY'
+class OSPRAY_RENDER_PT_rendering(Panel):
+    #bl_idname = 'RENDER_PT_OSPRAY'
     bl_label = 'Rendering'
     bl_space_type = 'PROPERTIES'   
     bl_region_type = 'WINDOW'    
@@ -83,8 +83,8 @@ class RENDER_PT_OSPRAY_RENDERING(Panel):
         #col.prop(ospray, 'shadows_enabled')    # XXX Removed in 2.0?
 
 
-class OBJECT_PT_OSPRAY(Panel):
-    bl_idname = 'OBJECT_PT_OSPRAY'
+class OSPRAY_OBJECT_PT_settings(Panel):
+    #bl_idname = 'OSPRAY_OBJECT_PT_settings'
     bl_label = 'OSPRay'
     bl_space_type = 'PROPERTIES'   
     bl_region_type = 'WINDOW'    
@@ -115,13 +115,13 @@ class OBJECT_PT_OSPRAY(Panel):
         #col.prop(ospray, 'ospray_override')
 
 
-class OBJECT_PT_OSPRAY_VOLUME(Panel):
-    bl_idname = 'OBJECT_PT_OSPRAY_VOLUME'
+class OSPRAY_OBJECT_PT_volume(Panel):
+    #bl_idname = 'OSPRAY_OBJECT_PT_volume'
     bl_label = 'Volume'
     bl_space_type = 'PROPERTIES'   
     bl_region_type = 'WINDOW'    
     bl_context = 'object'  
-    bl_parent_id = 'OBJECT_PT_OSPRAY'
+    bl_parent_id = 'OSPRAY_OBJECT_PT_settings'
     
     COMPAT_ENGINES = {'OSPRAY'}
     
@@ -156,8 +156,8 @@ class OBJECT_PT_OSPRAY_VOLUME(Panel):
         col.prop(ospray, 'sampling_rate')
     
     
-class DATA_PT_OSPRAY_MESH(Panel):
-    bl_idname = 'DATA_PT_OSPRAY_MESH'
+class OSPRAY_MESH_PT_data(Panel):
+    #bl_idname = 'OSPRAY_MESH_PT_data'
     bl_label = 'OSPRay'
     bl_space_type = 'PROPERTIES'   
     bl_region_type = 'WINDOW'    
@@ -191,8 +191,8 @@ class DATA_PT_OSPRAY_MESH(Panel):
 
     
 """
-class DATA_PT_OSPRAY_MESH_VOLUME(Panel):
-    bl_idname = 'DATA_PT_OSPRAY_MESH_VOLUME'
+class OSPRAY_MESH_PT_volume(Panel):
+    #bl_idname = 'OSPRAY_MESH_PT_volume'
     bl_label = 'OSPRay Volume'
     bl_space_type = 'PROPERTIES'   
     bl_region_type = 'WINDOW'    
@@ -215,8 +215,8 @@ class DATA_PT_OSPRAY_MESH_VOLUME(Panel):
 """        
     
     
-class DATA_PT_OSPRAY_LIGHT(Panel):
-    bl_idname = 'DATA_PT_OSPRAY_LIGHT'
+class OSPRAY_LIGHT_PT_data(Panel):
+    #bl_idname = 'OSPRAY_LIGHT_PT_data'
     bl_label = 'Light'
     bl_space_type = 'PROPERTIES'   
     bl_region_type = 'WINDOW'    
@@ -259,8 +259,8 @@ class DATA_PT_OSPRAY_LIGHT(Panel):
             col.prop(blender_light, "size_y")
   
   
-class WORLD_PT_OSPRAY(Panel):
-    bl_idname = 'WORLD_PT_OSPRAY'
+class OSPRAY_WORLD_PT_lighting(Panel):
+    #bl_idname = 'OSPRAY_WORLD_PT_lighting'
     bl_label = 'World'
     bl_space_type = 'PROPERTIES'   
     bl_region_type = 'WINDOW'    
@@ -288,14 +288,14 @@ class WORLD_PT_OSPRAY(Panel):
         
 
 classes = (
-    RENDER_PT_OSPRAY_CONNECTION,
-    RENDER_PT_OSPRAY_RENDERING,
-    OBJECT_PT_OSPRAY,
-    OBJECT_PT_OSPRAY_VOLUME,
-    DATA_PT_OSPRAY_MESH,
-    #DATA_PT_OSPRAY_MESH_VOLUME,
-    DATA_PT_OSPRAY_LIGHT,
-    WORLD_PT_OSPRAY,
+    OSPRAY_RENDER_PT_connection,
+    OSPRAY_RENDER_PT_rendering,
+    OSPRAY_OBJECT_PT_settings,
+    OSPRAY_OBJECT_PT_volume,
+    OSPRAY_MESH_PT_data,
+    #OSPRAY_MESH_PT_volume,
+    OSPRAY_LIGHT_PT_data,
+    OSPRAY_WORLD_PT_lighting,
 )
 
 from bl_ui import (

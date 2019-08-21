@@ -88,21 +88,21 @@ message SceneElement
         MESH_OBJECT = 10;
         MESH_DATA = 11;
 
-        // OSPRay geometry 
+        // OSPRay geometry (needs to reference geometry mesh data)
         GEOMETRY_OBJECT = 20;
         GEOMETRY_DATA = 21;
 
-        // OSPRay volume
+        // OSPRay volume (needs to reference volume mesh data)
         VOLUME_OBJECT = 30;
         VOLUME_DATA = 31;
         
-        // OSPRay isosurface
+        // OSPRay isosurface (needs to reference volume mesh data)
         ISOSURFACE_OBJECT = 40;
         
-        // OSPRay slices
+        // OSPRay slices (needs to reference volume mesh data)
         SLICES_OBJECT = 50;        
         
-        // OSPRay scene (list of transformed Groups)
+        // OSPRay scene (list of transformed Groups on the server)
         SCENE_OBJECT = 60;
         SCENE_DATA = 61;
         
@@ -188,7 +188,7 @@ message RenderSettings
 
 message Light 
 {
-    enum Type {
+    enum Type {        
         POINT = 0;
         SUN = 1;
         SPOT = 2;
@@ -199,8 +199,7 @@ message Light
     repeated float  object2world = 2;
     string          object_name = 3;
     string          light_name = 4;
-    
-    
+        
     // Common values
     repeated float  color = 10;
     float           intensity = 11;
@@ -217,6 +216,7 @@ message Light
     repeated float  edge2 = 27;             // Area/Quad
 }   
 
+// XXX add separate Light type for ambient light
 message LightSettings
 {
     float           ambient_intensity = 1;

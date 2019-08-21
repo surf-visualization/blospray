@@ -108,139 +108,9 @@ class Connection:
         #hello.version = 1
         #send_protobuf(self.sock, hello)
 
-        self.exported_meshes = set()
+        self.mesh_data_exported = set()
+        
         self.export_scene(data, depsgraph)
-
-    def render(self, depsgraph):
-
-        """
-        if self.is_preview:
-            self.render_preview(depsgraph)
-        else:
-            self.render_scene(depsgraph)
-        """
-
-        # Signal server to start rendering
-
-        client_message = ClientMessage()
-        client_message.type = ClientMessage.START_RENDERING
-        send_protobuf(self.sock, client_message)
-
-        # Read back successive framebuffer samples
-
-        num_pixels = self.framebuffer_width * self.framebuffer_height
-        bytes_left = num_pixels*4 * 4
-
-        framebuffer = numpy.zeros(bytes_left, dtype=numpy.uint8)
-
-        t0 = time.time()
-
-        result = self.engine.begin_result(0, 0, self.framebuffer_width, self.framebuffer_height)
-        # Only Combined and Depth seem to be available
-        layer = result.layers[0].passes["Combined"]
-
-        FBFILE = '/dev/shm/blosprayfb.exr'
-
-        sample = 1
-        cancel_sent = False
-
-        self.engine.update_stats('', 'Rendering sample %d/%d' % (sample, self.render_samples))
-
-        # XXX this loop blocks too often, might need to move it to a separate thread,
-        # but OTOH we're already using select() to detect when to read
-        while True:
-
-            # Check for incoming render results
-
-            r, w, e = select.select([self.sock], [], [], 0)
-
-            if len(r) == 1:
-
-                render_result = RenderResult()
-                # XXX handle receive error
-                receive_protobuf(self.sock, render_result)
-
-                if render_result.type == RenderResult.FRAME:
-
-                    # New framebuffer (for a single pixel sample) is available
-
-                    """
-                    # XXX Slow: get as raw block of floats
-                    print('[%6.3f] _read_framebuffer start' % (time.time()-t0))
-                    self._read_framebuffer(framebuffer, self.framebuffer_width, self.framebuffer_height)
-                    print('[%6.3f] _read_framebuffer end' % (time.time()-t0))
-
-                    pixels = framebuffer.view(numpy.float32).reshape((num_pixels, 4))
-                    print(pixels.shape)
-                    print('[%6.3f] view() end' % (time.time()-t0))
-
-                    # Here we write the pixel values to the RenderResult
-                    # XXX This is the slow part
-                    print(type(layer.rect))
-                    layer.rect = pixels
-                    self.update_result(result)
-                    """
-
-                    # We read the framebuffer file content from the server
-                    # and locally write it to FBFILE, which then gets loaded by Blender
-
-                    # XXX both receiving into a file and loading from file 
-                    # block the blender UI for a short time
-
-                    print('[%6.3f] _read_framebuffer_to_file start' % (time.time()-t0))
-                    self._read_framebuffer_to_file(FBFILE, render_result.file_size)
-                    print('[%6.3f] _read_framebuffer_to_file end' % (time.time()-t0))
-
-                    # Sigh, this needs an image file format. I.e. reading in a raw framebuffer
-                    # of floats isn't possible, hence the OpenEXR file
-                    # XXX result.load_from_file(...), instead of result.layers[0].load_from_file(...), would work as well?
-                    result.layers[0].load_from_file(FBFILE)
-
-                    # Remove file
-                    os.unlink(FBFILE)
-
-                    self.engine.update_result(result)
-
-                    print('[%6.3f] update_result() done' % (time.time()-t0))
-
-                    self.engine.update_progress(sample/self.render_samples)
-
-                    sample += 1
-
-                    # XXX perhaps use update_memory_stats()
-
-                    self.engine.update_stats(
-                        'Server %.1f MB' % render_result.memory_usage,
-                        'Rendering sample %d/%d' % (sample, self.render_samples))
-
-                elif render_result.type == RenderResult.CANCELED:
-                    print('Rendering CANCELED!')
-                    self.engine.update_stats('', 'Rendering canceled')
-                    cancel_sent = True
-                    break
-
-                elif render_result.type == RenderResult.DONE:
-                    self.engine.update_stats('', 'Rendering done')
-                    print('Rendering done!')
-                    break
-
-            # Check if render was canceled
-
-            if self.engine.test_break() and not cancel_sent:
-                client_message = ClientMessage()
-                client_message.type = ClientMessage.CANCEL_RENDERING
-                send_protobuf(self.sock, client_message)
-                cancel_sent = True
-
-            time.sleep(0.001)
-
-        self.engine.end_result(result)
-
-        print('Done with render loop')
-
-        client_message = ClientMessage()
-        client_message.type = ClientMessage.QUIT
-        send_protobuf(self.sock, client_message)
 
     #
     # Scene export
@@ -272,7 +142,7 @@ class Connection:
             elif plugin_parameters is not None:
                 plugin_parameters[k] = v
 
-    def export_ospray_volume(self, obj, data, depsgraph):
+    def export_ospray_volume(self, data, depsgraph, obj):
 
         # Volume data (i.e. mesh)
 
@@ -346,7 +216,7 @@ class Connection:
 
         send_protobuf(self.sock, element)
 
-    def export_ospray_geometry(self, obj, data, depsgraph):
+    def export_ospray_geometry(self, data, depsgraph, obj):
 
         # User-defined geometry (server-side)
 
@@ -419,7 +289,7 @@ class Connection:
         send_protobuf(self.sock, element)
 
 
-    def export_mesh(self, mesh, data, depsgraph):
+    def export_blender_mesh_data(self, data, depsgraph, mesh):
 
         msg = 'Exporting mesh %s' % mesh.name
         self.engine.update_stats('', msg)
@@ -523,20 +393,16 @@ class Connection:
 
         # Send triangles
 
-        triangles = numpy.empty(nt*3, dtype=numpy.uint32)   # XXX opt possible when less than 64k vertices ;-)
+        triangles = numpy.empty(nt*3, dtype=numpy.uint32)   # XXX opt possible with <64k vertices ;-)
 
         for idx, tri in enumerate(mesh.loop_triangles):
             triangles[3*idx+0] = tri.vertices[0]
             triangles[3*idx+1] = tri.vertices[1]
             triangles[3*idx+2] = tri.vertices[2]
             
-        print(triangles)
+        #print(triangles)
 
         self.sock.send(triangles.tobytes())
-
-        # Remember that we exported this mesh
-
-        self.exported_meshes.add(mesh.name)
 
 
     def export_scene(self, data, depsgraph):
@@ -570,7 +436,7 @@ class Connection:
         if render.use_border:
             # XXX nice, in ospray the render region is set on the *camera*,
             # while in blender it is a *render* setting, but we pass it as
-            # an *image* settings :)
+            # an *image* setting :)
 
             # Blender: X to the right, Y up, i.e. (0,0) is lower-left, same
             # as ospray. BUT: ospray always fills up the complete framebuffer
@@ -757,7 +623,7 @@ class Connection:
         # Light settings
         send_protobuf(self.sock, light_settings)
 
-        # Objects (meshes, including meshes marked as volumes)
+        # Mesh objects
 
         for instance in depsgraph.object_instances:
 
@@ -765,70 +631,219 @@ class Connection:
 
             if obj.type != 'MESH':
                 continue
-
-            representation = obj.ospray.representation
-            print('Scene object %s, representation %s' % (obj.name, representation))
-
-            # XXX split off iso and slices
-            if representation in ['volume', 'volume_isosurfaces', 'volume_slices']:
-                self.export_ospray_volume(obj, data, depsgraph)
-                continue
-            elif representation == 'geometry':
-                self.export_ospray_geometry(obj, data, depsgraph)
-                continue
-            elif representation != 'regular':
-                print('WARNING: object "%s" has unhandled representation type "%s"' % \
-                    (obj.name, representation))
-                continue
-
-            # Regular blender mesh
-
+                
             mesh = obj.data
+                
+            if obj.ospray.ospray_override:
+                
+                # Get OSPRay plugin type from mesh data 
+                plugin_type = mesh.ospray.plugin_type
 
-            # Export mesh if not already done so earlier, we can then link to it
-            # when exporting the object below
+                print('Mesh Object "%s", Mesh Data "%s", plugin type %s' % (obj.name, mesh.name, plugin_type))
 
-            # XXX we should export meshes separately, keeping a local
-            # list which ones we already exported (by name).
-            # Then for MESH objects use the name of the mesh to instantiate
-            # it using the given xform. This gives us real instancing.
-            # But a user can change a mesh's name. However, we can
-            # sort of handle this by using the local name list and deleting
-            # (also on the server) whichever name's we don't see when exporting.
-            # Could also set a custom property on meshes with a unique ID
-            # we choose ourselves. But props get copied when duplicating
-            # See https://devtalk.blender.org/t/universal-unique-id-per-object/363/3
-
-            if mesh.name not in self.exported_meshes:
-                self.export_mesh(mesh, data, depsgraph)
-
-            self.engine.update_stats('', 'Exporting object %s (mesh)' % obj.name)
-
-            properties = {}
-
-            self._process_properties(mesh, properties)
-
-            print('Sending properties:')
-            print(properties)
-
-            element = SceneElement()
-            element.type = SceneElement.MESH_OBJECT
-            element.name = obj.name
-            element.data_link = mesh.name
-            element.properties = json.dumps(properties)
-            if instance.is_instance:
-                print('%s (%s) is instance' % (obj.name, mesh.name))
-                element.object2world[:] = matrix2list(instance.matrix_world)
+                if plugin_type == 'volume':
+                    self.export_ospray_volume(data, depsgraph, obj)
+                elif plugin_type == 'geometry':
+                    self.export_ospray_geometry(data, depsgraph, obj)
+                elif plugin_type == 'scene':
+                    # XXX todo
+                    #self.export_ospray_scene(data, depsgraph, obj)
+                    print('WARNING: no scene plugin export yet!')
+                else:
+                    raise ValueError('Unknown plugin type "%s"' % plugin_type)
+                
             else:
-                element.object2world[:] = matrix2list(obj.matrix_world)
+                # Treat as regular blender mesh object
+                if instance.is_instance:
+                    print('%s (%s) is instance' % (obj.name, mesh.name))
+                    matrix_world = instance.matrix_world
+                else:
+                    matrix_world = obj.matrix_world
 
-            send_protobuf(self.sock, element)
-
+                self.export_blender_mesh_object(data, depsgraph, obj, matrix_world) 
+                
+            # Remember that we exported this mesh
+            self.mesh_data_exported.add(mesh.name)
+                
         # Signal last data was sent!
 
         element = SceneElement()
         element.type = SceneElement.NONE
         send_protobuf(self.sock, element)
+
+
+    def export_blender_mesh_object(self, data, depsgraph, obj, matrix_world):
+    
+        mesh = obj.data
+
+        # Export mesh if not already done so earlier, we can then link to it
+        # when exporting the object below
+
+        # XXX we should export meshes separately, keeping a local
+        # list which ones we already exported (by name).
+        # Then for MESH objects use the name of the mesh to instantiate
+        # it using the given xform. This gives us real instancing.
+        # But a user can change a mesh's name. However, we can
+        # sort of handle this by using the local name list and deleting
+        # (also on the server) whichever name's we don't see when exporting.
+        # Could also set a custom property on meshes with a unique ID
+        # we choose ourselves. But props get copied when duplicating
+        # See https://devtalk.blender.org/t/universal-unique-id-per-object/363/3
+
+        self.engine.update_stats('', 'Exporting object %s (mesh)' % obj.name)
+        
+        self.export_blender_mesh_data(data, depsgraph, mesh)
+
+        properties = {}
+
+        self._process_properties(mesh, properties)
+
+        print('Sending properties:')
+        print(properties)
+
+        element = SceneElement()
+        element.type = SceneElement.MESH_OBJECT
+        element.name = obj.name
+        element.data_link = mesh.name
+        element.properties = json.dumps(properties)
+        element.object2world[:] = matrix2list(matrix_world)
+        
+        send_protobuf(self.sock, element)
+        
+    #
+    # Rendering
+    #
+    
+    def render(self, depsgraph):
+
+        """
+        if self.is_preview:
+            self.render_preview(depsgraph)
+        else:
+            self.render_scene(depsgraph)
+        """
+
+        # Signal server to start rendering
+
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.START_RENDERING
+        send_protobuf(self.sock, client_message)
+
+        # Read back successive framebuffer samples
+
+        num_pixels = self.framebuffer_width * self.framebuffer_height
+        bytes_left = num_pixels*4 * 4
+
+        framebuffer = numpy.zeros(bytes_left, dtype=numpy.uint8)
+
+        t0 = time.time()
+
+        result = self.engine.begin_result(0, 0, self.framebuffer_width, self.framebuffer_height)
+        # Only Combined and Depth seem to be available
+        layer = result.layers[0].passes["Combined"]
+
+        FBFILE = '/dev/shm/blosprayfb.exr'
+
+        sample = 1
+        cancel_sent = False
+
+        self.engine.update_stats('', 'Rendering sample %d/%d' % (sample, self.render_samples))
+
+        # XXX this loop blocks too often, might need to move it to a separate thread,
+        # but OTOH we're already using select() to detect when to read
+        while True:
+
+            # Check for incoming render results
+
+            r, w, e = select.select([self.sock], [], [], 0)
+
+            if len(r) == 1:
+
+                render_result = RenderResult()
+                # XXX handle receive error
+                receive_protobuf(self.sock, render_result)
+
+                if render_result.type == RenderResult.FRAME:
+
+                    # New framebuffer (for a single pixel sample) is available
+
+                    """
+                    # XXX Slow: get as raw block of floats
+                    print('[%6.3f] _read_framebuffer start' % (time.time()-t0))
+                    self._read_framebuffer(framebuffer, self.framebuffer_width, self.framebuffer_height)
+                    print('[%6.3f] _read_framebuffer end' % (time.time()-t0))
+
+                    pixels = framebuffer.view(numpy.float32).reshape((num_pixels, 4))
+                    print(pixels.shape)
+                    print('[%6.3f] view() end' % (time.time()-t0))
+
+                    # Here we write the pixel values to the RenderResult
+                    # XXX This is the slow part
+                    print(type(layer.rect))
+                    layer.rect = pixels
+                    self.update_result(result)
+                    """
+
+                    # We read the framebuffer file content from the server
+                    # and locally write it to FBFILE, which then gets loaded by Blender
+
+                    # XXX both receiving into a file and loading from file 
+                    # block the blender UI for a short time
+
+                    print('[%6.3f] _read_framebuffer_to_file start' % (time.time()-t0))
+                    self._read_framebuffer_to_file(FBFILE, render_result.file_size)
+                    print('[%6.3f] _read_framebuffer_to_file end' % (time.time()-t0))
+
+                    # Sigh, this needs an image file format. I.e. reading in a raw framebuffer
+                    # of floats isn't possible, hence the OpenEXR file
+                    # XXX result.load_from_file(...), instead of result.layers[0].load_from_file(...), would work as well?
+                    result.layers[0].load_from_file(FBFILE)
+
+                    # Remove file
+                    os.unlink(FBFILE)
+
+                    self.engine.update_result(result)
+
+                    print('[%6.3f] update_result() done' % (time.time()-t0))
+
+                    self.engine.update_progress(sample/self.render_samples)
+
+                    sample += 1
+
+                    # XXX perhaps use update_memory_stats()
+
+                    self.engine.update_stats(
+                        'Server %.1f MB' % render_result.memory_usage,
+                        'Rendering sample %d/%d' % (sample, self.render_samples))
+
+                elif render_result.type == RenderResult.CANCELED:
+                    print('Rendering CANCELED!')
+                    self.engine.update_stats('', 'Rendering canceled')
+                    cancel_sent = True
+                    break
+
+                elif render_result.type == RenderResult.DONE:
+                    self.engine.update_stats('', 'Rendering done')
+                    print('Rendering done!')
+                    break
+
+            # Check if render was canceled
+
+            if self.engine.test_break() and not cancel_sent:
+                client_message = ClientMessage()
+                client_message.type = ClientMessage.CANCEL_RENDERING
+                send_protobuf(self.sock, client_message)
+                cancel_sent = True
+
+            time.sleep(0.001)
+
+        self.engine.end_result(result)
+
+        print('Done with render loop')
+
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.QUIT
+        send_protobuf(self.sock, client_message)    
 
     # Utility
 
