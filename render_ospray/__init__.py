@@ -21,7 +21,7 @@
 bl_info = {
     "name": "OSPRay",
     "author": "Paul Melis",
-    "version": (0, 0, 1),
+    "version": (0, 0, 2),
     "blender": (2, 80, 0),
     "location": "Render > Engine > OSPRay",
     "description": "OSPRay integration for blender",

@@ -26,9 +26,9 @@ message ClientMessage
     enum Type {
         HELLO = 0;                      // XXX not used atm
         
-        RETRIEVE_SCENE = 10;
+        GET_SERVER_STATE = 10;
         CLEAR_SCENE = 11;
-        UPDATE_SCENE = 12;       
+        UPDATE_SCENE = 12; 
         
         UPDATE_OBJECT = 20;
         UPDATE_DATA = 21;

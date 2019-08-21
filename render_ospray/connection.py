@@ -18,7 +18,6 @@
 # limitations under the License.                                           #
 # ======================================================================== #
 
-# - Use depsgraph fields to determine what to render
 # - Make sockets non-blocking and use select() to handle errors on the server side
 
 import bpy, bmesh
@@ -79,6 +78,7 @@ def customproperties2dict(obj, filepath_keys=['file']):
 
     return properties
 
+
 class Connection:
 
     def __init__(self, engine, host, port):
@@ -122,11 +122,11 @@ class Connection:
         Custom properties starting with an underscore become
         element properties (key without the underscore), all the others
         become plugin parameters, set in the key "plugin_parameters",
-        *but only if a property key 'plugin_name' is set*.
+        *but only if a property key 'plugin_type' is set*.
         """
 
         plugin_parameters = None
-        if 'plugin_name' in properties:
+        if 'plugin_type' in properties:
             if 'plugin_parameters' in properties:
                 plugin_parameters = properties['plugin_parameters']
             else:
@@ -877,56 +877,3 @@ class Connection:
                 # XXX check d
                 f.write(d)
                 bytes_left -= len(d)
-
-
-
-
-"""
-
-# Update mesh to match bbox
-# XXX need to check if this is even supported behaviour in the
-# new depsgraph method, as we're changing data that is only supposed
-# to be valid during export (as it basically is a private copy of the scene data)
-
-verts = [
-    Vector((bbox[0], bbox[1], bbox[2])),
-    Vector((bbox[3], bbox[1], bbox[2])),
-    Vector((bbox[3], bbox[4], bbox[2])),
-    Vector((bbox[0], bbox[4], bbox[2])),
-    Vector((bbox[0], bbox[1], bbox[5])),
-    Vector((bbox[3], bbox[1], bbox[5])),
-    Vector((bbox[3], bbox[4], bbox[5])),
-    Vector((bbox[0], bbox[4], bbox[5]))
-]
-
-edges = [
-    (0, 1), (1, 2), (2, 3), (3, 0),
-    (4, 5), (5, 6), (6, 7), (7, 4),
-    (0, 4), (1, 5), (2, 6), (3, 7)
-]
-
-bm = bmesh.new()
-
-bm_verts = []
-for vi, v in enumerate(verts):
-    bm_verts.append(bm.verts.new(v))
-
-for i, j in edges:
-    bm.edges.new((bm_verts[i], bm_verts[j]))
-
-bm.to_mesh(mesh)
-bm.free()
-
-mesh.validate(verbose=True)
-
-print([v.co for v in mesh.vertices])
-"""
-
-"""
-faces = []
-mesh = bpy.data.meshes.new(name="Volume extent")
-mesh.from_pydata(verts, edges, faces)
-mesh.validate(verbose=True)
-obj.data = mesh
-"""
-

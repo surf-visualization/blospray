@@ -50,16 +50,19 @@ using json = nlohmann::json;
 
 const int   PORT = 5909;
 
+OSPRenderer     renderer;
 OSPWorld        world;
-std::vector<OSPInstance>    scene_instances;
 OSPCamera       camera;
+OSPFrameBuffer  framebuffer;
+
 std::map<std::string, OSPRenderer>  renderers;
 std::map<std::string, OSPMaterial>  materials;
-OSPRenderer     renderer;
-OSPFrameBuffer  framebuffer;
+std::vector<OSPInstance>            scene_instances;
+
 int             framebuffer_width=0, framebuffer_height=0;
 bool            framebuffer_created = false;
-OSPMaterial     material;                           // XXX hack for now
+
+OSPMaterial         material;                       // XXX hack for now
 OSPTransferFunction cool2warm_transfer_function;    // XXX hack for now
 
 typedef std::map<std::string, OSPGeometry>      LoadedGeometriesMap;
@@ -84,44 +87,72 @@ typedef std::map<std::string, PluginState*>     PluginStateMap;
 PluginDefinitionsMap    plugin_definitions;
 PluginStateMap          plugin_state;
 
-// Geometry buffers
+// Server-side data associated with a blender Mesh Data that has a 
+// blospray plugin attached to it
+struct PluginInstance
+{
+    PluginType      type;
+    std::string     name;
+    
+    // Plugin state contains OSPRay scene elements
+    // XXX move properties out of PluginState?
+    PluginState     *state;     // XXX store as object, not as pointer?
+};
+
+// Blender Mesh
+struct BlenderMesh
+{
+    std::string     name;
+    json            parameters;     // XXX not sure we need this
+    
+    OSPGeometry     geometry;
+};
+
+// Server-side data associated with a blender Mesh Object
+
+enum SceneObjectType
+{
+    SOT_MESH,           // Blender mesh
+    SOT_GEOMETRY,       // OSPRay geometry
+    SOT_VOLUME,         
+    SOT_SLICES,
+    SOT_ISOSURFACES,
+    SOT_SCENE,
+    SOT_LIGHT           // In OSPRay these are actually stored on the renderer, not in the scene
+};
+
+struct SceneObject
+{
+    SceneObjectType type;
+    std::string     name;
+    
+    glm::mat4       object2world;
+    json            parameters;
+    
+    std::string     data_link;              // Name of linked data, may be ""
+    PluginInstance  *plugin_instance;       // May be NULL
+    
+    // Corresponding OSPRay elements in the scene (aka world)
+    
+    // Either a single OSPInstance in case of a geometry/volume/mesh,
+    // or a list of instances of OSPGroup's (with their xforms) when 
+    // provided by a scene plugin    
+    std::vector<OSPInstance>    instances;          // Will have 1 item for type != SOT_SCENE
+    OSPGroup                    group;              // Only for type in [SOT_GEOMETRY, SOT_VOLUME]
+    OSPGeometricModel           geometric_model;    // Only for type == SOT_GEOMETRY
+    OSPVolumetricModel          volumetric_model;   // Only for type == SOT_VOLUME
+    OSPLight                    light;              // Only for type == SOT_LIGHT
+};
+
+std::map<std::string, PluginInstance>   plugin_instances;
+std::map<std::string, SceneObject>      scene_objects;
+
+// Geometry buffers used during network receival
 
 std::vector<float>      vertex_buffer;
 std::vector<float>      normal_buffer;
 std::vector<float>      vertex_color_buffer;
-
 std::vector<uint32_t>   triangle_buffer;
-
-// Utility
-
-template<typename T>
-void
-object2world_from_protobuf(glm::mat4 &matrix, T& protobuf)
-{
-    float *M = glm::value_ptr(matrix);
-    
-    // Protobuf elements assumed in row-major order 
-    // (while GLM uses column-major order)
-    M[0] = protobuf.object2world(0);
-    M[1] = protobuf.object2world(4);
-    M[2] = protobuf.object2world(8);
-    M[3] = protobuf.object2world(12);
-
-    M[4] = protobuf.object2world(1);
-    M[5] = protobuf.object2world(5);
-    M[6] = protobuf.object2world(9);
-    M[7] = protobuf.object2world(13);
-    
-    M[8] = protobuf.object2world(2);
-    M[9] = protobuf.object2world(6);
-    M[10] = protobuf.object2world(10);
-    M[11] = protobuf.object2world(14);
-    
-    M[12] = protobuf.object2world(3);
-    M[13] = protobuf.object2world(7);
-    M[14] = protobuf.object2world(11);
-    M[15] = protobuf.object2world(15);    
-}
 
 // Plugin handling
 
@@ -1185,6 +1216,7 @@ receive_scene(TCPSocket *sock)
     ospCommit(instances);
     scene_instances.clear();        // XXX hmm, clearing scene here
     
+    // XXX might not have to recreate world, only update instances
     world = ospNewWorld();
         // Check https://github.com/ospray/ospray/issues/277. Is bool setting fixed in 2.0?
         ospSetBool(world, "compactMode", true);

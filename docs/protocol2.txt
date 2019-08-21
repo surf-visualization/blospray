@@ -67,7 +67,7 @@ protocol
 RETRIEVE_SCENE
     -> list of objects and datablocks, including their types
     
-CLEAR_SCENE
+[CLEAR_SCENE]
 
 # Will overwrite existing object/data-block
 UPDATE_OBJECT      name, type, properties, object2world xform, ...
