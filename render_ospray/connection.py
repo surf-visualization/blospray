@@ -581,7 +581,7 @@ class Connection:
                 # assert light.penumbra_angle < 0.5*light.opening_angle
 
             if data.type in ['POINT', 'SPOT']:
-                light.radius = data.shadow_soft_size
+                light.radius = data.shadow_soft_size        # XXX what is this called in ospray?
 
             if data.type == 'AREA':
                 size_x = data.size
