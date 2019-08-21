@@ -27,14 +27,17 @@ message ClientMessage
         HELLO = 0;                      // XXX not used atm
         
         GET_SERVER_STATE = 10;
+        
         CLEAR_SCENE = 11;
         UPDATE_SCENE = 12; 
         
         UPDATE_OBJECT = 20;
-        UPDATE_DATA = 21;
+        UPDATE_BLENDER_MESH = 21;
+        UPDATE_PLUGIN_INSTANCE = 22;
 
         DELETE_OBJECT = 30;
-        DELETE_DATA = 31;
+        DELETE_BLENDER_MESH = 31;
+        DELETE_PLUGIN_INSTANCE = 32;
         
         START_RENDERING = 40;
         CANCEL_RENDERING = 41;
@@ -47,7 +50,7 @@ message ClientMessage
     Type    type = 1;
         
     //bool    bool_value = 10;
-    uint32  uint_value = 20;             // HELLO     
+    uint32  uint_value = 20;            // HELLO     
     //float   float_value = 30;
     string  string_value = 40;          // QUERY_BOUND
 }
@@ -78,6 +81,57 @@ message RenderResult
 }
 
 // Scene
+
+// Mesh Data with a plugin attachedk
+message UpdatePluginInstance
+{   
+    enum Type {                    
+        GEOMETRY = 0;   // Geometry plugin
+        VOLUME = 1;     // Volume plugin
+        SCENE = 2;      // Scene plugin
+    }
+    
+    Type        type = 1;
+    string      name = 2;
+    
+    string      plugin_name = 3;
+    string      plugin_parameters = 4;
+    string      custom_properties = 5;
+}
+
+message UpdateObject
+{
+    enum Type {
+        // Regular Blender mesh
+        MESH = 0;
+        
+        // OSPRay geometry (needs to reference geometry mesh data)
+        GEOMETRY = 10;
+
+        // OSPRay volume (needs to reference volume mesh data)
+        VOLUME = 20;
+        
+        // OSPRay isosurfaces (needs to reference volume mesh data)
+        ISOSURFACES = 30;
+        
+        // OSPRay slices (needs to reference volume mesh data)
+        SLICES = 40;        
+        
+        // OSPRay scene (list of transformed Groups on the server)
+        SCENE = 50;
+        
+        // A single light
+        LIGHT = 60;
+    }
+    
+    Type            type = 1;
+    string          name = 2;
+    string          custom_properties = 3;
+    
+    repeated float  object2world = 10;
+    string          data_link = 11;
+}
+
 
 message SceneElement
 {   
@@ -118,13 +172,14 @@ message SceneElement
     string          data_link = 11;
 }
 
+// Blender geometry (aka mesh)
 message MeshData
 {
     enum Flags {
         NONE = 0;
         NORMALS = 1;
         VERTEX_COLORS = 2;
-        // = 4;
+        // UV = 4;
         // = 8;
     }
 

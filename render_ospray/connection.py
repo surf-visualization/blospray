@@ -38,7 +38,8 @@ from .messages_pb2 import (
     LightSettings, Light, RenderSettings,
     SceneElement, MeshData,
     ClientMessage, GenerateFunctionResult,
-    RenderResult
+    RenderResult,
+    UpdateObject, UpdatePluginInstance
 )
 
 # Object to world matrix
@@ -141,6 +142,30 @@ class Connection:
                 properties[k[1:]] = v
             elif plugin_parameters is not None:
                 plugin_parameters[k] = v
+                
+    def _process_properties2(self, obj, extract_plugin_parameters=False):
+        """
+        Get Blender custom properties set on obj.
+        Custom properties starting with an underscore become
+        element properties (with a key without the underscore), 
+        all the others become plugin parameters, but only if
+        extract_plugin_parameters is True.
+        """
+
+        properties = {}
+        plugin_parameters = {}
+
+        for k, v in customproperties2dict(obj).items():
+            #print('k', k, 'v', v)
+            if k[0] == '_':
+                #print(properties, k, v)
+                properties[k[1:]] = v
+            elif extract_plugin_parameters:
+                plugin_parameters[k] = v       
+            else:
+                properties[k] = v
+                
+        return properties, plugin_parameters
 
     def export_ospray_volume(self, data, depsgraph, obj):
 
@@ -622,6 +647,12 @@ class Connection:
 
         # Light settings
         send_protobuf(self.sock, light_settings)
+        
+        # Signal last data was sent!
+
+        element = SceneElement()
+        element.type = SceneElement.NONE
+        send_protobuf(self.sock, element)        
 
         # Mesh objects
 
@@ -630,51 +661,139 @@ class Connection:
             obj = instance.object
 
             if obj.type != 'MESH':
-                continue
+                continue                        
                 
             mesh = obj.data
+            
+            # XXX Check if we already sent this mesh
                 
-            if obj.ospray.ospray_override:
-                
-                # XXX need to handle instancing of these object as well
-                
-                # Get OSPRay plugin type from mesh data 
-                plugin_type = mesh.ospray.plugin_type
-
-                print('Mesh Object "%s", Mesh Data "%s", plugin type %s' % (obj.name, mesh.name, plugin_type))
-
-                if plugin_type == 'volume':
-                    self.export_ospray_volume(data, depsgraph, obj)
-                elif plugin_type == 'geometry':
-                    self.export_ospray_geometry(data, depsgraph, obj)
-                elif plugin_type == 'scene':
-                    # XXX todo
-                    #self.export_ospray_scene(data, depsgraph, obj)
-                    print('WARNING: no scene plugin export yet!')
-                else:
-                    raise ValueError('Unknown plugin type "%s"' % plugin_type)
-                
-            else:
-                # Treat as regular blender mesh object
-                self.export_blender_mesh_object(data, depsgraph, obj, instance.matrix_world) 
-                
+            self.send_updated_mesh_data(data, depsgraph, mesh)
+            
             # Remember that we exported this mesh
             self.mesh_data_exported.add(mesh.name)
-                
-        # Signal last data was sent!
-
-        element = SceneElement()
-        element.type = SceneElement.NONE
-        send_protobuf(self.sock, element)
+            
+            # Send object linking to the mesh data
+            self.send_updated_object(data, depsgraph, obj, mesh, instance.matrix_world)
+            
 
 
-    def export_blender_mesh_object(self, data, depsgraph, obj, matrix_world):
+    def send_updated_object(self, data, depsgraph, obj, mesh, matrix_world):
+
+        # We do a bit of the logic here in determining what a certain
+        # object -> object data combination (including their properties)
+        # mean, so the server isn't bothered with this.
     
-        mesh = obj.data
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.UPDATE_OBJECT    
+        
+        update = UpdateObject()
+        update.name = obj.name
+        update.object2world[:] = matrix2list(matrix_world)
+        update.data_link = mesh.name
+        
+        custom_properties, plugin_parameters = self._process_properties2(mesh, False)
+        update.custom_properties = json.dumps(custom_properties)
+        
+        if obj.ospray.ospray_override:
+            
+            if not mesh.ospray.plugin_enabled:
+                # No plugin enabled on the linked mesh data, treat
+                # as regular blender Mesh object
+                update.type = UpdateObject.MESH
+                
+            else:                
+                plugin_type = mesh.ospray.plugin_type
+                
+                if plugin_type == 'geometry':
+                    update.type = UpdateObject.GEOMETRY
+                    
+                elif plugin_type == 'scene':
+                    update.type = UpdateObject.SCENE   
+                    
+                elif plugin_type == 'volume':
+                    
+                    volume_usage = obj.ospray.volume_usage
+                    if volume_usage == 'volume':
+                        update.type = UpdateObject.VOLUME
+                    elif volume_usage == 'slices':
+                        update.type = UpdateObject.SLICES
+                        # XXX process child objects for slices
+                    elif volume_usage == 'isosurfaces':
+                        update.type = UpdateObject.ISOSURFACES
+                        # Isosurface values are read from the custom properties
+                        
+        else:
+            # Regular blender Mesh object
+            update.type = UpdateObject.MESH
+    
+        send_protobuf(self.sock, client_message)
+        send_protobuf(self.sock, update)    
+    
 
-        # Export mesh if not already done so earlier, we can then link to it
-        # when exporting the object below
+    def send_updated_mesh_data(self, data, depsgraph, mesh):
+        
+        """
+        Send an update on a Mesh Data block
+        """
+        
+        # XXX check if mesh data was already updated, if so skip
+        
+        if mesh.ospray.plugin_enabled:
+            # Plugin instance
+            
+            print('Updating plugin-enabled mesh "%s"' % mesh.name)
+            
+            ospray = mesh.ospray            
+            plugin_enabled = ospray.plugin_enabled
+            plugin_name = ospray.plugin_name
+            plugin_type = ospray.plugin_type
+            
+            custom_properties, plugin_parameters = self._process_properties2(mesh, True)
+            
+            self.update_plugin_instance(mesh.name, plugin_type, plugin_name, plugin_parameters, custom_properties)
 
+        else:
+            # Treat as regular blender mesh
+            # XXX any need to send custom properties?
+            self.update_blender_mesh(data, depsgraph, mesh) 
+
+
+    def update_plugin_instance(self, name, plugin_type, plugin_name, plugin_parameters, custom_properties):
+        
+        self.engine.update_stats('', 'Updating plugin instance %s (plugin type %s)' % (name, plugin_type))
+        
+        type2enum = dict(
+            geometry = UpdatePluginInstance.GEOMETRY,
+            volume = UpdatePluginInstance.VOLUME,
+            scene = UpdatePluginInstance.SCENE
+        )
+        
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.UPDATE_PLUGIN_INSTANCE            
+        
+        update = UpdatePluginInstance()
+        update.type = type2enum[plugin_type]
+        update.name = name
+        
+        update.plugin_name = plugin_name
+        update.plugin_parameters = json.dumps(plugin_parameters)
+        update.custom_properties = json.dumps(custom_properties)
+        
+        send_protobuf(self.sock, client_message)
+        send_protobuf(self.sock, update)
+        
+        generate_function_result = GenerateFunctionResult()
+        
+        receive_protobuf(self.sock, generate_function_result)
+        
+        if not generate_function_result.success:
+            print('ERROR: plugin generation failed:')
+            print(generate_function_result.message)
+            return
+        
+
+    def update_blender_mesh(self, data, depsgraph, mesh):
+    
         # XXX we should export meshes separately, keeping a local
         # list which ones we already exported (by name).
         # Then for MESH objects use the name of the mesh to instantiate
@@ -686,26 +805,115 @@ class Connection:
         # we choose ourselves. But props get copied when duplicating
         # See https://devtalk.blender.org/t/universal-unique-id-per-object/363/3
 
-        self.engine.update_stats('', 'Exporting object %s (mesh)' % obj.name)
+        self.engine.update_stats('', 'Updating Blender mesh %s' % mesh.name)
         
-        self.export_blender_mesh_data(data, depsgraph, mesh)
-
-        properties = {}
-
-        self._process_properties(mesh, properties)
-
-        print('Sending properties:')
-        print(properties)
-
-        element = SceneElement()
-        element.type = SceneElement.MESH_OBJECT
-        element.name = obj.name
-        element.data_link = mesh.name
-        element.properties = json.dumps(properties)
-        element.object2world[:] = matrix2list(matrix_world)
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.UPDATE_BLENDER_MESH       
+        client_message.string_value = mesh.name
         
-        send_protobuf(self.sock, element)
+        send_protobuf(self.sock, client_message)
         
+        # Send the actual mesh geometry
+        
+        mesh_data = MeshData()
+        flags = 0
+
+        # Send (triangulated) geometry
+
+        mesh.calc_loop_triangles()
+
+        nv = mesh_data.num_vertices = len(mesh.vertices)
+        nt = mesh_data.num_triangles = len(mesh.loop_triangles)
+
+        print('Mesh %s: %d v, %d t' % (mesh.name, nv, nt))
+
+        # Check if any faces use smooth shading
+        # XXX we currently don't handle meshes with both smooth
+        # and non-smooth faces, but those are probably not very common anyway
+
+        use_smooth = False
+        for tri in mesh.loop_triangles:
+            if tri.use_smooth:
+                print('Mesh uses smooth shading')
+                use_smooth = True
+                flags |= MeshData.NORMALS
+                break
+
+        # Vertex colors
+        #https://blender.stackexchange.com/a/8561
+        if mesh.vertex_colors:
+            flags |= MeshData.VERTEX_COLORS
+
+        # Send mesh data
+
+        mesh_data.flags = flags
+
+        send_protobuf(self.sock, mesh_data)
+
+        # Send vertices
+
+        vertices = numpy.empty(nv*3, dtype=numpy.float32)
+
+        for idx, v in enumerate(mesh.vertices):
+            p = v.co
+            vertices[3*idx+0] = p.x
+            vertices[3*idx+1] = p.y
+            vertices[3*idx+2] = p.z
+            
+        #print(vertices)
+
+        self.sock.send(vertices.tobytes())
+
+        # Send vertex normals (if set)
+
+        if use_smooth:
+            normals = numpy.empty(nv*3, dtype=numpy.float32)
+
+            for idx, v in enumerate(mesh.vertices):
+                # XXX use .index?
+                n = v.normal
+                normals[3*idx+0] = n.x
+                normals[3*idx+1] = n.y
+                normals[3*idx+2] = n.z
+
+            self.sock.send(normals.tobytes())
+
+        # Send vertex colors (if set)
+
+        if mesh.vertex_colors:
+            vcol_layer = mesh.vertex_colors.active
+            vcol_data = vcol_layer.data
+
+            vertex_colors = numpy.empty(nv*4, dtype=numpy.float32)
+
+            for poly in mesh.polygons:
+                for loop_index in poly.loop_indices:
+                    loop_vert_index = mesh.loops[loop_index].vertex_index
+                    color = vcol_data[loop_index].color
+                    # RGBA vertex colors in Blender 2.8x
+                    vertex_colors[4*loop_vert_index+0] = color[0]
+                    vertex_colors[4*loop_vert_index+1] = color[1]
+                    vertex_colors[4*loop_vert_index+2] = color[2]
+                    vertex_colors[4*loop_vert_index+3] = 1.0
+
+            self.sock.send(vertex_colors.tobytes())
+
+        # Send triangles
+
+        triangles = numpy.empty(nt*3, dtype=numpy.uint32)   # XXX opt possible with <64k vertices ;-)
+
+        for idx, tri in enumerate(mesh.loop_triangles):
+            triangles[3*idx+0] = tri.vertices[0]
+            triangles[3*idx+1] = tri.vertices[1]
+            triangles[3*idx+2] = tri.vertices[2]
+            
+        #print(triangles)
+
+        self.sock.send(triangles.tobytes())
+
+
+                
+                
     #
     # Rendering
     #

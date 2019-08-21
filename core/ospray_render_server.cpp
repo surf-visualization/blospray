@@ -123,7 +123,7 @@ enum SceneObjectType
 
 struct SceneObject
 {
-    SceneObjectType type;
+    SceneObjectType type;                   // XXX the type of scene objects actually depends on the type of data linked
     std::string     name;
     
     glm::mat4       object2world;
@@ -326,133 +326,6 @@ check_parameters(GenerateFunctionResult& result, const PluginParameter *plugin_p
     }
     
     return ok;
-}
-
-// Receive methods
-
-bool
-receive_and_add_blender_mesh_data(TCPSocket *sock, const SceneElement& element)
-{
-    printf("%s [MESH]\n", element.name().c_str());
-    
-    if (loaded_geometries.find(element.name()) != loaded_geometries.end())
-        printf("WARNING: mesh '%s' already loaded, overwriting!\n", element.name().c_str());
-    
-    MeshData    mesh_data;
-    OSPData     data;
-    
-    if (!receive_protobuf(sock, mesh_data))
-        return false;
-    
-    uint32_t nv, nt, flags;
-    
-    nv = mesh_data.num_vertices();
-    nt = mesh_data.num_triangles();
-    flags = mesh_data.flags();
-    
-    printf("...... %d vertices, %d triangles, flags 0x%08x\n", nv, nt, flags);
-    
-    vertex_buffer.reserve(nv*3);    
-    if (sock->recvall(&vertex_buffer[0], nv*3*sizeof(float)) == -1)
-        return false;
-    
-    if (flags & MeshData::NORMALS)
-    {
-        printf("...... Mesh has normals\n");
-        normal_buffer.reserve(nv*3);
-        if (sock->recvall(&normal_buffer[0], nv*3*sizeof(float)) == -1)
-            return false;        
-    }
-        
-    if (flags & MeshData::VERTEX_COLORS)
-    {
-        printf("...... Mesh has vertex colors\n");
-        vertex_color_buffer.reserve(nv*4);
-        if (sock->recvall(&vertex_color_buffer[0], nv*4*sizeof(float)) == -1)
-            return false;        
-    }
-    
-    triangle_buffer.reserve(nt*3);
-    if (sock->recvall(&triangle_buffer[0], nt*3*sizeof(uint32_t)) == -1)
-        return false;
-    
-    OSPGeometry mesh = ospNewGeometry("triangles");
-  
-        data = ospNewData(nv, OSP_VEC3F, &vertex_buffer[0]);   
-        ospCommit(data);
-        ospSetData(mesh, "vertex.position", data);
-        ospRelease(data);
-
-        if (flags & MeshData::NORMALS)
-        {
-            data = ospNewData(nv, OSP_VEC3F, &normal_buffer[0]);
-            ospCommit(data);
-            ospSetData(mesh, "vertex.normal", data);
-            ospRelease(data);
-        }
-
-        if (flags & MeshData::VERTEX_COLORS)
-        {
-            data = ospNewData(nv, OSP_VEC4F, &vertex_color_buffer[0]);
-            ospCommit(data);
-            ospSetData(mesh, "vertex.color", data);
-            ospRelease(data);
-        }
-        
-        data = ospNewData(nt, OSP_VEC3I, &triangle_buffer[0]);            
-        ospCommit(data);
-        ospSetData(mesh, "index", data);
-        ospRelease(data);
-
-    ospCommit(mesh);
-        
-    loaded_geometries[element.name()] = mesh;
-    
-    return true;
-}
-
-bool
-receive_and_add_blender_mesh_object(TCPSocket *sock, const SceneElement& element)
-{
-    printf("%s [OBJECT]\n", element.name().c_str());
-    printf("........ --> %s (blender mesh)\n", element.data_link().c_str());
-    
-    LoadedGeometriesMap::iterator it = loaded_geometries.find(element.data_link());
-    
-    if (it == loaded_geometries.end())
-    {
-        printf("WARNING: linked mesh data '%s' not found!\n", element.data_link().c_str());
-        return false;
-    }
-    
-    OSPGeometry geometry = it->second;
-    assert(geometry != NULL);
-    
-    glm::mat4   obj2world;
-    float       affine_xform[12];
-    
-    object2world_from_protobuf(obj2world, element);
-    affine3fv_from_mat4(affine_xform, obj2world);
-    
-    OSPGeometricModel model = ospNewGeometricModel(geometry);        
-        ospSetObject(model, "material", material);
-    ospCommit(model);
-    
-    OSPData models = ospNewData(1, OSP_OBJECT, &model, 0);
-    OSPGroup group = ospNewGroup();
-        ospSetData(group, "geometry", models);
-    ospCommit(group);
-    ospRelease(model);        
-    ospRelease(models);
-        
-    OSPInstance instance = ospNewInstance(group);
-        ospSetAffine3fv(instance, "xfm", affine_xform);
-    ospCommit(instance);
-    ospRelease(group);
-    
-    scene_instances.push_back(instance);
-    
-    return true;
 }
 
 void
@@ -977,6 +850,291 @@ Reuse for scene: group instances
 
 */
 
+bool
+handle_update_blender_mesh(TCPSocket *sock, const std::string& name)
+{
+    printf("%s [MESH]\n", name.c_str());
+    
+    // XXX
+    if (loaded_geometries.find(name) != loaded_geometries.end())
+        printf("WARNING: mesh '%s' already loaded, overwriting!\n", name.c_str());
+    
+    MeshData    mesh_data;
+    
+    if (!receive_protobuf(sock, mesh_data))
+        return false;
+    
+    OSPData     data;
+    
+    uint32_t nv, nt, flags;
+    
+    nv = mesh_data.num_vertices();
+    nt = mesh_data.num_triangles();
+    flags = mesh_data.flags();
+    
+    printf("...... %d vertices, %d triangles, flags 0x%08x\n", nv, nt, flags);
+    
+    vertex_buffer.reserve(nv*3);    
+    if (sock->recvall(&vertex_buffer[0], nv*3*sizeof(float)) == -1)
+        return false;
+    
+    if (flags & MeshData::NORMALS)
+    {
+        printf("...... Mesh has normals\n");
+        normal_buffer.reserve(nv*3);
+        if (sock->recvall(&normal_buffer[0], nv*3*sizeof(float)) == -1)
+            return false;        
+    }
+        
+    if (flags & MeshData::VERTEX_COLORS)
+    {
+        printf("...... Mesh has vertex colors\n");
+        vertex_color_buffer.reserve(nv*4);
+        if (sock->recvall(&vertex_color_buffer[0], nv*4*sizeof(float)) == -1)
+            return false;        
+    }
+    
+    triangle_buffer.reserve(nt*3);
+    if (sock->recvall(&triangle_buffer[0], nt*3*sizeof(uint32_t)) == -1)
+        return false;
+    
+    OSPGeometry mesh = ospNewGeometry("triangles");
+  
+        data = ospNewData(nv, OSP_VEC3F, &vertex_buffer[0]);   
+        ospCommit(data);
+        ospSetData(mesh, "vertex.position", data);
+        ospRelease(data);
+
+        if (flags & MeshData::NORMALS)
+        {
+            data = ospNewData(nv, OSP_VEC3F, &normal_buffer[0]);
+            ospCommit(data);
+            ospSetData(mesh, "vertex.normal", data);
+            ospRelease(data);
+        }
+
+        if (flags & MeshData::VERTEX_COLORS)
+        {
+            data = ospNewData(nv, OSP_VEC4F, &vertex_color_buffer[0]);
+            ospCommit(data);
+            ospSetData(mesh, "vertex.color", data);
+            ospRelease(data);
+        }
+        
+        data = ospNewData(nt, OSP_VEC3I, &triangle_buffer[0]);            
+        ospCommit(data);
+        ospSetData(mesh, "index", data);
+        ospRelease(data);
+
+    ospCommit(mesh);
+        
+    loaded_geometries[name] = mesh;
+    
+    return true;    
+}
+
+bool
+handle_update_plugin_instance(TCPSocket *sock)
+{
+    UpdatePluginInstance    update;
+    
+    if (!receive_protobuf(sock, update))
+        return false;
+    
+    std::string plugin_type;
+    
+    switch (update.type())
+    {
+    case UpdatePluginInstance::GEOMETRY:
+        plugin_type = "geometry";
+        break;        
+    case UpdatePluginInstance::VOLUME:
+        plugin_type = "volume";
+        break;
+    case UpdatePluginInstance::SCENE:
+        plugin_type = "scene";
+        break;
+    }
+    
+    const std::string &plugin_name = update.plugin_name();
+    printf("Plugin type '%s', name '%s'\n", plugin_type.c_str(), plugin_name.c_str());
+    
+    const char *s_plugin_parameters = update.plugin_parameters().c_str();
+    //printf("Received plugin parameters:\n%s\n", s_plugin_parameters);
+    const json &plugin_parameters = json::parse(s_plugin_parameters);    
+    printf("Plugin parameters:\n");
+    printf("%s\n", plugin_parameters.dump(4).c_str());
+
+    const char *s_custom_properties = update.custom_properties().c_str();
+    //printf("Received custom properties:\n%s\n", s_custom_properties);
+    const json &custom_properties = json::parse(s_custom_properties);    
+    printf("Custom properties:\n");
+    printf("%s\n", custom_properties.dump(4).c_str());
+    
+    // XXX look up existing state, if any
+    
+    PluginState *state = new PluginState;
+    plugin_state[update.name()] = state;       // XXX leaks when overwriting
+    
+    // Prepare result
+    
+    GenerateFunctionResult result;
+    
+    result.set_success(true);
+    
+    // Find generate function 
+                
+    PluginDefinition plugin_definition;
+    
+    if (!ensure_plugin_is_loaded(result, plugin_definition, plugin_type, plugin_name))
+    {
+        // Something went wrong...
+        send_protobuf(sock, result);
+        return false;
+    }
+            
+    generate_function_t generate_function = plugin_definition.functions.generate_function;
+    
+    if (generate_function == NULL)
+    {
+        printf("Plugin returned NULL generate_function!\n");
+        exit(-1);
+    }    
+    
+    // Check parameters passed to load function
+    
+    if (!check_parameters(result, plugin_definition.parameters, plugin_parameters))
+    {
+        // Something went wrong...
+        send_protobuf(sock, result);
+        return false;
+    }
+    
+    state->parameters = plugin_parameters;
+
+    // Call generate function
+    
+    struct timeval t0, t1;
+    
+    printf("Calling generate function\n");
+    gettimeofday(&t0, NULL);
+    
+    float       bbox[6];
+    
+    generate_function(result, state);
+    
+    gettimeofday(&t1, NULL);
+    printf("Generate function executed in %.3fs\n", time_diff(t0, t1));
+    
+    // Handle any other business for this type of plugin
+    
+    switch (update.type())
+    {
+    case UpdatePluginInstance::GEOMETRY:
+        
+        // XXX
+        
+        break;        
+    
+    case UpdatePluginInstance::VOLUME:
+        
+        if (state->volume == NULL)
+        {
+            send_protobuf(sock, result);
+
+            printf("ERROR: volume generate function failed!\n");
+            return false;
+        }    
+        
+        loaded_volumes[update.name()] = state->volume;
+
+        break;
+    
+    case UpdatePluginInstance::SCENE:
+        
+        printf("WARNING: no handling of scene plugins yet!\n");
+        break;
+    }
+    
+    // Load function succeeded
+    
+    send_protobuf(sock, result);
+    
+    return true;    
+}
+
+
+bool
+add_blender_mesh(const UpdateObject& update)
+{
+    printf("%s [OBJECT]\n", update.name().c_str());
+    printf("........ --> %s (blender mesh)\n", update.data_link().c_str());
+    
+    LoadedGeometriesMap::iterator it = loaded_geometries.find(update.data_link());
+    
+    if (it == loaded_geometries.end())
+    {
+        printf("WARNING: linked mesh data '%s' not found!\n", update.data_link().c_str());
+        return false;
+    }
+    
+    OSPGeometry geometry = it->second;
+    assert(geometry != NULL);
+    
+    glm::mat4   obj2world;
+    float       affine_xform[12];
+    
+    object2world_from_protobuf(obj2world, update);
+    affine3fv_from_mat4(affine_xform, obj2world);
+    
+    OSPGeometricModel model = ospNewGeometricModel(geometry);        
+        ospSetObject(model, "material", material);
+    ospCommit(model);
+    
+    OSPData models = ospNewData(1, OSP_OBJECT, &model, 0);
+    OSPGroup group = ospNewGroup();
+        ospSetData(group, "geometry", models);
+    ospCommit(group);
+    ospRelease(model);        
+    ospRelease(models);
+        
+    OSPInstance instance = ospNewInstance(group);
+        ospSetAffine3fv(instance, "xfm", affine_xform);
+    ospCommit(instance);
+    ospRelease(group);
+    
+    scene_instances.push_back(instance);
+    
+    return true;
+}
+
+
+bool
+handle_update_object(TCPSocket *sock)
+{
+    UpdateObject    update;
+    
+    if (!receive_protobuf(sock, update))
+        return false;
+    
+    const char *s_custom_properties = update.custom_properties().c_str();
+    //printf("Received custom properties:\n%s\n", s_custom_properties);    
+    const json &custom_properties = json::parse(s_custom_properties);        
+    printf("Custom properties:\n");
+    printf("%s\n", custom_properties.dump(4).c_str());
+    
+    switch (update.type())
+    {
+    case UpdateObject::MESH:
+        add_blender_mesh(update);
+        break;
+    }
+    
+    
+    return true;
+}
+
+
 // XXX currently has big memory leak as we never release the new objects ;-)
 bool
 receive_scene(TCPSocket *sock)
@@ -1179,15 +1337,7 @@ receive_scene(TCPSocket *sock)
     // XXX use function table
     while (element.type() != SceneElement::NONE)
     {
-        if (element.type() == SceneElement::MESH_DATA)
-        {
-            receive_and_add_blender_mesh_data(sock, element);
-        }
-        else if (element.type() == SceneElement::MESH_OBJECT)
-        {
-            receive_and_add_blender_mesh_object(sock, element);
-        }
-        else if (element.type() == SceneElement::VOLUME_DATA)
+        if (element.type() == SceneElement::VOLUME_DATA)
         {
             receive_and_add_ospray_volume_data(sock, element);
         }
@@ -1445,15 +1595,23 @@ handle_connection(TCPSocket *sock)
             
             switch (client_message.type())
             {
-                // GET_CACHE_ENTRIES    (volumes and meshes)
-                // GET_VOLUME_EXTENT    (volume plugin)
-                // GET_GEOMETRY_EXTENT  (geometry plugin)
-                
                 case ClientMessage::UPDATE_SCENE:
                     // XXX handle clear_scene 
                     // XXX check res
                     // XXX ignore if rendering
                     receive_scene(sock);
+                    break;
+                
+                case ClientMessage::UPDATE_PLUGIN_INSTANCE:
+                    handle_update_plugin_instance(sock);
+                    break;
+
+                case ClientMessage::UPDATE_BLENDER_MESH:
+                    handle_update_blender_mesh(sock, client_message.string_value());
+                    break;
+                
+                case ClientMessage::UPDATE_OBJECT:
+                    handle_update_object(sock);
                     break;
                 
                 case ClientMessage::QUERY_BOUND:
@@ -1498,6 +1656,10 @@ handle_connection(TCPSocket *sock)
                     sock->close();
                 
                     return true;
+                
+                default:
+                    
+                    printf("WARNING: unhandled client message!\n");
             }
         }
         
