@@ -229,7 +229,7 @@ class Connection:
         # Properties
 
         properties = {}
-        properties['plugin_name'] = mesh.ospray.plugin
+        properties['plugin_name'] = mesh.ospray.plugin_name
         properties['plugin_type'] = mesh.ospray.plugin_type
 
         self._process_properties(mesh, properties)
@@ -636,6 +636,8 @@ class Connection:
                 
             if obj.ospray.ospray_override:
                 
+                # XXX need to handle instancing of these object as well
+                
                 # Get OSPRay plugin type from mesh data 
                 plugin_type = mesh.ospray.plugin_type
 
@@ -654,13 +656,7 @@ class Connection:
                 
             else:
                 # Treat as regular blender mesh object
-                if instance.is_instance:
-                    print('%s (%s) is instance' % (obj.name, mesh.name))
-                    matrix_world = instance.matrix_world
-                else:
-                    matrix_world = obj.matrix_world
-
-                self.export_blender_mesh_object(data, depsgraph, obj, matrix_world) 
+                self.export_blender_mesh_object(data, depsgraph, obj, instance.matrix_world) 
                 
             # Remember that we exported this mesh
             self.mesh_data_exported.add(mesh.name)
