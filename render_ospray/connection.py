@@ -184,8 +184,8 @@ class Connection:
                     # We read the framebuffer file content from the server
                     # and locally write it to FBFILE, which then gets loaded by Blender
 
-                    # XXX both receiving into a file and loading from file block
-                    # the blender UI for a short time
+                    # XXX both receiving into a file and loading from file 
+                    # block the blender UI for a short time
 
                     print('[%6.3f] _read_framebuffer_to_file start' % (time.time()-t0))
                     self._read_framebuffer_to_file(FBFILE, render_result.file_size)
