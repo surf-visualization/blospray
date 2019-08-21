@@ -85,10 +85,11 @@ class RENDER_PT_OSPRAY_RENDERING(Panel):
 
 class OBJECT_PT_OSPRAY(Panel):
     bl_idname = 'OBJECT_PT_OSPRAY'
-    bl_label = 'OSPRay Settings'
+    bl_label = 'OSPRay'
     bl_space_type = 'PROPERTIES'   
     bl_region_type = 'WINDOW'    
     bl_context = 'object'  
+    bl_options = {'DEFAULT_CLOSED'}
     
     COMPAT_ENGINES = {'OSPRAY'}
     
@@ -97,6 +98,9 @@ class OBJECT_PT_OSPRAY(Panel):
         obj = context.object
         return ((context.engine in cls.COMPAT_ENGINES) and 
                 obj and (obj.type in {'MESH'}))
+                
+    def draw_header(self, context):
+        self.layout.prop(context.object.ospray, 'ospray_override', text="")                
     
     def draw(self, context):
         layout = self.layout
@@ -108,15 +112,16 @@ class OBJECT_PT_OSPRAY(Panel):
         
         # XXX align labels to the left
         col = layout.column(align=True)
-        col.prop(ospray, 'ospray_override')
+        #col.prop(ospray, 'ospray_override')
 
 
 class OBJECT_PT_OSPRAY_VOLUME(Panel):
     bl_idname = 'OBJECT_PT_OSPRAY_VOLUME'
-    bl_label = 'OSPRay Volume Settings'
+    bl_label = 'Volume'
     bl_space_type = 'PROPERTIES'   
     bl_region_type = 'WINDOW'    
     bl_context = 'object'  
+    bl_parent_id = 'OBJECT_PT_OSPRAY'
     
     COMPAT_ENGINES = {'OSPRAY'}
     
@@ -153,10 +158,11 @@ class OBJECT_PT_OSPRAY_VOLUME(Panel):
     
 class DATA_PT_OSPRAY_MESH(Panel):
     bl_idname = 'DATA_PT_OSPRAY_MESH'
-    bl_label = 'OSPRay Settings'
+    bl_label = 'OSPRay'
     bl_space_type = 'PROPERTIES'   
     bl_region_type = 'WINDOW'    
     bl_context = 'data'  
+    bl_options = {'DEFAULT_CLOSED'}
     
     COMPAT_ENGINES = {'OSPRAY'}
     
