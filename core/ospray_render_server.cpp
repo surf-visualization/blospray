@@ -247,7 +247,7 @@ ensure_plugin_is_loaded(GenerateFunctionResult &result, PluginDefinition &defini
 }
 
 bool
-check_parameters(GenerateFunctionResult& result, const PluginParameter *plugin_parameters, const json &actual_parameters)
+check_plugin_parameters(GenerateFunctionResult& result, const PluginParameter *plugin_parameters, const json &actual_parameters)
 {
     // We don't return false on the first error, but keep checking for any subsequent errors
     bool ok = true;
@@ -555,43 +555,6 @@ receive_and_add_ospray_volume_object(TCPSocket *sock, const SceneElement& elemen
     }
 */
 
-/*
-Reuse for scene: group instances
-
-    OSPGeometry     geometry = it->second;
-    glm::mat4       xform; 
-    
-    for (ModelInstances::const_iterator it = model_instances.begin(); it != model_instances.end(); ++it)
-    {
-        const OSPGeometricModel& model = it->first;
-        const glm::mat4& instance_xform = it->second;
-        
-        xform = obj2world * instance_xform;
-        //printf("xform = %s\n", glm::to_string(xform).c_str());
-        
-        float affine[13];
-        affine3fv_from_mat4(affine, xform);
-        
-        OSPGroup group = ospNewGroup();
-        
-            OSPData models = ospNewData(1, OSP_OBJECT, &model, 0);
-            ospSetData(group, "geometry", models);
-            ospRelease(models);
-        
-        ospCommit(group);
-
-        OSPInstance instance = ospNewInstance(group);
-        
-            ospSetAffine3fv(instance, "xfm", affine);
-        
-        ospCommit(instance);
-        ospRelease(group);
-
-        scene_instances.push_back(instance);
-    }
-
-*/
-
 bool
 handle_update_blender_mesh(TCPSocket *sock, const std::string& name)
 {
@@ -698,6 +661,9 @@ handle_update_plugin_instance(TCPSocket *sock)
     case UpdatePluginInstance::SCENE:
         plugin_type = "scene";
         break;
+    default:
+        printf("WARNING: unknown plugin instance type!\n");
+        return false;
     }    
     
     const std::string &plugin_name = update.plugin_name();
@@ -749,7 +715,7 @@ handle_update_plugin_instance(TCPSocket *sock)
     
     // Check parameters passed to load function
     
-    if (!check_parameters(result, plugin_definition.parameters, plugin_parameters))
+    if (!check_plugin_parameters(result, plugin_definition.parameters, plugin_parameters))
     {
         // Something went wrong...
         send_protobuf(sock, result);
