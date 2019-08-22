@@ -81,26 +81,27 @@ load_cell_models()
     
       // XXX use ospRelease() here?
   
-      OSPData data = ospNewData(num_vertices, OSP_VEC3F, vertices);    // OSP_FLOAT3A format is also supported for vertex positions
+      OSPData data = ospNewData(num_vertices, OSP_VEC3F, vertices);    
       ospCommit(data);
-      ospSetData(mesh, "vertex", data);
+      ospSetData(mesh, "vertex.position", data);
 
       data = ospNewData(num_vertices, OSP_VEC4F, colors);
       ospCommit(data);
       ospSetData(mesh, "vertex.color", data);
 
-      // XXX are aligned indices, i.e. OSP_INT4, faster to render?
-      // YYY they are not really aligned it seems, merely 4 elements
-      // stored for a 3-element vector 
-      data = ospNewData(num_triangles, OSP_VEC3I, triangles);            // OSP_INT4 format is also supported for triangle indices
+      data = ospNewData(num_triangles, OSP_VEC3I, triangles);            
       ospCommit(data);
       ospSetData(mesh, "index", data);
             
     ospCommit(mesh);
+
+    delete [] vertices;
+    delete [] colors;
+    delete [] triangles;    
   
     // Create model
   
-    OSPMaterial material = ospNewMaterial("scivis", "OBJMaterial");    
+    OSPMaterial material = ospNewMaterial("pathtracer", "OBJMaterial");    
         ospSetVec3f(material, "Kd", 0.8f, 0, 0);        
     ospCommit(material);
 
@@ -109,10 +110,6 @@ load_cell_models()
     ospCommit(mesh_model_rbc);
     ospRelease(material);
     ospRelease(mesh);
-    
-    delete [] vertices;
-    delete [] triangles;
-    delete [] colors;
     
     // Read PLT geometry
 
@@ -152,7 +149,7 @@ load_cell_models()
     
       // XXX use ospRelease() here?
   
-      data = ospNewData(num_vertices, OSP_VEC3F, vertices);    // OSP_FLOAT3A format is also supported for vertex positions
+      data = ospNewData(num_vertices, OSP_VEC3F, vertices);    
       ospCommit(data);
       ospSetData(mesh, "vertex.position", data);
 
@@ -160,17 +157,20 @@ load_cell_models()
       ospCommit(data);
       ospSetData(mesh, "vertex.color", data);
 
-      // XXX are aligned indices, i.e. OSP_INT4, faster to render?
-      data = ospNewData(num_triangles, OSP_VEC3I, triangles);            // OSP_INT4 format is also supported for triangle indices
+      data = ospNewData(num_triangles, OSP_VEC3I, triangles);            
       ospCommit(data);
       ospSetData(mesh, "index", data);
     
     ospCommit(mesh);
+    
+    delete [] vertices;
+    delete [] colors;
+    delete [] triangles;    
   
     // Create model
 
-    material = ospNewMaterial("scivis", "OBJMaterial");
-      ospSetVec3f(material, "Kd", 0.8f, 0.8f, 0.8f);
+    material = ospNewMaterial("pathtracer", "OBJMaterial");
+        ospSetVec3f(material, "Kd", 0.8f, 0.8f, 0.8f);
     ospCommit(material);
 
     mesh_model_plt = ospNewGeometricModel(mesh);
@@ -250,7 +250,7 @@ add_ground_plane()
   
       OSPData data = ospNewData(num_vertices, OSP_FLOAT3, vertices);   
       ospCommit(data);
-      ospSetData(mesh2, "vertex", data);
+      ospSetData(mesh2, "vertex.position", data);
 
       data = ospNewData(num_vertices, OSP_FLOAT4, colors);
       ospCommit(data);
@@ -290,6 +290,8 @@ generate(GenerateFunctionResult &result, PluginState *state)
         rbc_data_path = s;
     }
     
+    printf("rbc_data_path = %s\n", rbc_data_path.c_str());
+    
     int max_rbcs = -1;
     int max_plts = -1;
     
@@ -310,12 +312,12 @@ generate(GenerateFunctionResult &result, PluginState *state)
     glm::mat4   R;
 
     char fname[1024];
-    sprintf(fname, "%s/cells.bin", rbc_data_path);
+    sprintf(fname, "%s/cells.bin", rbc_data_path.c_str());
     FILE *p = fopen(fname, "rb");
     
     if (!p)
     {
-        fprintf(stderr, "ERROR: could not open cells.bin!\n");
+        fprintf(stderr, "ERROR: could not open %s!\n", fname);
         result.set_success(false);
         result.set_message("could not open cells.bin");
         return;

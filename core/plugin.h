@@ -168,6 +168,8 @@ struct PluginState
     OSPGeometry     geometry;    
     
     // Scene plugin:
+    // XXX as an OSPGroup can indirectly link to an OSPMaterial it
+    // is tied to specific renderer type!
     GroupInstances  group_instances;  
 
     PluginState()

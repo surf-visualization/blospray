@@ -806,7 +806,11 @@ handle_update_plugin_instance(TCPSocket *sock)
     
     case UpdatePluginInstance::SCENE:
         
-        printf("WARNING: no handling of scene plugins yet!\n");
+        if (state->group_instances.size() == 0)
+            printf("WARNING: scene generate function returned 0 instances!\n");
+        
+        loaded_scenes[update.name()] = state->group_instances;
+    
         break;
     }
     
@@ -910,6 +914,52 @@ add_geometry(const UpdateObject& update)
 }
 
 bool
+add_scene(const UpdateObject& update)
+{
+    printf("%s [OBJECT]\n", update.name().c_str());
+    printf("........ --> %s (OSPRay scene)\n", update.data_link().c_str());
+    
+    LoadedScenesMap::iterator it = loaded_scenes.find(update.data_link());
+    
+    if (it == loaded_scenes.end())
+    {
+        printf("WARNING: linked scene data '%s' not found!\n", update.data_link().c_str());
+        return false;
+    }
+    
+    GroupInstances instances = it->second;
+    
+    if (instances.size() == 0)
+    {
+        printf("WARNING: no instances in scene!\n");
+        return true;    // XXX false?
+    }
+    
+    glm::mat4   obj2world;
+    float       affine_xform[12];
+    
+    object2world_from_protobuf(obj2world, update);
+    
+    for (GroupInstance& gi : instances)
+    {    
+        OSPGroup group = gi.first;
+        const glm::mat4 instance_xform = gi.second;
+        
+        affine3fv_from_mat4(affine_xform, obj2world * instance_xform);
+        
+        OSPInstance instance = ospNewInstance(group);
+            ospSetAffine3fv(instance, "xfm", affine_xform);
+        ospCommit(instance);
+        //ospRelease(group);
+    
+        scene_instances.push_back(instance);
+    }
+    
+    return true;
+}
+
+
+bool
 handle_update_object(TCPSocket *sock)
 {
     UpdateObject    update;
@@ -935,6 +985,10 @@ handle_update_object(TCPSocket *sock)
         add_geometry(update);
         break;
     
+    case UpdateObject::SCENE:
+        add_scene(update);
+        break;
+
     default:
         printf("WARNING: unhandled update type %s\n", UpdateObject_Type_descriptor()->FindValueByNumber(update.type())->name().c_str());
         break;
