@@ -150,6 +150,7 @@ struct PluginState
     // XXX need to store renderer type as well, for scene plugins,  
     // as an OSPGroup can indirectly link to an OSPMaterial (which is 
     // tied to specific renderer type)
+    // geometry/volume are renderer-independent, want to keep that
     
     // Custom properties set on the Blender mesh data.
     // XXX Will be updated by the server when needed.

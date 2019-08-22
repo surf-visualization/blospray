@@ -62,7 +62,7 @@ std::vector<OSPInstance>            scene_instances;
 int             framebuffer_width=0, framebuffer_height=0;
 bool            framebuffer_created = false;
 
-OSPMaterial         material;                       // XXX hack for now
+OSPMaterial         default_material;               // XXX hack for now, renderer-type dependent
 OSPTransferFunction cool2warm_transfer_function;    // XXX hack for now
 
 typedef std::map<std::string, OSPGeometry>      LoadedGeometriesMap;
@@ -333,15 +333,17 @@ prepare_renderers()
 {
     renderers["scivis"] = ospNewRenderer("scivis");
     
-    material = materials["scivis"] = ospNewMaterial("scivis", "OBJMaterial");
-        ospSetVec3f(material, "Kd", 0.8f, 0.8f, 0.8f);
-    ospCommit(material);
+    OSPMaterial m;
+    
+    m = materials["scivis"] = ospNewMaterial("scivis", "OBJMaterial");
+        ospSetVec3f(m, "Kd", 0.8f, 0.8f, 0.8f);
+    ospCommit(m);
     
     renderers["pathtracer"] = ospNewRenderer("pathtracer");    
 
-    material = materials["pathtracer"] = ospNewMaterial("pathtracer", "OBJMaterial");
-        ospSetVec3f(material, "Kd", 0.8f, 0.8f, 0.8f);
-    ospCommit(material);
+    m = materials["pathtracer"] = ospNewMaterial("pathtracer", "OBJMaterial");
+        ospSetVec3f(m, "Kd", 0.8f, 0.8f, 0.8f);
+    ospCommit(m);
 }
 
 void
@@ -812,7 +814,7 @@ add_blender_mesh(const UpdateObject& update)
     affine3fv_from_mat4(affine_xform, obj2world);
     
     OSPGeometricModel model = ospNewGeometricModel(geometry);        
-        ospSetObject(model, "material", material);
+        ospSetObject(model, "material", default_material);
     ospCommit(model);
     
     OSPData models = ospNewData(1, OSP_OBJECT, &model, 0);
@@ -857,7 +859,7 @@ add_geometry(const UpdateObject& update)
     affine3fv_from_mat4(affine_xform, obj2world);
     
     OSPGeometricModel model = ospNewGeometricModel(geometry);   
-        ospSetObject(model, "material", material);
+        ospSetObject(model, "material", default_material);
     ospCommit(model);
         
     OSPData models = ospNewData(1, OSP_OBJECT, &model, 0);
@@ -1016,6 +1018,8 @@ receive_scene(TCPSocket *sock)
     //ospSetBool(renderer, "shadowsEnabled", render_settings.shadows_enabled());        // XXX removed in 2.0?
     //ospSetInt(renderer, "spp", 1);
 
+    default_material = materials[renderer_type.c_str()];
+    
     // Update camera
     
     receive_protobuf(sock, camera_settings);
