@@ -691,7 +691,7 @@ class Connection:
         update.object2world[:] = matrix2list(matrix_world)
         update.data_link = mesh.name
         
-        custom_properties, plugin_parameters = self._process_properties2(mesh, False)
+        custom_properties, plugin_parameters = self._process_properties2(obj, False)
         update.custom_properties = json.dumps(custom_properties)
         
         if obj.ospray.ospray_override:

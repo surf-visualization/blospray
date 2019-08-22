@@ -862,7 +862,7 @@ handle_update_blender_mesh(TCPSocket *sock, const std::string& name)
     MeshData    mesh_data;
     
     if (!receive_protobuf(sock, mesh_data))
-        return false;
+        return false;    
     
     OSPData     data;
     
@@ -935,11 +935,13 @@ handle_update_blender_mesh(TCPSocket *sock, const std::string& name)
 
 bool
 handle_update_plugin_instance(TCPSocket *sock)
-{
+{    
     UpdatePluginInstance    update;
     
     if (!receive_protobuf(sock, update))
         return false;
+    
+    print_protobuf(update);
     
     std::string plugin_type;
     
@@ -954,10 +956,12 @@ handle_update_plugin_instance(TCPSocket *sock)
     case UpdatePluginInstance::SCENE:
         plugin_type = "scene";
         break;
-    }
+    }    
     
     const std::string &plugin_name = update.plugin_name();
-    printf("Plugin type '%s', name '%s'\n", plugin_type.c_str(), plugin_name.c_str());
+
+    printf("--- Updating plugin instance '%s' (type: %s, plugin: '%s') ---\n", 
+        update.name().c_str(), plugin_type.c_str(), plugin_name.c_str());
     
     const char *s_plugin_parameters = update.plugin_parameters().c_str();
     //printf("Received plugin parameters:\n%s\n", s_plugin_parameters);
@@ -1032,8 +1036,16 @@ handle_update_plugin_instance(TCPSocket *sock)
     {
     case UpdatePluginInstance::GEOMETRY:
         
-        // XXX
+        if (state->geometry == NULL)
+        {
+            send_protobuf(sock, result);
+
+            printf("ERROR: geometry generate function failed!\n");
+            return false;
+        }    
         
+        loaded_geometries[update.name()] = state->geometry;
+
         break;        
     
     case UpdatePluginInstance::VOLUME:
@@ -1110,12 +1122,60 @@ add_blender_mesh(const UpdateObject& update)
 
 
 bool
+add_geometry(const UpdateObject& update)
+{
+    printf("%s [OBJECT]\n", update.name().c_str());
+    printf("........ --> %s (OSPRay geometry)\n", update.data_link().c_str());
+    
+    LoadedGeometriesMap::iterator it = loaded_geometries.find(update.data_link());
+    
+    if (it == loaded_geometries.end())
+    {
+        printf("WARNING: linked geometry data '%s' not found!\n", update.data_link().c_str());
+        return false;
+    }
+    
+    OSPGeometry geometry = it->second;
+    assert(geometry != NULL);
+    
+    glm::mat4   obj2world;
+    float       affine_xform[12];
+    
+    object2world_from_protobuf(obj2world, update);
+    affine3fv_from_mat4(affine_xform, obj2world);
+    
+    OSPGeometricModel model = ospNewGeometricModel(geometry);   
+        ospSetObject(model, "material", material);
+    ospCommit(model);
+        
+    OSPData models = ospNewData(1, OSP_OBJECT, &model, 0);
+    
+    OSPGroup group = ospNewGroup();
+        ospSetData(group, "geometry", models);
+    ospCommit(group);
+    
+    ospRelease(model);
+    ospRelease(models);
+        
+    OSPInstance instance = ospNewInstance(group);
+        ospSetAffine3fv(instance, "xfm", affine_xform);
+    ospCommit(instance);
+    ospRelease(group);
+    
+    scene_instances.push_back(instance);
+    
+    return true;
+}
+
+bool
 handle_update_object(TCPSocket *sock)
 {
     UpdateObject    update;
     
     if (!receive_protobuf(sock, update))
         return false;
+    
+    print_protobuf(update);
     
     const char *s_custom_properties = update.custom_properties().c_str();
     //printf("Received custom properties:\n%s\n", s_custom_properties);    
@@ -1127,6 +1187,14 @@ handle_update_object(TCPSocket *sock)
     {
     case UpdateObject::MESH:
         add_blender_mesh(update);
+        break;
+
+    case UpdateObject::GEOMETRY:
+        add_geometry(update);
+        break;
+    
+    default:
+        printf("WARNING: unhandled update type %s\n", UpdateObject_Type_descriptor()->FindValueByNumber(update.type())->name().c_str());
         break;
     }
     
@@ -1360,20 +1428,6 @@ receive_scene(TCPSocket *sock)
         receive_protobuf(sock, element);
     }
     
-    // Setup world and scene objects
-    
-    OSPData instances = ospNewData(scene_instances.size(), OSP_OBJECT, &scene_instances[0], 0);
-    ospCommit(instances);
-    scene_instances.clear();        // XXX hmm, clearing scene here
-    
-    // XXX might not have to recreate world, only update instances
-    world = ospNewWorld();
-        // Check https://github.com/ospray/ospray/issues/277. Is bool setting fixed in 2.0?
-        ospSetBool(world, "compactMode", true);
-        ospSetData(world, "instance", instances);
-    ospCommit(world);
-    ospRelease(instances);
-    
     // Done!
     
     return true;
@@ -1560,6 +1614,26 @@ handle_query_bound(TCPSocket *sock, const std::string& name)
     return true;
 }
 
+bool
+prepare_scene()
+{
+    printf("Setting up world with %d instances\n", scene_instances.size());
+    
+    OSPData instances = ospNewData(scene_instances.size(), OSP_OBJECT, &scene_instances[0], 0);
+    ospCommit(instances);
+    scene_instances.clear();        // XXX hmm, clearing scene here
+    
+    // XXX might not have to recreate world, only update instances
+    world = ospNewWorld();
+        // Check https://github.com/ospray/ospray/issues/277. Is bool setting fixed in 2.0?
+        ospSetBool(world, "compactMode", true);
+        ospSetData(world, "instance", instances);
+    ospCommit(world);
+    ospRelease(instances);
+    
+    return true;
+}
+
 // Connection handling
 
 bool
@@ -1630,11 +1704,15 @@ handle_connection(TCPSocket *sock)
                     
                     //render_input_queue.clear();
                     //render_result_queue.clear();        // XXX handle any remaining results
-                
+                    
+                    // Setup world and scene objects
+                    prepare_scene();
+                    
                     // Start render thread
                     render_thread = std::thread(&render_thread_func, std::ref(render_input_queue), std::ref(render_result_queue));
                     
                     rendering = true;
+                    
                     break;
                     
                 case ClientMessage::CANCEL_RENDERING:

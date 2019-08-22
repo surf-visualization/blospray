@@ -33,6 +33,10 @@
 #endif
 #include <glm/gtc/type_ptr.hpp>
 
+// Protobuf message printing
+#include <google/protobuf/io/zero_copy_stream_impl.h>
+#include <google/protobuf/text_format.h>
+
 #include <ospray.h>
 #include "messages.pb.h"
 #include "tcpsocket.h"
@@ -199,6 +203,21 @@ object2world_from_protobuf(glm::mat4 &matrix, T& protobuf)
     M[13] = protobuf.object2world(7);
     M[14] = protobuf.object2world(11);
     M[15] = protobuf.object2world(15);    
+}
+
+template<typename T>
+void
+print_protobuf(const T& protobuf)
+{
+    google::protobuf::io::FileOutputStream* output = new google::protobuf::io::FileOutputStream(1);         // stdout
+    
+    // XXX add message type
+    printf("--- %s message ---\n", protobuf.GetTypeName().c_str());
+    bool success = google::protobuf::TextFormat::Print(protobuf, output);
+    output->Flush();
+    printf("------------------------\n");
+        
+    delete output;
 }
 
 // https://stackoverflow.com/a/39833022/9296788

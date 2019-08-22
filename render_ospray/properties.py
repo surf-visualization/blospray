@@ -210,7 +210,7 @@ class RenderOspraySettingsMesh(PropertyGroup):
     plugin_enabled: BoolProperty(
         name='Plugin enabled',
         description='Controls if the plugin is executed on the server',
-        default = True
+        default = False
         )
     
     
