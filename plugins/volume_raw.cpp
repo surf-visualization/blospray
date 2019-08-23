@@ -409,7 +409,7 @@ create_volume(float *bbox,
         OSPData voxelData = ospNewData(dims[0]*dims[1]*dims[2], dataType, grid_field_values);//, OSP_DATA_SHARED_BUFFER);   
         ospCommit(voxelData);
     
-        ospSetData(volume, "voxelData", voxelData);
+        ospSetObject(volume, "voxelData", voxelData);
         ospRelease(voxelData);
 
         ospSetInt(volume, "voxelType", dataType);

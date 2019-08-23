@@ -429,6 +429,8 @@ class Connection:
         update.data_link = mesh.name
         
         custom_properties, plugin_parameters = self._process_properties2(obj, False)
+        assert len(plugin_parameters.keys()) == 0
+        
         update.custom_properties = json.dumps(custom_properties)
         
         if obj.ospray.ospray_override:
@@ -458,8 +460,8 @@ class Connection:
                         update.type = UpdateObject.SLICES
                         # XXX process child objects for slices
                     elif volume_usage == 'isosurfaces':
+                        # Isosurface values are read from the custom property 'isovalue'
                         update.type = UpdateObject.ISOSURFACES
-                        # Isosurface values are read from the custom properties
                         
         else:
             # Regular blender Mesh object

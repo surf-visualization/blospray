@@ -348,7 +348,7 @@ prepare_renderers()
 }
 
 void
-prepare_builtin_transfer_function(float minval=0.0f, float maxval=255.0f)
+prepare_builtin_transfer_function(float minval=0.0f, float maxval=/*255.0f*/5.08f)
 {
     float tf_colors[3*cool2warm_entries];
     float tf_opacities[cool2warm_entries];
@@ -366,104 +366,15 @@ prepare_builtin_transfer_function(float minval=0.0f, float maxval=255.0f)
         ospSetVec2f(cool2warm_transfer_function, "valueRange", minval, maxval);
 
         OSPData color_data = ospNewData(cool2warm_entries, OSP_VEC3F, tf_colors);
-        ospSetData(cool2warm_transfer_function, "colors", color_data);
+        ospSetData(cool2warm_transfer_function, "color", color_data);
         ospRelease(color_data);
 
+        // XXX color and opacity can be decoupled?
         OSPData opacity_data = ospNewData(cool2warm_entries, OSP_FLOAT, tf_opacities);
-        ospSetData(cool2warm_transfer_function, "opacities", opacity_data);
+        ospSetData(cool2warm_transfer_function, "opacity", opacity_data);
         ospRelease(opacity_data);
 
     ospCommit(cool2warm_transfer_function);
-}
-
-bool
-receive_and_add_ospray_volume_object(TCPSocket *sock, const SceneElement& element)
-{
-    // Object-to-world matrix
-
-    glm::mat4   obj2world;
-    float       affine_xform[12];
-
-    object2world_from_protobuf(obj2world, element);
-    affine3fv_from_mat4(affine_xform, obj2world);
-
-    // From Blender custom properties
-
-    const char *encoded_properties = element.properties().c_str();
-    printf("Received volume object properties:\n%s\n", encoded_properties);
-
-    const json &properties = json::parse(encoded_properties);
-
-    printf("%s [OBJECT]\n", element.name().c_str());
-    printf("........ --> %s (ospray volume)\n", element.data_link().c_str());
-    printf("Properties:\n");
-    printf("%s\n", properties.dump(4).c_str());
-
-    LoadedVolumesMap::iterator it = loaded_volumes.find(element.data_link());
-
-    if (it == loaded_volumes.end())
-    {
-        printf("WARNING: linked volume data '%s' not found!\n", element.data_link().c_str());
-        return false;
-    }
-
-    OSPVolume volume = it->second;
-
-    OSPVolumetricModel volume_model = ospNewVolumetricModel(volume);
-
-        // Set up further volume properties
-        // XXX not sure these are handled correctly, and working in API2
-
-        if (properties.find("sampling_rate") != properties.end())
-            ospSetFloat(volume_model,  "samplingRate", properties["sampling_rate"].get<float>());
-        else
-            ospSetFloat(volume_model,  "samplingRate", 0.1f);
-
-        /*
-        if (properties.find("gradient_shading") != properties.end())
-            ospSetBool(volume_model,  "gradientShadingEnabled", properties["gradient_shading"].get<bool>());
-        else
-            ospSetBool(volume_model,  "gradientShadingEnabled", false);
-
-        if (properties.find("pre_integration") != properties.end())
-            ospSetBool(volume_model,  "preIntegration", properties["pre_integration"].get<bool>());
-        else
-            ospSetBool(volume_model,  "preIntegration", false);
-
-        if (properties.find("single_shade") != properties.end())
-            ospSetBool(volume_model,  "singleShade", properties["single_shade"].get<bool>());
-        else
-            ospSetBool(volume_model,  "singleShade", true);
-
-        ospSetBool(volume_model, "adaptiveSampling", false);
-        */
-
-        ospSetObject(volume_model, "transferFunction", cool2warm_transfer_function);
-
-    ospCommit(volume_model);
-
-    OSPGroup group = ospNewGroup();
-        OSPData data = ospNewData(1, OSP_OBJECT, &volume_model, 0);
-        ospSetData(group, "volume", data);
-        //ospRelease(volume_model);
-    ospCommit(group);
-
-    OSPInstance instance = ospNewInstance(group);
-        ospSetAffine3fv(instance, "xfm", affine_xform);
-    ospCommit(instance);
-    ospRelease(group);
-
-    scene_instances.push_back(instance);
-
-#if 0
-    // See https://github.com/ospray/ospray/pull/165, support for volume transformations was reverted
-    ospSetVec3f(volume, "xfm.l.vx", osp::vec3f{ obj2world[0], obj2world[4], obj2world[8] });
-    ospSetVec3f(volume, "xfm.l.vy", osp::vec3f{ obj2world[1], obj2world[5], obj2world[9] });
-    ospSetVec3f(volume, "xfm.l.vz", osp::vec3f{ obj2world[2], obj2world[6], obj2world[10] });
-    ospSetVec3f(volume, "xfm.p", osp::vec3f{ obj2world[3], obj2world[7], obj2world[11] });
-#endif
-
-    return true;
 }
 
 /*
@@ -471,45 +382,6 @@ receive_and_add_ospray_volume_object(TCPSocket *sock, const SceneElement& elemen
 
     // XXX need to use the representation property set
 
-    if (properties.find("isovalues") != properties.end())
-    {
-        // Isosurfacing
-
-        printf("Property 'isovalues' set, representing volume with isosurface(s)\n");
-
-        json isovalues_prop = properties["isovalues"];
-        int n = isovalues_prop.size();
-
-        float *isovalues = new float[n];
-        for (int i = 0; i < n; i++)
-            isovalues[i] = isovalues_prop[i];
-
-        OSPData isovaluesData = ospNewData(n, OSP_FLOAT, isovalues);
-        ospCommit(isovaluesData);
-        delete [] isovalues;
-
-        OSPGeometry isosurface = ospNewGeometry("isosurfaces");
-
-            ospSetObject(isosurface, "volume", volume_model);       // XXX need volume here, not the volume model!
-            ospRelease(volume_model);
-
-            ospSetData(isosurface, "isovalues", isovaluesData);
-            ospRelease(isovaluesData);
-
-        ospCommit(isosurface);
-
-        OSPGeometricModel model = ospNewGeometricModel(isosurface);
-        ospCommit(model);
-        ospRelease(isosurface);
-
-        OSPData data = ospNewData(1, OSP_OBJECT, &model, 0);
-        ospCommit(data);
-        ospRelease(model);
-
-        ospSetData(instance, "geometries", data);
-        ospCommit(instance);
-        ospRelease(data);
-    }
     else if (properties.find("slice_plane") != properties.end())
     {
         // Slice plane (only a single one supported, atm)
@@ -733,14 +605,21 @@ handle_update_plugin_instance(TCPSocket *sock)
     printf("Calling generate function\n");
     gettimeofday(&t0, NULL);
 
-    float       bbox[6];
-
     generate_function(result, state);
 
     gettimeofday(&t1, NULL);
     printf("Generate function executed in %.3fs\n", time_diff(t0, t1));
+    
+    if (!result.success())
+    {
+        printf("ERROR: generate function failed:\n");
+        printf("... %s\n", result.message().c_str());
+        send_protobuf(sock, result);
+        return false;
+    }
 
     // Handle any other business for this type of plugin
+    // XXX set result.success to false?
 
     switch (update.type())
     {
@@ -750,7 +629,7 @@ handle_update_plugin_instance(TCPSocket *sock)
         {
             send_protobuf(sock, result);
 
-            printf("ERROR: geometry generate function failed!\n");
+            printf("ERROR: geometry generate function did not set an OSPGeometry!\n");
             return false;
         }
 
@@ -764,7 +643,7 @@ handle_update_plugin_instance(TCPSocket *sock)
         {
             send_protobuf(sock, result);
 
-            printf("ERROR: volume generate function failed!\n");
+            printf("ERROR: volume generate function did not set an OSPVolume!\n");
             return false;
         }
 
@@ -983,7 +862,7 @@ add_volume(const UpdateObject& update)
 
     OSPGroup group = ospNewGroup();
         OSPData data = ospNewData(1, OSP_OBJECT, &volume_model, 0);
-        ospSetData(group, "volume", data);
+        ospSetObject(group, "volume", data);                        // XXX why ospSetObject?
         //ospRelease(volume_model);
     ospCommit(group);
 
@@ -1012,6 +891,85 @@ add_volume(const UpdateObject& update)
 }
 
 bool
+add_isosurfaces(const UpdateObject& update)
+{
+    printf("%s [OBJECT]\n", update.name().c_str());
+    printf("........ --> %s (OSPRay volume)\n", update.data_link().c_str());
+
+    LoadedVolumesMap::iterator it = loaded_volumes.find(update.data_link());
+
+    if (it == loaded_volumes.end())
+    {
+        printf("WARNING: linked volume data '%s' not found!\n", update.data_link().c_str());
+        return false;
+    }
+
+    OSPVolume volume = it->second;
+
+    const char *s_custom_properties = update.custom_properties().c_str();
+    //printf("Received custom properties:\n%s\n", s_custom_properties);
+    const json &custom_properties = json::parse(s_custom_properties);
+    printf("Custom properties:\n");
+    printf("%s\n", custom_properties.dump(4).c_str());
+    
+    if (custom_properties.find("isovalues") == custom_properties.end())
+    {
+        printf("WARNING: no property 'isovalues' set on object!\n");
+        return false;
+    }
+
+    const json& isovalues_prop = custom_properties["isovalues"];
+    int n = isovalues_prop.size();
+
+    float *isovalues = new float[n];
+    for (int i = 0; i < n; i++)
+    {        
+        isovalues[i] = isovalues_prop[i];
+        printf("Isovalue #%d: %.3f\n", i, isovalues[i]);
+    }
+
+    OSPData isovalues_data = ospNewData(n, OSP_FLOAT, isovalues);
+    ospCommit(isovalues_data);
+    delete [] isovalues;
+
+    OSPGeometry isosurface = ospNewGeometry("isosurfaces");
+
+        ospSetObject(isosurface, "volume", volume);       
+        ospRelease(volume);
+
+        ospSetData(isosurface, "isovalue", isovalues_data);
+        ospRelease(isovalues_data);
+
+    ospCommit(isosurface);
+
+    OSPGeometricModel model = ospNewGeometricModel(isosurface);
+        ospSetObject(model, "material", default_material);
+    ospCommit(model);
+    ospRelease(isosurface);
+    
+    OSPGroup group = ospNewGroup();
+        OSPData data = ospNewData(1, OSP_OBJECT, &model, 0);
+        ospSetObject(group, "geometry", data);                  // SetObject or SetData?
+        //ospRelease(model);
+    ospCommit(group);
+ 
+    glm::mat4   obj2world;
+    float       affine_xform[12];
+
+    object2world_from_protobuf(obj2world, update);
+    affine3fv_from_mat4(affine_xform, obj2world);
+
+    OSPInstance instance = ospNewInstance(group);
+        ospSetAffine3fv(instance, "xfm", affine_xform);
+    ospCommit(instance);
+    ospRelease(group);
+
+    scene_instances.push_back(instance);
+    
+    return true;
+}
+
+bool
 handle_update_object(TCPSocket *sock)
 {
     UpdateObject    update;
@@ -1019,7 +977,7 @@ handle_update_object(TCPSocket *sock)
     if (!receive_protobuf(sock, update))
         return false;
 
-    print_protobuf(update);
+    //print_protobuf(update);
 
     const char *s_custom_properties = update.custom_properties().c_str();
     //printf("Received custom properties:\n%s\n", s_custom_properties);
@@ -1043,6 +1001,10 @@ handle_update_object(TCPSocket *sock)
 
     case UpdateObject::VOLUME:
         add_volume(update);
+        break;
+
+    case UpdateObject::ISOSURFACES:
+        add_isosurfaces(update);
         break;
 
     default:
@@ -1241,11 +1203,11 @@ receive_scene(TCPSocket *sock)
 
     ospCommit(osp_light);
 
-    OSPData light_data = ospNewData(num_lights+1, OSP_LIGHT, osp_lights, 0);
+    OSPData light_data = ospNewData(num_lights+1, OSP_OBJECT, osp_lights, 0);
     ospCommit(light_data);
     //delete [] osp_lights;
 
-    ospSetObject(renderer, "light", light_data);
+    ospSetData(renderer, "light", light_data);
 
     ospCommit(renderer);
 
@@ -1259,12 +1221,6 @@ receive_scene(TCPSocket *sock)
     // XXX use function table
     while (element.type() != SceneElement::NONE)
     {
-        if (element.type() == SceneElement::VOLUME_OBJECT)
-        {
-            receive_and_add_ospray_volume_object(sock, element);
-        }
-        // else XXX
-
         // Get next element
         // XXX check return value
         receive_protobuf(sock, element);
