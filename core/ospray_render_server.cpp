@@ -34,6 +34,8 @@
 #include <condition_variable>
 
 #include <ospray/ospray.h>
+#include <ospray/ospray_testing/ospray_testing.h>
+
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/string_cast.hpp>      // to_string()
 
@@ -348,7 +350,7 @@ prepare_renderers()
 }
 
 void
-prepare_builtin_transfer_function(float minval=0.0f, float maxval=/*255.0f*/5.08f)
+prepare_builtin_transfer_function(float minval=0.0f, float maxval=/*255.0f*/ 10.0f)
 {
     float tf_colors[3*cool2warm_entries];
     float tf_opacities[cool2warm_entries];
@@ -361,6 +363,7 @@ prepare_builtin_transfer_function(float minval=0.0f, float maxval=/*255.0f*/5.08
         tf_colors[3*i+2] = cool2warm[4*i+3];
     }
 
+    /*
     cool2warm_transfer_function = ospNewTransferFunction("piecewise_linear");
 
         ospSetVec2f(cool2warm_transfer_function, "valueRange", minval, maxval);
@@ -375,59 +378,12 @@ prepare_builtin_transfer_function(float minval=0.0f, float maxval=/*255.0f*/5.08
         ospRelease(opacity_data);
 
     ospCommit(cool2warm_transfer_function);
+    */
+    
+    osp_vec2f voxelRange = { 0.0f, 100.0f };
+    
+    cool2warm_transfer_function = ospTestingNewTransferFunction(voxelRange, "jet");
 }
-
-/*
-
-
-    // XXX need to use the representation property set
-
-    else if (properties.find("slice_plane") != properties.end())
-    {
-        // Slice plane (only a single one supported, atm)
-
-        printf("Property 'slice_plane' set, representing volume with slice plane\n");
-
-        json slice_plane_prop = properties["slice_plane"];
-
-        if (slice_plane_prop.size() == 4)
-        {
-            float plane[4];
-            for (int i = 0; i < 4; i++)
-                plane[i] = slice_plane_prop[i];
-            printf("plane: %.3f, %3f, %.3f, %.3f\n", plane[0], plane[1], plane[2], plane[3]);
-
-            OSPData planeData = ospNewData(1, OSP_VEC4F, plane);
-            ospCommit(planeData);
-
-            OSPGeometry slices = ospNewGeometry("slices");
-
-                ospSetObject(slices, "volume", volume_model);   // XXX need volume here, not the volume model!
-                ospRelease(volume_model);
-
-                ospSetData(slices, "planes", planeData);
-                ospRelease(planeData);
-
-            ospCommit(slices);
-
-            OSPGeometricModel model = ospNewGeometricModel(slices);
-            ospCommit(model);
-            ospRelease(slices);
-
-            OSPData data = ospNewData(1, OSP_OBJECT, &model, 0);
-            ospCommit(data);
-            ospRelease(model);
-
-            ospSetData(instance, "geometries", data);
-            ospCommit(instance);
-            ospRelease(data);
-        }
-        else
-        {
-            fprintf(stderr, "ERROR: slice_plane attribute should contain list of 4 floats values!\n");
-        }
-    }
-*/
 
 bool
 handle_update_blender_mesh(TCPSocket *sock, const std::string& name)
@@ -970,6 +926,85 @@ add_isosurfaces(const UpdateObject& update)
 }
 
 bool
+add_slices(const UpdateObject& update)
+{
+    printf("%s [OBJECT]\n", update.name().c_str());
+    printf("........ --> %s (OSPRay volume)\n", update.data_link().c_str());
+
+    LoadedVolumesMap::iterator it = loaded_volumes.find(update.data_link());
+
+    if (it == loaded_volumes.end())
+    {
+        printf("WARNING: linked volume data '%s' not found!\n", update.data_link().c_str());
+        return false;
+    }
+
+    OSPVolume volume = it->second;
+
+    const char *s_custom_properties = update.custom_properties().c_str();
+    //printf("Received custom properties:\n%s\n", s_custom_properties);
+    const json &custom_properties = json::parse(s_custom_properties);
+    printf("Custom properties:\n");
+    printf("%s\n", custom_properties.dump(4).c_str());
+    
+    if (custom_properties.find("slice_plane") == custom_properties.end())
+    {
+        printf("WARNING: no property 'slice_plane' set on object!\n");
+        return false;
+    }
+    
+    // XXX Only a single slice plane at
+    json slice_plane_prop = custom_properties["slice_plane"];
+            
+    if (slice_plane_prop.size() != 4)
+    {
+        fprintf(stderr, "ERROR: slice_plane attribute should contain list of 4 floats values!\n");
+        return false;
+    }
+    
+    float plane[4];
+    for (int i = 0; i < 4; i++)
+        plane[i] = slice_plane_prop[i];
+    printf("plane: %.3f, %3f, %.3f, %.3f\n", plane[0], plane[1], plane[2], plane[3]);
+
+    OSPData planeData = ospNewData(1, OSP_VEC4F, plane);
+    ospCommit(planeData);
+
+    OSPGeometry slices = ospNewGeometry("slices");
+        ospSetObject(slices, "volume", volume);
+        //ospRelease(volume);
+        ospSetData(slices, "plane", planeData);
+        ospRelease(planeData);
+    ospCommit(slices);
+        
+    OSPGeometricModel model = ospNewGeometricModel(slices);
+        ospSetObject(model, "material", default_material);
+    ospCommit(model);
+    ospRelease(slices);
+    
+    OSPGroup group = ospNewGroup();
+        OSPData data = ospNewData(1, OSP_OBJECT, &model, 0);
+        ospSetObject(group, "geometry", data);                  // SetObject or SetData?
+        //ospRelease(model);
+    ospCommit(group);
+ 
+    glm::mat4   obj2world;
+    float       affine_xform[12];
+
+    object2world_from_protobuf(obj2world, update);
+    affine3fv_from_mat4(affine_xform, obj2world);
+
+    OSPInstance instance = ospNewInstance(group);
+        ospSetAffine3fv(instance, "xfm", affine_xform);
+    ospCommit(instance);
+    ospRelease(group);
+
+    scene_instances.push_back(instance);
+    
+    return true;
+}
+
+bool
 handle_update_object(TCPSocket *sock)
 {
     UpdateObject    update;
@@ -1005,6 +1040,10 @@ handle_update_object(TCPSocket *sock)
 
     case UpdateObject::ISOSURFACES:
         add_isosurfaces(update);
+        break;
+    
+    case UpdateObject::SLICES:
+        add_slices(update);
         break;
 
     default:
@@ -1135,6 +1174,8 @@ receive_scene(TCPSocket *sock)
     ospCommit(camera);
 
     // Lights
+    
+    //OSPData lightsData = ospTestingNewLights("ambient_only");
 
     receive_protobuf(sock, light_settings);
 

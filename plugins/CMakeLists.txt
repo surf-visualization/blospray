@@ -33,6 +33,17 @@ target_include_directories(volume_raw
     ${CMAKE_CURRENT_BINARY_DIR}
 )
 
+# volume_testing
+
+add_library(volume_testing SHARED volume_testing.cpp)
+set_target_properties(volume_testing PROPERTIES PREFIX "")   
+target_link_libraries(volume_testing PUBLIC ${OSPRAY_LIBRARIES} ospray::ospray_testing)
+target_include_directories(volume_testing
+    PUBLIC
+    ${PROTOBUF_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_BINARY_DIR}
+)
+
 # geometry_plane
 
 add_library(geometry_plane SHARED geometry_plane.cpp)
@@ -81,6 +92,7 @@ endif(PLUGIN_COSMOGRID)
 
 install(TARGETS 
     volume_raw 
+    volume_testing
     geometry_plane
     scene_rbc
     DESTINATION bin)
