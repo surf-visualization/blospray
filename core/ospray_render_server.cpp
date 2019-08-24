@@ -349,40 +349,45 @@ prepare_renderers()
     ospCommit(m);
 }
 
-void
-prepare_builtin_transfer_function(float minval=0.0f, float maxval=/*255.0f*/ 10.0f)
+OSPTransferFunction
+create_transfer_function(const std::string& name, float minval, float maxval)
 {
-    float tf_colors[3*cool2warm_entries];
-    float tf_opacities[cool2warm_entries];
-
-    for (int i = 0; i < cool2warm_entries; i++)
-    {
-        tf_opacities[i]  = cool2warm[4*i+0];
-        tf_colors[3*i+0] = cool2warm[4*i+1];
-        tf_colors[3*i+1] = cool2warm[4*i+2];
-        tf_colors[3*i+2] = cool2warm[4*i+3];
+	if (name == "jet")
+	{
+		osp_vec2f voxelRange = { minval, maxval };
+		return ospTestingNewTransferFunction(voxelRange, "jet");
     }
+    else if (name == "cool2warm")
+    {
+		// XXX should do this only once
+	    float tf_colors[3*cool2warm_entries];
+	    float tf_opacities[cool2warm_entries];
 
-    /*
-    cool2warm_transfer_function = ospNewTransferFunction("piecewise_linear");
+	    for (int i = 0; i < cool2warm_entries; i++)
+	    {
+	        tf_opacities[i]  = cool2warm[4*i+0];
+	        tf_colors[3*i+0] = cool2warm[4*i+1];
+	        tf_colors[3*i+1] = cool2warm[4*i+2];
+	        tf_colors[3*i+2] = cool2warm[4*i+3];
+	    }
+    	cool2warm_transfer_function = ospNewTransferFunction("piecewise_linear");
 
-        ospSetVec2f(cool2warm_transfer_function, "valueRange", minval, maxval);
+        	ospSetVec2f(cool2warm_transfer_function, "valueRange", minval, maxval);
 
-        OSPData color_data = ospNewData(cool2warm_entries, OSP_VEC3F, tf_colors);
-        ospSetData(cool2warm_transfer_function, "color", color_data);
-        ospRelease(color_data);
+        	OSPData color_data = ospNewData(cool2warm_entries, OSP_VEC3F, tf_colors);
+        	ospSetData(cool2warm_transfer_function, "color", color_data);
+        	ospRelease(color_data);
 
-        // XXX color and opacity can be decoupled?
-        OSPData opacity_data = ospNewData(cool2warm_entries, OSP_FLOAT, tf_opacities);
-        ospSetData(cool2warm_transfer_function, "opacity", opacity_data);
-        ospRelease(opacity_data);
+        	// XXX color and opacity can be decoupled?
+        	OSPData opacity_data = ospNewData(cool2warm_entries, OSP_FLOAT, tf_opacities);
+        	ospSetData(cool2warm_transfer_function, "opacity", opacity_data);
+        	ospRelease(opacity_data);
 
-    ospCommit(cool2warm_transfer_function);
-    */
-    
-    osp_vec2f voxelRange = { 0.0f, 10.0f };
-    
-    cool2warm_transfer_function = ospTestingNewTransferFunction(voxelRange, "jet");
+    	ospCommit(cool2warm_transfer_function);
+    	return cool2warm_transfer_function;
+	}
+
+    return nullptr;
 }
 
 bool
@@ -812,7 +817,9 @@ add_volume(const UpdateObject& update)
         ospSetBool(volume_model, "adaptiveSampling", false);
         */
 
-        ospSetObject(volume_model, "transferFunction", cool2warm_transfer_function);
+        // XXX need plugin instance for the volume_data_range
+        OSPTransferFunction tf = create_transfer_function("cool2warm", 0.0f, 5.1f);
+        ospSetObject(volume_model, "transferFunction", tf);
 
     ospCommit(volume_model);
 
@@ -1671,7 +1678,6 @@ main(int argc, const char **argv)
 
     // Prepare some things
     prepare_renderers();
-    prepare_builtin_transfer_function();
 
     // Server loop
 

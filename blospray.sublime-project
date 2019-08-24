@@ -1,0 +1,13 @@
+{
+	"build_systems":
+	[
+		{
+			"name": "all",
+			"cmd": "./stbuild.sh",
+			"shell": true,
+			"working_dir": "$project_path",
+			"selector": "source.cpp",
+			"file_regex": "^(..[^:]*):([0-9]+):?([0-9]+)?:? (.*)$"
+		}
+	]
+}
