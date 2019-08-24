@@ -1,1 +1,267 @@
-{}
+{
+	"auto_complete":
+	{
+		"selected_items":
+		[
+			[
+				"cool",
+				"cool2warm_transfer_function"
+			]
+		]
+	},
+	"buffers":
+	[
+		{
+			"file": "core/ospray_render_server.cpp",
+			"settings":
+			{
+				"buffer_size": 51345,
+				"encoding": "UTF-8",
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "core/plugin.h",
+			"settings":
+			{
+				"buffer_size": 12317,
+				"line_ending": "Unix"
+			}
+		}
+	],
+	"build_system": "",
+	"build_system_choices":
+	[
+	],
+	"build_varint": "",
+	"command_palette":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"console":
+	{
+		"height": 164.0,
+		"history":
+		[
+		]
+	},
+	"distraction_free":
+	{
+		"menu_visible": true,
+		"show_minimap": false,
+		"show_open_files": false,
+		"show_tabs": false,
+		"side_bar_visible": false,
+		"status_bar_visible": false
+	},
+	"file_history":
+	[
+		"/home/melis/concepts/blender-ospray-engine/blospray.sublime-project",
+		"/home/melis/concepts/blender-ospray-engine/render_ospray/connection.py",
+		"/home/melis/concepts/blender-ospray-engine/core/plugin.h",
+		"/home/melis/c/ospray-git/apps/tutorials/ospTutorialStructuredVolume.cpp",
+		"/home/melis/concepts/blender-ospray-engine/core/ospray_render_server.cpp",
+		"/home/melis/concepts/blender-ospray-engine/untitled.sublime-project",
+		"/home/melis/concepts/blender-ospray-engine/stbuild.sublime-build",
+		"/home/melis/concepts/blender-ospray-engine/docs/todo.txt",
+		"/home/melis/concepts/blender-ospray-engine/docs/notes.txt",
+		"/home/melis/concepts/blender-ospray-engine/plugins/volume_testing.cpp"
+	],
+	"find":
+	{
+		"height": 59.0
+	},
+	"find_in_files":
+	{
+		"height": 0.0,
+		"where_history":
+		[
+		]
+	},
+	"find_state":
+	{
+		"case_sensitive": false,
+		"find_history":
+		[
+			"tf_color",
+			"switch",
+			"cool2warm",
+			"add_isosurfaces",
+			"lower",
+			"UPDATE_OBJECT"
+		],
+		"highlight": true,
+		"in_selection": false,
+		"preserve_case": false,
+		"regex": false,
+		"replace_history":
+		[
+			"upper"
+		],
+		"reverse": false,
+		"show_context": true,
+		"use_buffer2": true,
+		"whole_word": false,
+		"wrap": true
+	},
+	"groups":
+	[
+		{
+			"selected": 0,
+			"sheets":
+			[
+				{
+					"buffer": 0,
+					"file": "core/ospray_render_server.cpp",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 51345,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								24572,
+								24572
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/C++/C++.sublime-syntax",
+							"tab_size": 4,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 14968.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 0,
+					"type": "text"
+				},
+				{
+					"buffer": 1,
+					"file": "core/plugin.h",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 12317,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								7414,
+								7414
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/C++/C++.sublime-syntax",
+							"tab_size": 4,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 2948.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 1,
+					"type": "text"
+				}
+			]
+		}
+	],
+	"incremental_find":
+	{
+		"height": 28.0
+	},
+	"input":
+	{
+		"height": 0.0
+	},
+	"layout":
+	{
+		"cells":
+		[
+			[
+				0,
+				0,
+				1,
+				1
+			]
+		],
+		"cols":
+		[
+			0.0,
+			1.0
+		],
+		"rows":
+		[
+			0.0,
+			1.0
+		]
+	},
+	"menu_visible": true,
+	"output.exec":
+	{
+		"height": 151.0
+	},
+	"output.find_results":
+	{
+		"height": 0.0
+	},
+	"pinned_build_system": "all",
+	"project": "blospray.sublime-project",
+	"replace":
+	{
+		"height": 52.0
+	},
+	"save_all_on_build": true,
+	"select_file":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_project":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_symbol":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"selected_group": 0,
+	"settings":
+	{
+	},
+	"show_minimap": true,
+	"show_open_files": true,
+	"show_tabs": true,
+	"side_bar_visible": true,
+	"side_bar_width": 234.0,
+	"status_bar_visible": true,
+	"template_settings":
+	{
+	}
+}
