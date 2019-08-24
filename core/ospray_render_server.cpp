@@ -380,7 +380,7 @@ prepare_builtin_transfer_function(float minval=0.0f, float maxval=/*255.0f*/ 10.
     ospCommit(cool2warm_transfer_function);
     */
     
-    osp_vec2f voxelRange = { 0.0f, 100.0f };
+    osp_vec2f voxelRange = { 0.0f, 10.0f };
     
     cool2warm_transfer_function = ospTestingNewTransferFunction(voxelRange, "jet");
 }
@@ -885,12 +885,18 @@ add_isosurfaces(const UpdateObject& update)
     }
 
     OSPData isovalues_data = ospNewData(n, OSP_FLOAT, isovalues);
-    ospCommit(isovalues_data);
+    ospCommit(isovalues_data);	// XXX double-check if a commit is needed for ospNewData, tut examples don't seem to use it
     delete [] isovalues;
+
+    // XXX hacked temp volume module
+    auto volumeModel = ospNewVolumetricModel(volume);
+  		ospSetObject(volumeModel, "transferFunction", cool2warm_transfer_function);
+  		ospSetFloat(volumeModel, "samplingRate", 0.5f);
+  	ospCommit(volumeModel);
 
     OSPGeometry isosurface = ospNewGeometry("isosurfaces");
 
-        ospSetObject(isosurface, "volume", volume);       
+        ospSetObject(isosurface, "volume", volumeModel);       		// XXX structured vol example indicates this needs to be the volume model??
         ospRelease(volume);
 
         ospSetData(isosurface, "isovalue", isovalues_data);

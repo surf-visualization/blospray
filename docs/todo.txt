@@ -3,8 +3,9 @@ Port plugin geometry_cosmogrid to new style
 Broken in ospray 2?
 - path tracer doesn't listen to alpha value in bgColor. it always returns
   a framebuffer with alpha 0
-- scivis renderer segfaults on almost all scenes
-- 
+  -> bgColor is not valid and never was, see https://github.com/ospray/ospray/issues/347
+- isosurfaces geometry need ref to volume *model* apparently, although docs
+  say OSPVolume
 
 
 
