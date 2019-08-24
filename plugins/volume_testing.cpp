@@ -36,7 +36,15 @@ generate(GenerateFunctionResult &result, PluginState *state)
     OSPTestingVolume test_data = ospTestingNewVolume("gravity_spheres_volume");
     
     OSPVolume volume = test_data.volume;
-    osp_vec2f voxelRange = test_data.voxelRange;
+
+    const osp_vec2f& voxelRange = test_data.voxelRange;
+    const osp_box3f& bounds = test_data.bounds;
+
+    printf("volume data range: %.6f %.6f\n", voxelRange.x, voxelRange.y);
+    printf("volume bound: %.6f %.6f %.6f -> %.6f %.6f %.6f\n",
+        bounds.lower.x, bounds.lower.y, bounds.lower.z,
+        bounds.upper.x, bounds.upper.y, bounds.upper.z
+        );
     
     /*
     OSPTransferFunction tfn =
@@ -53,13 +61,9 @@ generate(GenerateFunctionResult &result, PluginState *state)
     state->volume = volume;
     state->volume_data_range[0] = voxelRange.x;
     state->volume_data_range[1] = voxelRange.y;
-    printf("volume data range: %.6f %.6f\n", voxelRange.x, voxelRange.y);
-    
     state->bound = BoundingMesh::bbox_mesh(
-        //bbox[0], bbox[1], bbox[2],
-        //bbox[3], bbox[4], bbox[5]
-        0, 0, 0,
-        10, 10, 10
+        bounds.lower.x, bounds.lower.y, bounds.lower.z,
+        bounds.upper.x, bounds.upper.y, bounds.upper.z
     );
 }
 

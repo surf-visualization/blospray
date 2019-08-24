@@ -168,6 +168,7 @@ struct PluginState
     // Volume plugin:
     OSPVolume       volume;
     float           volume_data_range[2];
+    // XXX could add optional TF
     
     // Geometry plugin:
     OSPGeometry     geometry;    
