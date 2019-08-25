@@ -39,7 +39,8 @@ from .messages_pb2 import (
     SceneElement, MeshData,
     ClientMessage, GenerateFunctionResult,
     RenderResult,
-    UpdateObject, UpdatePluginInstance
+    UpdateObject, UpdatePluginInstance,
+    Slices, Slice
 )
 
 # Object to world matrix
@@ -432,6 +433,8 @@ class Connection:
         assert len(plugin_parameters.keys()) == 0
         
         update.custom_properties = json.dumps(custom_properties)
+
+        extra = []
         
         if obj.ospray.ospray_override:
             
@@ -458,7 +461,35 @@ class Connection:
                         update.type = UpdateObject.VOLUME
                     elif volume_usage == 'slices':
                         update.type = UpdateObject.SLICES
-                        # XXX process child objects for slices
+                        #  Process child objects for slices
+                        ss = []
+                        # XXX Apparently the depsgraph leaves out the parenting?
+                        # XXX need to ingore slice object itself in export
+                        children = depsgraph.scene.objects[obj.name].children
+                        print('obj %s: %d CHILDREN' % (obj, len(children)))
+
+                        for childobj in children:
+                            # Untransformed plane object has (a,b,c)=(0,0,1); d=0
+                            p = Vector((0, 0, 0))
+                            n = Vector((0, 0, 1))
+                            M = childobj.matrix_local
+                            p = M @ p
+                            n = M @ n
+                            print(M, '->', p, n)
+                            n = (n - p).normalized()
+                            d = p.length
+                            print(n, d)
+                            slice = Slice()
+                            slice.a = n.x
+                            slice.b = n.y
+                            slice.c = n.z
+                            slice.d = d
+                            ss.append(slice)
+
+                        slices = Slices()
+                        slices.slices.extend(ss)
+                        extra.append(slices)
+
                     elif volume_usage == 'isosurfaces':
                         # Isosurface values are read from the custom property 'isovalue'
                         update.type = UpdateObject.ISOSURFACES
@@ -468,7 +499,9 @@ class Connection:
             update.type = UpdateObject.MESH
     
         send_protobuf(self.sock, client_message)
-        send_protobuf(self.sock, update)    
+        send_protobuf(self.sock, update)
+        for msg in extra:
+            send_protobuf(self.sock, msg)
     
 
     def send_updated_mesh_data(self, data, depsgraph, mesh):

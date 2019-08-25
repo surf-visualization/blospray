@@ -939,7 +939,7 @@ add_isosurfaces(const UpdateObject& update)
 }
 
 bool
-add_slices(const UpdateObject& update)
+add_slices(const UpdateObject& update, const Slices& slices)
 {
     printf("%s [OBJECT]\n", update.name().c_str());
     printf("........ --> %s (OSPRay volume)\n", update.data_link().c_str());
@@ -974,45 +974,54 @@ add_slices(const UpdateObject& update)
         fprintf(stderr, "ERROR: slice_plane attribute should contain list of 4 floats values!\n");
         return false;
     }
-    
+
     float plane[4];
-    for (int i = 0; i < 4; i++)
-        plane[i] = slice_plane_prop[i];
-    printf("plane: %.3f, %3f, %.3f, %.3f\n", plane[0], plane[1], plane[2], plane[3]);
 
-    OSPData planeData = ospNewData(1, OSP_VEC4F, plane);
-    ospCommit(planeData);
+    for (int i = 0; i < slices.slices_size(); i++)
+    {
+        const Slice& slice = slices.slices(i);
 
-    OSPGeometry slices = ospNewGeometry("slices");
-        ospSetObject(slices, "volume", volume);
-        //ospRelease(volume);
-        ospSetData(slices, "plane", planeData);
-        ospRelease(planeData);
-    ospCommit(slices);
+        plane[0] = slice.a();
+        plane[1] = slice.b();
+        plane[2] = slice.c();
+        plane[3] = slice.d();
+
+        printf("plane[%d]: %.3f, %3f, %.3f, %.3f\n", i, plane[0], plane[1], plane[2], plane[3]);
+
+        OSPData planeData = ospNewData(1, OSP_VEC4F, plane);
+        ospCommit(planeData);
+
+        OSPGeometry slice_geometry = ospNewGeometry("slices");
+            ospSetObject(slice_geometry, "volume", volume);
+            //ospRelease(volume);
+            ospSetData(slice_geometry, "plane", planeData);
+            ospRelease(planeData);
+        ospCommit(slice_geometry);
+            
+        OSPGeometricModel model = ospNewGeometricModel(slice_geometry);
+            ospSetObject(model, "material", default_material);
+        ospCommit(model);
+        ospRelease(slice_geometry);
         
-    OSPGeometricModel model = ospNewGeometricModel(slices);
-        ospSetObject(model, "material", default_material);
-    ospCommit(model);
-    ospRelease(slices);
-    
-    OSPGroup group = ospNewGroup();
-        OSPData data = ospNewData(1, OSP_OBJECT, &model, 0);
-        ospSetObject(group, "geometry", data);                  // SetObject or SetData?
-        //ospRelease(model);
-    ospCommit(group);
- 
-    glm::mat4   obj2world;
-    float       affine_xform[12];
+        OSPGroup group = ospNewGroup();
+            OSPData data = ospNewData(1, OSP_OBJECT, &model, 0);
+            ospSetObject(group, "geometry", data);                  // SetObject or SetData?
+            //ospRelease(model);
+        ospCommit(group);
+     
+        glm::mat4   obj2world;
+        float       affine_xform[12];
 
-    object2world_from_protobuf(obj2world, update);
-    affine3fv_from_mat4(affine_xform, obj2world);
+        object2world_from_protobuf(obj2world, update);
+        affine3fv_from_mat4(affine_xform, obj2world);
 
-    OSPInstance instance = ospNewInstance(group);
-        ospSetAffine3fv(instance, "xfm", affine_xform);
-    ospCommit(instance);
-    ospRelease(group);
+        OSPInstance instance = ospNewInstance(group);
+            ospSetAffine3fv(instance, "xfm", affine_xform);
+        ospCommit(instance);
+        ospRelease(group);
 
-    scene_instances.push_back(instance);
+        scene_instances.push_back(instance);
+    }
     
     return true;
 }
@@ -1021,6 +1030,7 @@ bool
 handle_update_object(TCPSocket *sock)
 {
     UpdateObject    update;
+    Slices          slices;
 
     if (!receive_protobuf(sock, update))
         return false;
@@ -1056,7 +1066,9 @@ handle_update_object(TCPSocket *sock)
         break;
     
     case UpdateObject::SLICES:
-        add_slices(update);
+        if (!receive_protobuf(sock, slices))
+            return false;
+        add_slices(update, slices);
         break;
 
     default:

@@ -132,6 +132,18 @@ message UpdateObject
     string          data_link = 11;
 }
 
+message Slice
+{
+    float   a = 1;
+    float   b = 2;
+    float   c = 3;
+    float   d = 4;
+}
+
+message Slices
+{
+    repeated Slice  slices = 1;
+}
 
 message SceneElement
 {   
