@@ -1,13 +1,26 @@
 Port plugin geometry_cosmogrid to new style
 
-Broken in ospray 2?
+API 2.0 docs:
 - path tracer doesn't listen to alpha value in bgColor. it always returns
   a framebuffer with alpha 0
   -> bgColor is not valid and never was, see https://github.com/ospray/ospray/issues/347
 - isosurfaces geometry need ref to volume *model* apparently, although docs
   say OSPVolume
-
-
+- color and opacity arrays given to ospNewTransferFunction do not have to
+  have the same length
+- when setting up an OSPGroup the "volume" data array of OSPVolumetricModel's
+  needs to be set using ospSetObject and not ospSetData?
+- the exact layout of an affine3f is specified nowhere, nor does ospray.h give
+  any clues
+- what does the path tracer's geometryLights do exactly?
+- when using imageStart and imageEnd on an OSPCamera rendering is done at the 
+  full framebuffer resolution, but using the cropped region of the camera frustum
+- void ospSetBool (OSPObject, const char *id, int x) takes an int value?
+- When NOT using OSP_DATA_SHARED_BUFFER on ospNewData a copy of the source array
+  is made. also, if an array of OSPObject's is passed (e.g. OSPLight) all the
+  objects in the array will have their reference count incremented.
+- although it possible to assign a material to an isosurface (through the
+  GeometricModel), the transfer function is always used to determine the color of the surface?
 
 Bugs
 - Camera clipping start doesn't match cycles render, nor OpenGL scene view.

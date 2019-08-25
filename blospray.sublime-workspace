@@ -15,16 +15,26 @@
 			"file": "core/ospray_render_server.cpp",
 			"settings":
 			{
-				"buffer_size": 51345,
+				"buffer_size": 51806,
 				"encoding": "UTF-8",
 				"line_ending": "Unix"
 			}
 		},
 		{
-			"file": "core/plugin.h",
+			"file": "render_ospray/connection.py",
 			"settings":
 			{
-				"buffer_size": 12317,
+				"buffer_size": 31280,
+				"encoding": "UTF-8",
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "core/messages.proto",
+			"settings":
+			{
+				"buffer_size": 7756,
+				"encoding": "UTF-8",
 				"line_ending": "Unix"
 			}
 		}
@@ -61,9 +71,10 @@
 	},
 	"file_history":
 	[
+		"/home/melis/c/ospray-git/doc/api.md",
+		"/home/melis/concepts/blender-ospray-engine/core/plugin.h",
 		"/home/melis/concepts/blender-ospray-engine/blospray.sublime-project",
 		"/home/melis/concepts/blender-ospray-engine/render_ospray/connection.py",
-		"/home/melis/concepts/blender-ospray-engine/core/plugin.h",
 		"/home/melis/c/ospray-git/apps/tutorials/ospTutorialStructuredVolume.cpp",
 		"/home/melis/concepts/blender-ospray-engine/core/ospray_render_server.cpp",
 		"/home/melis/concepts/blender-ospray-engine/untitled.sublime-project",
@@ -74,7 +85,7 @@
 	],
 	"find":
 	{
-		"height": 59.0
+		"height": 28.0
 	},
 	"find_in_files":
 	{
@@ -88,6 +99,12 @@
 		"case_sensitive": false,
 		"find_history":
 		[
+			"slices",
+			"extend",
+			"slice",
+			"extend",
+			";    ",
+			"slice",
 			"tf_color",
 			"switch",
 			"cool2warm",
@@ -112,7 +129,7 @@
 	"groups":
 	[
 		{
-			"selected": 0,
+			"selected": 1,
 			"sheets":
 			[
 				{
@@ -121,15 +138,15 @@
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 51345,
+						"buffer_size": 51806,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								24572,
-								24572
+								30153,
+								30153
 							]
 						],
 						"settings":
@@ -139,40 +156,70 @@
 							"translate_tabs_to_spaces": true
 						},
 						"translation.x": 0.0,
-						"translation.y": 14968.0,
+						"translation.y": 18392.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 1,
+					"type": "text"
+				},
+				{
+					"buffer": 1,
+					"file": "render_ospray/connection.py",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 31280,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								17620,
+								17620
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/Python/Python.sublime-syntax",
+							"tab_size": 4,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 8565.0,
 						"zoom_level": 1.0
 					},
 					"stack_index": 0,
 					"type": "text"
 				},
 				{
-					"buffer": 1,
-					"file": "core/plugin.h",
+					"buffer": 2,
+					"file": "core/messages.proto",
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 12317,
+						"buffer_size": 7756,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								7414,
-								7414
+								4025,
+								4025
 							]
 						],
 						"settings":
 						{
-							"syntax": "Packages/C++/C++.sublime-syntax",
+							"syntax": "Packages/Text/Plain text.tmLanguage",
 							"tab_size": 4,
 							"translate_tabs_to_spaces": true
 						},
 						"translation.x": 0.0,
-						"translation.y": 2948.0,
+						"translation.y": 2223.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 1,
+					"stack_index": 2,
 					"type": "text"
 				}
 			]
@@ -211,7 +258,7 @@
 	"menu_visible": true,
 	"output.exec":
 	{
-		"height": 151.0
+		"height": 225.0
 	},
 	"output.find_results":
 	{
