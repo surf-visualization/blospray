@@ -295,7 +295,6 @@ class Connection:
 
         #
         # Send scene
-        # XXX why isn't the lights export code below?
         #
 
         # Image settings

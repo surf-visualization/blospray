@@ -84,6 +84,7 @@ if(PLUGIN_COSMOGRID)
     target_include_directories(geometry_cosmogrid
         PUBLIC
         /home/paulm/projects/uhdf5-git
+        /home/melis/projects/uhdf5
         ${PROTOBUF_INCLUDE_DIRS}
         ${CMAKE_CURRENT_BINARY_DIR}    
     )

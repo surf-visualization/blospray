@@ -26,7 +26,7 @@
 
 #include "plugin.h"
 
-const char          *data_file;
+std::string         data_file;
 OSPGeometricModel   model;
 
 bool
@@ -149,19 +149,28 @@ load_points(const char *fname, int max_points, float sphere_radius, float sphere
     return true;
 }
 
-
 extern "C" 
 void
-load(ModelInstances& model_instances, float *bbox, LoadFunctionResult &result, const json &parameters, const glm::mat4 &object2world)
+generate(GenerateFunctionResult &result, PluginState *state)
 {    
-    data_file = getenv("COSMOGRID_DATA_FILE");
-    if (!data_file)
+    const json& parameters = state->parameters;
+    
+    if (parameters.find("cosmogrid_data_file") != parameters.end())
+        data_file = parameters["cosmogrid_data_file"];
+    else 
     {
-        fprintf(stderr, "ERROR: COSMOGRID_DATA_FILE not set!\n");
-        result.set_success(false);
-        result.set_message("Environment variable COSMOGRID_DATA_FILE not set!");
-        return;
+        const char *s = getenv("COSMOGRID_DATA_FILE");
+        if (!s)
+        {
+            fprintf(stderr, "ERROR: COSMOGRID_DATA_FILE not set, nor parameter cosmogrid_data_file!\n");
+            result.set_success(false);
+            result.set_message("COSMOGRID_DATA_FILE not set, nor parameter cosmogrid_data_file!");
+            return;
+        }
+        data_file = s;
     }
+    
+    printf("data_file = %s\n", data_file.c_str());
     
     int max_points = -1;
     float sphere_radius = 0.01f;
@@ -175,33 +184,66 @@ load(ModelInstances& model_instances, float *bbox, LoadFunctionResult &result, c
     if (parameters.find("sphere_opacity") != parameters.end())
         sphere_opacity = parameters["sphere_opacity"].get<float>();
     
-    if (!load_points(data_file, max_points, sphere_radius, sphere_opacity))
+    if (!load_points(data_file.c_str(), max_points, sphere_radius, sphere_opacity))
     {
         result.set_success(false);
         result.set_message("Failed to load points from HDF5 file");
         return;
     }
     
-    // Add instance
-    model_instances.push_back(std::make_pair(model, glm::mat4(1.0f)));
-    
-    printf("Data loaded...\n");
+    GroupInstances &instances = state->group_instances;
 
-    bbox[0] = 0.0f;
-    bbox[1] = 0.0f;
-    bbox[2] = 0.0f;
-    
-    bbox[3] = 1.0f;
-    bbox[4] = 1.0f;
-    bbox[5] = 1.0f;
+    OSPGroup group = ospNewGroup();
+        OSPData models = ospNewData(1, OSP_OBJECT, &model, 0);
+        ospSetData(group, "geometry", models);
+        ospRelease(models);
+    ospCommit(group);
+
+    instances.push_back(std::make_pair(group, glm::mat4(1.0f)));
+
+    // XXX hmm, can't release group here?
+
+    state->bound = BoundingMesh::bbox_edges(0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f);
 }
 
-PluginFunctions    
-functions = {
 
-    NULL,
-    NULL,
+static PluginParameters 
+parameters = {
+    
+    {"cosmogrid_data_path",   PARAM_STRING,   1, FLAG_SCENE, 
+        "Path to data file"},
+        
+    {"max_points",        PARAM_INT,      1, FLAG_SCENE, 
+        "Maximum number of points to load"},
+        
+    {"sphere_radius",        PARAM_FLOAT,      1, FLAG_SCENE, 
+        "Radius of each sphere"},
+        
+    {"sphere_opacity",        PARAM_FLOAT,      1, FLAG_SCENE, 
+        "Opacity of each sphere"},
 
-    load
+    PARAMETERS_DONE         // Sentinel (signals end of list)
 };
 
+static PluginFunctions
+functions = {
+
+    NULL,           // Plugin load
+    NULL,           // Plugin unload
+    
+    generate,       // Generate    
+    NULL,           // Clear data
+};
+
+
+extern "C" bool
+initialize(PluginDefinition *def)
+{
+    def->type = PT_SCENE;
+    def->parameters = parameters;
+    def->functions = functions;
+    
+    // Do any other plugin-specific initialization here
+    
+    return true;
+}

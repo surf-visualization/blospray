@@ -120,7 +120,7 @@ enum SceneObjectType
     SOT_SLICES,
     SOT_ISOSURFACES,
     SOT_SCENE,
-    SOT_LIGHT           // In OSPRay these are actually stored on the renderer, not in the scene
+    SOT_LIGHT           // In OSPRay these are actually stored on the renderer, not in the scene    // XXX not used?
 };
 
 struct SceneObject
