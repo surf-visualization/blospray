@@ -4,6 +4,26 @@
 		"selected_items":
 		[
 			[
+				"scene",
+				"scene_lights"
+			],
+			[
+				"rece",
+				"receive_protobuf"
+			],
+			[
+				"Upd",
+				"UpdateObject"
+			],
+			[
+				"send_",
+				"send_updated_light"
+			],
+			[
+				"Up",
+				"UpdateObject"
+			],
+			[
 				"cool",
 				"cool2warm_transfer_function"
 			]
@@ -15,7 +35,7 @@
 			"file": "core/ospray_render_server.cpp",
 			"settings":
 			{
-				"buffer_size": 51806,
+				"buffer_size": 51581,
 				"encoding": "UTF-8",
 				"line_ending": "Unix"
 			}
@@ -24,7 +44,7 @@
 			"file": "render_ospray/connection.py",
 			"settings":
 			{
-				"buffer_size": 31280,
+				"buffer_size": 32143,
 				"encoding": "UTF-8",
 				"line_ending": "Unix"
 			}
@@ -33,7 +53,7 @@
 			"file": "core/messages.proto",
 			"settings":
 			{
-				"buffer_size": 7756,
+				"buffer_size": 7834,
 				"encoding": "UTF-8",
 				"line_ending": "Unix"
 			}
@@ -85,7 +105,7 @@
 	],
 	"find":
 	{
-		"height": 28.0
+		"height": 40.0
 	},
 	"find_in_files":
 	{
@@ -99,6 +119,10 @@
 		"case_sensitive": false,
 		"find_history":
 		[
+			"send_updated_mesh_data",
+			"scene_lights",
+			"light_settings",
+			"        send_protobuf(self.sock, update)\n",
 			"slices",
 			"extend",
 			"slice",
@@ -129,7 +153,7 @@
 	"groups":
 	[
 		{
-			"selected": 1,
+			"selected": 0,
 			"sheets":
 			[
 				{
@@ -138,15 +162,15 @@
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 51806,
+						"buffer_size": 51581,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								30153,
-								30153
+								45476,
+								45476
 							]
 						],
 						"settings":
@@ -156,10 +180,10 @@
 							"translate_tabs_to_spaces": true
 						},
 						"translation.x": 0.0,
-						"translation.y": 18392.0,
+						"translation.y": 27917.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 1,
+					"stack_index": 0,
 					"type": "text"
 				},
 				{
@@ -168,15 +192,15 @@
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 31280,
+						"buffer_size": 32143,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								17620,
-								17620
+								11858,
+								11858
 							]
 						],
 						"settings":
@@ -186,10 +210,10 @@
 							"translate_tabs_to_spaces": true
 						},
 						"translation.x": 0.0,
-						"translation.y": 8565.0,
+						"translation.y": 5316.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 0,
+					"stack_index": 1,
 					"type": "text"
 				},
 				{
@@ -198,15 +222,15 @@
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 7756,
+						"buffer_size": 7834,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								4025,
-								4025
+								6595,
+								6595
 							]
 						],
 						"settings":
@@ -216,7 +240,7 @@
 							"translate_tabs_to_spaces": true
 						},
 						"translation.x": 0.0,
-						"translation.y": 2223.0,
+						"translation.y": 4693.0,
 						"zoom_level": 1.0
 					},
 					"stack_index": 2,

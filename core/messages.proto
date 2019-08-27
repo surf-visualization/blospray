@@ -53,6 +53,8 @@ message ClientMessage
     uint32  uint_value = 20;            // HELLO     
     //float   float_value = 30;
     string  string_value = 40;          // QUERY_BOUND
+
+    // XXX fold different types of submessages in here?
 }
 
 message QueryBoundResult
@@ -256,10 +258,11 @@ message RenderSettings
 message Light 
 {
     enum Type {        
-        POINT = 0;
-        SUN = 1;
-        SPOT = 2;
-        AREA = 3;
+        AMBIENT = 0;
+        POINT = 1;
+        SUN = 2;
+        SPOT = 3;
+        AREA = 4;
     }
     
     Type            type = 1;

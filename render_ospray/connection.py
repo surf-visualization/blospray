@@ -167,7 +167,7 @@ class Connection:
                 properties[k] = v
                 
         return properties, plugin_parameters
-
+        
     def export_scene(self, data, depsgraph):
 
         msg = 'Exporting scene'
@@ -293,82 +293,6 @@ class Connection:
         render_settings.ao_samples = scene.ospray.ao_samples
         #render_settings.shadows_enabled = scene.ospray.shadows_enabled     # XXX removed in 2.0?
 
-        # Lights
-
-        self.engine.update_stats('', 'Exporting lights')
-
-        light_settings = LightSettings()
-
-        light_settings.ambient_color[:] = world.ospray.ambient_color
-        light_settings.ambient_intensity = world.ospray.ambient_intensity
-
-        type2enum = dict(POINT=Light.POINT, SUN=Light.SUN, SPOT=Light.SPOT, AREA=Light.AREA)
-
-        lights = []
-        for instance in depsgraph.object_instances:
-
-            obj = instance.object
-
-            if obj.type != 'LIGHT':
-                continue
-
-            data = obj.data
-            xform = obj.matrix_world
-
-            ospray_data = data.ospray
-
-            light = Light()
-            light.type = type2enum[data.type]
-            light.object2world[:] = matrix2list(xform)
-            light.object_name = obj.name
-            light.light_name = data.name
-
-            light.color[:] = data.color
-            light.intensity = ospray_data.intensity
-            light.visible = ospray_data.visible      
-
-            if data.type == 'SUN':
-                light.angular_diameter = ospray_data.angular_diameter
-            elif data.type != 'AREA':
-                light.position[:] = (xform[0][3], xform[1][3], xform[2][3])
-
-            if data.type in ['SUN', 'SPOT']:
-                light.direction[:] = obj.matrix_world @ Vector((0, 0, -1)) - obj.location
-
-            if data.type == 'SPOT':
-                # Blender:
-                # .spot_size = full angle where light shines, in degrees
-                # .spot_blend = factor in [0,1], 0 = no penumbra, 1 = penumbra is full angle
-                light.opening_angle = degrees(data.spot_size)
-                light.penumbra_angle = 0.5*data.spot_blend*degrees(data.spot_size)
-                # assert light.penumbra_angle < 0.5*light.opening_angle
-
-            if data.type in ['POINT', 'SPOT']:
-                light.radius = data.shadow_soft_size        # XXX what is this called in ospray?
-
-            if data.type == 'AREA':
-                size_x = data.size
-                size_y = data.size_y
-
-                # Local
-                position = Vector((-0.5*size_x, -0.5*size_y, 0))
-                edge1 = position + Vector((0, size_y, 0))
-                edge2 = position + Vector((size_x, 0, 0))
-
-                # World
-                position = obj.matrix_world @ position
-                edge1 = obj.matrix_world @ edge1 - position
-                edge2 = obj.matrix_world @ edge2 - position
-
-                light.position[:] = position
-                light.edge1[:] = edge1
-                light.edge2[:] = edge2
-
-            lights.append(light)
-
-        # Assigning to lights[:] doesn't work, need to use extend()
-        light_settings.lights.extend(lights)
-
         #
         # Send scene
         # XXX why isn't the lights export code below?
@@ -383,22 +307,24 @@ class Connection:
         # Camera settings
         send_protobuf(self.sock, camera_settings)
 
-        # Light settings
-        send_protobuf(self.sock, light_settings)
-        
         # Signal last data was sent!
 
         element = SceneElement()
         element.type = SceneElement.NONE
         send_protobuf(self.sock, element)        
 
-        # Mesh objects
+        # Scene objects
+
+        self.send_updated_ambient_light(world.ospray.ambient_color, world.ospray.ambient_intensity)
 
         for instance in depsgraph.object_instances:
 
             obj = instance.object
 
-            if obj.type != 'MESH':
+            if obj.type == 'LIGHT':
+                self.send_updated_light(data, depsgraph, obj)
+                continue
+            elif obj.type != 'MESH':
                 continue                        
                 
             mesh = obj.data
@@ -411,11 +337,110 @@ class Connection:
             self.mesh_data_exported.add(mesh.name)
             
             # Send object linking to the mesh data
-            self.send_updated_object(data, depsgraph, obj, mesh, instance.matrix_world)
-            
+            self.send_updated_mesh_object(data, depsgraph, obj, mesh, instance.matrix_world)
+    
+
+    def send_updated_ambient_light(self, color, intensity):
+
+        light = Light()
+        light.type = Light.AMBIENT
+        light.object_name = '<ambient>'
+
+        light.color[:] = color
+        light.intensity = intensity
+
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.UPDATE_OBJECT  
+
+        update = UpdateObject()
+        update.type = UpdateObject.LIGHT
+        update.name = '<ambient>'
+        
+        # XXX using three messages :-/
+        send_protobuf(self.sock, client_message)
+        send_protobuf(self.sock, update)
+        send_protobuf(self.sock, light)
 
 
-    def send_updated_object(self, data, depsgraph, obj, mesh, matrix_world):
+    def send_updated_light(self, data, depsgraph, obj):
+
+        self.engine.update_stats('', 'Light %s' % obj.name)
+
+        TYPE2ENUM = dict(POINT=Light.POINT, SUN=Light.SUN, SPOT=Light.SPOT, AREA=Light.AREA)
+
+        data = obj.data
+        xform = obj.matrix_world
+
+        ospray_data = data.ospray
+
+        light = Light()
+        light.type = TYPE2ENUM[data.type]
+        light.object2world[:] = matrix2list(xform)      # XXX get from updateobject
+        light.object_name = obj.name
+        light.light_name = data.name
+
+        light.color[:] = data.color
+        light.intensity = ospray_data.intensity
+        light.visible = ospray_data.visible
+
+        if data.type == 'SUN':
+            light.angular_diameter = ospray_data.angular_diameter
+        elif data.type != 'AREA':
+            light.position[:] = (xform[0][3], xform[1][3], xform[2][3])
+
+        if data.type in ['SUN', 'SPOT']:
+            light.direction[:] = obj.matrix_world @ Vector((0, 0, -1)) - obj.location
+
+        if data.type == 'SPOT':
+            # Blender:
+            # .spot_size = full angle where light shines, in degrees
+            # .spot_blend = factor in [0,1], 0 = no penumbra, 1 = penumbra is full angle
+            light.opening_angle = degrees(data.spot_size)
+            light.penumbra_angle = 0.5*data.spot_blend*degrees(data.spot_size)
+            # assert light.penumbra_angle < 0.5*light.opening_angle
+
+        if data.type in ['POINT', 'SPOT']:
+            light.radius = data.shadow_soft_size        # XXX what is this called in ospray?
+
+        if data.type == 'AREA':
+            size_x = data.size
+            size_y = data.size_y
+
+            # Local
+            position = Vector((-0.5*size_x, -0.5*size_y, 0))
+            edge1 = position + Vector((0, size_y, 0))
+            edge2 = position + Vector((size_x, 0, 0))
+
+            # World
+            position = obj.matrix_world @ position
+            edge1 = obj.matrix_world @ edge1 - position
+            edge2 = obj.matrix_world @ edge2 - position
+
+            light.position[:] = position
+            light.edge1[:] = edge1
+            light.edge2[:] = edge2
+
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.UPDATE_OBJECT  
+
+        update = UpdateObject()
+        update.type = UpdateObject.LIGHT
+        update.name = obj.name
+        update.object2world[:] = matrix2list(xform)
+        update.data_link = data.name
+        
+        custom_properties, plugin_parameters = self._process_properties2(obj, False)
+        assert len(plugin_parameters.keys()) == 0
+        
+        update.custom_properties = json.dumps(custom_properties)  
+
+        # XXX using three messages :-/
+        send_protobuf(self.sock, client_message)
+        send_protobuf(self.sock, update)
+        send_protobuf(self.sock, light)
+
+
+    def send_updated_mesh_object(self, data, depsgraph, obj, mesh, matrix_world):
 
         # We do a bit of the logic here in determining what a certain
         # object -> object data combination (including their properties)
