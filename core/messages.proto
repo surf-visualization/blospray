@@ -84,7 +84,7 @@ message RenderResult
 
 // Scene
 
-// Mesh Data with a plugin attachedk
+// Mesh Data with a plugin attached
 message UpdatePluginInstance
 {   
     enum Type {                    
@@ -145,45 +145,6 @@ message Slice
 message Slices
 {
     repeated Slice  slices = 1;
-}
-
-message SceneElement
-{   
-    enum Type {
-        NONE = 0;                   // Used for signaling last object was sent
-        
-        // Regular Blender mesh
-        MESH_OBJECT = 10;
-        MESH_DATA = 11;
-
-        // OSPRay geometry (needs to reference geometry mesh data)
-        GEOMETRY_OBJECT = 20;
-        GEOMETRY_DATA = 21;
-
-        // OSPRay volume (needs to reference volume mesh data)
-        VOLUME_OBJECT = 30;
-        VOLUME_DATA = 31;
-        
-        // OSPRay isosurface (needs to reference volume mesh data)
-        ISOSURFACE_OBJECT = 40;
-        
-        // OSPRay slices (needs to reference volume mesh data)
-        SLICES_OBJECT = 50;        
-        
-        // OSPRay scene (list of transformed Groups on the server)
-        SCENE_OBJECT = 60;
-        SCENE_DATA = 61;
-        
-        // A single light
-        LIGHT = 100;
-    }
-    
-    Type            type = 1;
-    string          name = 2;
-    string          properties = 3;
-    
-    repeated float  object2world = 10;
-    string          data_link = 11;
 }
 
 // Blender geometry (aka mesh)

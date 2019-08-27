@@ -35,7 +35,7 @@
 			"file": "core/ospray_render_server.cpp",
 			"settings":
 			{
-				"buffer_size": 51581,
+				"buffer_size": 52719,
 				"encoding": "UTF-8",
 				"line_ending": "Unix"
 			}
@@ -44,7 +44,7 @@
 			"file": "render_ospray/connection.py",
 			"settings":
 			{
-				"buffer_size": 32143,
+				"buffer_size": 31966,
 				"encoding": "UTF-8",
 				"line_ending": "Unix"
 			}
@@ -53,7 +53,7 @@
 			"file": "core/messages.proto",
 			"settings":
 			{
-				"buffer_size": 7834,
+				"buffer_size": 6787,
 				"encoding": "UTF-8",
 				"line_ending": "Unix"
 			}
@@ -105,7 +105,7 @@
 	],
 	"find":
 	{
-		"height": 47.0
+		"height": 71.0
 	},
 	"find_in_files":
 	{
@@ -119,6 +119,16 @@
 		"case_sensitive": false,
 		"find_history":
 		[
+			"cool2warm_transfer_function\n",
+			"create_transfer_function",
+			"transfer",
+			"UPDATE_SCENE",
+			"receive_scene",
+			"updatescene",
+			"create_transfer_function",
+			"transferfunction",
+			"SceneElement",
+			"ambient",
 			"send_updated_mesh_data",
 			"scene_lights",
 			"light_settings",
@@ -153,7 +163,7 @@
 	"groups":
 	[
 		{
-			"selected": 2,
+			"selected": 0,
 			"sheets":
 			[
 				{
@@ -162,15 +172,15 @@
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 51581,
+						"buffer_size": 52719,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								0,
-								0
+								11030,
+								11030
 							]
 						],
 						"settings":
@@ -180,10 +190,10 @@
 							"translate_tabs_to_spaces": true
 						},
 						"translation.x": 0.0,
-						"translation.y": 2100.0,
+						"translation.y": 13165.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 1,
+					"stack_index": 0,
 					"type": "text"
 				},
 				{
@@ -192,15 +202,15 @@
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 32143,
+						"buffer_size": 31966,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								11858,
-								11858
+								6293,
+								6293
 							]
 						],
 						"settings":
@@ -210,10 +220,10 @@
 							"translate_tabs_to_spaces": true
 						},
 						"translation.x": 0.0,
-						"translation.y": 5316.0,
+						"translation.y": 6205.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 2,
+					"stack_index": 1,
 					"type": "text"
 				},
 				{
@@ -222,15 +232,15 @@
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 7834,
+						"buffer_size": 6787,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								6595,
-								6595
+								4119,
+								4119
 							]
 						],
 						"settings":
@@ -240,10 +250,10 @@
 							"translate_tabs_to_spaces": true
 						},
 						"translation.x": 0.0,
-						"translation.y": 387.0,
+						"translation.y": 5360.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 0,
+					"stack_index": 2,
 					"type": "text"
 				}
 			]
@@ -251,7 +261,7 @@
 	],
 	"incremental_find":
 	{
-		"height": 47.0
+		"height": 53.0
 	},
 	"input":
 	{
@@ -282,7 +292,7 @@
 	"menu_visible": true,
 	"output.exec":
 	{
-		"height": 225.0
+		"height": 398.0
 	},
 	"output.find_results":
 	{
@@ -292,7 +302,7 @@
 	"project": "blospray.sublime-project",
 	"replace":
 	{
-		"height": 90.0
+		"height": 100.0
 	},
 	"save_all_on_build": true,
 	"select_file":

@@ -67,7 +67,6 @@ bool            framebuffer_created = false;
 bool            keep_framebuffer_files = getenv("BLOSPRAY_KEEP_FRAMEBUFFER_FILES") != nullptr;
 
 OSPMaterial         default_material;               // XXX hack for now, renderer-type dependent
-OSPTransferFunction cool2warm_transfer_function;    // XXX hack for now
 
 typedef std::map<std::string, OSPGeometry>      LoadedGeometriesMap;
 typedef std::map<std::string, OSPVolume>        LoadedVolumesMap;
@@ -151,7 +150,7 @@ struct SceneObject
 std::map<std::string, PluginInstance>   plugin_instances;
 std::map<std::string, SceneObject>      scene_objects;
 
-// Geometry buffers used during network receival
+// Geometry buffers used during network receive
 
 std::vector<float>      vertex_buffer;
 std::vector<float>      normal_buffer;
@@ -161,7 +160,7 @@ std::vector<uint32_t>   triangle_buffer;
 // Plugin handling
 
 // If needed, loads plugin shared library and initializes plugin
-// XXX perhaps this operation should have its own result type
+// XXX perhaps this operation should have its own ...Result type
 bool
 ensure_plugin_is_loaded(GenerateFunctionResult &result, PluginDefinition &definition,
     const std::string& type, const std::string& name)
@@ -335,9 +334,9 @@ check_plugin_parameters(GenerateFunctionResult& result, const PluginParameter *p
 void
 prepare_renderers()
 {
-    renderers["scivis"] = ospNewRenderer("scivis");
-
     OSPMaterial m;
+
+    renderers["scivis"] = ospNewRenderer("scivis");
 
     m = materials["scivis"] = ospNewMaterial("scivis", "OBJMaterial");
         ospSetVec3f(m, "Kd", 0.8f, 0.8f, 0.8f);
@@ -345,9 +344,16 @@ prepare_renderers()
 
     renderers["pathtracer"] = ospNewRenderer("pathtracer");
 
+#if 1
     m = materials["pathtracer"] = ospNewMaterial("pathtracer", "OBJMaterial");
         ospSetVec3f(m, "Kd", 0.8f, 0.8f, 0.8f);
     ospCommit(m);
+#else
+    m = materials["pathtracer"] = ospNewMaterial("pathtracer", "MetallicPaint");
+        ospSetVec3f(m, "baseColor", 0.8f, 0.3f, 0.3f);
+        //ospSetFloat(m, "metallic", 0.5f);
+    ospCommit(m);
+#endif
 }
 
 OSPTransferFunction
@@ -371,21 +377,23 @@ create_transfer_function(const std::string& name, float minval, float maxval)
 	        tf_colors[3*i+1] = cool2warm[4*i+2];
 	        tf_colors[3*i+2] = cool2warm[4*i+3];
 	    }
-    	cool2warm_transfer_function = ospNewTransferFunction("piecewise_linear");
 
-        	ospSetVec2f(cool2warm_transfer_function, "valueRange", minval, maxval);
+    	OSPTransferFunction tf = ospNewTransferFunction("piecewise_linear");
+
+        	ospSetVec2f(tf, "valueRange", minval, maxval);
 
         	OSPData color_data = ospNewData(cool2warm_entries, OSP_VEC3F, tf_colors);
-        	ospSetData(cool2warm_transfer_function, "color", color_data);
+        	ospSetData(tf, "color", color_data);
         	ospRelease(color_data);
 
         	// XXX color and opacity can be decoupled?
         	OSPData opacity_data = ospNewData(cool2warm_entries, OSP_FLOAT, tf_opacities);
-        	ospSetData(cool2warm_transfer_function, "opacity", opacity_data);
+        	ospSetData(tf, "opacity", opacity_data);
         	ospRelease(opacity_data);
 
-    	ospCommit(cool2warm_transfer_function);
-    	return cool2warm_transfer_function;
+    	ospCommit(tf);
+
+    	return tf;
 	}
 
     return nullptr;
@@ -821,6 +829,7 @@ add_volume(const UpdateObject& update)
         // XXX need plugin instance for the volume_data_range
         OSPTransferFunction tf = create_transfer_function("cool2warm", 0.0f, 5.1f);
         ospSetObject(volume_model, "transferFunction", tf);
+        ospRelease(tf);
 
     ospCommit(volume_model);
 
@@ -898,8 +907,10 @@ add_isosurfaces(const UpdateObject& update)
 
     // XXX hacked temp volume module
     auto volumeModel = ospNewVolumetricModel(volume);
-  		ospSetObject(volumeModel, "transferFunction", cool2warm_transfer_function);
-  		ospSetFloat(volumeModel, "samplingRate", 0.5f);
+        OSPTransferFunction tf = create_transfer_function("cool2warm", 0.0f, 5.1f);
+        ospSetObject(volumeModel, "transferFunction", tf);
+        ospRelease(tf);
+        ospSetFloat(volumeModel, "samplingRate", 0.5f);
   	ospCommit(volumeModel);
 
     OSPGeometry isosurface = ospNewGeometry("isosurfaces");
@@ -1304,21 +1315,6 @@ receive_scene(TCPSocket *sock)
     ospCommit(camera);
     ospCommit(renderer);
 
-    // Receive scene elements
-
-    SceneElement element;
-
-    // XXX check return value
-    receive_protobuf(sock, element);
-
-    // XXX use function table
-    while (element.type() != SceneElement::NONE)
-    {
-        // Get next element
-        // XXX check return value
-        receive_protobuf(sock, element);
-    }
-
     // Done!
 
     return true;
@@ -1695,13 +1691,17 @@ handle_connection(TCPSocket *sock)
 void
 ospray_error(OSPError e, const char *error)
 {
+    printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
     printf("OSPRAY ERROR: %s\n", error);
+    printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
 }
 
 void
 ospray_status(const char *message)
 {
+    printf("--------------------------------------------------\n");
     printf("OSPRAY STATUS: %s\n", message);
+    printf("--------------------------------------------------\n");
 }
 
 // Main

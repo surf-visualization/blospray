@@ -36,7 +36,7 @@ from .common import send_protobuf, receive_protobuf
 from .messages_pb2 import (
     CameraSettings, ImageSettings,
     LightSettings, Light, RenderSettings,
-    SceneElement, MeshData,
+    MeshData,
     ClientMessage, GenerateFunctionResult,
     RenderResult,
     UpdateObject, UpdatePluginInstance,
@@ -306,12 +306,6 @@ class Connection:
 
         # Camera settings
         send_protobuf(self.sock, camera_settings)
-
-        # Signal last data was sent!
-
-        element = SceneElement()
-        element.type = SceneElement.NONE
-        send_protobuf(self.sock, element)        
 
         # Scene objects
 
