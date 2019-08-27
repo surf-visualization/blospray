@@ -105,7 +105,7 @@
 	],
 	"find":
 	{
-		"height": 40.0
+		"height": 47.0
 	},
 	"find_in_files":
 	{
@@ -153,7 +153,7 @@
 	"groups":
 	[
 		{
-			"selected": 0,
+			"selected": 2,
 			"sheets":
 			[
 				{
@@ -169,8 +169,8 @@
 						"selection":
 						[
 							[
-								45476,
-								45476
+								0,
+								0
 							]
 						],
 						"settings":
@@ -180,10 +180,10 @@
 							"translate_tabs_to_spaces": true
 						},
 						"translation.x": 0.0,
-						"translation.y": 27917.0,
+						"translation.y": 2100.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 0,
+					"stack_index": 1,
 					"type": "text"
 				},
 				{
@@ -213,7 +213,7 @@
 						"translation.y": 5316.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 1,
+					"stack_index": 2,
 					"type": "text"
 				},
 				{
@@ -240,10 +240,10 @@
 							"translate_tabs_to_spaces": true
 						},
 						"translation.x": 0.0,
-						"translation.y": 4693.0,
+						"translation.y": 387.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 2,
+					"stack_index": 0,
 					"type": "text"
 				}
 			]
@@ -251,7 +251,7 @@
 	],
 	"incremental_find":
 	{
-		"height": 28.0
+		"height": 47.0
 	},
 	"input":
 	{
@@ -292,7 +292,7 @@
 	"project": "blospray.sublime-project",
 	"replace":
 	{
-		"height": 52.0
+		"height": 90.0
 	},
 	"save_all_on_build": true,
 	"select_file":
@@ -330,7 +330,7 @@
 	"show_open_files": true,
 	"show_tabs": true,
 	"side_bar_visible": true,
-	"side_bar_width": 234.0,
+	"side_bar_width": 428.0,
 	"status_bar_visible": true,
 	"template_settings":
 	{

@@ -1035,8 +1035,9 @@ add_light(const UpdateObject& update, const Light& light)
     printf("%s [OBJECT] (object)\n", light.object_name().c_str());
     printf("........ --> %s (blender light)\n", light.light_name().c_str());    // XXX not set for ambient
 
+    // XXX turn into render setting
     if (light.type() == Light::AMBIENT)
-    {
+    {        
         osp_light = ospNewLight("ambient");
         ospSetFloat(osp_light, "intensity", light.intensity());
         ospSetVec3f(osp_light, "color", light.color(0), light.color(1), light.color(2));
@@ -1190,19 +1191,48 @@ receive_scene(TCPSocket *sock)
     // Reuse existing renderer
     renderer = renderers[renderer_type.c_str()];
 
-    ospSetVec4f(renderer, "bgColor",
-        render_settings.background_color(0),
-        render_settings.background_color(1),
-        render_settings.background_color(2),
-        render_settings.background_color(3));
-
     printf("Background color %f, %f, %f, %f\n", render_settings.background_color(0),
         render_settings.background_color(1),
         render_settings.background_color(2),
-        render_settings.background_color(3));
+        render_settings.background_color(3));    
 
     if (renderer_type == "scivis")
+    {
         ospSetInt(renderer, "aoSamples", render_settings.ao_samples());
+
+        ospSetVec4f(renderer, "bgColor",
+            render_settings.background_color(0),
+            render_settings.background_color(1),
+            render_settings.background_color(2),
+            render_settings.background_color(3));
+    }
+    else
+    {
+        // Pathtracer, work around unsupported bgColor
+
+        // XXX appears to be broken? The backplate color *is* used, but only in areas where
+        // there is non-zero alpha, i.e. something is hit.
+        float texel[4] = { 
+            /*render_settings.background_color(0),
+            render_settings.background_color(1),
+            render_settings.background_color(2),
+            render_settings.background_color(3)*/
+            0.0f, 1.0f, 0.0f, 1.0f
+        };
+
+        OSPData data = ospNewData(1, OSP_VEC4F, texel);
+
+        OSPTexture backplate = ospNewTexture("texture2D");    
+            ospSetVec2i(backplate, "size", 1, 1);
+            ospSetInt(backplate, "type", OSP_TEXTURE_RGBA32F);
+            ospSetData(backplate, "data", data);
+        ospCommit(backplate);            
+        ospRelease(data);
+
+        ospSetObject(renderer, "backplate", backplate);
+        ospCommit(renderer);    
+        ospRelease(backplate);
+    }
 
     //ospSetBool(renderer, "shadowsEnabled", render_settings.shadows_enabled());        // XXX removed in 2.0?
     //ospSetInt(renderer, "spp", 1);
