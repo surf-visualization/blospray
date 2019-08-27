@@ -80,7 +80,6 @@ LoadedScenesMap         loaded_scenes;
 ImageSettings   image_settings;
 RenderSettings  render_settings;
 CameraSettings  camera_settings;
-LightSettings   light_settings;
 
 // Plugin registry
 

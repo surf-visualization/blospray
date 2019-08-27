@@ -247,15 +247,6 @@ message Light
     repeated float  edge2 = 27;             // Area/Quad
 }   
 
-// XXX add separate Light type for ambient light
-message LightSettings
-{
-    float           ambient_intensity = 1;
-    repeated float  ambient_color = 2;
-    
-    repeated Light  lights = 3;
-}
-
 // Plugins
 
 // Returned by generate function

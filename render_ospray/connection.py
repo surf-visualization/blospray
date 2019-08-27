@@ -35,7 +35,7 @@ sys.path.insert(0, os.path.split(__file__)[0])
 from .common import send_protobuf, receive_protobuf
 from .messages_pb2 import (
     CameraSettings, ImageSettings,
-    LightSettings, Light, RenderSettings,
+    Light, RenderSettings,
     MeshData,
     ClientMessage, GenerateFunctionResult,
     RenderResult,
