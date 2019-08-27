@@ -58,7 +58,7 @@ target_link_libraries(scene_rbc PUBLIC ${OSPRAY_LIBRARIES})
 
 if(PLUGIN_COSMOGRID)
 
-    # geometry_cosmogrid
+    # scene_cosmogrid
 
     FIND_PACKAGE(HDF5)
     IF (HDF5_IS_PARALLEL)
@@ -78,10 +78,10 @@ if(PLUGIN_COSMOGRID)
     INCLUDE_DIRECTORIES (${HDF5_INCLUDE_DIRS})
     INCLUDE_DIRECTORIES (${MPI_CXX_INCLUDE_PATH})
 
-    add_library(geometry_cosmogrid SHARED geometry_cosmogrid.cpp)
-    set_target_properties(geometry_cosmogrid PROPERTIES PREFIX "")   
-    target_link_libraries(geometry_cosmogrid PUBLIC ${OSPRAY_LIBRARIES} ${HDF5LIBS})
-    target_include_directories(geometry_cosmogrid
+    add_library(scene_cosmogrid SHARED scene_cosmogrid.cpp)
+    set_target_properties(scene_cosmogrid PROPERTIES PREFIX "")   
+    target_link_libraries(scene_cosmogrid PUBLIC ${OSPRAY_LIBRARIES} ${HDF5LIBS})
+    target_include_directories(scene_cosmogrid
         PUBLIC
         /home/paulm/projects/uhdf5-git
         /home/melis/projects/uhdf5
@@ -102,7 +102,7 @@ install(TARGETS
 if(PLUGIN_COSMOGRID)
 
     install(TARGETS 
-        geometry_cosmogrid 
+        scene_cosmogrid 
         DESTINATION bin)
 
 endif(PLUGIN_COSMOGRID)

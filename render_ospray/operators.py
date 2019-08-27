@@ -48,7 +48,8 @@ class OSPRayUpdateMeshBound(bpy.types.Operator):
         if not result.success:
             print('ERROR: extent query failed:')
             print(result.message)
-            return {'FAILED'}
+            # XXX how to signal the query failed?
+            return {'FINISHED'}
             
         # Receive actual geometry
         vertices_len, edges_len, faces_len, loop_len = unpack('<IIII', receive_buffer(sock, 4*4))

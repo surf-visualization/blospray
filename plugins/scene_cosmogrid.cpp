@@ -32,6 +32,8 @@ OSPGeometricModel   model;
 bool
 load_points(const char *fname, int max_points, float sphere_radius, float sphere_opacity)
 {
+    printf("Loading %d points from %s\n", max_points, fname);
+
     uint32_t  num_points;
     float     *colors;  
     
@@ -118,9 +120,7 @@ load_points(const char *fname, int max_points, float sphere_radius, float sphere
     OSPGeometry spheres = ospNewGeometry("spheres");
     
       OSPData data = ospNewData(num_points, OSP_VEC3F, positions);
-      ospCommit(data);
-      ospSetData(spheres, "spheres", data);
-      
+      ospSetData(spheres, "sphere", data);
       ospSetInt(spheres, "bytes_per_sphere", 3*sizeof(float));
       ospSetFloat(spheres, "radius", sphere_radius);
 
@@ -132,7 +132,8 @@ load_points(const char *fname, int max_points, float sphere_radius, float sphere
   
     // Create model (for instancing)    
 
-    OSPMaterial material = ospNewMaterial("scivis", "OBJMaterial");
+    // XXX renderer dependent
+    OSPMaterial material = ospNewMaterial("pathtracer", "OBJMaterial");
         ospSetVec3f(material, "Kd", 1.0f, 1.0f, 1.0f);
         ospSetFloat(material, "d", sphere_opacity);
     ospCommit(material);
@@ -195,9 +196,9 @@ generate(GenerateFunctionResult &result, PluginState *state)
 
     OSPGroup group = ospNewGroup();
         OSPData models = ospNewData(1, OSP_OBJECT, &model, 0);
-        ospSetData(group, "geometry", models);
-        ospRelease(models);
+        ospSetData(group, "geometry", models);  // XXX setdata after all?
     ospCommit(group);
+    ospRelease(models);
 
     instances.push_back(std::make_pair(group, glm::mat4(1.0f)));
 
@@ -210,7 +211,7 @@ generate(GenerateFunctionResult &result, PluginState *state)
 static PluginParameters 
 parameters = {
     
-    {"cosmogrid_data_path",   PARAM_STRING,   1, FLAG_SCENE, 
+    {"cosmogrid_data_file",   PARAM_STRING,   1, FLAG_SCENE, 
         "Path to data file"},
         
     {"max_points",        PARAM_INT,      1, FLAG_SCENE, 

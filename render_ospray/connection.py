@@ -68,15 +68,15 @@ def customproperties2dict(obj, filepath_keys=['file']):
             properties[k] = v.to_dict()
         elif hasattr(v, 'to_list'):
             properties[k] = v.to_list()
+        elif isinstance(v, str):
+            if k.endswith('_file'):
+                # Convert blendfile-relative paths to full paths, e.g.
+                # //.../file.name -> /.../.../file.name
+                v = bpy.path.abspath(v)
+            properties[k] = v
         else:
             # XXX assumes simple type that can be serialized to json
             properties[k] = v
-
-    for k in filepath_keys:
-        if k in properties:
-            # Convert blendfile-relative paths to full paths, e.g.
-            # //.../file.name -> /.../.../file.name
-            properties[k] = bpy.path.abspath(properties[k])
 
     return properties
 

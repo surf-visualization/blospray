@@ -1488,14 +1488,25 @@ handle_query_bound(TCPSocket *sock, const std::string& name)
 
     const PluginState *state = it->second;
 
-    uint32_t    size;
-    uint8_t     *buffer = state->bound->serialize(size);
+    BoundingMesh *bound = state->bound;
 
-    result.set_success(true);
-    result.set_result_size(size);
+    if (bound)
+    {
+        uint32_t    size;
+        uint8_t     *buffer = bound->serialize(size);
 
-    send_protobuf(sock, result);
-    sock->sendall(buffer, size);
+        result.set_success(true);
+        result.set_result_size(size);
+
+        send_protobuf(sock, result);
+        sock->sendall(buffer, size);
+    }
+    else
+    {
+        result.set_success(false);
+        result.set_message("No bound specified");
+        send_protobuf(sock, result);
+    }
 
     return true;
 }
