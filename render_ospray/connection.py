@@ -69,7 +69,7 @@ def customproperties2dict(obj, filepath_keys=['file']):
         elif hasattr(v, 'to_list'):
             properties[k] = v.to_list()
         elif isinstance(v, str):
-            if k.endswith('_file'):
+            if k == 'file' or k.endswith('_file'):
                 # Convert blendfile-relative paths to full paths, e.g.
                 # //.../file.name -> /.../.../file.name
                 v = bpy.path.abspath(v)
