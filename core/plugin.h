@@ -174,7 +174,7 @@ struct PluginState
     OSPGeometry     geometry;    
     
     // Scene plugin:
-    GroupInstances  group_instances;  
+    GroupInstances  group_instances;    // Need a refcount of at least 1 to survive in the list
 
     PluginState()
     {

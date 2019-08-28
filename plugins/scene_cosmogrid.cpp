@@ -18,10 +18,9 @@
 // limitations under the License.                                           //
 // ======================================================================== //
 
-// Need to set COSMOGRID_DATA_FILE for the server process before the plugin is used
-// XXX pass file as plugin parameter
 #include <cstdio>
 #include <stdint.h>
+#include <ospray/ospray_testing/ospray_testing.h>
 #include "uhdf5.h"
 
 #include "plugin.h"
@@ -50,6 +49,7 @@ load_points(const char *fname, int max_points, float sphere_radius, float sphere
     file.open(fname);
     
     // Positions
+    // XXX we actually load ALL the points, regardless of max_points
 
     dset = file.open_dataset("/positions");
 
@@ -130,19 +130,17 @@ load_points(const char *fname, int max_points, float sphere_radius, float sphere
       
     ospCommit(spheres);
   
-    // Create model (for instancing)    
-
     // XXX renderer dependent
     OSPMaterial material = ospNewMaterial("pathtracer", "OBJMaterial");
         ospSetVec3f(material, "Kd", 1.0f, 1.0f, 1.0f);
-        ospSetFloat(material, "d", sphere_opacity);
+        //ospSetFloat(material, "d", sphere_opacity);
     ospCommit(material);
     
     model = ospNewGeometricModel(spheres);
         ospSetObject(model, "material", material);
     ospCommit(model);
-    ospRelease(spheres);
     ospRelease(material);
+    ospRelease(spheres);
     
     delete [] positions;
     delete [] nbcounts;
@@ -184,25 +182,46 @@ generate(GenerateFunctionResult &result, PluginState *state)
         sphere_radius = parameters["sphere_radius"].get<float>();
     if (parameters.find("sphere_opacity") != parameters.end())
         sphere_opacity = parameters["sphere_opacity"].get<float>();
+
+    GroupInstances &instances = state->group_instances;
     
+    /*
     if (!load_points(data_file.c_str(), max_points, sphere_radius, sphere_opacity))
     {
         result.set_success(false);
         result.set_message("Failed to load points from HDF5 file");
         return;
     }
-    
-    GroupInstances &instances = state->group_instances;
+    */
 
+    float positions[6] = { 0, 0, 0, 1, 1, 1 };
+
+    OSPGeometry spheres = ospNewGeometry("spheres");    
+      OSPData data = ospNewData(2, OSP_VEC3F, positions);
+      ospSetData(spheres, "sphere", data);
+      ospSetInt(spheres, "bytes_per_sphere", 3*sizeof(float));
+      ospSetFloat(spheres, "radius", 0.5f);
+    ospCommit(spheres);
+  
+    OSPMaterial material = ospNewMaterial("pathtracer", "OBJMaterial");
+        ospSetVec3f(material, "Kd", 0,0,0);//0.8f, 0.8f, 0.8f);
+    ospCommit(material);
+    
+    model = ospNewGeometricModel(spheres);
+        ospSetObject(model, "material", material);
+    ospCommit(model);
+    ospRelease(material);
+    ospRelease(spheres);
+
+    
     OSPGroup group = ospNewGroup();
         OSPData models = ospNewData(1, OSP_OBJECT, &model, 0);
         ospSetData(group, "geometry", models);  // XXX setdata after all?
+        ospRelease(models);
     ospCommit(group);
-    ospRelease(models);
-
+    
     instances.push_back(std::make_pair(group, glm::mat4(1.0f)));
-
-    // XXX hmm, can't release group here?
+    // XXX hmm, can't release group here?    
 
     state->bound = BoundingMesh::bbox_edges(0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f);
 }
