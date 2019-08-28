@@ -132,8 +132,8 @@ load_points(const char *fname, int max_points, float sphere_radius, float sphere
   
     // XXX renderer dependent
     OSPMaterial material = ospNewMaterial("pathtracer", "OBJMaterial");
-        ospSetVec3f(material, "Kd", 1.0f, 1.0f, 1.0f);
-        //ospSetFloat(material, "d", sphere_opacity);
+        ospSetVec3f(material, "Kd", 1.0f, 0.0f, 0.0f);
+        ospSetFloat(material, "d", sphere_opacity);
     ospCommit(material);
     
     model = ospNewGeometricModel(spheres);
@@ -185,34 +185,45 @@ generate(GenerateFunctionResult &result, PluginState *state)
 
     GroupInstances &instances = state->group_instances;
     
-    /*
+#if 1
     if (!load_points(data_file.c_str(), max_points, sphere_radius, sphere_opacity))
     {
         result.set_success(false);
         result.set_message("Failed to load points from HDF5 file");
         return;
     }
-    */
-
-    float positions[6] = { 0, 0, 0, 1, 1, 1 };
+#else
+    //float positions[6] = { 0, 0, 0, 1, 1, 1 };
+    float posradius[2*4] = { 0, 0, 0, 1.0f, 1, 1, 1, 1.0f };
 
     OSPGeometry spheres = ospNewGeometry("spheres");    
-      OSPData data = ospNewData(2, OSP_VEC3F, positions);
+      //OSPData data = ospNewData(2, OSP_VEC3F, positions);
+      OSPData data = ospNewData(2, OSP_VEC4F, posradius);
       ospSetData(spheres, "sphere", data);
-      ospSetInt(spheres, "bytes_per_sphere", 3*sizeof(float));
-      ospSetFloat(spheres, "radius", 0.5f);
+      //ospSetInt(spheres, "bytes_per_sphere", 3*sizeof(float));
+      ospSetInt(spheres, "offset_center", 0);
+      ospSetInt(spheres, "offset_radius", 12);
+      ospSetInt(spheres, "bytes_per_sphere", 4*sizeof(float));
+      //ospSetFloat(spheres, "radius", 0.5f);
     ospCommit(spheres);
-  
+
+    /*
     OSPMaterial material = ospNewMaterial("pathtracer", "OBJMaterial");
-        ospSetVec3f(material, "Kd", 0,0,0);//0.8f, 0.8f, 0.8f);
+        ospSetVec3f(material, "Kd", 0.8f, 0.8f, 0.8f);
+    ospCommit(material);
+    */
+
+    OSPMaterial material = ospNewMaterial("pathtracer", "Luminous");
+        ospSetVec3f(material, "color", 0.8f, 0.0f, 0.0f);
+        ospSetFloat(material, "intensity", 1.0f);
     ospCommit(material);
     
     model = ospNewGeometricModel(spheres);
         ospSetObject(model, "material", material);
     ospCommit(model);
     ospRelease(material);
-    ospRelease(spheres);
-
+    //ospRelease(spheres);
+  #endif
     
     OSPGroup group = ospNewGroup();
         OSPData models = ospNewData(1, OSP_OBJECT, &model, 0);
