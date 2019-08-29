@@ -358,6 +358,8 @@ prepare_renderers()
 OSPTransferFunction
 create_transfer_function(const std::string& name, float minval, float maxval)
 {
+    printf("create_transfer_function('%s', %.6f, %.6f)\n", name.c_str(), minval, maxval);
+    
 	if (name == "jet")
 	{
 		osp_vec2f voxelRange = { minval, maxval };
