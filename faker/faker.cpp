@@ -10,21 +10,27 @@
 #include <ospray/ospray.h>
 
 static FILE *log_file = NULL;
+static bool dump_arrays = getenv("FAKER_DUMP_ARRAYS") != NULL;
 
 typedef std::map<std::string, void*>    PointerMap;
 typedef std::map<void*, int>            ReferenceCountMap;
 typedef std::map<void*, std::string>    ReferenceTypeMap;
+
 typedef std::map<OSPDataType, std::string>  OSPDataTypeMap;
+typedef std::map<OSPFrameBufferFormat, std::string>  OSPFrameBufferFormatMap;
 
 static PointerMap          library_pointers;
 static ReferenceCountMap   reference_counts;
 static ReferenceTypeMap    reference_types;
-static OSPDataTypeMap      ospdatatype_names;
-static bool                enum_mapping_initialized=false;
+
+static OSPDataTypeMap           ospdatatype_names;
+static OSPFrameBufferFormatMap  ospframebufferformat_names;
+static bool                     enum_mapping_initialized=false;
 
 typedef OSPCamera           (*ospNewCamera_ptr)     (const char *type);
 typedef OSPData             (*ospNewData_ptr)       (size_t numItems, OSPDataType, const void *source, uint32_t dataCreationFlags);
 typedef OSPDevice           (*ospNewDevice_ptr)     (const char *type);
+typedef OSPFrameBuffer      (*ospNewFrameBuffer_ptr)(int x, int y, OSPFrameBufferFormat format, uint32_t frameBufferChannels);
 typedef OSPGeometricModel   (*ospNewGeometricModel_ptr) (OSPGeometry geometry);
 typedef OSPGeometry         (*ospNewGeometry_ptr)   (const char *type);
 typedef OSPGroup            (*ospNewGroup_ptr)      ();
@@ -135,6 +141,11 @@ init_enum_mapping()
     ospdatatype_names[OSP_AFFINE2F] = "OSP_AFFINE2F";
     ospdatatype_names[OSP_AFFINE3F] = "OSP_AFFINE3F";
     ospdatatype_names[OSP_UNKNOWN] = "OSP_UNKNOWN";
+
+    ospframebufferformat_names[OSP_FB_NONE] = "OSP_FB_NONE";
+    ospframebufferformat_names[OSP_FB_RGBA8] = "OSP_FB_RGBA8";
+    ospframebufferformat_names[OSP_FB_SRGBA] = "OSP_FB_SRGBA";
+    ospframebufferformat_names[OSP_FB_RGBA32F] = "OSP_FB_RGBA32F";
     
     enum_mapping_initialized = true;
 }
@@ -146,6 +157,15 @@ ospdatatype_name(OSPDataType type)
         init_enum_mapping();
     
     return ospdatatype_names[type];
+}
+
+static std::string
+ospframebufferformat_name(OSPFrameBufferFormat type)
+{
+    if (!enum_mapping_initialized)
+        init_enum_mapping();
+    
+    return ospframebufferformat_names[type];
 }
 
 static double 
@@ -287,13 +307,70 @@ ospNewData(size_t numItems, OSPDataType type, const void *source, uint32_t dataC
     
     OSPData res = libcall(numItems, type, source, dataCreationFlags);
     
-    if (reference_counts.find(res) != reference_counts.end())
+    if (reference_counts.find(res) != reference_counts.end())               // XXX why this check here?
         log_warning("Lost reference count to object at 0x%016x!\n", res);
 
     newobj(res, "OSPData");
 
+    if (dump_arrays)
+    {
+        int n;
+        char f[32];
+        std::string s;
+        const float *ptr;
+
+        switch (type)
+        {
+        case OSP_FLOAT:
+        case OSP_VEC2F:
+        case OSP_VEC3F:
+        case OSP_VEC4F:
+            n = type - OSP_FLOAT + 1;
+            ptr = (float*)source;
+
+            for (size_t i = 0; i < numItems; i++)
+            {
+                sprintf(f, "%6d | ", i);
+                s = f;
+                for (int c = 0; c < n; c++)
+                {
+                    sprintf(f, "%.6f ", ptr[n*i+c]);
+                    s += f;
+                }
+                s += "\n";
+                log_message(s.c_str());
+            }
+            break;
+
+        case OSP_OBJECT:
+            for (size_t i = 0; i < numItems; i++)
+            {
+                OSPObject obj = ((OSPObject*)source)[i];
+                log_message("%6d | %s\n", i, objinfo(obj).c_str());
+            }
+            break;
+        }
+    }
+
     log_message("-> 0x%016x [%s]\n", res, objinfo(res).c_str());
     
+    return res;
+}
+
+OSPFrameBuffer 
+ospNewFrameBuffer(int x, int y, OSPFrameBufferFormat format, uint32_t frameBufferChannels)
+{
+    ospNewFrameBuffer_ptr libcall = GET_PTR(ospNewFrameBuffer);
+
+    log_message("ospNewFrameBuffer(x=%d, y=%d, format=0x%04x [%s], frameBufferChannels=0x%08x)\n", 
+        x, y, format, ospframebufferformat_name(format).c_str(), frameBufferChannels);    
+    
+    OSPFrameBuffer res = libcall(x, y, format, frameBufferChannels);
+    
+    newobj(res, "OSPFrameBuffer");
+
+    log_message("-> 0x%016x [%s]\n", res, objinfo(res).c_str());
+
     return res;
 }
 
