@@ -67,6 +67,8 @@ typedef void                (*ospSetVec4iv_ptr)     (OSPObject obj, const char *
 typedef void                (*ospSetLinear3fv_ptr)  (OSPObject obj, const char *id, const float *v);
 typedef void                (*ospSetAffine3fv_ptr)  (OSPObject obj, const char *id, const float *v);
 
+typedef float               (*ospRenderFrame_ptr)   (OSPFrameBuffer framebuffer, OSPRenderer renderer, OSPCamera camera, OSPWorld world);
+
 static void
 init_enum_mapping()
 {
@@ -216,6 +218,25 @@ find_or_load_call(const char *callname)
     return ptr;
 }
 
+typedef std::map<std::string, int>  TypeCountMap;
+
+TypeCountMap    type_counts;
+
+void
+newobj(void *ptr, const std::string &type)
+{
+    int count; 
+
+    TypeCountMap::iterator it = type_counts.find(type);
+    if (it == type_counts.end())
+        count = type_counts[type] = 1;
+    else
+        count = it->second++;
+        
+    reference_counts[ptr] = 1;
+    reference_types[ptr] = type + "#" + std::to_string(count);
+}
+
 std::string 
 objinfo(void *ptr)
 {
@@ -241,10 +262,9 @@ objinfo(void *ptr)
         if (reference_counts.find(res) != reference_counts.end()) \
             log_warning("Lost reference count to object at 0x%016x!\n", res); \
         \
-        reference_counts[res] = 1; /*ospRefCount(res);*/ \
-        reference_types[res] = "OSP" #TYPE; \
+        newobj(res, "OSP" #TYPE); \
         \
-        log_message("-> 0x%016x\n", res); \
+        log_message("-> 0x%016x [%s]\n", res, objinfo(res).c_str()); \
         \
         return res; \
     }
@@ -270,10 +290,9 @@ ospNewData(size_t numItems, OSPDataType type, const void *source, uint32_t dataC
     if (reference_counts.find(res) != reference_counts.end())
         log_warning("Lost reference count to object at 0x%016x!\n", res);
 
-    reference_counts[res] = 1; //ospRefCount(res);
-    reference_types[res] = "OSPData";   
-    
-    log_message("-> 0x%016x\n", res);
+    newobj(res, "OSPData");
+
+    log_message("-> 0x%016x [%s]\n", res, objinfo(res).c_str());
     
     return res;
 }
@@ -290,12 +309,10 @@ ospNewGeometricModel(OSPGeometry geometry)
     if (reference_counts.find(res) != reference_counts.end())
         log_warning("Lost reference count to object at 0x%016x!\n", res);
 
-    reference_counts[res] = 1; //ospRefCount(res);
-    reference_types[res] = "OSPGeometricModel";
-    
+    newobj(res, "OSPGeometricModel");
     reference_counts[geometry] += 1;
     
-    log_message("-> 0x%016x\n", res);
+    log_message("-> 0x%016x [%s]\n", res, objinfo(res).c_str());
     
     return res;
 }
@@ -312,10 +329,9 @@ ospNewGroup()
     if (reference_counts.find(res) != reference_counts.end())
         log_warning("Lost reference count to object at 0x%016x!\n", res);
 
-    reference_counts[res] = 1; //ospRefCount(res);
-    reference_types[res] = "OSPGroup";
-    
-    log_message("-> 0x%016x\n", res);
+    newobj(res, "OSPGroup");
+
+    log_message("-> 0x%016x [%s]\n", res, objinfo(res).c_str());
     
     return res;
 }
@@ -332,12 +348,10 @@ ospNewInstance(OSPGroup group)
     if (reference_counts.find(res) != reference_counts.end())
         log_warning("Lost reference count to object at 0x%016x!\n", res);
 
-    reference_counts[res] = 1; //ospRefCount(res);
-    reference_types[res] = "OSPInstance";
-    
+    newobj(res, "OSPInstance");
     reference_counts[group] += 1;
     
-    log_message("-> 0x%016x\n", res);
+    log_message("-> 0x%016x [%s]\n", res, objinfo(res).c_str());
     
     return res;    
 }
@@ -356,10 +370,9 @@ ospNewMaterial(const char *rendererType, const char *materialType)
     if (reference_counts.find(res) != reference_counts.end())
         log_warning("Lost reference count to object at 0x%016x!\n", res);
 
-    reference_counts[res] = 1; //ospRefCount(res);
-    reference_types[res] = "OSPMaterial";
+    newobj(res, "OSPMaterial");
     
-    log_message("-> 0x%016x\n", res);
+    log_message("-> 0x%016x [%s]\n", res, objinfo(res).c_str());
     
     return res;
 }
@@ -376,12 +389,10 @@ ospNewVolumetricModel(OSPVolume volume)
     if (reference_counts.find(res) != reference_counts.end())
         log_warning("Lost reference count to object at 0x%016x!\n", res);
 
-    reference_counts[res] = 1; //ospRefCount(res);
-    reference_types[res] = "OSPVolumetricModel";
-    
+    newobj(res, "OSPVolumetricModel");
     reference_counts[volume] += 1;
     
-    log_message("-> 0x%016x\n", res);
+    log_message("-> 0x%016x [%s]\n", res, objinfo(res).c_str());
     
     return res;
 }
@@ -399,10 +410,9 @@ ospNewWorld()
     if (reference_counts.find(res) != reference_counts.end())
         log_warning("Lost reference count to object at 0x%016x!\n", res);
 
-    reference_counts[res] = 1; //ospRefCount(res);
-    reference_types[res] = "OSPWorld";
+    newobj(res, "OSPWorld");
     
-    log_message("-> 0x%016x\n", res);
+    log_message("-> 0x%016x [%s]\n", res, objinfo(res).c_str());
     
     return res;
 }
@@ -560,7 +570,7 @@ ospSetVec2fv(OSPObject obj, const char *id, const float *xy)
     ospSetVec2fv_ptr libcall = GET_PTR(ospSetVec2fv);
     
     log_message("ospSetVec2fv(object=0x%016x [%s], id=\"%s\", xy=0x%016x [%.6f, %.6f])\n", 
-        obj, objinfo(obj).c_str(), id, xy[0], xy[1]);
+        obj, objinfo(obj).c_str(), id, xy, xy[0], xy[1]);
 
     libcall(obj, id, xy);
 }
@@ -582,7 +592,7 @@ ospSetVec2iv(OSPObject obj, const char *id, const int *xy)
     ospSetVec2iv_ptr libcall = GET_PTR(ospSetVec2iv);
     
     log_message("ospSetVec2fv(object=0x%016x [%s], id=\"%s\", xy=0x%016x [%d, %d])\n", 
-        obj, objinfo(obj).c_str(), id, xy[0], xy[1]);
+        obj, objinfo(obj).c_str(), id, xy, xy[0], xy[1]);
 
     libcall(obj, id, xy);
 }
@@ -606,7 +616,7 @@ ospSetVec3fv(OSPObject obj, const char *id, const float *xyz)
     ospSetVec3fv_ptr libcall = GET_PTR(ospSetVec3fv);
     
     log_message("ospSetVec3fv(object=0x%016x [%s], id=\"%s\", xyz=0x%016x [%.6f, %.6f, %.6f])\n", 
-        obj, objinfo(obj).c_str(), id, xyz[0], xyz[1], xyz[2]);
+        obj, objinfo(obj).c_str(), id, xyz, xyz[0], xyz[1], xyz[2]);
 
     libcall(obj, id, xyz);
 }
@@ -628,7 +638,7 @@ ospSetVec3iv(OSPObject obj, const char *id, const int *xyz)
     ospSetVec3iv_ptr libcall = GET_PTR(ospSetVec3iv);
     
     log_message("ospSetVec3fv(object=0x%016x [%s], id=\"%s\", xyz=0x%016x [%d, %d, %d])\n", 
-        obj, objinfo(obj).c_str(), id, xyz[0], xyz[1], xyz[2]);
+        obj, objinfo(obj).c_str(), id, xyz, xyz[0], xyz[1], xyz[2]);
 
     libcall(obj, id, xyz);
 }
@@ -652,7 +662,7 @@ ospSetVec4fv(OSPObject obj, const char *id, const float *xyzw)
     ospSetVec4fv_ptr libcall = GET_PTR(ospSetVec4fv);
     
     log_message("ospSetVec4fv(object=0x%016x [%s], id=\"%s\", xyzw=0x%016x [%.6f, %.6f, %.6f, %.6f])\n", 
-        obj, objinfo(obj).c_str(), id, xyzw[0], xyzw[1], xyzw[2], xyzw[3]);
+        obj, objinfo(obj).c_str(), id, xyzw, xyzw[0], xyzw[1], xyzw[2], xyzw[3]);
 
     libcall(obj, id, xyzw);
 }
@@ -674,9 +684,28 @@ ospSetVec4iv(OSPObject obj, const char *id, const int *xyzw)
     ospSetVec4iv_ptr libcall = GET_PTR(ospSetVec4iv);
     
     log_message("ospSetVec4fv(object=0x%016x [%s], id=\"%s\", xyzw=0x%016x [%d, %d, %d, %d])\n", 
-        obj, objinfo(obj).c_str(), id, xyzw[0], xyzw[1], xyzw[2], xyzw[3]);
+        obj, objinfo(obj).c_str(), id, xyzw, xyzw[0], xyzw[1], xyzw[2], xyzw[3]);
 
     libcall(obj, id, xyzw);
+}
+
+
+float 
+ospRenderFrame(OSPFrameBuffer framebuffer, OSPRenderer renderer, OSPCamera camera, OSPWorld world)
+{
+    ospRenderFrame_ptr libcall = GET_PTR(ospRenderFrame);
+
+    log_message("ospRenderFrame(framebuffer=0x%016x [%s], renderer=0x%016x [%s], camera=0x%016x [%s], world=0x%016x [%s])\n", 
+        framebuffer, objinfo(framebuffer).c_str(), 
+        renderer, objinfo(renderer).c_str(),
+        camera, objinfo(camera).c_str(),
+        world, objinfo(world).c_str());   
+
+    float res = libcall(framebuffer, renderer, camera, world);
+
+    log_message("-> %.6f\n", res);   
+
+    return res;
 }
 
 /* 

@@ -8,6 +8,7 @@ OSPRAY things/bugs
 
 Bugs
 - Add top-level exception handling in the server
+- Updating volume mesh in edit mode fails
 - https://developer.blender.org/T59089 (get evee render instead of custom one)
 - https://developer.blender.org/T64295 (custom props not updating in UI)
 
