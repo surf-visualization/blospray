@@ -40,7 +40,7 @@ from .messages_pb2 import (
     ClientMessage, GenerateFunctionResult,
     RenderResult,
     UpdateObject, UpdatePluginInstance,
-    Slices, Slice
+    Volume, Slices, Slice
 )
 
 # Object to world matrix
@@ -472,11 +472,16 @@ class Connection:
                     
                 elif plugin_type == 'volume':
                     
-                    # XXX properties: sample rate, single shade, gradient shading, ...
+                    # XXX properties: single shade, gradient shading, ...
                     
                     volume_usage = obj.ospray.volume_usage
+
                     if volume_usage == 'volume':
                         update.type = UpdateObject.VOLUME
+                        volume = Volume()
+                        volume.sampling_rate = obj.ospray.sampling_rate
+                        extra.append(volume)
+
                     elif volume_usage == 'slices':
                         update.type = UpdateObject.SLICES
                         #  Process child objects for slices

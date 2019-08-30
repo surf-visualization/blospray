@@ -146,8 +146,12 @@ struct SceneObject
     OSPLight                    light;              // Only for type == SOT_LIGHT
 };
 
-std::map<std::string, PluginInstance>   plugin_instances;
+// Top-level scene objects
 std::map<std::string, SceneObject>      scene_objects;
+
+// Mesh Data with a plugin attached
+std::map<std::string, PluginInstance>   plugin_instances;
+
 
 // Geometry buffers used during network receive
 
@@ -359,7 +363,7 @@ OSPTransferFunction
 create_transfer_function(const std::string& name, float minval, float maxval)
 {
     printf("create_transfer_function('%s', %.6f, %.6f)\n", name.c_str(), minval, maxval);
-    
+
 	if (name == "jet")
 	{
 		osp_vec2f voxelRange = { minval, maxval };
@@ -384,15 +388,15 @@ create_transfer_function(const std::string& name, float minval, float maxval)
         	ospSetVec2f(tf, "valueRange", minval, maxval);
 
         	OSPData color_data = ospNewData(cool2warm_entries, OSP_VEC3F, tf_colors);
-        	ospSetData(tf, "color", color_data);
-        	ospRelease(color_data);
+        	ospSetData(tf, "color", color_data);        	
 
         	// XXX color and opacity can be decoupled?
         	OSPData opacity_data = ospNewData(cool2warm_entries, OSP_FLOAT, tf_opacities);
-        	ospSetData(tf, "opacity", opacity_data);
-        	ospRelease(opacity_data);
+        	ospSetData(tf, "opacity", opacity_data);        	
 
     	ospCommit(tf);
+        ospRelease(color_data);
+        ospRelease(opacity_data);        
 
     	return tf;
 	}
@@ -777,7 +781,7 @@ add_scene(const UpdateObject& update)
 }
 
 bool
-add_volume(const UpdateObject& update)
+add_volume(const UpdateObject& update, const Volume& volume_settings)
 {
     printf("%s [OBJECT]\n", update.name().c_str());
     printf("........ --> %s (OSPRay volume)\n", update.data_link().c_str());
@@ -803,10 +807,7 @@ add_volume(const UpdateObject& update)
         // Set up further volume properties
         // XXX not sure these are handled correctly, and working in API2
 
-        if (custom_properties.find("sampling_rate") != custom_properties.end())
-            ospSetFloat(volume_model,  "samplingRate", custom_properties["sampling_rate"].get<float>());
-        else
-            ospSetFloat(volume_model,  "samplingRate", 0.1f);
+        ospSetFloat(volume_model,  "samplingRate", volume_settings.sampling_rate());
 
         /*
         if (properties.find("gradient_shading") != properties.end())
@@ -911,7 +912,7 @@ add_isosurfaces(const UpdateObject& update)
         OSPTransferFunction tf = create_transfer_function("cool2warm", 0.0f, 5.1f);
         ospSetObject(volumeModel, "transferFunction", tf);
         ospRelease(tf);
-        ospSetFloat(volumeModel, "samplingRate", 0.5f);
+        //ospSetFloat(volumeModel, "samplingRate", 0.5f);
   	ospCommit(volumeModel);
 
     OSPGeometry isosurface = ospNewGeometry("isosurfaces");
@@ -1108,8 +1109,7 @@ add_light(const UpdateObject& update, const Light& light)
 bool
 handle_update_object(TCPSocket *sock)
 {
-    UpdateObject    update;
-    Slices          slices;
+    UpdateObject    update;    
     Light           light;
 
     if (!receive_protobuf(sock, update))
@@ -1141,7 +1141,12 @@ handle_update_object(TCPSocket *sock)
         break;
 
     case UpdateObject::VOLUME:
-        add_volume(update);
+        {
+        Volume volume;
+        if (!receive_protobuf(sock, volume))
+            return false;
+        add_volume(update, volume);
+        }
         break;
 
     case UpdateObject::ISOSURFACES:
@@ -1149,9 +1154,12 @@ handle_update_object(TCPSocket *sock)
         break;
     
     case UpdateObject::SLICES:
+        {
+        Slices slices;
         if (!receive_protobuf(sock, slices))
             return false;
         add_slices(update, slices);
+        }
         break;
 
     case UpdateObject::LIGHT:

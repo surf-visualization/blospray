@@ -134,6 +134,11 @@ message UpdateObject
     string          data_link = 11;
 }
 
+message Volume
+{
+    float   sampling_rate = 1;
+}
+
 message Slice
 {
     float   a = 1;
