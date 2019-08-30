@@ -302,7 +302,7 @@ ospNewData(size_t numItems, OSPDataType type, const void *source, uint32_t dataC
 {
     ospNewData_ptr libcall = GET_PTR(ospNewData);
     
-    log_message("ospNewData(numItems=%lx, type=%d [%s], source=0x%016x, dataCreationFlags=0x%08x)\n", 
+    log_message("ospNewData(numItems=%ld, type=%d [%s], source=0x%016x, dataCreationFlags=0x%08x)\n", 
         numItems, type, ospdatatype_name(type).c_str(), source, dataCreationFlags);    
     
     OSPData res = libcall(numItems, type, source, dataCreationFlags);
