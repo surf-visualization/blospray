@@ -541,6 +541,7 @@ handle_update_plugin_instance(TCPSocket *sock)
 
     GenerateFunctionResult result;
 
+    // By default all is well, we let the plugin signal something went wrong 
     result.set_success(true);
 
     // Find generate function
@@ -608,6 +609,7 @@ handle_update_plugin_instance(TCPSocket *sock)
             return false;
         }
 
+        // XXX needs to go, is stored in plugin instance
         loaded_geometries[update.name()] = state->geometry;
 
         break;
@@ -622,6 +624,7 @@ handle_update_plugin_instance(TCPSocket *sock)
             return false;
         }
 
+        // XXX needs to go, is stored in plugin instance
         loaded_volumes[update.name()] = state->volume;
 
         break;
@@ -631,6 +634,7 @@ handle_update_plugin_instance(TCPSocket *sock)
         if (state->group_instances.size() == 0)
             printf("WARNING: scene generate function returned 0 instances!\n");
 
+        // XXX needs to go, is stored in plugin instance
         loaded_scenes[update.name()] = state->group_instances;
 
         break;
@@ -776,6 +780,12 @@ add_scene(const UpdateObject& update)
 
         scene_instances.push_back(instance);
     }
+
+#if 0
+    // Lights
+    for (OSPLight light : state)
+        scene_lights.push_back(light);
+#endif
 
     return true;
 }

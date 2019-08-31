@@ -49,12 +49,36 @@ target_include_directories(volume_testing
 add_library(geometry_plane SHARED geometry_plane.cpp)
 set_target_properties(geometry_plane PROPERTIES PREFIX "")   
 target_link_libraries(geometry_plane PUBLIC ${OSPRAY_LIBRARIES})
+target_include_directories(geometry_plane
+    PUBLIC
+    ${PROTOBUF_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_BINARY_DIR}
+)
+
 
 # scene_rbc
 
 add_library(scene_rbc SHARED scene_rbc.cpp)
 set_target_properties(scene_rbc PROPERTIES PREFIX "")   
 target_link_libraries(scene_rbc PUBLIC ${OSPRAY_LIBRARIES})
+target_include_directories(scene_rbc
+    PUBLIC
+    ${PROTOBUF_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_BINARY_DIR}
+)
+
+
+# scene_cornellbox
+
+add_library(scene_cornellbox SHARED scene_cornellbox.cpp)
+set_target_properties(scene_cornellbox PROPERTIES PREFIX "")   
+target_link_libraries(scene_cornellbox PUBLIC ${OSPRAY_LIBRARIES} ospray::ospray_testing)
+target_include_directories(scene_cornellbox
+    PUBLIC
+    ${PROTOBUF_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_BINARY_DIR}
+)
+
 
 if(PLUGIN_COSMOGRID)
 
@@ -96,6 +120,7 @@ install(TARGETS
     volume_testing
     geometry_plane
     scene_rbc
+    scene_cornellbox
     DESTINATION bin)
     
 

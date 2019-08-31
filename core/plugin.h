@@ -110,6 +110,7 @@ destroy_scene
 
 typedef std::pair<OSPGroup, glm::mat4>      GroupInstance;
 typedef std::vector<GroupInstance>          GroupInstances;
+typedef std::vector<OSPLight>               Lights;
 
 // A plugin can return a bounding mesh, to be used as proxy object
 // in the blender scene. The mesh geometry is defined in the same way
@@ -175,6 +176,7 @@ struct PluginState
     
     // Scene plugin:
     GroupInstances  group_instances;    // Need a refcount of at least 1 to survive in the list
+    Lights          lights;
 
     PluginState()
     {
