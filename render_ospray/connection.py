@@ -498,15 +498,14 @@ class Connection:
                             M = childobj.matrix_local
                             p = M @ p
                             n = M @ n
-                            print(M, '->', p, n)
                             n = (n - p).normalized()
-                            d = p.length
-                            print(n, d)
+                            #print(M, '->', p, n)
                             slice = Slice()
                             slice.a = n.x
                             slice.b = n.y
                             slice.c = n.z
-                            slice.d = d
+                            # Hmmm, for some reason slice.d = -... doesn't work, even though that should be the correct equation
+                            slice.d = (n.x * p.x + n.y * p.y + n.z * p.z)
                             ss.append(slice)
 
                         slices = Slices()

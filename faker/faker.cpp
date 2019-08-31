@@ -10,7 +10,8 @@
 #include <ospray/ospray.h>
 
 static FILE *log_file = NULL;
-static bool dump_arrays = getenv("FAKER_DUMP_ARRAYS") != NULL;
+// 0 = no, 1 = short arrays, 2 = all
+static int dump_arrays = getenv("FAKER_DUMP_ARRAYS") ? atol(getenv("FAKER_DUMP_ARRAYS")) : 0;
 
 typedef std::map<std::string, void*>    PointerMap;
 typedef std::map<void*, int>            ReferenceCountMap;
@@ -312,12 +313,16 @@ ospNewData(size_t numItems, OSPDataType type, const void *source, uint32_t dataC
 
     newobj(res, "OSPData");
 
-    if (dump_arrays)
+    if (dump_arrays > 0)
     {
-        int n;
+        int v;
         char f[32];
         std::string s;
         const float *ptr;
+
+        int n = numItems;
+        if (dump_arrays == 1)
+            n = std::min(n, 30);
 
         switch (type)
         {
@@ -325,16 +330,16 @@ ospNewData(size_t numItems, OSPDataType type, const void *source, uint32_t dataC
         case OSP_VEC2F:
         case OSP_VEC3F:
         case OSP_VEC4F:
-            n = type - OSP_FLOAT + 1;
+            v = type - OSP_FLOAT + 1;
             ptr = (float*)source;
 
-            for (size_t i = 0; i < numItems; i++)
+            for (size_t i = 0; i < n; i++)
             {
                 sprintf(f, "%6d | ", i);
                 s = f;
-                for (int c = 0; c < n; c++)
+                for (int c = 0; c < v; c++)
                 {
-                    sprintf(f, "%.6f ", ptr[n*i+c]);
+                    sprintf(f, "%.6f ", ptr[v*i+c]);
                     s += f;
                 }
                 s += "\n";
@@ -343,13 +348,16 @@ ospNewData(size_t numItems, OSPDataType type, const void *source, uint32_t dataC
             break;
 
         case OSP_OBJECT:
-            for (size_t i = 0; i < numItems; i++)
+            for (size_t i = 0; i < n; i++)
             {
                 OSPObject obj = ((OSPObject*)source)[i];
                 log_message("%6d | %s\n", i, objinfo(obj).c_str());
             }
             break;
         }
+
+        if (dump_arrays == 1 && numItems > n)
+            log_message("...... | ...\n");
     }
 
     log_message("-> 0x%016x [%s]\n", res, objinfo(res).c_str());

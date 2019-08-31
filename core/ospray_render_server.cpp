@@ -1005,8 +1005,16 @@ add_slices(const UpdateObject& update, const Slices& slices)
         OSPData planeData = ospNewData(1, OSP_VEC4F, plane);
         ospCommit(planeData);
 
+            // XXX hacked temp volume module
+        auto volumeModel = ospNewVolumetricModel(volume);
+            OSPTransferFunction tf = create_transfer_function("cool2warm", 0.0f, 5.1f);
+            ospSetObject(volumeModel, "transferFunction", tf);
+            ospRelease(tf);
+            //ospSetFloat(volumeModel, "samplingRate", 0.5f);
+        ospCommit(volumeModel);
+
         OSPGeometry slice_geometry = ospNewGeometry("slices");
-            ospSetObject(slice_geometry, "volume", volume);
+            ospSetObject(slice_geometry, "volume", volumeModel);         // XXX should be volume model
             //ospRelease(volume);
             ospSetData(slice_geometry, "plane", planeData);
             ospRelease(planeData);
