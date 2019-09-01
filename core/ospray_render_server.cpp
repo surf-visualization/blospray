@@ -101,6 +101,7 @@ struct PluginInstance
     PluginState     *state;     // XXX store as object, not as pointer?
 };
 
+/*
 // Blender Mesh
 struct BlenderMesh
 {
@@ -109,12 +110,13 @@ struct BlenderMesh
 
     OSPGeometry     geometry;
 };
+*/
 
 // Server-side data associated with a blender Mesh Object
 
 enum SceneObjectType
 {
-    SOT_MESH,           // Blender mesh
+    SOT_MESH,           // Blender mesh    -> SOT_TRIANGLE_MESH
     SOT_GEOMETRY,       // OSPRay geometry
     SOT_VOLUME,
     SOT_SLICES,

@@ -287,6 +287,7 @@ enum PluginType
 
 typedef struct
 {
+    // XXX add flag for marking the results as renderer-type dependent
     PluginType          type;
     PluginParameter     *parameters;
     PluginFunctions     functions;
