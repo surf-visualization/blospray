@@ -35,7 +35,7 @@ OSPGeometricModel   mesh_model_rbc, mesh_model_plt;
 OSPGroup            rbc_group, plt_group;
 
 bool
-load_cell_models()
+load_cell_models(const char *renderer_type)
 {
     char fname[1024];
     
@@ -101,7 +101,7 @@ load_cell_models()
   
     // Create model
   
-    OSPMaterial material = ospNewMaterial("pathtracer", "OBJMaterial");    
+    OSPMaterial material = ospNewMaterial(renderer_type, "OBJMaterial");    
         ospSetVec3f(material, "Kd", 0.8f, 0, 0);        
     ospCommit(material);
 
@@ -169,7 +169,7 @@ load_cell_models()
   
     // Create model
 
-    material = ospNewMaterial("pathtracer", "OBJMaterial");
+    material = ospNewMaterial(renderer_type, "OBJMaterial");
         ospSetVec3f(material, "Kd", 0.8f, 0.8f, 0.8f);
     ospCommit(material);
 
@@ -300,7 +300,7 @@ generate(GenerateFunctionResult &result, PluginState *state)
     if (parameters.find("num_plts") != parameters.end())
         max_plts = parameters["num_plts"].get<int>();
     
-    if (!load_cell_models())
+    if (!load_cell_models(state->renderer.c_str()))
     {
         result.set_success(false);
         result.set_message("Failed to load cell models");
@@ -436,6 +436,7 @@ extern "C" bool
 initialize(PluginDefinition *def)
 {
     def->type = PT_SCENE;
+    def->uses_renderer_type = true;
     def->parameters = parameters;
     def->functions = functions;
     

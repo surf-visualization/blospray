@@ -53,6 +53,7 @@ using json = nlohmann::json;
 const int   PORT = 5909;
 
 OSPRenderer     renderer;
+std::string     current_renderer_type;
 OSPWorld        world;
 OSPCamera       camera;
 OSPFrameBuffer  framebuffer;
@@ -537,6 +538,7 @@ handle_update_plugin_instance(TCPSocket *sock)
     // XXX look up existing state, if any
 
     PluginState *state = new PluginState;
+    state->renderer = current_renderer_type;
     plugin_state[update.name()] = state;       // XXX leaks when overwriting
 
     // Prepare result
@@ -1229,7 +1231,8 @@ receive_scene(TCPSocket *sock)
     const std::string& renderer_type = render_settings.renderer();
 
     // Reuse existing renderer
-    renderer = renderers[renderer_type.c_str()];
+    current_renderer_type = renderer_type;
+    renderer = renderers[current_renderer_type.c_str()];
 
     printf("Background color %f, %f, %f, %f\n", render_settings.background_color(0),
         render_settings.background_color(1),

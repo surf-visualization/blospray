@@ -135,6 +135,7 @@ extern "C" bool
 initialize(PluginDefinition *def)
 {
     def->type = PT_GEOMETRY;
+    def->uses_renderer_type = false;
     def->parameters = parameters;
     def->functions = functions;
     

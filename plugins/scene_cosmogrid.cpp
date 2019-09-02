@@ -29,7 +29,7 @@ std::string         data_file;
 OSPGeometricModel   model;
 
 bool
-load_points(const char *fname, int max_points, float sphere_radius, float sphere_opacity)
+load_points(const char *renderer_type, const char *fname, int max_points, float sphere_radius, float sphere_opacity)
 {
     printf("Loading %d points from %s\n", max_points, fname);
 
@@ -131,7 +131,7 @@ load_points(const char *fname, int max_points, float sphere_radius, float sphere
     ospCommit(spheres);
   
     // XXX renderer dependent
-    OSPMaterial material = ospNewMaterial("pathtracer", "OBJMaterial");
+    OSPMaterial material = ospNewMaterial(renderer_type, "OBJMaterial");
         ospSetVec3f(material, "Kd", 1.0f, 0.0f, 0.0f);
         ospSetFloat(material, "d", sphere_opacity);
     ospCommit(material);
@@ -186,7 +186,7 @@ generate(GenerateFunctionResult &result, PluginState *state)
     GroupInstances &instances = state->group_instances;
     
 #if 1
-    if (!load_points(data_file.c_str(), max_points, sphere_radius, sphere_opacity))
+    if (!load_points(state->renderer.c_str(), data_file.c_str(), max_points, sphere_radius, sphere_opacity))
     {
         result.set_success(false);
         result.set_message("Failed to load points from HDF5 file");
@@ -271,6 +271,7 @@ extern "C" bool
 initialize(PluginDefinition *def)
 {
     def->type = PT_SCENE;
+    def->uses_renderer_type = true;
     def->parameters = parameters;
     def->functions = functions;
     

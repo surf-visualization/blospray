@@ -39,7 +39,7 @@ generate(GenerateFunctionResult &result, PluginState *state)
     GroupInstances &instances = state->group_instances;
 
     OSPTestingGeometry boxes =
-        ospTestingNewGeometry("cornell_box", "pathtracer"); //renderer_type.c_str());
+        ospTestingNewGeometry("cornell_box", state->renderer.c_str()); 
 
     OSPGroup group = ospNewGroup();
         OSPData models = ospNewData(1, OSP_OBJECT, &(boxes.model), 0);
@@ -89,6 +89,7 @@ extern "C" bool
 initialize(PluginDefinition *def)
 {
     def->type = PT_SCENE;
+    def->uses_renderer_type = true;
     def->parameters = parameters;
     def->functions = functions;
     

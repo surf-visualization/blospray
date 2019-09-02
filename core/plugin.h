@@ -148,6 +148,9 @@ struct BoundingMesh
 // of the "instances" managed by the plugin
 struct PluginState
 {   
+    // Renderer type the plugin is called for
+    std::string     renderer;
+
     // XXX need to store renderer type as well, for scene plugins,  
     // as an OSPGroup can indirectly link to an OSPMaterial (which is 
     // tied to specific renderer type)
@@ -285,12 +288,21 @@ enum PluginType
     PT_SCENE = 3
 };
 
+enum PluginRenderer
+{
+    PR_ANY = 0,
+    PR_SCIVIS,
+    PR_PATHTRACER
+};
+
 typedef struct
 {
-    // XXX add flag for marking the results as renderer-type dependent
     PluginType          type;
+    //PluginRenderer      renderer;
+    bool                uses_renderer_type;
+
     PluginParameter     *parameters;
-    PluginFunctions     functions;
+    PluginFunctions     functions;    
 }
 PluginDefinition;
 

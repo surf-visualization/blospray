@@ -1,6 +1,8 @@
 Port plugin geometry_cosmogrid to new style
 
 OSPRAY things/bugs
+- Volume rendering currently is buggy work when applying a transform
+  to the volumetricmodel
 - The background alpha seems to be ignored (or always 0) when using the path
   tracer renderer. See https://github.com/ospray/ospray/issues/347
 - Camera clipping start doesn't match cycles render, nor OpenGL scene view.
@@ -8,7 +10,7 @@ OSPRAY things/bugs
 
 Bugs
 - Add top-level exception handling in the server
-- Updating volume mesh in edit mode fails
+- Updating volume mesh with the operator in edit mode fails
 - https://developer.blender.org/T59089 (get evee render instead of custom one)
 - https://developer.blender.org/T64295 (custom props not updating in UI)
 
