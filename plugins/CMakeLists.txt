@@ -44,7 +44,7 @@ target_include_directories(volume_testing
     ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-# geometry_plane
+# geometry_plane (for testing)
 
 add_library(geometry_plane SHARED geometry_plane.cpp)
 set_target_properties(geometry_plane PROPERTIES PREFIX "")   
@@ -55,6 +55,22 @@ target_include_directories(geometry_plane
     ${CMAKE_CURRENT_BINARY_DIR}
 )
 
+# geometry_ply
+
+if(PLUGIN_PLY)
+
+    # XXX Rply path
+
+    add_library(geometry_ply SHARED geometry_ply.cpp)
+    set_target_properties(geometry_ply PROPERTIES PREFIX "")   
+    target_link_libraries(geometry_ply PUBLIC ${OSPRAY_LIBRARIES})
+    target_include_directories(geometry_ply
+        PUBLIC
+        ${PROTOBUF_INCLUDE_DIRS}
+        ${CMAKE_CURRENT_BINARY_DIR}
+    )
+
+endif(PLUGIN_COSMOGRID)
 
 # scene_rbc
 
