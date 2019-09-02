@@ -704,7 +704,7 @@ handle_update_plugin_instance(TCPSocket *sock)
     case UpdatePluginInstance::SCENE:
 
         if (state->group_instances.size() == 0)
-            printf("WARNING: scene generate function returned 0 instances!\n");
+            printf("WARNING: scene generate function returned 0 instances!\n");    
 
         break;
     }
@@ -859,10 +859,9 @@ add_scene_object(const UpdateObject& update)
     GroupInstances instances = state->group_instances;
 
     if (instances.size() == 0)
-    {
-        printf("WARNING: no instances in scene!\n");
-        return true;    // XXX false?
-    }
+        printf("... WARNING: no instances to add!\n");
+    else
+        printf("... Adding %d instances to scene!\n", instances.size());
 
     glm::mat4   obj2world;
     float       affine_xform[12];
@@ -884,11 +883,14 @@ add_scene_object(const UpdateObject& update)
         scene_instances.push_back(instance);
     }
 
-#if 0
     // Lights
-    for (OSPLight light : state)
-        scene_lights.push_back(light);
-#endif
+    const Lights& lights = state->lights;
+    if (lights.size() > 0)
+    {
+        printf("... Adding %d lights to scene!\n", lights.size());
+        for (OSPLight light : state->lights)
+            scene_lights.push_back(light);
+    }
 
     return true;
 }
