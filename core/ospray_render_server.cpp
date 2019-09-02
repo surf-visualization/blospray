@@ -69,18 +69,22 @@ bool            keep_framebuffer_files = getenv("BLOSPRAY_KEEP_FRAMEBUFFER_FILES
 
 OSPMaterial         default_material;               // XXX hack for now, renderer-type dependent
 
-typedef std::map<std::string, OSPGeometry>      LoadedGeometriesMap;
 typedef std::map<std::string, OSPVolume>        LoadedVolumesMap;
 typedef std::map<std::string, GroupInstances>   LoadedScenesMap;
 
-// XXX rename to ..._cache
-LoadedGeometriesMap     loaded_geometries;
 LoadedVolumesMap        loaded_volumes;
 LoadedScenesMap         loaded_scenes;
 
 ImageSettings   image_settings;
 RenderSettings  render_settings;
 CameraSettings  camera_settings;
+
+// Geometry buffers used during network receive
+
+std::vector<float>      vertex_buffer;
+std::vector<float>      normal_buffer;
+std::vector<float>      vertex_color_buffer;
+std::vector<uint32_t>   triangle_buffer;
 
 // Plugin registry
 
@@ -90,20 +94,21 @@ typedef std::map<std::string, PluginState*>     PluginStateMap;
 PluginDefinitionsMap    plugin_definitions;
 PluginStateMap          plugin_state;
 
-// Server-side data associated with a blender Mesh Data that has a
+// Server-side data associated with blender Mesh Data that has a
 // blospray plugin attached to it
 struct PluginInstance
 {
     PluginType      type;
     std::string     name;
 
+    // XXX store hash of parameters that the instance was generated from
+
     // Plugin state contains OSPRay scene elements
     // XXX move properties out of PluginState?
     PluginState     *state;     // XXX store as object, not as pointer?
 };
 
-/*
-// Blender Mesh
+// A regular Blender Mesh
 struct BlenderMesh
 {
     std::string     name;
@@ -111,7 +116,6 @@ struct BlenderMesh
 
     OSPGeometry     geometry;
 };
-*/
 
 // Server-side data associated with a blender Mesh Object
 
@@ -126,16 +130,22 @@ enum SceneObjectType
     SOT_LIGHT           // In OSPRay these are actually stored on the renderer, not in the scene    // XXX not used?
 };
 
+enum SceneDataType
+{
+    SDT_PLUGIN,
+    SDT_MESH
+};
+
 struct SceneObject
 {
     SceneObjectType type;                   // XXX the type of scene objects actually depends on the type of data linked
     std::string     name;
 
     glm::mat4       object2world;
-    json            parameters;
+    //json            parameters;
 
-    std::string     data_link;              // Name of linked data, may be ""
-    PluginInstance  *plugin_instance;       // May be NULL
+    std::string     data_link;              // Name of linked scene data, may be ""
+    //PluginInstance  *plugin_instance;       // May be NULL
 
     // Corresponding OSPRay elements in the scene (aka world)
 
@@ -152,16 +162,13 @@ struct SceneObject
 // Top-level scene objects
 std::map<std::string, SceneObject>      scene_objects;
 
-// Mesh Data with a plugin attached
+// Mesh Data, either plugins or regular Blender meshes
+typedef std::map<std::string, SceneDataType>    SceneDataTypeMap;
+
+SceneDataTypeMap    scene_data_types;
+
 std::map<std::string, PluginInstance>   plugin_instances;
-
-
-// Geometry buffers used during network receive
-
-std::vector<float>      vertex_buffer;
-std::vector<float>      normal_buffer;
-std::vector<float>      vertex_color_buffer;
-std::vector<uint32_t>   triangle_buffer;
+std::map<std::string, BlenderMesh*>     blender_meshes;
 
 // Plugin handling
 
@@ -410,11 +417,44 @@ create_transfer_function(const std::string& name, float minval, float maxval)
 bool
 handle_update_blender_mesh(TCPSocket *sock, const std::string& name)
 {
-    printf("%s [MESH]\n", name.c_str());
+    printf("DATA '%s' (blender triangle mesh)\n", name.c_str());
 
-    // XXX
-    if (loaded_geometries.find(name) != loaded_geometries.end())
-        printf("WARNING: mesh '%s' already loaded, overwriting!\n", name.c_str());
+    OSPGeometry geometry;
+    BlenderMesh *blender_mesh;
+
+    SceneDataTypeMap::iterator it = scene_data_types.find(name);
+    if (it == scene_data_types.end())
+    {
+        // No previous mesh with this name
+        geometry = ospNewGeometry("triangles");
+        scene_data_types[name] = SDT_MESH;
+        blender_mesh = blender_meshes[name] = new BlenderMesh;
+        blender_mesh->geometry = geometry;
+    }
+    else
+    {
+        // Have existing scene data with this name, check what it is
+        SceneDataType type = it->second;
+
+        if (type != SDT_MESH)
+        {
+            printf("WARNING: scene data '%s' is currently of type %d, overwriting it with type %d!\n", name.c_str(),
+                type, SDT_MESH);
+
+            // XXX do the overwriting correctly ;-)    
+            // erase existing entries
+
+            geometry = ospNewGeometry("triangles");  
+            blender_mesh = blender_meshes[name] = new BlenderMesh;
+            blender_mesh->geometry = geometry;  
+        }
+        else
+        {
+            printf("WARNING: mesh '%s' already present, overwriting!\n", name.c_str());            
+            blender_mesh = blender_meshes[name];
+            geometry = blender_mesh->geometry;
+        }
+    }
 
     MeshData    mesh_data;
 
@@ -422,14 +462,13 @@ handle_update_blender_mesh(TCPSocket *sock, const std::string& name)
         return false;
 
     OSPData     data;
-
-    uint32_t nv, nt, flags;
+    uint32_t    nv, nt, flags;
 
     nv = mesh_data.num_vertices();
     nt = mesh_data.num_triangles();
     flags = mesh_data.flags();
 
-    printf("...... %d vertices, %d triangles, flags 0x%08x\n", nv, nt, flags);
+    printf("... %d vertices, %d triangles, flags 0x%08x\n", nv, nt, flags);
 
     vertex_buffer.reserve(nv*3);
     if (sock->recvall(&vertex_buffer[0], nv*3*sizeof(float)) == -1)
@@ -437,7 +476,7 @@ handle_update_blender_mesh(TCPSocket *sock, const std::string& name)
 
     if (flags & MeshData::NORMALS)
     {
-        printf("...... Mesh has normals\n");
+        printf("... Mesh has normals\n");
         normal_buffer.reserve(nv*3);
         if (sock->recvall(&normal_buffer[0], nv*3*sizeof(float)) == -1)
             return false;
@@ -445,7 +484,7 @@ handle_update_blender_mesh(TCPSocket *sock, const std::string& name)
 
     if (flags & MeshData::VERTEX_COLORS)
     {
-        printf("...... Mesh has vertex colors\n");
+        printf("... Mesh has vertex colors\n");
         vertex_color_buffer.reserve(nv*4);
         if (sock->recvall(&vertex_color_buffer[0], nv*4*sizeof(float)) == -1)
             return false;
@@ -455,37 +494,33 @@ handle_update_blender_mesh(TCPSocket *sock, const std::string& name)
     if (sock->recvall(&triangle_buffer[0], nt*3*sizeof(uint32_t)) == -1)
         return false;
 
-    OSPGeometry mesh = ospNewGeometry("triangles");
+    data = ospNewData(nv, OSP_VEC3F, &vertex_buffer[0]);
+    ospCommit(data);
+    ospSetData(geometry, "vertex.position", data);
+    ospRelease(data);
 
-        data = ospNewData(nv, OSP_VEC3F, &vertex_buffer[0]);
+    if (flags & MeshData::NORMALS)
+    {
+        data = ospNewData(nv, OSP_VEC3F, &normal_buffer[0]);
         ospCommit(data);
-        ospSetData(mesh, "vertex.position", data);
+        ospSetData(geometry, "vertex.normal", data);
         ospRelease(data);
+    }
 
-        if (flags & MeshData::NORMALS)
-        {
-            data = ospNewData(nv, OSP_VEC3F, &normal_buffer[0]);
-            ospCommit(data);
-            ospSetData(mesh, "vertex.normal", data);
-            ospRelease(data);
-        }
-
-        if (flags & MeshData::VERTEX_COLORS)
-        {
-            data = ospNewData(nv, OSP_VEC4F, &vertex_color_buffer[0]);
-            ospCommit(data);
-            ospSetData(mesh, "vertex.color", data);
-            ospRelease(data);
-        }
-
-        data = ospNewData(nt, OSP_VEC3I, &triangle_buffer[0]);
+    if (flags & MeshData::VERTEX_COLORS)
+    {
+        data = ospNewData(nv, OSP_VEC4F, &vertex_color_buffer[0]);
         ospCommit(data);
-        ospSetData(mesh, "index", data);
+        ospSetData(geometry, "vertex.color", data);
         ospRelease(data);
+    }
 
-    ospCommit(mesh);
+    data = ospNewData(nt, OSP_VEC3I, &triangle_buffer[0]);
+    ospCommit(data);
+    ospSetData(geometry, "index", data);
+    ospRelease(data);
 
-    loaded_geometries[name] = mesh;
+    ospCommit(geometry);
 
     return true;
 }
@@ -498,7 +533,9 @@ handle_update_plugin_instance(TCPSocket *sock)
     if (!receive_protobuf(sock, update))
         return false;
 
-    print_protobuf(update);
+    //print_protobuf(update);
+
+    printf("PLUGIN INSTANCE [%s]\n", update.name().c_str());
 
     std::string plugin_type;
 
@@ -520,19 +557,19 @@ handle_update_plugin_instance(TCPSocket *sock)
 
     const std::string &plugin_name = update.plugin_name();
 
-    printf("--- Updating plugin instance '%s' (type: %s, plugin: '%s') ---\n",
-        update.name().c_str(), plugin_type.c_str(), plugin_name.c_str());
+    printf("... type: %s\n", plugin_type.c_str());
+    printf("... plugin name: '%s'\n", plugin_name.c_str());
 
     const char *s_plugin_parameters = update.plugin_parameters().c_str();
     //printf("Received plugin parameters:\n%s\n", s_plugin_parameters);
     const json &plugin_parameters = json::parse(s_plugin_parameters);
-    printf("Plugin parameters:\n");
+    printf("... parameters:\n");
     printf("%s\n", plugin_parameters.dump(4).c_str());
 
     const char *s_custom_properties = update.custom_properties().c_str();
     //printf("Received custom properties:\n%s\n", s_custom_properties);
     const json &custom_properties = json::parse(s_custom_properties);
-    printf("Custom properties:\n");
+    printf("... custom properties:\n");
     printf("%s\n", custom_properties.dump(4).c_str());
 
     // XXX look up existing state, if any
@@ -601,6 +638,10 @@ handle_update_plugin_instance(TCPSocket *sock)
     // Handle any other business for this type of plugin
     // XXX set result.success to false?
 
+    // XXX should create entry
+    PluginInstance& plugin_instance = plugin_instances[update.name()];
+    plugin_instance.state = state;
+
     switch (update.type())
     {
     case UpdatePluginInstance::GEOMETRY:
@@ -611,10 +652,7 @@ handle_update_plugin_instance(TCPSocket *sock)
 
             printf("ERROR: geometry generate function did not set an OSPGeometry!\n");
             return false;
-        }
-
-        // XXX needs to go, is stored in plugin instance
-        loaded_geometries[update.name()] = state->geometry;
+        }    
 
         break;
 
@@ -655,18 +693,28 @@ handle_update_plugin_instance(TCPSocket *sock)
 bool
 add_blender_mesh(const UpdateObject& update)
 {
-    printf("%s [OBJECT]\n", update.name().c_str());
-    printf("........ --> %s (blender mesh)\n", update.data_link().c_str());
+    const std::string& linked_data = update.data_link();
 
-    LoadedGeometriesMap::iterator it = loaded_geometries.find(update.data_link());
+    printf("OBJECT '%s' (blender mesh)\n", update.name().c_str());    
 
-    if (it == loaded_geometries.end())
+    SceneDataTypeMap::iterator it = scene_data_types.find(linked_data);
+
+    if (it == scene_data_types.end())
     {
-        printf("WARNING: linked mesh data '%s' not found!\n", update.data_link().c_str());
+        printf("--> '%s' | WARNING: no linked data found!\n", linked_data.c_str());
         return false;
     }
+    else if (it->second != SDT_MESH)
+    {
+        printf("--> '%s' | WARNING: linked data is not of type 'mesh' but of type %d!\n", 
+            linked_data.c_str(), it->second);
+        return false;
+    }
+    else
+        printf("--> '%s' (blender mesh data)\n", linked_data.c_str());
 
-    OSPGeometry geometry = it->second;
+    BlenderMesh *blender_mesh = blender_meshes[linked_data];
+    OSPGeometry geometry = blender_mesh->geometry;
     assert(geometry != NULL);
 
     glm::mat4   obj2world;
@@ -699,19 +747,29 @@ add_blender_mesh(const UpdateObject& update)
 
 bool
 add_geometry(const UpdateObject& update)
-{
-    printf("%s [OBJECT]\n", update.name().c_str());
-    printf("........ --> %s (OSPRay geometry)\n", update.data_link().c_str());
+{    
+    printf("OBJECT [%s] (geometry)\n", update.name().c_str());    
 
-    LoadedGeometriesMap::iterator it = loaded_geometries.find(update.data_link());
+    const std::string& linked_data = update.data_link();
+    SceneDataTypeMap::iterator it = scene_data_types.find(linked_data);
 
-    if (it == loaded_geometries.end())
+    if (it == scene_data_types.end())
     {
-        printf("WARNING: linked geometry data '%s' not found!\n", update.data_link().c_str());
+        printf("--> '%s' | WARNING: no linked data found!\n", linked_data.c_str());
         return false;
     }
+    else if (it->second != SDT_PLUGIN)
+    {
+        printf("--> '%s' | WARNING: linked data is not a plugin instance!\n", linked_data.c_str());
+        return false;
+    }
+    else
+        printf("--> '%s' (geometry XXX?)\n", linked_data.c_str());
 
-    OSPGeometry geometry = it->second;
+    PluginInstance& plugin_instance = plugin_instances[linked_data];
+    PluginState *state = plugin_instance.state;
+
+    OSPGeometry geometry = state->geometry;
     assert(geometry != NULL);
 
     glm::mat4   obj2world;
@@ -745,17 +803,19 @@ add_geometry(const UpdateObject& update)
 
 bool
 add_scene(const UpdateObject& update)
-{
-    printf("%s [OBJECT]\n", update.name().c_str());
-    printf("........ --> %s (OSPRay scene)\n", update.data_link().c_str());
+{    
+    printf("OBJECT '%s' (scene)\n", update.name().c_str());    
 
-    LoadedScenesMap::iterator it = loaded_scenes.find(update.data_link());
+    const std::string& linked_data = update.data_link();
+    LoadedScenesMap::iterator it = loaded_scenes.find(linked_data);
 
     if (it == loaded_scenes.end())
     {
-        printf("WARNING: linked scene data '%s' not found!\n", update.data_link().c_str());
+        printf("--> '%s' | WARNING: no linked data not found!\n", linked_data.c_str());
         return false;
     }
+    else
+        printf("--> '%s' (OSPRay scene)\n", linked_data.c_str());
 
     GroupInstances instances = it->second;
 
@@ -797,16 +857,18 @@ add_scene(const UpdateObject& update)
 bool
 add_volume(const UpdateObject& update, const Volume& volume_settings)
 {
-    printf("%s [OBJECT]\n", update.name().c_str());
-    printf("........ --> %s (OSPRay volume)\n", update.data_link().c_str());
+    printf("OBJECT '%s' (volume)\n", update.name().c_str());   
 
-    LoadedVolumesMap::iterator it = loaded_volumes.find(update.data_link());
+    const std::string& linked_data = update.data_link(); 
+    LoadedVolumesMap::iterator it = loaded_volumes.find(linked_data);
 
     if (it == loaded_volumes.end())
     {
-        printf("WARNING: linked volume data '%s' not found!\n", update.data_link().c_str());
+        printf("--> '%s' | WARNING: no linked data found!\n", linked_data.c_str());
         return false;
     }
+    else
+        printf("--> '%s' (OSPRay volume)\n", linked_data.c_str());
 
     OSPVolume volume = it->second;
 
@@ -882,23 +944,25 @@ add_volume(const UpdateObject& update, const Volume& volume_settings)
 bool
 add_isosurfaces(const UpdateObject& update)
 {
-    printf("%s [OBJECT]\n", update.name().c_str());
-    printf("........ --> %s (OSPRay volume)\n", update.data_link().c_str());
+    printf("OBJECT '%s' (isosurfaces)\n", update.name().c_str());    
 
-    LoadedVolumesMap::iterator it = loaded_volumes.find(update.data_link());
+    const std::string& linked_data = update.data_link();
+    LoadedVolumesMap::iterator it = loaded_volumes.find(linked_data);
 
     if (it == loaded_volumes.end())
     {
-        printf("WARNING: linked volume data '%s' not found!\n", update.data_link().c_str());
+        printf("--> '%s' | WARNING: no linked data found!\n", linked_data.c_str());
         return false;
     }
+    else
+        printf("--> '%s' (OSPRay volume)\n", update.data_link().c_str());
 
     OSPVolume volume = it->second;
 
     const char *s_custom_properties = update.custom_properties().c_str();
     //printf("Received custom properties:\n%s\n", s_custom_properties);
     const json &custom_properties = json::parse(s_custom_properties);
-    printf("Custom properties:\n");
+    printf("... custom properties:\n");
     printf("%s\n", custom_properties.dump(4).c_str());
     
     if (custom_properties.find("isovalues") == custom_properties.end())
@@ -914,7 +978,7 @@ add_isosurfaces(const UpdateObject& update)
     for (int i = 0; i < n; i++)
     {        
         isovalues[i] = isovalues_prop[i];
-        printf("Isovalue #%d: %.3f\n", i, isovalues[i]);
+        printf("... isovalue #%d: %.3f\n", i, isovalues[i]);
     }
 
     OSPData isovalues_data = ospNewData(n, OSP_FLOAT, isovalues);
@@ -969,23 +1033,25 @@ add_isosurfaces(const UpdateObject& update)
 bool
 add_slices(const UpdateObject& update, const Slices& slices)
 {
-    printf("%s [OBJECT]\n", update.name().c_str());
-    printf("........ --> %s (OSPRay volume)\n", update.data_link().c_str());
-
-    LoadedVolumesMap::iterator it = loaded_volumes.find(update.data_link());
+    printf("OBJECT '%s' (slices)\n", update.name().c_str());
+    
+    const std::string& linked_data = update.data_link();
+    LoadedVolumesMap::iterator it = loaded_volumes.find(linked_data);
 
     if (it == loaded_volumes.end())
     {
-        printf("WARNING: linked volume data '%s' not found!\n", update.data_link().c_str());
+        printf("--> '%s' | WARNING: no linked data found!\n", linked_data.c_str());
         return false;
     }
+    else
+        printf("--> '%s' (OSPRay volume)\n", linked_data.c_str());
 
     OSPVolume volume = it->second;
 
     const char *s_custom_properties = update.custom_properties().c_str();
     //printf("Received custom properties:\n%s\n", s_custom_properties);
     const json &custom_properties = json::parse(s_custom_properties);
-    printf("Custom properties:\n");
+    printf("... custom properties:\n");
     printf("%s\n", custom_properties.dump(4).c_str());
     
     if (custom_properties.find("slice_plane") == custom_properties.end())
@@ -1014,7 +1080,7 @@ add_slices(const UpdateObject& update, const Slices& slices)
         plane[2] = slice.c();
         plane[3] = slice.d();
 
-        printf("plane[%d]: %.3f, %3f, %.3f, %.3f\n", i, plane[0], plane[1], plane[2], plane[3]);
+        printf("... plane[%d]: %.3f, %3f, %.3f, %.3f\n", i, plane[0], plane[1], plane[2], plane[3]);
 
         OSPData planeData = ospNewData(1, OSP_VEC4F, plane);
         ospCommit(planeData);
@@ -1067,8 +1133,8 @@ add_light(const UpdateObject& update, const Light& light)
 {
     OSPLight osp_light;
 
-    printf("%s [OBJECT] (object)\n", light.object_name().c_str());
-    printf("........ --> %s (blender light)\n", light.light_name().c_str());    // XXX not set for ambient
+    printf("OBJECT '%s' (light)\n", light.object_name().c_str());
+    printf("--> '%s' (blender light data)\n", light.light_name().c_str());    // XXX not set for ambient
 
     // XXX turn into render setting
     if (light.type() == Light::AMBIENT)
@@ -1106,7 +1172,7 @@ add_light(const UpdateObject& update, const Light& light)
     //else
     // XXX HDRI
 
-    printf("........ intensity %.3f, visible %d\n", light.intensity(), light.visible());
+    printf("... intensity %.3f, visible %d\n", light.intensity(), light.visible());
 
     ospSetVec3f(osp_light, "color", light.color(0), light.color(1), light.color(2));
     ospSetFloat(osp_light, "intensity", light.intensity());
@@ -1288,8 +1354,8 @@ receive_scene(TCPSocket *sock)
 
     receive_protobuf(sock, camera_settings);
 
-    printf("%s [OBJECT] (camera)\n", camera_settings.object_name().c_str());
-    printf("........ --> %s (camera)\n", camera_settings.camera_name().c_str());
+    printf("OBJECT '%s' (camera)\n", camera_settings.object_name().c_str());
+    printf("--> '%s' (camera data)\n", camera_settings.camera_name().c_str());
 
     float cam_pos[3], cam_viewdir[3], cam_updir[3];
 
@@ -1600,8 +1666,8 @@ handle_connection(TCPSocket *sock)
                 return false;
             }
 
-            printf("Got client message of type %s\n", ClientMessage_Type_Name(client_message.type()).c_str());
-            printf("%s\n", client_message.DebugString().c_str());
+            //printf("Got client message of type %s\n", ClientMessage_Type_Name(client_message.type()).c_str());
+            //printf("%s\n", client_message.DebugString().c_str());
 
             switch (client_message.type())
             {
