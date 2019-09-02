@@ -69,10 +69,6 @@ bool            keep_framebuffer_files = getenv("BLOSPRAY_KEEP_FRAMEBUFFER_FILES
 
 OSPMaterial         default_material;               // XXX hack for now, renderer-type dependent
 
-typedef std::map<std::string, GroupInstances>   LoadedScenesMap;
-
-LoadedScenesMap         loaded_scenes;
-
 ImageSettings   image_settings;
 RenderSettings  render_settings;
 CameraSettings  camera_settings;
@@ -710,9 +706,6 @@ handle_update_plugin_instance(TCPSocket *sock)
         if (state->group_instances.size() == 0)
             printf("WARNING: scene generate function returned 0 instances!\n");
 
-        // XXX needs to go, is stored in plugin instance
-        loaded_scenes[data_name] = state->group_instances;
-
         break;
     }
 
@@ -844,17 +837,26 @@ add_scene_object(const UpdateObject& update)
     printf("OBJECT '%s' (scene)\n", update.name().c_str());    
 
     const std::string& linked_data = update.data_link();
-    LoadedScenesMap::iterator it = loaded_scenes.find(linked_data);
+    SceneDataTypeMap::iterator it = scene_data_types.find(linked_data);
 
-    if (it == loaded_scenes.end())
+    if (it == scene_data_types.end())
     {
-        printf("--> '%s' | WARNING: no linked data not found!\n", linked_data.c_str());
+        printf("--> '%s' | WARNING: no linked data found!\n", linked_data.c_str());
+        return false;
+    }
+    else if (it->second != SDT_PLUGIN)
+    {
+        printf("--> '%s' | WARNING: linked data is not a plugin instance!\n", linked_data.c_str());
         return false;
     }
     else
-        printf("--> '%s' (OSPRay scene)\n", linked_data.c_str());
+        printf("--> '%s' (scene XXX?)\n", linked_data.c_str());
 
-    GroupInstances instances = it->second;
+    PluginInstance* plugin_instance = plugin_instances[linked_data];
+    assert(plugin_instance->type == PT_SCENE);
+    PluginState *state = plugin_instance->state;
+
+    GroupInstances instances = state->group_instances;
 
     if (instances.size() == 0)
     {
@@ -910,7 +912,7 @@ add_volume_object(const UpdateObject& update, const Volume& volume_settings)
         return false;
     }    
     else
-        printf("--> '%s' (OSPRay volume XXX?)\n", linked_data.c_str());
+        printf("--> '%s' (OSPRay volume?)\n", linked_data.c_str());
 
     PluginInstance* plugin_instance = plugin_instances[linked_data];
     assert(plugin_instance->type == PT_VOLUME);
@@ -1007,9 +1009,10 @@ add_isosurfaces_object(const UpdateObject& update)
         return false;
     }    
     else
-        printf("--> '%s' (OSPRay volume XXX?)\n", linked_data.c_str());
+        printf("--> '%s' (OSPRay volume?)\n", linked_data.c_str());
 
     PluginInstance* plugin_instance = plugin_instances[linked_data];
+    assert(plugin_instance->type == PT_VOLUME);
     PluginState *state = plugin_instance->state;
 
     OSPVolume volume = state->volume;
@@ -1105,9 +1108,10 @@ add_slices_object(const UpdateObject& update, const Slices& slices)
         return false;
     }    
     else
-        printf("--> '%s' (OSPRay volume XXX?)\n", linked_data.c_str());
+        printf("--> '%s' (OSPRay volume?)\n", linked_data.c_str());
 
     PluginInstance* plugin_instance = plugin_instances[linked_data];
+    assert(plugin_instance->type == PT_VOLUME);
     PluginState *state = plugin_instance->state;
 
     OSPVolume volume = state->volume;
