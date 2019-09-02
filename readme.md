@@ -39,7 +39,7 @@ BLOSPRAY is still in its early stages of development, but the following
 basic functionality and integration with Blender features is already available:
 
 * Supports OSPRay's SciVis and Path Tracer renderers
-* Export and rendering of polygonal geometry 
+* Export and rendering of polygonal geometry (i.e. Blender meshes)
 * Object transformations and parenting
 * Instancing 
 * Vertex colors on Blender meshes
@@ -47,7 +47,7 @@ basic functionality and integration with Blender features is already available:
 * Perspective and orthographic cameras, plus OSPRay's panoramic camera (which is similar to Cycles` equirectangular camera, but without any parameters to tweak)
 * Depth of field
 * Border render (i.e. render only part of an image)
-* Rudimentary support for volume and geometry plugins
+* Rudimentary support for volume, geometry and scene plugins
 
 Major features that are currently missing:
 
@@ -83,7 +83,7 @@ Plus, the client-server setup also has some advantages:
 
 - The separate render server can be run on a remote system, for example an HPC system 
   that holds a large scientific dataset to be rendered. This offloads most of the 
-  compute-intensive rendering workload and storage requirements of the data to be rendered 
+  compute-intensive rendering workload and memory/storage requirements of the data to be rendered 
   away from the system running Blender.
 
 - It makes it feasible to use OSPRay's [Parallel Rendering with MPI](http://www.ospray.org/documentation.html#parallel-rendering-with-mpi) 
@@ -126,7 +126,7 @@ The plugin system is especially useful when working with large scientific datase
 for which it is infeasible or unattractive to load into Blender. Instead, one 
 can use a proxy object, such as a cube mesh to represent a rectangular volume, 
 in a Blender scene and attach a plugin to it. During rendering BLOSPRAY will call the 
-plugin to load the actual scene data associated with the proxy on the server. 
+plugin on the server to load the actual scene data associated with the proxy. 
 In this way Blender scene creation, including camera animation and lighting, can be 
 done in the usual way as the proxy object shows the bounding box of the data 
 and can even be transformed and animated.
@@ -144,10 +144,8 @@ with new types of scene elements that are then rendered in OSPRay.
 
 ## Known limitations and bugs
 
-This project is developed for Blender 2.8x (currently in beta), as that
-will become the new stable version in a couple of months.
-Blender 2.7x is not supported at the moment and probably won't be,
-as the Python API isn't fully compatible with 2.8x. Plus, 2.8x is the future.
+This project is developed for Blender 2.8x, the latest stable release.
+Blender 2.7x is not supported.
 
 As BLOSPRAY is in early development some things are currently suboptimal or missing:
 
@@ -182,7 +180,7 @@ Some of these we can work around, some of these we can't:
 
 * OSPRay's SciVis and Path Tracer renderer do not have the same set of features:
 
-    - Only the Scivis renderer supports volume rendering
+    - Only the Scivis renderer supports volume rendering, but that should change with OSPRay 2.0
     - Only the Path Tracer supports advanced materials, like the principled material
 
 * In OSPRay structured grid volumes currently cannot be transformed with an 
@@ -220,7 +218,8 @@ Some of these we can work around, some of these we can't:
 
 For building:
 
-* [OSPRay 1.8.x](http://www.ospray.org/)
+* [OSPRay 2.x](http://www.ospray.org/), which is currently not released yet, so 
+  use the "devel" branch
 * [GLM](https://glm.g-truc.net/0.9.9/index.html)
 * [OpenImageIO](https://sites.google.com/site/openimageio/home)
 * [Google protobuf (C/C++ libraries)](https://developers.google.com/protocol-buffers/)
@@ -228,7 +227,7 @@ For building:
 * The code uses the [JSON for Modern C++](https://github.com/nlohmann/json) library,
   which is included in the sources
 
-For running:
+For running with Blender:
 
 * Numpy
 * Google protobuf (Python modules)
