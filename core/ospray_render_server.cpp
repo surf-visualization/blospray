@@ -889,7 +889,10 @@ add_scene_object(const UpdateObject& update)
     {
         printf("... Adding %d lights to scene!\n", lights.size());
         for (OSPLight light : state->lights)
+        {
+            // XXX Sigh, need to apply object2world transform manually
             scene_lights.push_back(light);
+        }
     }
 
     return true;
