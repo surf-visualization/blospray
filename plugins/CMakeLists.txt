@@ -101,23 +101,7 @@ if(PLUGIN_COSMOGRID)
 
     # scene_cosmogrid
 
-    FIND_PACKAGE(HDF5)
-    IF (HDF5_IS_PARALLEL)
-        FIND_PACKAGE(MPI)
-    ENDIF()
-
-    INCLUDE_DIRECTORIES (${HDF5_INCLUDE_DIRS})
-    IF (HDF5_IS_PARALLEL)
-        INCLUDE_DIRECTORIES (${MPI_CXX_INCLUDE_PATH})
-        SET(HDF5LIBS "${HDF5_LIBRARIES}" "${MPI_CXX_LIBRARIES}")
-    ELSE()
-        SET(HDF5LIBS "${HDF5_LIBRARIES}")
-    ENDIF()
-
     SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -std=c++11")
-
-    INCLUDE_DIRECTORIES (${HDF5_INCLUDE_DIRS})
-    INCLUDE_DIRECTORIES (${MPI_CXX_INCLUDE_PATH})
 
     add_library(scene_cosmogrid SHARED scene_cosmogrid.cpp)
     set_target_properties(scene_cosmogrid PROPERTIES PREFIX "")   
@@ -131,6 +115,19 @@ if(PLUGIN_COSMOGRID)
     )
 
 endif(PLUGIN_COSMOGRID)
+
+if(PLUGIN_VOLUME_HDF5)
+    add_library(volume_hdf5 SHARED volume_hdf5.cpp)
+    set_target_properties(volume_hdf5 PROPERTIES PREFIX "")   
+    target_link_libraries(volume_hdf5 PUBLIC ${OSPRAY_LIBRARIES})
+    target_include_directories(volume_hdf5
+        PUBLIC
+        /home/paulm/projects/uhdf5-git
+        /home/melis/projects/uhdf5        
+        ${PROTOBUF_INCLUDE_DIRS}
+        ${CMAKE_CURRENT_BINARY_DIR}
+    )
+endif(PLUGIN_VOLUME_HDF5)
 
 install(TARGETS 
     volume_raw 
@@ -156,3 +153,11 @@ if(PLUGIN_PLY)
         DESTINATION bin)
 
 endif(PLUGIN_PLY)
+
+if(PLUGIN_VOLUME_HDF5)
+
+    install(TARGETS 
+        volume_hdf5 
+        DESTINATION bin)
+
+endif(PLUGIN_VOLUME_HDF5)
