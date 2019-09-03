@@ -440,7 +440,7 @@ class Connection:
         # object -> object data combination (including their properties)
         # means, so the server isn't bothered with this.
         
-        print('Sending mesh object %s' % obj.name)
+        print('Updating mesh object "%s"' % obj.name)
     
         client_message = ClientMessage()
         client_message.type = ClientMessage.UPDATE_OBJECT    
@@ -466,6 +466,7 @@ class Connection:
                 
             else:                
                 plugin_type = mesh.ospray.plugin_type
+                print("Plugin type = %s" % plugin_type)
                 
                 if plugin_type == 'geometry':
                     update.type = UpdateObject.GEOMETRY
@@ -489,20 +490,28 @@ class Connection:
                         update.type = UpdateObject.SLICES
                         #  Process child objects for slices
                         ss = []
-                        # XXX Apparently the depsgraph leaves out the parenting?
-                        # XXX need to ingore slice object itself in export
+                        # Apparently the depsgraph leaves out the parenting? So get
+                        # that information from the original object
+                        # XXX need to ignore slice object itself in export, but not its mesh data
                         children = depsgraph.scene.objects[obj.name].children
                         print('obj %s: %d CHILDREN' % (obj, len(children)))
 
                         for childobj in children:
-                            M = childobj.matrix_local
+
+                            if not childobj.type == 'MESH':
+                                print('Ignoring non-mesh child object "%s" for slicing' % childobj.name)
+                                continue
+
+                            if childobj.hide_render:
+                                print('Ignoring hidden child object "%s" for slicing' % childobj.name)
+                                continue
+
+                            self.update_blender_mesh(data, depsgraph, childobj.data)
+
                             slice = Slice()
-                            slice.a = n.x
-                            slice.b = n.y
-                            slice.c = n.z
-                            # Hmmm, for some reason slice.d = -... doesn't work, even though that should be the correct equation
-                            slice.d = (n.x * p.x + n.y * p.y + n.z * p.z)
-                            ss.append(slice)
+                            slice.parent_object2world = obj.matrix_world                            
+                            slice.matrix_local = childobj.matrix_local                            
+                            ss.append(slice)                            
 
                         slices = Slices()
                         slices.slices.extend(ss)
@@ -516,6 +525,7 @@ class Connection:
             # Regular blender Mesh object
             update.type = UpdateObject.MESH
     
+        print('Sending update')
         send_protobuf(self.sock, client_message)
         send_protobuf(self.sock, update)
         for msg in extra:
@@ -585,6 +595,10 @@ class Connection:
         
 
     def update_blender_mesh(self, data, depsgraph, mesh):
+
+        if mesh.name in self.mesh_data_exported:
+            print('Not updating mesh data "%s", already sent' % mesh.name)
+            return
     
         # XXX we should export meshes separately, keeping a local
         # list which ones we already exported (by name).
@@ -703,6 +717,7 @@ class Connection:
 
         self.sock.send(triangles.tobytes())
 
+        self.mesh_data_exported.add(mesh.name)
 
                 
                 

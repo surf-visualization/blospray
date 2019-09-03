@@ -433,7 +433,7 @@ handle_update_blender_mesh(TCPSocket *sock, const std::string& name)
 
         if (type != SDT_MESH)
         {
-            printf("WARNING: scene data '%s' is currently of type %d, overwriting with mesh!\n", name.c_str(), type);
+            printf("... WARNING: scene data '%s' is currently of type %d, overwriting with mesh!\n", name.c_str(), type);
 
             // XXX do the overwriting correctly ;-)    
             // erase existing entries
@@ -444,7 +444,7 @@ handle_update_blender_mesh(TCPSocket *sock, const std::string& name)
         }
         else
         {
-            printf("WARNING: mesh '%s' already present, overwriting!\n", name.c_str());            
+            printf("... WARNING: mesh '%s' already present, overwriting!\n", name.c_str());            
             blender_mesh = blender_meshes[name];
             geometry = blender_mesh->geometry;
         }
@@ -555,7 +555,7 @@ handle_update_plugin_instance(TCPSocket *sock)
 
         if (type != SDT_PLUGIN)
         {
-            printf("WARNING: scene data '%s' is currently of type %d, overwriting with plugin instance!\n", data_name.c_str(), type);
+            printf("... WARNING: scene data '%s' is currently of type %d, overwriting with plugin instance!\n", data_name.c_str(), type);
 
             // XXX erase existing entries            
 
@@ -567,7 +567,7 @@ handle_update_plugin_instance(TCPSocket *sock)
         }
         else
         {
-            printf("WARNING: plugin instance '%s' already present, overwriting!\n", data_name.c_str());                        
+            printf("... WARNING: plugin instance '%s' already present, overwriting!\n", data_name.c_str());                        
             
             plugin_instance = plugin_instances[data_name];
             state = plugin_state[data_name];
@@ -637,7 +637,7 @@ handle_update_plugin_instance(TCPSocket *sock)
 
     if (generate_function == NULL)
     {
-        printf("Plugin returned NULL generate_function!\n");
+        printf("... ERROR: Plugin returned NULL generate_function!\n");
         exit(-1);
     }
 
@@ -656,17 +656,17 @@ handle_update_plugin_instance(TCPSocket *sock)
 
     struct timeval t0, t1;
 
-    printf("Calling generate function\n");
+    printf("... Calling generate function\n");
     gettimeofday(&t0, NULL);
 
     generate_function(result, state);
 
     gettimeofday(&t1, NULL);
-    printf("Generate function executed in %.3fs\n", time_diff(t0, t1));
+    printf("... Generate function executed in %.3fs\n", time_diff(t0, t1));
     
     if (!result.success())
     {
-        printf("ERROR: generate function failed:\n");
+        printf("... ERROR: generate function failed:\n");
         printf("... %s\n", result.message().c_str());
         send_protobuf(sock, result);
         return false;
@@ -683,7 +683,7 @@ handle_update_plugin_instance(TCPSocket *sock)
         {
             send_protobuf(sock, result);
 
-            printf("ERROR: geometry generate function did not set an OSPGeometry!\n");
+            printf("... ERROR: geometry generate function did not set an OSPGeometry!\n");
             return false;
         }    
 
@@ -695,7 +695,7 @@ handle_update_plugin_instance(TCPSocket *sock)
         {
             send_protobuf(sock, result);
 
-            printf("ERROR: volume generate function did not set an OSPVolume!\n");
+            printf("... ERROR: volume generate function did not set an OSPVolume!\n");
             return false;
         }
 
@@ -704,7 +704,7 @@ handle_update_plugin_instance(TCPSocket *sock)
     case UpdatePluginInstance::SCENE:
 
         if (state->group_instances.size() == 0)
-            printf("WARNING: scene generate function returned 0 instances!\n");    
+            printf("... WARNING: scene generate function returned 0 instances!\n");    
 
         break;
     }
@@ -929,7 +929,7 @@ add_volume_object(const UpdateObject& update, const Volume& volume_settings)
     const char *s_custom_properties = update.custom_properties().c_str();
     //printf("Received custom properties:\n%s\n", s_custom_properties);
     const json &custom_properties = json::parse(s_custom_properties);
-    printf("Custom properties:\n");
+    printf("... custom properties:\n");
     printf("%s\n", custom_properties.dump(4).c_str());
 
     OSPVolumetricModel volume_model = ospNewVolumetricModel(volume);
@@ -1044,7 +1044,7 @@ add_isosurfaces_object(const UpdateObject& update)
     
     if (custom_properties.find("isovalues") == custom_properties.end())
     {
-        printf("WARNING: no property 'isovalues' set on object!\n");
+        printf("... WARNING: no property 'isovalues' set on object!\n");
         return false;
     }
 
@@ -1143,7 +1143,7 @@ add_slices_object(const UpdateObject& update, const Slices& slices)
     
     if (custom_properties.find("slice_plane") == custom_properties.end())
     {
-        printf("WARNING: no property 'slice_plane' set on object!\n");
+        printf("... WARNING: no property 'slice_plane' set on object!\n");
         return false;
     }
     
@@ -1152,7 +1152,7 @@ add_slices_object(const UpdateObject& update, const Slices& slices)
             
     if (slice_plane_prop.size() != 4)
     {
-        fprintf(stderr, "ERROR: slice_plane attribute should contain list of 4 floats values!\n");
+        fprintf(stderr, "... ERROR: slice_plane attribute should contain list of 4 floats values!\n");
         return false;
     }
 
@@ -1162,6 +1162,7 @@ add_slices_object(const UpdateObject& update, const Slices& slices)
     {
         const Slice& slice = slices.slices(i);
 
+#if 0
         plane[0] = slice.a();
         plane[1] = slice.b();
         plane[2] = slice.c();
@@ -1209,6 +1210,7 @@ add_slices_object(const UpdateObject& update, const Slices& slices)
         ospRelease(group);
 
         scene_instances.push_back(instance);
+#endif        
     }
     
     return true;
