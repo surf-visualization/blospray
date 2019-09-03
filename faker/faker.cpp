@@ -293,6 +293,24 @@ ospNewData(size_t numItems, OSPDataType type, const void *source, uint32_t dataC
 
             break;
 
+        case OSP_INT:
+        case OSP_VEC2I:
+        case OSP_VEC3I:
+        case OSP_VEC4I:
+        {
+            std::vector<int32_t> int_values;            
+            v = type - OSP_UINT + 1;
+            const int32_t *ptr = (int32_t*)source;
+
+            for (size_t i = 0; i < n; i++)
+                for (int c = 0; c < v; c++)
+                    int_values.push_back(ptr[v*i+c]);
+
+            j["source"] = int_values;
+        }
+
+            break;            
+
         case OSP_OBJECT:
         {
             std::vector<size_t> pointer_values;
