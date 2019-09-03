@@ -420,7 +420,7 @@ handle_update_blender_mesh(TCPSocket *sock, const std::string& name)
     if (it == scene_data_types.end())
     {
         // No previous mesh with this name
-        printf("... Unseen name, creating new mesh\n");
+        printf("... Unseen mesh name, creating new mesh\n");
         geometry = ospNewGeometry("triangles");
         scene_data_types[name] = SDT_MESH;
         blender_mesh = blender_meshes[name] = new BlenderMesh;
@@ -540,7 +540,7 @@ handle_update_plugin_instance(TCPSocket *sock)
     if (it == scene_data_types.end())
     {
         // No previous plugin instance with this name
-        printf("... Unseen name, creating new plugin instance\n");
+        printf("... Unseen plugin instance name, creating new plugin instance\n");
                              
         plugin_state[data_name] = state = new PluginState; 
         state->renderer = current_renderer_type;   
@@ -958,8 +958,7 @@ add_volume_object(const UpdateObject& update, const Volume& volume_settings)
         ospSetBool(volume_model, "adaptiveSampling", false);
         */
 
-        // XXX need plugin instance for the volume_data_range
-        OSPTransferFunction tf = create_transfer_function("cool2warm", 0.0f, 5.1f);
+        OSPTransferFunction tf = create_transfer_function("cool2warm", state->volume_data_range[0], state->volume_data_range[1]);
         ospSetObject(volume_model, "transferFunction", tf);
         ospRelease(tf);
 
@@ -1065,7 +1064,7 @@ add_isosurfaces_object(const UpdateObject& update)
 
     // XXX hacked temp volume module
     auto volumeModel = ospNewVolumetricModel(volume);
-        OSPTransferFunction tf = create_transfer_function("cool2warm", 0.0f, 5.1f);
+        OSPTransferFunction tf = create_transfer_function("cool2warm", state->volume_data_range[0], state->volume_data_range[1]);
         ospSetObject(volumeModel, "transferFunction", tf);
         ospRelease(tf);
         //ospSetFloat(volumeModel, "samplingRate", 0.5f);
@@ -1175,15 +1174,14 @@ add_slices_object(const UpdateObject& update, const Slices& slices)
 
             // XXX hacked temp volume module
         auto volumeModel = ospNewVolumetricModel(volume);
-            OSPTransferFunction tf = create_transfer_function("cool2warm", 0.0f, 5.1f);
+            OSPTransferFunction tf = create_transfer_function("cool2warm", state->volume_data_range[0], state->volume_data_range[1]);
             ospSetObject(volumeModel, "transferFunction", tf);
             ospRelease(tf);
-            //ospSetFloat(volumeModel, "samplingRate", 0.5f);
         ospCommit(volumeModel);
 
         OSPGeometry slice_geometry = ospNewGeometry("slices");
-            ospSetObject(slice_geometry, "volume", volumeModel);         // XXX should be volume model
-            //ospRelease(volume);
+            ospSetObject(slice_geometry, "volume", volumeModel);         // XXX volume model, not volume
+            //ospRelease(volumeModel);
             ospSetData(slice_geometry, "plane", planeData);
             ospRelease(planeData);
         ospCommit(slice_geometry);

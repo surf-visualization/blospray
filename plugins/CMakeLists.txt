@@ -119,7 +119,7 @@ endif(PLUGIN_COSMOGRID)
 if(PLUGIN_VOLUME_HDF5)
     add_library(volume_hdf5 SHARED volume_hdf5.cpp)
     set_target_properties(volume_hdf5 PROPERTIES PREFIX "")   
-    target_link_libraries(volume_hdf5 PUBLIC ${OSPRAY_LIBRARIES})
+    target_link_libraries(volume_hdf5 PUBLIC ${OSPRAY_LIBRARIES} ${HDF5LIBS})
     target_include_directories(volume_hdf5
         PUBLIC
         /home/paulm/projects/uhdf5-git
