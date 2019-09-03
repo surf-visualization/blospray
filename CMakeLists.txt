@@ -54,6 +54,7 @@ endif()
 
 set(CMAKE_CXX_STANDARD 11)
 
+include_directories("${CMAKE_SOURCE_DIR}/core")		# json.hpp in faker
 include_directories(${OSPRAY_INCLUDE_DIRS})
 include_directories(${Boost_INCLUDE_DIR})
 include_directories(${GLM_INCLUDE_DIRS})

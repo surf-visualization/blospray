@@ -8,25 +8,18 @@
 //#include <sys/types.h>
 //#include <sys/socket.h>
 #include <ospray/ospray.h>
+#include <json.hpp>
+
+using json = nlohmann::json;
 
 static FILE *log_file = NULL;
 // 0 = no, 1 = short arrays, 2 = all
 static int dump_arrays = getenv("FAKER_DUMP_ARRAYS") ? atol(getenv("FAKER_DUMP_ARRAYS")) : 0;
 
 typedef std::map<std::string, void*>    PointerMap;
-typedef std::map<void*, int>            ReferenceCountMap;
-typedef std::map<void*, std::string>    ReferenceTypeMap;
 
-typedef std::map<OSPDataType, std::string>  OSPDataTypeMap;
-typedef std::map<OSPFrameBufferFormat, std::string>  OSPFrameBufferFormatMap;
-
-static PointerMap          library_pointers;
-static ReferenceCountMap   reference_counts;
-static ReferenceTypeMap    reference_types;
-
-static OSPDataTypeMap           ospdatatype_names;
-static OSPFrameBufferFormatMap  ospframebufferformat_names;
-static bool                     enum_mapping_initialized=false;
+static PointerMap           library_pointers;
+static bool                 enum_mapping_initialized=false;
 
 typedef OSPCamera           (*ospNewCamera_ptr)     (const char *type);
 typedef OSPData             (*ospNewData_ptr)       (size_t numItems, OSPDataType, const void *source, uint32_t dataCreationFlags);
@@ -76,99 +69,6 @@ typedef void                (*ospSetAffine3fv_ptr)  (OSPObject obj, const char *
 
 typedef float               (*ospRenderFrame_ptr)   (OSPFrameBuffer framebuffer, OSPRenderer renderer, OSPCamera camera, OSPWorld world);
 
-static void
-init_enum_mapping()
-{
-    ospdatatype_names[OSP_DEVICE] = "OSP_DEVICE";
-    ospdatatype_names[OSP_VOID_PTR] = "OSP_VOID_PTR";
-    ospdatatype_names[OSP_OBJECT] = "OSP_OBJECT";
-    ospdatatype_names[OSP_CAMERA] = "OSP_CAMERA";
-    ospdatatype_names[OSP_DATA] = "OSP_DATA";
-    ospdatatype_names[OSP_FRAMEBUFFER] = "OSP_FRAMEBUFFER";
-    ospdatatype_names[OSP_GEOMETRY] = "OSP_GEOMETRY";
-    ospdatatype_names[OSP_GEOMETRIC_MODEL] = "OSP_GEOMETRIC_MODEL";
-    ospdatatype_names[OSP_LIGHT] = "OSP_LIGHT";
-    ospdatatype_names[OSP_MATERIAL] = "OSP_MATERIAL";
-    ospdatatype_names[OSP_RENDERER] = "OSP_RENDERER";
-    ospdatatype_names[OSP_TEXTURE] = "OSP_TEXTURE";
-    ospdatatype_names[OSP_TRANSFER_FUNCTION] = "OSP_TRANSFER_FUNCTION";
-    ospdatatype_names[OSP_VOLUME] = "OSP_VOLUME";
-    ospdatatype_names[OSP_VOLUMETRIC_MODEL] = "OSP_VOLUMETRIC_MODEL";
-    ospdatatype_names[OSP_INSTANCE] = "OSP_INSTANCE";
-    ospdatatype_names[OSP_WORLD] = "OSP_WORLD";
-    ospdatatype_names[OSP_IMAGE_OP] = "OSP_IMAGE_OP";   
-    
-    ospdatatype_names[OSP_STRING] = "OSP_STRING";
-    ospdatatype_names[OSP_CHAR] = "OSP_CHAR";
-    ospdatatype_names[OSP_UCHAR] = "OSP_UCHAR";
-    ospdatatype_names[OSP_VEC2UC] = "OSP_VEC2UC";
-    ospdatatype_names[OSP_VEC3UC] = "OSP_VEC3UC";
-    ospdatatype_names[OSP_VEC4UC] = "OSP_VEC4UC";
-    ospdatatype_names[OSP_BYTE] = "OSP_BYTE";
-    ospdatatype_names[OSP_RAW] = "OSP_RAW";
-    ospdatatype_names[OSP_SHORT] = "OSP_SHORT";
-    ospdatatype_names[OSP_USHORT] = "OSP_USHORT";
-    ospdatatype_names[OSP_INT] = "OSP_INT";
-    ospdatatype_names[OSP_VEC2I] = "OSP_VEC2I";
-    ospdatatype_names[OSP_VEC3I] = "OSP_VEC3I";
-    ospdatatype_names[OSP_VEC4I] = "OSP_VEC4I";
-    ospdatatype_names[OSP_UINT] = "OSP_UINT";
-    ospdatatype_names[OSP_VEC2UI] = "OSP_VEC2UI";
-    ospdatatype_names[OSP_VEC3UI] = "OSP_VEC3UI";
-    ospdatatype_names[OSP_VEC4UI] = "OSP_VEC4UI";
-    ospdatatype_names[OSP_LONG] = "OSP_LONG";
-    ospdatatype_names[OSP_VEC2L] = "OSP_VEC2L";
-    ospdatatype_names[OSP_VEC3L] = "OSP_VEC3L";
-    ospdatatype_names[OSP_VEC4L] = "OSP_VEC4L";
-    ospdatatype_names[OSP_ULONG] = "OSP_ULONG";
-    ospdatatype_names[OSP_VEC2UL] = "OSP_VEC2UL";
-    ospdatatype_names[OSP_VEC3UL] = "OSP_VEC3UL";
-    ospdatatype_names[OSP_VEC4UL] = "OSP_VEC4UL";
-    ospdatatype_names[OSP_FLOAT] = "OSP_FLOAT";
-    ospdatatype_names[OSP_VEC2F] = "OSP_VEC2F";
-    ospdatatype_names[OSP_VEC3F] = "OSP_VEC3F";
-    ospdatatype_names[OSP_VEC4F] = "OSP_VEC4F";
-    ospdatatype_names[OSP_DOUBLE] = "OSP_DOUBLE";
-    ospdatatype_names[OSP_BOX1I] = "OSP_BOX1I";
-    ospdatatype_names[OSP_BOX2I] = "OSP_BOX2I";
-    ospdatatype_names[OSP_BOX3I] = "OSP_BOX3I";
-    ospdatatype_names[OSP_BOX4I] = "OSP_BOX4I";
-    ospdatatype_names[OSP_BOX1F] = "OSP_BOX1F";
-    ospdatatype_names[OSP_BOX2F] = "OSP_BOX2F";
-    ospdatatype_names[OSP_BOX3F] = "OSP_BOX3F";
-    ospdatatype_names[OSP_BOX4F] = "OSP_BOX4F";
-    ospdatatype_names[OSP_LINEAR2F] = "OSP_LINEAR2F";
-    ospdatatype_names[OSP_LINEAR3F] = "OSP_LINEAR3F";
-    ospdatatype_names[OSP_AFFINE2F] = "OSP_AFFINE2F";
-    ospdatatype_names[OSP_AFFINE3F] = "OSP_AFFINE3F";
-    ospdatatype_names[OSP_UNKNOWN] = "OSP_UNKNOWN";
-
-    ospframebufferformat_names[OSP_FB_NONE] = "OSP_FB_NONE";
-    ospframebufferformat_names[OSP_FB_RGBA8] = "OSP_FB_RGBA8";
-    ospframebufferformat_names[OSP_FB_SRGBA] = "OSP_FB_SRGBA";
-    ospframebufferformat_names[OSP_FB_RGBA32F] = "OSP_FB_RGBA32F";
-    
-    enum_mapping_initialized = true;
-}
-
-static std::string
-ospdatatype_name(OSPDataType type)
-{
-    if (!enum_mapping_initialized)
-        init_enum_mapping();
-    
-    return ospdatatype_names[type];
-}
-
-static std::string
-ospframebufferformat_name(OSPFrameBufferFormat type)
-{
-    if (!enum_mapping_initialized)
-        init_enum_mapping();
-    
-    return ospframebufferformat_names[type];
-}
-
 static double 
 timestamp()
 {
@@ -188,36 +88,102 @@ ensure_logfile()
 }
 
 static void
-log_message(const char *fmt, ...)
+log_json(const json& j)
 {
-    static char msg[1024];
-
     if (!ensure_logfile()) return;
 
-    va_list arglist;
-    va_start(arglist, fmt);
-    vsprintf(msg, fmt, arglist);
-    va_end(arglist);
-
-    fprintf(log_file, "[%.06lf] %s", timestamp(), msg);
+    fprintf(log_file, "%s\n", j.dump().c_str());
     fflush(log_file);
 }
 
-
 static void
-log_warning(const char *fmt, ...)
+init_enum_mapping()
 {
-    static char msg[1024];
+    if (enum_mapping_initialized)
+        return;
+
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "<enums>";
+
+    json ospdatatype_names;
+    json ospframebufferformat_names;
+
+    ospdatatype_names["OSP_DEVICE"] = OSP_DEVICE;
+    ospdatatype_names["OSP_VOID_PTR"] = OSP_VOID_PTR;
+    ospdatatype_names["OSP_OBJECT"] = OSP_OBJECT;
+    ospdatatype_names["OSP_CAMERA"] = OSP_CAMERA;
+    ospdatatype_names["OSP_DATA"] = OSP_DATA;
+    ospdatatype_names["OSP_FRAMEBUFFER"] = OSP_FRAMEBUFFER;
+    ospdatatype_names["OSP_GEOMETRY"] = OSP_GEOMETRY;
+    ospdatatype_names["OSP_GEOMETRIC_MODEL"] = OSP_GEOMETRIC_MODEL;
+    ospdatatype_names["OSP_LIGHT"] = OSP_LIGHT;
+    ospdatatype_names["OSP_MATERIAL"] = OSP_MATERIAL;
+    ospdatatype_names["OSP_RENDERER"] = OSP_RENDERER;
+    ospdatatype_names["OSP_TEXTURE"] = OSP_TEXTURE;
+    ospdatatype_names["OSP_TRANSFER_FUNCTION"] = OSP_TRANSFER_FUNCTION;
+    ospdatatype_names["OSP_VOLUME"] = OSP_VOLUME;
+    ospdatatype_names["OSP_VOLUMETRIC_MODEL"] = OSP_VOLUMETRIC_MODEL;
+    ospdatatype_names["OSP_INSTANCE"] = OSP_INSTANCE;
+    ospdatatype_names["OSP_WORLD"] = OSP_WORLD;
+    ospdatatype_names["OSP_IMAGE_OP"] = OSP_IMAGE_OP;   
     
-    if (!ensure_logfile()) return;
+    ospdatatype_names["OSP_STRING"] = OSP_STRING;
+    ospdatatype_names["OSP_CHAR"] = OSP_CHAR;
+    ospdatatype_names["OSP_UCHAR"] = OSP_UCHAR;
+    ospdatatype_names["OSP_VEC2UC"] = OSP_VEC2UC;
+    ospdatatype_names["OSP_VEC3UC"] = OSP_VEC3UC;
+    ospdatatype_names["OSP_VEC4UC"] = OSP_VEC4UC;
+    ospdatatype_names["OSP_BYTE"] = OSP_BYTE;
+    ospdatatype_names["OSP_RAW"] = OSP_RAW;
+    ospdatatype_names["OSP_SHORT"] = OSP_SHORT;
+    ospdatatype_names["OSP_USHORT"] = OSP_USHORT;
+    ospdatatype_names["OSP_INT"] = OSP_INT;
+    ospdatatype_names["OSP_VEC2I"] = OSP_VEC2I;
+    ospdatatype_names["OSP_VEC3I"] = OSP_VEC3I;
+    ospdatatype_names["OSP_VEC4I"] = OSP_VEC4I;
+    ospdatatype_names["OSP_UINT"] = OSP_UINT;
+    ospdatatype_names["OSP_VEC2UI"] = OSP_VEC2UI;
+    ospdatatype_names["OSP_VEC3UI"] = OSP_VEC3UI;
+    ospdatatype_names["OSP_VEC4UI"] = OSP_VEC4UI;
+    ospdatatype_names["OSP_LONG"] = OSP_LONG;
+    ospdatatype_names["OSP_VEC2L"] = OSP_VEC2L;
+    ospdatatype_names["OSP_VEC3L"] = OSP_VEC3L;
+    ospdatatype_names["OSP_VEC4L"] = OSP_VEC4L;
+    ospdatatype_names["OSP_ULONG"] = OSP_ULONG;
+    ospdatatype_names["OSP_VEC2UL"] = OSP_VEC2UL;
+    ospdatatype_names["OSP_VEC3UL"] = OSP_VEC3UL;
+    ospdatatype_names["OSP_VEC4UL"] = OSP_VEC4UL;
+    ospdatatype_names["OSP_FLOAT"] = OSP_FLOAT;
+    ospdatatype_names["OSP_VEC2F"] = OSP_VEC2F;
+    ospdatatype_names["OSP_VEC3F"] = OSP_VEC3F;
+    ospdatatype_names["OSP_VEC4F"] = OSP_VEC4F;
+    ospdatatype_names["OSP_DOUBLE"] = OSP_DOUBLE;
+    ospdatatype_names["OSP_BOX1I"] = OSP_BOX1I;
+    ospdatatype_names["OSP_BOX2I"] = OSP_BOX2I;
+    ospdatatype_names["OSP_BOX3I"] = OSP_BOX3I;
+    ospdatatype_names["OSP_BOX4I"] = OSP_BOX4I;
+    ospdatatype_names["OSP_BOX1F"] = OSP_BOX1F;
+    ospdatatype_names["OSP_BOX2F"] = OSP_BOX2F;
+    ospdatatype_names["OSP_BOX3F"] = OSP_BOX3F;
+    ospdatatype_names["OSP_BOX4F"] = OSP_BOX4F;
+    ospdatatype_names["OSP_LINEAR2F"] = OSP_LINEAR2F;
+    ospdatatype_names["OSP_LINEAR3F"] = OSP_LINEAR3F;
+    ospdatatype_names["OSP_AFFINE2F"] = OSP_AFFINE2F;
+    ospdatatype_names["OSP_AFFINE3F"] = OSP_AFFINE3F;
+    ospdatatype_names["OSP_UNKNOWN"] = OSP_UNKNOWN;
 
-    va_list arglist;
-    va_start(arglist, fmt);
-    vsprintf(msg, fmt, arglist);
-    va_end(arglist);
+    ospframebufferformat_names["OSP_FB_NONE"] = OSP_FB_NONE;
+    ospframebufferformat_names["OSP_FB_RGBA8"] = OSP_FB_RGBA8;
+    ospframebufferformat_names["OSP_FB_SRGBA"] = OSP_FB_SRGBA;
+    ospframebufferformat_names["OSP_FB_RGBA32F"] = OSP_FB_RGBA32F;
 
-    fprintf(log_file, "[%.06lf] WARNING: %s", timestamp(), msg);
-    fflush(log_file);
+    j["result"] = {
+        {"OSPDataType", ospdatatype_names}, {"OSPFrameBufferFormat", ospframebufferformat_names}
+    };
+    log_json(j);
+    
+    enum_mapping_initialized = true;
 }
 
 #define GET_PTR(call) \
@@ -238,37 +204,6 @@ find_or_load_call(const char *callname)
     
     return ptr;
 }
-
-typedef std::map<std::string, int>  TypeCountMap;
-
-TypeCountMap    type_counts;
-
-void
-newobj(void *ptr, const std::string &type)
-{
-    int count; 
-
-    TypeCountMap::iterator it = type_counts.find(type);
-    if (it == type_counts.end())
-        count = type_counts[type] = 1;
-    else
-        count = it->second++;
-        
-    reference_counts[ptr] = 1;
-    reference_types[ptr] = type + "#" + std::to_string(count);
-}
-
-std::string 
-objinfo(void *ptr)
-{
-    if (reference_types.find(ptr) == reference_types.end())
-        return std::string("???");
-    
-    char s[256];
-    sprintf(s, "%s:%d", reference_types[ptr].c_str(), reference_counts[ptr]);
-    
-    return std::string(s);
-}
     
 #define NEW_FUNCTION_1(TYPE) \
     OSP ## TYPE \
@@ -276,16 +211,15 @@ objinfo(void *ptr)
     { \
         ospNew ## TYPE ## _ptr libcall = GET_PTR(ospNew ## TYPE); \
         \
-        log_message("ospNew" #TYPE "(type=\"%s\")\n", type); \
+        json j; \
+        j["timestamp"] = timestamp(); \
+        j["call"] = "ospNew" #TYPE; \
+        j["arguments"] = { {"type", type} }; \
         \
         OSP ## TYPE res = libcall(type); \
         \
-        if (reference_counts.find(res) != reference_counts.end()) \
-            log_warning("Lost reference count to object at 0x%016x!\n", res); \
-        \
-        newobj(res, "OSP" #TYPE); \
-        \
-        log_message("-> 0x%016x [%s]\n", res, objinfo(res).c_str()); \
+        j["result"] = (size_t)res; \
+        log_json(j); \
         \
         return res; \
     }
@@ -301,15 +235,20 @@ NEW_FUNCTION_1(Volume)
 OSPData
 ospNewData(size_t numItems, OSPDataType type, const void *source, uint32_t dataCreationFlags)
 {
+    init_enum_mapping();
     ospNewData_ptr libcall = GET_PTR(ospNewData);
-    
-    log_message("ospNewData(numItems=%ld, type=%d [%s], source=0x%016x, dataCreationFlags=0x%08x)\n", 
-        numItems, type, ospdatatype_name(type).c_str(), source, dataCreationFlags);    
+
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospNewData";
+    j["arguments"] = {
+        {"numItems", numItems}, {"type", (int)type}, {"source", (size_t)source}, {"dataCreationFlags", dataCreationFlags}
+        // XXX source contents
+    };
     
     OSPData res = libcall(numItems, type, source, dataCreationFlags);
 
-    newobj(res, "OSPData");
-
+    /*
     if (dump_arrays > 0)
     {
         int v;
@@ -356,8 +295,10 @@ ospNewData(size_t numItems, OSPDataType type, const void *source, uint32_t dataC
         if (dump_arrays == 1 && numItems > n)
             log_message("...... | ...\n");
     }
+    */
 
-    log_message("-> 0x%016x [%s]\n", res, objinfo(res).c_str());
+    j["result"] = (size_t)res;
+    log_json(j);
     
     return res;
 }
@@ -365,16 +306,20 @@ ospNewData(size_t numItems, OSPDataType type, const void *source, uint32_t dataC
 OSPFrameBuffer 
 ospNewFrameBuffer(int x, int y, OSPFrameBufferFormat format, uint32_t frameBufferChannels)
 {
+    init_enum_mapping();
     ospNewFrameBuffer_ptr libcall = GET_PTR(ospNewFrameBuffer);
 
-    log_message("ospNewFrameBuffer(x=%d, y=%d, format=0x%04x [%s], frameBufferChannels=0x%08x)\n", 
-        x, y, format, ospframebufferformat_name(format).c_str(), frameBufferChannels);    
-    
-    OSPFrameBuffer res = libcall(x, y, format, frameBufferChannels);
-    
-    newobj(res, "OSPFrameBuffer");
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospNewFrameBuffer";
+    j["arguments"] = {
+        {"x", x}, {"y", y}, {"format", int(format)}, {"frameBufferChannels", frameBufferChannels}
+    };
 
-    log_message("-> 0x%016x [%s]\n", res, objinfo(res).c_str());
+    OSPFrameBuffer res = libcall(x, y, format, frameBufferChannels);
+
+    j["result"] = (size_t)res;
+    log_json(j);
 
     return res;
 }
@@ -383,18 +328,18 @@ OSPGeometricModel
 ospNewGeometricModel(OSPGeometry geometry)
 {
     ospNewGeometricModel_ptr libcall = GET_PTR(ospNewGeometricModel);
-    
-    log_message("ospNewGeometricModel(geometry=0x%016x [%s])\n", geometry, objinfo(geometry).c_str());
-    
+
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospNewGeometricModel";
+    j["arguments"] = {
+        {"geometry", size_t(geometry)}
+    };
+
     OSPGeometricModel res = libcall(geometry);    
     
-    if (reference_counts.find(res) != reference_counts.end())
-        log_warning("Lost reference count to object at 0x%016x!\n", res);
-
-    newobj(res, "OSPGeometricModel");
-    reference_counts[geometry] += 1;
-    
-    log_message("-> 0x%016x [%s]\n", res, objinfo(res).c_str());
+    j["result"] = (size_t)res;
+    log_json(j);
     
     return res;
 }
@@ -403,17 +348,16 @@ OSPGroup
 ospNewGroup()
 {
     ospNewGroup_ptr libcall = GET_PTR(ospNewGroup);
-    
-    log_message("ospNewGroup()\n");    
+
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospNewGroup";
+    j["arguments"] = {};
     
     OSPGroup res = libcall();    
     
-    if (reference_counts.find(res) != reference_counts.end())
-        log_warning("Lost reference count to object at 0x%016x!\n", res);
-
-    newobj(res, "OSPGroup");
-
-    log_message("-> 0x%016x [%s]\n", res, objinfo(res).c_str());
+    j["result"] = (size_t)res;
+    log_json(j);
     
     return res;
 }
@@ -422,18 +366,18 @@ OSPInstance
 ospNewInstance(OSPGroup group)
 {
     ospNewInstance_ptr libcall = GET_PTR(ospNewInstance);
-    
-    log_message("OSPInstance(group=0x%016x [%s])\n", group, objinfo(group).c_str());
-    
-    OSPInstance res = libcall(group);    
-    
-    if (reference_counts.find(res) != reference_counts.end())
-        log_warning("Lost reference count to object at 0x%016x!\n", res);
 
-    newobj(res, "OSPInstance");
-    reference_counts[group] += 1;
-    
-    log_message("-> 0x%016x [%s]\n", res, objinfo(res).c_str());
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospNewInstance";
+    j["arguments"] = {
+        {"group", size_t(group)}
+    };
+
+    OSPInstance res = libcall(group);    
+
+    j["result"] = (size_t)res;
+    log_json(j);
     
     return res;    
 }
@@ -443,18 +387,18 @@ OSPMaterial
 ospNewMaterial(const char *rendererType, const char *materialType)
 {
     ospNewMaterial_ptr libcall = GET_PTR(ospNewMaterial);
-    
-    log_message("ospNewMaterial(rendererType=\"%s\", materialType=\"%s\")\n", 
-        rendererType, materialType);    
+
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospNewMaterial";
+    j["arguments"] = {
+        {"rendererType", rendererType}, {"materialType", materialType}
+    };
     
     OSPMaterial res = libcall(rendererType, materialType);
     
-    if (reference_counts.find(res) != reference_counts.end())
-        log_warning("Lost reference count to object at 0x%016x!\n", res);
-
-    newobj(res, "OSPMaterial");
-    
-    log_message("-> 0x%016x [%s]\n", res, objinfo(res).c_str());
+    j["result"] = (size_t)res;
+    log_json(j);
     
     return res;
 }
@@ -463,18 +407,18 @@ OSPVolumetricModel
 ospNewVolumetricModel(OSPVolume volume)
 {
     ospNewVolumetricModel_ptr libcall = GET_PTR(ospNewVolumetricModel);
-    
-    log_message("ospNewVolumetricModel(volume=0x%016x [%s])\n", volume, objinfo(volume).c_str());
+
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospNewVolumetricModel";
+    j["arguments"] = {
+        {"volume", (size_t)volume}
+    };
     
     OSPVolumetricModel res = libcall(volume);    
     
-    if (reference_counts.find(res) != reference_counts.end())
-        log_warning("Lost reference count to object at 0x%016x!\n", res);
-
-    newobj(res, "OSPVolumetricModel");
-    reference_counts[volume] += 1;
-    
-    log_message("-> 0x%016x [%s]\n", res, objinfo(res).c_str());
+    j["result"] = (size_t)res;
+    log_json(j);
     
     return res;
 }
@@ -484,17 +428,16 @@ OSPWorld
 ospNewWorld()
 {
     ospNewWorld_ptr libcall = GET_PTR(ospNewWorld);
-    
-    log_message("ospNewWorld()\n");    
-    
+
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospNewWorld";
+    j["arguments"] = {};
+        
     OSPWorld res = libcall();    
     
-    if (reference_counts.find(res) != reference_counts.end())
-        log_warning("Lost reference count to object at 0x%016x!\n", res);
-
-    newobj(res, "OSPWorld");
-    
-    log_message("-> 0x%016x [%s]\n", res, objinfo(res).c_str());
+    j["result"] = (size_t)res;
+    log_json(j);
     
     return res;
 }
@@ -504,134 +447,185 @@ ospCommit(OSPObject obj)
 {
     ospCommit_ptr libcall = GET_PTR(ospCommit);
     
-    log_message("ospCommit(object=0x%016x [%s])\n", obj, objinfo(obj).c_str());
-    
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospCommit";
+    j["arguments"] = {
+        {"obj", (size_t)obj}
+    };
+
     libcall(obj);
+
+    log_json(j);
 }
 
 void
 ospRelease(OSPObject obj)
 {
     ospRelease_ptr libcall = GET_PTR(ospRelease);
-    
-    log_message("ospRelease(object=0x%016x [%s])\n", obj, objinfo(obj).c_str());
-    
-    bool found = true;
-    
-    if (reference_counts.find(obj) == reference_counts.end())
-    {
-        found = false;
-        log_warning("No previous reference count for 0x%016x!\n", obj);
-    }
 
-    libcall(obj);
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospRelease";
+    j["arguments"] = {
+        {"obj", (size_t)obj}
+    };
     
-    //log_message("Refcount is now %lld\n", ospRefCount(obj));
+    libcall(obj);
+
+    log_json(j);
 }
 
 void ospSetData(OSPObject obj, const char *id, OSPData data)
 {
     ospSetData_ptr libcall = GET_PTR(ospSetData);
-    
-    log_message("ospSetData(object=0x%016x [%s], id=\"%s\", data=0x%016x [%s])\n", 
-        obj, objinfo(obj).c_str(), id, data, objinfo(data).c_str());
 
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospSetData";
+    j["arguments"] = {
+        {"obj", (size_t)obj}, {"id", id}, {"data", (size_t)data}
+    };
+    
     libcall(obj, id, data);
     
-    reference_counts[data] += 1;
+    log_json(j);
 }
 
 void 
 ospSetObject(OSPObject obj, const char *id, OSPObject other)
 {
     ospSetObject_ptr libcall = GET_PTR(ospSetObject);
-    
-    log_message("ospSetObject(object=0x%016x [%s], id=\"%s\", other=0x%016x [%s])\n", 
-        obj, objinfo(obj).c_str(), id, other, objinfo(other).c_str());
 
-    libcall(obj, id, other);
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospSetObject";
+    j["arguments"] = {
+        {"obj", (size_t)obj}, {"id", id}, {"other", (size_t)other}
+    };
     
-    reference_counts[other] += 1;
+    libcall(obj, id, other);
+
+    log_json(j);
 }
 
 void 
 ospSetBool(OSPObject obj, const char *id, int x)
 {
     ospSetBool_ptr libcall = GET_PTR(ospSetBool);
-    
-    log_message("ospSetBool(object=0x%016x [%s], id=\"%s\", x=%d)\n", 
-        obj, objinfo(obj).c_str(), id, x);
 
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospSetBool";
+    j["arguments"] = {
+        {"obj", (size_t)obj}, {"id", id}, {"x", x}
+    };
+    
     libcall(obj, id, x);
+
+    log_json(j);
 }
 
 void 
 ospSetFloat(OSPObject obj, const char *id, float x)
 {
     ospSetFloat_ptr libcall = GET_PTR(ospSetFloat);
-    
-    log_message("ospSetFloat(object=0x%016x [%s], id=\"%s\", x=%.6f)\n", 
-        obj, objinfo(obj).c_str(), id, x);
+ 
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospSetFloat";
+    j["arguments"] = {
+        {"obj", (size_t)obj}, {"id", id}, {"x", x}
+    };
 
     libcall(obj, id, x);
+
+    log_json(j);
 }
 
 void 
 ospSetInt(OSPObject obj, const char *id, int x)
 {
     ospSetInt_ptr libcall = GET_PTR(ospSetInt);
-    
-    log_message("ospSetInt(object=0x%016x [%s], id=\"%s\", x=%d)\n", 
-        obj, objinfo(obj).c_str(), id, x);
 
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospSetInt";
+    j["arguments"] = {
+        {"obj", (size_t)obj}, {"id", id}, {"x", x}
+    };
+    
     libcall(obj, id, x);
+
+    log_json(j);
 }
 
 void 
 ospSetLinear3fv(OSPObject obj, const char *id, const float *v)
 {
     ospSetLinear3fv_ptr libcall = GET_PTR(ospSetLinear3fv);
-    
-    log_message("ospSetLinear3fv(object=0x%016x [%s], id=\"%s\", v=0x%016x [%.6f])\n", 
-        obj, objinfo(obj).c_str(), id, v);
 
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospSetLinear3fv";
+    j["arguments"] = {
+        {"obj", (size_t)obj}, {"id", id}, {"v", (size_t)v}      // XXX
+    };
+    
     libcall(obj, id, v);    
+
+    log_json(j);
 }
 
 void 
 ospSetAffine3fv(OSPObject obj, const char *id, const float *v)
 {
     ospSetAffine3fv_ptr libcall = GET_PTR(ospSetAffine3fv);
-    
-    char msg[1024];
-    
-    log_message("ospSetAffine3fv(object=0x%016x [%s], id=\"%s\", v=0x%016x [%.6f, %.6f, %.6f | %.6f, %.6f, %.6f | %.6f, %.6f, %.6f | %.6f, %.6f, %.6f ])\n", 
-        obj, objinfo(obj).c_str(), id, v,
-        v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11]);
 
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospSetAffine3fv";
+    j["arguments"] = {
+        {"obj", (size_t)obj}, {"id", id}, {"v", {v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11]}}    // XXX pointer
+    };
+    
     libcall(obj, id, v);       
+
+    log_json(j);
 }
 
 void 
 ospSetString(OSPObject obj, const char *id, const char *s)
 {
     ospSetString_ptr libcall = GET_PTR(ospSetString);
-    
-    log_message("ospSetString(object=0x%016x [%s], id=\"%s\", s=\"%s\")\n", 
-        obj, objinfo(obj).c_str(), id, s);
+
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospSetString";
+    j["arguments"] = {
+        {"obj", (size_t)obj}, {"id", id}, {"s", s}
+    };
 
     libcall(obj, id, s);
+
+    log_json(j);
 }
 
 void
 ospSetVoidPtr(OSPObject obj, const char *id, void *v)
 {
     ospSetVoidPtr_ptr libcall = GET_PTR(ospSetVoidPtr);
-    
-    log_message("ospSetVoidPtr(object=0x%016x [%s], id=\"%s\", v=0x%016x [%s])\n", 
-        obj, objinfo(obj).c_str(), id, v, objinfo(v));
+ 
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospSetVoidPtr";
+    j["arguments"] = {
+        {"obj", (size_t)obj}, {"id", id}, {"v", (size_t)v}
+    };   
 
     libcall(obj, id, v);    
+
+    log_json(j);
 }
 
 // Vec2
@@ -639,33 +633,51 @@ void
 ospSetVec2f(OSPObject obj, const char *id, float x, float y)
 {
     ospSetVec2f_ptr libcall = GET_PTR(ospSetVec2f);
-    
-    log_message("ospSetVec2f(object=0x%016x [%s], id=\"%s\", x=%.6f, y=%.6f)\n", 
-        obj, objinfo(obj).c_str(), id, x, y);
 
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospSetVec2f";
+    j["arguments"] = {
+        {"obj", (size_t)obj}, {"id", id}, {"x", x}, {"y", y}
+    };
+    
     libcall(obj, id, x, y);
+
+    log_json(j);
 }
 
 void 
 ospSetVec2fv(OSPObject obj, const char *id, const float *xy)
 {
     ospSetVec2fv_ptr libcall = GET_PTR(ospSetVec2fv);
-    
-    log_message("ospSetVec2fv(object=0x%016x [%s], id=\"%s\", xy=0x%016x [%.6f, %.6f])\n", 
-        obj, objinfo(obj).c_str(), id, xy, xy[0], xy[1]);
 
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospSetVec2fv";
+    j["arguments"] = {
+        {"obj", (size_t)obj}, {"id", id}, {"xy", (size_t)xy}, {"xy:values", {xy[0], xy[1]}}
+    };
+    
     libcall(obj, id, xy);
+
+    log_json(j);
 }
 
 void 
 ospSetVec2i(OSPObject obj, const char *id, int x, int y)
 {
     ospSetVec2i_ptr libcall = GET_PTR(ospSetVec2i);
-    
-    log_message("ospSetVec2i(object=0x%016x [%s], id=\"%s\", x=%d, y=%d)\n", 
-        obj, objinfo(obj).c_str(), id, x, y);
 
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospSetVec2i";
+    j["arguments"] = {
+        {"obj", (size_t)obj}, {"id", id}, {"x", x}, {"y", y}
+    };
+    
     libcall(obj, id, x, y);    
+
+    log_json(j);
 }
 
 void 
@@ -673,10 +685,16 @@ ospSetVec2iv(OSPObject obj, const char *id, const int *xy)
 {
     ospSetVec2iv_ptr libcall = GET_PTR(ospSetVec2iv);
     
-    log_message("ospSetVec2fv(object=0x%016x [%s], id=\"%s\", xy=0x%016x [%d, %d])\n", 
-        obj, objinfo(obj).c_str(), id, xy, xy[0], xy[1]);
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospSetVec2iv";
+    j["arguments"] = {
+        {"obj", (size_t)obj}, {"id", id}, {"xy", (size_t)xy}, {"xy:values", {xy[0], xy[1]}}
+    };
 
     libcall(obj, id, xy);
+
+    log_json(j);
 }
 
 
@@ -685,11 +703,17 @@ void
 ospSetVec3f(OSPObject obj, const char *id, float x, float y, float z)
 {
     ospSetVec3f_ptr libcall = GET_PTR(ospSetVec3f);
-    
-    log_message("ospSetVec3f(object=0x%016x [%s], id=\"%s\", x=%.6f, y=%.6f, z=%.6f)\n", 
-        obj, objinfo(obj).c_str(), id, x, y, z);
 
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospSetVec3f";
+    j["arguments"] = {
+        {"obj", (size_t)obj}, {"id", id}, {"x", x}, {"y", y}, {"z", z}
+    };
+    
     libcall(obj, id, x, y, z);
+
+    log_json(j);
 }
 
 void 
@@ -697,32 +721,50 @@ ospSetVec3fv(OSPObject obj, const char *id, const float *xyz)
 {
     ospSetVec3fv_ptr libcall = GET_PTR(ospSetVec3fv);
     
-    log_message("ospSetVec3fv(object=0x%016x [%s], id=\"%s\", xyz=0x%016x [%.6f, %.6f, %.6f])\n", 
-        obj, objinfo(obj).c_str(), id, xyz, xyz[0], xyz[1], xyz[2]);
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospSetVec3fv";
+    j["arguments"] = {
+        {"obj", (size_t)obj}, {"id", id}, {"xyz", (size_t)xyz}, {"xyz:values", {xyz[0], xyz[1], xyz[2]}}
+    };
 
     libcall(obj, id, xyz);
+
+    log_json(j);
 }
 
 void 
 ospSetVec3i(OSPObject obj, const char *id, int x, int y, int z)
 {
     ospSetVec3i_ptr libcall = GET_PTR(ospSetVec3i);
-    
-    log_message("ospSetVec3i(object=0x%016x [%s], id=\"%s\", x=%d, y=%d, z=%d)\n", 
-        obj, objinfo(obj).c_str(), id, x, y, z);
+
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospSetVec3i";
+    j["arguments"] = {
+        {"obj", (size_t)obj}, {"id", id}, {"x", x}, {"y", y}, {"z", z}
+    };
 
     libcall(obj, id, x, y, z);    
+
+    log_json(j);
 }
 
 void 
 ospSetVec3iv(OSPObject obj, const char *id, const int *xyz)
 {
     ospSetVec3iv_ptr libcall = GET_PTR(ospSetVec3iv);
-    
-    log_message("ospSetVec3fv(object=0x%016x [%s], id=\"%s\", xyz=0x%016x [%d, %d, %d])\n", 
-        obj, objinfo(obj).c_str(), id, xyz, xyz[0], xyz[1], xyz[2]);
 
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospSetVec3iv";
+    j["arguments"] = {
+        {"obj", (size_t)obj}, {"id", id}, {"xyz", (size_t)xyz}, {"xyz:values", {xyz[0], xyz[1], xyz[2]}}
+    };
+    
     libcall(obj, id, xyz);
+
+    log_json(j);
 }
 
 
@@ -731,11 +773,17 @@ void
 ospSetVec4f(OSPObject obj, const char *id, float x, float y, float z, float w)
 {
     ospSetVec4f_ptr libcall = GET_PTR(ospSetVec4f);
-    
-    log_message("ospSetVec4f(object=0x%016x [%s], id=\"%s\", x=%.6f, y=%.6f, z=%.6f, w=%.6f)\n", 
-        obj, objinfo(obj).c_str(), id, x, y, z, w);
 
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospSetVec4f";
+    j["arguments"] = {
+        {"obj", (size_t)obj}, {"id", id}, {"x", x}, {"y", y}, {"z", z}, {"w", w}
+    };
+    
     libcall(obj, id, x, y, z, w);
+
+    log_json(j);
 }
 
 void 
@@ -743,32 +791,50 @@ ospSetVec4fv(OSPObject obj, const char *id, const float *xyzw)
 {
     ospSetVec4fv_ptr libcall = GET_PTR(ospSetVec4fv);
     
-    log_message("ospSetVec4fv(object=0x%016x [%s], id=\"%s\", xyzw=0x%016x [%.6f, %.6f, %.6f, %.6f])\n", 
-        obj, objinfo(obj).c_str(), id, xyzw, xyzw[0], xyzw[1], xyzw[2], xyzw[3]);
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospSetVec4fv";
+    j["arguments"] = {
+        {"obj", (size_t)obj}, {"id", id}, {"xyzw", (size_t)xyzw}, {"xyzw:values", {xyzw[0], xyzw[1], xyzw[2], xyzw[3]}}
+    };
 
     libcall(obj, id, xyzw);
+
+    log_json(j);
 }
 
 void 
 ospSetVec4i(OSPObject obj, const char *id, int x, int y, int z, int w)
 {
     ospSetVec4i_ptr libcall = GET_PTR(ospSetVec4i);
-    
-    log_message("ospSetVec4i(object=0x%016x [%s], id=\"%s\", x=%d, y=%d, z=%d, w=%d)\n", 
-        obj, objinfo(obj).c_str(), id, x, y, z, w);
 
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospSetVec4i";
+    j["arguments"] = {
+        {"obj", (size_t)obj}, {"id", id}, {"x", x}, {"y", y}, {"z", z}, {"w", w}
+    };
+    
     libcall(obj, id, x, y, z, w);    
+
+    log_json(j);
 }
 
 void 
 ospSetVec4iv(OSPObject obj, const char *id, const int *xyzw)
 {
     ospSetVec4iv_ptr libcall = GET_PTR(ospSetVec4iv);
-    
-    log_message("ospSetVec4fv(object=0x%016x [%s], id=\"%s\", xyzw=0x%016x [%d, %d, %d, %d])\n", 
-        obj, objinfo(obj).c_str(), id, xyzw, xyzw[0], xyzw[1], xyzw[2], xyzw[3]);
 
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospSetVec4iv";
+    j["arguments"] = {
+        {"obj", (size_t)obj}, {"id", id}, {"xyzw", (size_t)xyzw}, {"xyzw:values", {xyzw[0], xyzw[1], xyzw[2], xyzw[3]}}
+    };
+    
     libcall(obj, id, xyzw);
+
+    log_json(j);
 }
 
 
@@ -777,15 +843,17 @@ ospRenderFrame(OSPFrameBuffer framebuffer, OSPRenderer renderer, OSPCamera camer
 {
     ospRenderFrame_ptr libcall = GET_PTR(ospRenderFrame);
 
-    log_message("ospRenderFrame(framebuffer=0x%016x [%s], renderer=0x%016x [%s], camera=0x%016x [%s], world=0x%016x [%s])\n", 
-        framebuffer, objinfo(framebuffer).c_str(), 
-        renderer, objinfo(renderer).c_str(),
-        camera, objinfo(camera).c_str(),
-        world, objinfo(world).c_str());   
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospRenderFrame";
+    j["arguments"] = {
+        {"framebuffer", (size_t)framebuffer}, {"renderer", (size_t)renderer}, {"camera", (size_t)camera}, {"world", (size_t)world}
+    };
 
     float res = libcall(framebuffer, renderer, camera, world);
 
-    log_message("-> %.6f\n", res);   
+    j["result"] = res;      // XXX inf gets turned into null in json 
+    log_json(j);
 
     return res;
 }
