@@ -1141,26 +1141,76 @@ add_slices_object(const UpdateObject& update, const Slices& slices)
     printf("... custom properties:\n");
     printf("%s\n", custom_properties.dump(4).c_str());
     
-    if (custom_properties.find("slice_plane") == custom_properties.end())
-    {
-        printf("... WARNING: no property 'slice_plane' set on object!\n");
-        return false;
-    }
-    
-    // XXX Only a single slice plane at
-    json slice_plane_prop = custom_properties["slice_plane"];
-            
-    if (slice_plane_prop.size() != 4)
-    {
-        fprintf(stderr, "... ERROR: slice_plane attribute should contain list of 4 floats values!\n");
-        return false;
-    }
-
-    float plane[4];
-
     for (int i = 0; i < slices.slices_size(); i++)
     {
         const Slice& slice = slices.slices(i);
+
+        // Get linked geometry
+
+        const std::string& linked_data = slice.linked_mesh();
+
+        printf("... linked mesh '%s' (blender mesh)\n", linked_data.c_str());    
+
+        SceneDataTypeMap::iterator it = scene_data_types.find(linked_data);
+
+        if (it == scene_data_types.end())
+        {
+            printf("--> '%s' | WARNING: no linked data found!\n", linked_data.c_str());
+            return false;
+        }
+        else if (it->second != SDT_MESH)
+        {
+            printf("--> '%s' | WARNING: linked data is not of type 'mesh' but of type %d!\n", 
+                linked_data.c_str(), it->second);
+            return false;
+        }
+        else
+            printf("--> '%s' (blender mesh data)\n", linked_data.c_str());
+
+        BlenderMesh *blender_mesh = blender_meshes[linked_data];
+        OSPGeometry geometry = blender_mesh->geometry;
+        assert(geometry != NULL);
+
+        // Set up slice geometry
+
+        // XXX temp inserted volumetric model
+        auto volume_model = ospNewVolumetricModel(volume);
+            OSPTransferFunction tf = create_transfer_function("cool2warm", state->volume_data_range[0], state->volume_data_range[1]);
+            ospSetObject(volume_model, "transferFunction", tf);
+            ospRelease(tf);
+            //ospSetFloat(volume_model, "samplingRate", 0.5f);
+        ospCommit(volume_model);
+
+        OSPTexture volume_texture = ospNewTexture("volume");
+            ospSetObject(volume_texture, "volume", volume_model);   // XXX volume model, not volume
+        ospCommit(volume_texture);
+
+        OSPMaterial material = ospNewMaterial(current_renderer_type.c_str(), "default");
+            ospSetObject(material, "map_Kd", volume_texture);
+        ospCommit(material);
+        ospRelease(volume_texture);
+
+        OSPGeometricModel geometric_model = ospNewGeometricModel(geometry);
+        ospCommit(geometric_model);
+
+        OSPGroup group = ospNewGroup();
+            OSPData data = ospNewData(1, OSP_OBJECT, &geometric_model, 0);
+            ospSetObject(group, "geometry", data);                  // SetObject or SetData?
+            //ospRelease(model);
+        ospCommit(group);
+     
+        glm::mat4   obj2world;
+        float       affine_xform[12];
+
+        object2world_from_protobuf(obj2world, slice);
+        affine3fv_from_mat4(affine_xform, obj2world);
+
+        OSPInstance instance = ospNewInstance(group);
+            ospSetAffine3fv(instance, "xfm", affine_xform);
+        ospCommit(instance);
+        ospRelease(group);
+
+        scene_instances.push_back(instance);
 
 #if 0
         plane[0] = slice.a();
@@ -1192,24 +1242,6 @@ add_slices_object(const UpdateObject& update, const Slices& slices)
         ospCommit(model);
         ospRelease(slice_geometry);
         
-        OSPGroup group = ospNewGroup();
-            OSPData data = ospNewData(1, OSP_OBJECT, &model, 0);
-            ospSetObject(group, "geometry", data);                  // SetObject or SetData?
-            //ospRelease(model);
-        ospCommit(group);
-     
-        glm::mat4   obj2world;
-        float       affine_xform[12];
-
-        object2world_from_protobuf(obj2world, update);
-        affine3fv_from_mat4(affine_xform, obj2world);
-
-        OSPInstance instance = ospNewInstance(group);
-            ospSetAffine3fv(instance, "xfm", affine_xform);
-        ospCommit(instance);
-        ospRelease(group);
-
-        scene_instances.push_back(instance);
 #endif        
     }
     

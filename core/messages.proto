@@ -142,8 +142,7 @@ message Volume
 message Slice
 {
     string          linked_mesh = 1;
-    repeated float  parent_object2world = 2;
-    repeated float  matrix_local = 3;    
+    repeated float  object2world = 2;
 }
 
 message Slices

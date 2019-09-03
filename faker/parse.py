@@ -54,9 +54,9 @@ class Object:
         self.edges = {}
         self.dirty = False
         
-    def set_property(self, field, value):
+    def set_property(self, field, value, dirty=True):
         self.fields[field] = value
-        self.dirty = True
+        self.dirty = dirty
         
     def add_edge(self, label, other, dirty=True):
         self.edges[label] = other
@@ -72,7 +72,7 @@ class Object:
         fields = []
         for field in sorted(self.fields.keys()):
             value = self.fields[field]
-            fields.append('%s:%s' % (field,value))
+            fields.append('%s = %s' % (field,value))
 
         label = self.label
         if len(fields) > 0:
@@ -105,12 +105,19 @@ for line in f:
         addr2object[addr] = obj
         pointers.add(addr)
         
-        if call == 'ospNewGeometricModel':
+        if call == 'ospNewGeometricModel':            
             obj.add_edge('geometry', addr2object[args['geometry']], False)
         elif call == 'ospNewVolumetricModel':
             obj.add_edge('volume', addr2object[args['volume']], False)
         elif call == 'ospNewInstance':
             obj.add_edge('instance', addr2object[args['group']], False)
+
+        if call == 'ospNewMaterial':
+            obj.set_property('<materialType>', args['materialType'], False)
+            obj.set_property('<rendererType>', args['rendererType'], False)
+        elif call in ['ospNewCamera', 'ospNewGeometry', 'ospNewLight', 'ospNewTexture', 'ospNewTransferFunction', 'ospNewVolume']:
+            print(args)
+            obj.set_property('<type>', args['type'], False)
             
     elif call == 'ospRelease':
         #obj = args['obj']

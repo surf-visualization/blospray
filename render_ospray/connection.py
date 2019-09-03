@@ -22,7 +22,7 @@
 
 import bpy, bmesh
 #from bgl import *
-from mathutils import Vector
+from mathutils import Vector, Matrix
 
 import sys, array, json, os, select, socket, time
 from math import tan, atan, degrees, radians
@@ -496,6 +496,12 @@ class Connection:
                         children = depsgraph.scene.objects[obj.name].children
                         print('obj %s: %d CHILDREN' % (obj, len(children)))
 
+                        # volumetric texture and geometric model share the same coordinate space.
+                        # child.matrix_local should provide the transform of child in the parent's
+                        # coordinate system. unfortunately, this means we need to use this transform
+                        # to actually update the geometry on the server to use for slicing. we can
+                        # then transform it with the parent's transform to get it in the right position.                        
+
                         for childobj in children:
 
                             if not childobj.type == 'MESH':
@@ -506,11 +512,12 @@ class Connection:
                                 print('Ignoring hidden child object "%s" for slicing' % childobj.name)
                                 continue
 
-                            self.update_blender_mesh(data, depsgraph, childobj.data)
+                            self.update_blender_mesh(data, depsgraph, childobj.data, childobj.matrix_local)
 
                             slice = Slice()
-                            slice.parent_object2world = obj.matrix_world                            
-                            slice.matrix_local = childobj.matrix_local                            
+                            slice.linked_mesh = childobj.data.name
+                            # Note: this is the parent's object-to-world transform
+                            slice.object2world[:] = matrix2list(obj.matrix_world)
                             ss.append(slice)                            
 
                         slices = Slices()
@@ -594,7 +601,7 @@ class Connection:
             return
         
 
-    def update_blender_mesh(self, data, depsgraph, mesh):
+    def update_blender_mesh(self, data, depsgraph, mesh, xform=None):
 
         if mesh.name in self.mesh_data_exported:
             print('Not updating mesh data "%s", already sent' % mesh.name)
@@ -660,11 +667,14 @@ class Connection:
 
         vertices = numpy.empty(nv*3, dtype=numpy.float32)
 
+        if xform is None:
+            xform = Matrix()    # Identity
+
         for idx, v in enumerate(mesh.vertices):
-            p = v.co
-            vertices[3*idx+0] = p.x
-            vertices[3*idx+1] = p.y
-            vertices[3*idx+2] = p.z
+                p = xform @ v.co
+                vertices[3*idx+0] = p.x
+                vertices[3*idx+1] = p.y
+                vertices[3*idx+2] = p.z
             
         #print(vertices)
 
