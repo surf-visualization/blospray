@@ -70,7 +70,7 @@ if(PLUGIN_PLY)
         ${CMAKE_CURRENT_BINARY_DIR}
     )
 
-endif(PLUGIN_COSMOGRID)
+endif(PLUGIN_PLY)
 
 # scene_rbc
 

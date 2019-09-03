@@ -965,6 +965,20 @@ add_volume_object(const UpdateObject& update, const Volume& volume_settings)
 
     ospCommit(volume_model);
 
+    if (current_renderer_type == "pathtracer")
+    {
+
+        OSPMaterial volumetricMaterial = ospNewMaterial(current_renderer_type.c_str(), "VolumetricMaterial");
+            ospSetFloat(volumetricMaterial, "meanCosine", 0.f);
+            ospSetVec3f(volumetricMaterial, "albedo", 1.f, 1.f, 1.f);
+        ospCommit(volumetricMaterial);
+
+        ospSetObject(volume_model, "material", volumetricMaterial);
+        ospRelease(volumetricMaterial);
+
+        ospCommit(volume_model);
+    }
+
     OSPGroup group = ospNewGroup();
         OSPData data = ospNewData(1, OSP_OBJECT, &volume_model, 0);
         ospSetObject(group, "volume", data);                        // XXX why ospSetObject?

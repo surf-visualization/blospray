@@ -476,7 +476,8 @@ ospRelease(OSPObject obj)
     log_json(j);
 }
 
-void ospSetData(OSPObject obj, const char *id, OSPData data)
+void 
+ospSetData(OSPObject obj, const char *id, OSPData data)
 {
     ospSetData_ptr libcall = GET_PTR(ospSetData);
 
