@@ -307,9 +307,6 @@ ospNewData(size_t numItems, OSPDataType type, const void *source, uint32_t dataC
         numItems, type, ospdatatype_name(type).c_str(), source, dataCreationFlags);    
     
     OSPData res = libcall(numItems, type, source, dataCreationFlags);
-    
-    if (reference_counts.find(res) != reference_counts.end())               // XXX why this check here?
-        log_warning("Lost reference count to object at 0x%016x!\n", res);
 
     newobj(res, "OSPData");
 
