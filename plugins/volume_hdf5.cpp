@@ -62,9 +62,14 @@ generate(GenerateFunctionResult &result, PluginState *state)
 
     dset = file.open_dataset(dataset.c_str());
 
-    // XXX xdmf uses ZxYxX doesn't it?
+    // Assume Xdmf's Z,Y,X order
     h5::dimensions dims;
     dset->get_dimensions(dims);
+    
+    int t = dims[0];
+    dims[0] = dims[2];
+    dims[2] = t;
+    
     printf("N=%d: %d x %d x %d\n", dims.size(), dims[0], dims[1], dims[2]);
 
     if (dims.size() != 3)

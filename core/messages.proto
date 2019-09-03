@@ -141,10 +141,7 @@ message Volume
 
 message Slice
 {
-    float   a = 1;
-    float   b = 2;
-    float   c = 3;
-    float   d = 4;
+    string  linked_mesh = 1;
 }
 
 message Slices

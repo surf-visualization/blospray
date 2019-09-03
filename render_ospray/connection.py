@@ -322,12 +322,13 @@ class Connection:
                 
             mesh = obj.data
             
-            # XXX Check if we already sent this mesh
-                
-            self.send_updated_mesh_data(data, depsgraph, mesh)
-            
-            # Remember that we exported this mesh
-            self.mesh_data_exported.add(mesh.name)
+            # Send mesh data, but only if it wasn't sent before in the current export
+            if mesh.name not in self.mesh_data_exported:                
+                self.send_updated_mesh_data(data, depsgraph, mesh)            
+                # Remember that we exported this mesh
+                self.mesh_data_exported.add(mesh.name)
+            else:
+                print('Not sending mesh data "%s" again' % mesh.name)
             
             # Send object linking to the mesh data
             self.send_updated_mesh_object(data, depsgraph, obj, mesh, instance.matrix_world)
@@ -437,7 +438,9 @@ class Connection:
 
         # We do a bit of the logic here in determining what a certain
         # object -> object data combination (including their properties)
-        # mean, so the server isn't bothered with this.
+        # means, so the server isn't bothered with this.
+        
+        print('Sending mesh object %s' % obj.name)
     
         client_message = ClientMessage()
         client_message.type = ClientMessage.UPDATE_OBJECT    
@@ -492,14 +495,7 @@ class Connection:
                         print('obj %s: %d CHILDREN' % (obj, len(children)))
 
                         for childobj in children:
-                            # Untransformed plane object has (a,b,c)=(0,0,1); d=0
-                            p = Vector((0, 0, 0))
-                            n = Vector((0, 0, 1))
                             M = childobj.matrix_local
-                            p = M @ p
-                            n = M @ n
-                            n = (n - p).normalized()
-                            #print(M, '->', p, n)
                             slice = Slice()
                             slice.a = n.x
                             slice.b = n.y
