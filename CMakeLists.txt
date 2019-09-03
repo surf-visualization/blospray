@@ -23,7 +23,8 @@ project(blospray)
 # 3.9 does not have a cmake module to find protobuf
 cmake_minimum_required(VERSION 3.12)
 
-option(PLUGIN_COSMOGRID "Build cosmogrid geometry plugin (needs uhdf5)" OFF)
+option(PLUGIN_COSMOGRID "Build cosmogrid scene plugin (needs uhdf5)" OFF)
+option(PLUGIN_PLY "Build PLY geometry plugin (needs rply 1.1.4 sources)" OFF)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmakemodules")
 

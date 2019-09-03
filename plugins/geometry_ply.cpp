@@ -20,7 +20,10 @@
 
 // Uses RPly (http://w3.impa.br/~diego/software/rply/) by Diego Nehab
 #include <rply.h>
+#include <stdint.h>
 #include <cstdio>
+#include <vector>
+#include "plugin.h"
 
 //
 // rply stuff (arrays and callbacks)
@@ -31,25 +34,24 @@
 // and friends.
 //
 
-static float    *vertices = NULL;
+static std::vector<float> vertices;
 static int      next_vertex_element_index;
 
-static uint32_t *faces = NULL;          // XXX vertex_indices
-static uint32_t *loop_start = NULL;
-static uint32_t *loop_total = NULL;     // XXX rename loop_length
+static std::vector<uint32_t> faces;          // XXX vertex_indices
+static std::vector<uint32_t> face_lengths;
 static int      face_indices_size;
 static int      next_face_offset;
 static int      next_face_element_index;
 static int      num_triangles, num_quads;
 
-static float    *vertex_normals = NULL;
+static std::vector<float> vertex_normals;
 static int      next_vertex_normal_element_index;
 
-static float    *vertex_colors = NULL;
+static std::vector<float> vertex_colors;
 static int      next_vertex_color_element_index;
 static float    vertex_color_scale_factor;
 
-static float    *vertex_texcoords = NULL;
+static std::vector<float>    vertex_texcoords;
 static int      next_vertex_texcoord_element_index;
 
 // Vertex callbacks
@@ -57,7 +59,7 @@ static int      next_vertex_texcoord_element_index;
 static int
 vertex_cb(p_ply_argument argument)
 {
-    vertices[next_vertex_element_index] = ply_get_argument_value(argument);
+    vertices.push_back(ply_get_argument_value(argument));
     next_vertex_element_index++;
 
     return 1;
@@ -66,7 +68,7 @@ vertex_cb(p_ply_argument argument)
 static int
 vertex_color_cb(p_ply_argument argument)
 {
-    vertex_colors[next_vertex_color_element_index] = ply_get_argument_value(argument) * vertex_color_scale_factor;
+    vertex_colors.push_back(ply_get_argument_value(argument) * vertex_color_scale_factor);
     next_vertex_color_element_index++;
 
     return 1;
@@ -75,7 +77,7 @@ vertex_color_cb(p_ply_argument argument)
 static int
 vertex_normal_cb(p_ply_argument argument)
 {
-    vertex_normals[next_vertex_normal_element_index] = ply_get_argument_value(argument);
+    vertex_normals.push_back(ply_get_argument_value(argument));
     next_vertex_normal_element_index++;
 
     return 1;
@@ -84,7 +86,7 @@ vertex_normal_cb(p_ply_argument argument)
 static int
 vertex_texcoord_cb(p_ply_argument argument)
 {
-    vertex_texcoords[next_vertex_texcoord_element_index] = ply_get_argument_value(argument);
+    vertex_texcoords.push_back(ply_get_argument_value(argument));
     next_vertex_texcoord_element_index++;
 
     return 1;
@@ -104,26 +106,14 @@ face_cb(p_ply_argument argument)
     {
         // First value of a list property, the one that gives the 
         // number of entries, i.e. start of new face
-        loop_start[next_face_offset] = next_face_element_index;
-        loop_total[next_face_offset] = length;
         next_face_offset++;
+
+        face_lengths.push_back(length);
         
         return 1;
     }
     
-    if (next_face_element_index == face_indices_size)
-    {
-        face_indices_size = (int)(face_indices_size * 1.1);
-        faces = (uint32_t*) realloc(faces, face_indices_size*sizeof(uint32_t));
-        if (faces == NULL)
-        {
-            fprintf(stderr, "Failed to re-allocate faces array!\n");
-            exit(-1);
-        }
-    }
-    
-    vertex_index = ply_get_argument_value(argument);
-    faces[next_face_element_index++] = vertex_index;
+    faces.push_back(ply_get_argument_value(argument));
 
     return 1;
 }
@@ -132,17 +122,17 @@ extern "C"
 void
 load_ply_file(GenerateFunctionResult &result, PluginState *state)
 {
-    const float plyfile = state->parameters["file"];
+    const std::string& plyfile = state->parameters["file"];
     char        msg[1024];
     int         vertex_values_per_loop = 1;
     
     // Open PLY file
 
-    p_ply ply = ply_open(plyfile, NULL, 0, NULL);
+    p_ply ply = ply_open(plyfile.c_str(), NULL, 0, NULL);
     if (!ply)
     {
         
-        sprintf(s, "Could not open PLY file %s", plyfile);
+        sprintf(msg, "Could not open PLY file %s", plyfile.c_str());
         result.set_success(false);
         result.set_message(msg);
         printf("%s\n", msg);
@@ -258,7 +248,6 @@ load_ply_file(GenerateFunctionResult &result, PluginState *state)
 
     // Allocate memory and initialize some values
 
-    vertices = (float*) malloc(sizeof(float)*nvertices*3);
     next_vertex_element_index = 0;
 
     // As we don't know the number of indices needed in advance we assume
@@ -270,26 +259,19 @@ load_ply_file(GenerateFunctionResult &result, PluginState *state)
     next_face_element_index = 0;
     
     face_indices_size = nfaces > 128 ? nfaces*4 : 512;
-    faces = (uint32_t*) malloc(sizeof(uint32_t)*face_indices_size);
-    
-    loop_start = (uint32_t*) malloc(sizeof(uint32_t)*nfaces);
-    loop_total = (uint32_t*) malloc(sizeof(uint32_t)*nfaces);
 
     if (have_vertex_normals)
     {
-        vertex_normals = (float*) malloc(sizeof(float)*nvertices*3);
         next_vertex_normal_element_index = 0;
     }
 
     if (have_vertex_colors)
     {
-        vertex_colors = (float*) malloc(sizeof(float)*nvertices*3);
         next_vertex_color_element_index = 0;
     }
 
     if (have_vertex_texcoords)
     {
-        vertex_texcoords = (float*) malloc(sizeof(float)*nvertices*2);
         next_vertex_texcoord_element_index = 0;
     }
 
@@ -300,31 +282,99 @@ load_ply_file(GenerateFunctionResult &result, PluginState *state)
     if (!ply_read(ply))
     {
         // Failed!
-        
-        PyErr_SetString(PyExc_IOError, "Could not read PLY data");
+        printf("Could not read PLY data!\n");
 
         ply_close(ply);
 
-        free(vertices);
-        free(faces);
-
-        if (have_vertex_normals)
-            free(vertex_normals);
-        if (have_vertex_colors)
-            free(vertex_colors);
-        if (have_vertex_texcoords)
-            free(vertex_texcoords);
-
-        return NULL;
+        return;
     }
 
     // Clean up PLY reader
 
     ply_close(ply);
 
+    // Create geometry
+
+    int min_gon=1000, max_gon=0;
+
+    for (int l : face_lengths)
+    {
+        min_gon = std::min(min_gon, l);
+        max_gon = std::max(max_gon, l);
+    }
+
+    printf("n-gon sizes in [%d, %d]\n", min_gon,  max_gon);
+
+    OSPGeometry geometry;
+
+    if (max_gon == 3)
+    {
+        // Triangle mesh
+        geometry = ospNewGeometry("triangles");
+
+            //ospSetFloat(geometry, "level", 1.0f);
+
+            OSPData data = ospNewData(nvertices, OSP_VEC3F, vertices.data());
+            ospCommit(data);
+            ospSetData(geometry, "vertex.position", data);
+
+            //data = ospNewData(num_vertices, OSP_VEC4F, colors);
+            //ospCommit(data);
+            //ospSetData(mesh, "vertex.color", data);
+
+            data = ospNewData(faces.size(), OSP_UINT, faces.data());
+            ospCommit(data);
+            ospSetData(geometry, "index", data);
+
+        ospCommit(geometry);
+    }
+    else
+    {
+        // XXX opt
+        geometry = ospNewGeometry("subdivision");
+
+            //ospSetFloat(geometry, "level", 1.0f);
+
+            OSPData data = ospNewData(nvertices, OSP_VEC3F, vertices.data());
+            ospCommit(data);
+            ospSetData(geometry, "vertex.position", data);
+
+            //data = ospNewData(num_vertices, OSP_VEC4F, colors);
+            //ospCommit(data);
+            //ospSetData(mesh, "vertex.color", data);
+
+            data = ospNewData(faces.size(), OSP_UINT, faces.data());
+            ospCommit(data);
+            ospSetData(geometry, "index", data);
+
+            data = ospNewData(face_lengths.size(), OSP_UINT, face_lengths.data());
+            ospCommit(data);
+            ospSetData(geometry, "face", data);
+
+        ospCommit(geometry);
+    }
+
+    state->geometry = geometry;
+
+    // Bounding box edges based on vertices
+
+    float min[3], max[3];
+    int i;
+
+    i = 0;
+    while (i < vertices.size())
+    {
+        for (int j = 0; j < 3; j++)
+            min[j] = std::min(min[j], vertices[i+j]);
+        for (int j = 0; j < 3; j++)
+            max[j] = std::max(max[j], vertices[i+j]);
+        i += 3;
+    }
+
     state->bound = BoundingMesh::bbox_edges(
-        -0.5f*size_x, -0.5f*size_y, -1e-3f,
-        0.5f*size_x, 0.5f*size_y, 1e-3f);    
+        min[0], min[1], min[2], 
+        max[0], max[1], max[2]
+    );
 }
 
 static PluginParameters 

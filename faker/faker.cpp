@@ -248,14 +248,9 @@ ospNewData(size_t numItems, OSPDataType type, const void *source, uint32_t dataC
     
     OSPData res = libcall(numItems, type, source, dataCreationFlags);
 
-    /*
     if (dump_arrays > 0)
     {
-        int v;
-        char f[32];
-        std::string s;
-        const float *ptr;
-
+        int v;                
         int n = numItems;
         if (dump_arrays == 1)
             n = std::min(n, 30);
@@ -266,36 +261,55 @@ ospNewData(size_t numItems, OSPDataType type, const void *source, uint32_t dataC
         case OSP_VEC2F:
         case OSP_VEC3F:
         case OSP_VEC4F:
+        {
+            std::vector<float> float_values;
+
             v = type - OSP_FLOAT + 1;
-            ptr = (float*)source;
+            const float *ptr = (float*)source;
 
             for (size_t i = 0; i < n; i++)
-            {
-                sprintf(f, "%6d | ", i);
-                s = f;
                 for (int c = 0; c < v; c++)
-                {
-                    sprintf(f, "%.6f ", ptr[v*i+c]);
-                    s += f;
-                }
-                s += "\n";
-                log_message(s.c_str());
-            }
+                    float_values.push_back(ptr[v*i+c]);
+
+            j["source"] = float_values;
+        }
+            break;
+        
+        case OSP_UINT:
+        case OSP_VEC2UI:
+        case OSP_VEC3UI:
+        case OSP_VEC4UI:
+        {
+            std::vector<uint32_t> uint_values;            
+            v = type - OSP_UINT + 1;
+            const uint32_t *ptr = (uint32_t*)source;
+
+            for (size_t i = 0; i < n; i++)
+                for (int c = 0; c < v; c++)
+                    uint_values.push_back(ptr[v*i+c]);
+
+            j["source"] = uint_values;
+        }
+
             break;
 
         case OSP_OBJECT:
+        {
+            std::vector<size_t> pointer_values;
+
             for (size_t i = 0; i < n; i++)
             {
                 OSPObject obj = ((OSPObject*)source)[i];
-                log_message("%6d | %s\n", i, objinfo(obj).c_str());
+                pointer_values.push_back((size_t)obj);                
             }
-            break;
+
+            j["source"] = pointer_values;            
         }
 
-        if (dump_arrays == 1 && numItems > n)
-            log_message("...... | ...\n");
+            break;        
+
+        } // switch
     }
-    */
 
     j["result"] = (size_t)res;
     log_json(j);

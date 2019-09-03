@@ -61,11 +61,12 @@ if(PLUGIN_PLY)
 
     # XXX Rply path
 
-    add_library(geometry_ply SHARED geometry_ply.cpp)
+    add_library(geometry_ply SHARED geometry_ply.cpp ${CMAKE_SOURCE_DIR}/rply-1.1.4/rply.c)
     set_target_properties(geometry_ply PROPERTIES PREFIX "")   
     target_link_libraries(geometry_ply PUBLIC ${OSPRAY_LIBRARIES})
     target_include_directories(geometry_ply
         PUBLIC
+        ${CMAKE_SOURCE_DIR}/rply-1.1.4
         ${PROTOBUF_INCLUDE_DIRS}
         ${CMAKE_CURRENT_BINARY_DIR}
     )
@@ -147,3 +148,11 @@ if(PLUGIN_COSMOGRID)
         DESTINATION bin)
 
 endif(PLUGIN_COSMOGRID)
+
+if(PLUGIN_PLY)
+
+    install(TARGETS 
+        geometry_ply 
+        DESTINATION bin)
+
+endif(PLUGIN_PLY)
