@@ -3,9 +3,9 @@ import socket
 from struct import unpack
 import numpy
 
-from .common import send_protobuf, receive_protobuf, receive_buffer, receive_into_numpy_array
+from .common import PROTOCOL_VERSION, send_protobuf, receive_protobuf, receive_buffer, receive_into_numpy_array
 from .connection import Connection
-from .messages_pb2 import ClientMessage, QueryBoundResult, ServerStateResult
+from .messages_pb2 import ClientMessage, HelloResult, QueryBoundResult, ServerStateResult
 
 # XXX if this operator gets called during rendering, then what? :)
 
@@ -31,7 +31,21 @@ class OSPRayUpdateMeshBound(bpy.types.Operator):
         
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)                
         sock.connect((ospray.host, ospray.port))
-        # XXX hello message
+
+        # Handshake
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.HELLO
+        client_message.uint_value = PROTOCOL_VERSION
+        send_protobuf(sock, client_message)
+
+        result = HelloResult()
+        receive_protobuf(sock, result)
+
+        if not result.success:
+            print('ERROR: Handshake with server:')
+            print(result.message)
+            self.report({'ERROR'}, 'Handshake with server failed: %s' % result.message)
+            return {'CANCELLED'}
 
         # Volume data (i.e. mesh)
 
@@ -120,7 +134,21 @@ class OSPRayGetServerState(bpy.types.Operator):
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)                
         sock.connect((ospray.host, ospray.port))
-        # XXX hello message
+
+        # Handshake
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.HELLO
+        client_message.uint_value = PROTOCOL_VERSION
+        send_protobuf(sock, client_message)
+
+        result = HelloResult()
+        receive_protobuf(sock, result)
+
+        if not result.success:
+            print('ERROR: Handshake with server:')
+            print(result.message)
+            self.report({'ERROR'}, 'Handshake with server failed: %s' % result.message)
+            return {'CANCELLED'}
 
         # Send request
         print('Getting server state')

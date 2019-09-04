@@ -50,7 +50,8 @@
 
 using json = nlohmann::json;
 
-const int   PORT = 5909;
+const int       PORT = 5909;
+const uint32_t  PROTOCOL_VERSION = 2;
 
 OSPRenderer     renderer;
 std::string     current_renderer_type;
@@ -532,7 +533,7 @@ handle_update_plugin_instance(TCPSocket *sock)
 
     const std::string& data_name = update.name();
 
-    printf("PLUGIN INSTANCE [%s]\n", data_name.c_str());
+    printf("PLUGIN INSTANCE '%s'\n", data_name.c_str());
 
     PluginInstance *plugin_instance;
     PluginState *state;    
@@ -756,7 +757,12 @@ add_blender_mesh(const UpdateObject& update)
 
     BlenderMesh *blender_mesh = blender_meshes[linked_data];
     OSPGeometry geometry = blender_mesh->geometry;
-    assert(geometry != NULL);
+
+    if (geometry == NULL)
+    {
+        printf("... ERROR: geometry is NULL!\n");
+        return false;
+    }    
 
     glm::mat4   obj2world;
     float       affine_xform[12];
@@ -812,7 +818,12 @@ add_geometry_object(const UpdateObject& update)
     PluginState *state = plugin_instance->state;
 
     OSPGeometry geometry = state->geometry;
-    assert(geometry != NULL);
+
+    if (geometry == NULL)
+    {
+        printf("... ERROR: geometry is NULL!\n");
+        return false;
+    }    
 
     glm::mat4   obj2world;
     float       affine_xform[12];
@@ -937,7 +948,12 @@ add_volume_object(const UpdateObject& update, const Volume& volume_settings)
     PluginState *state = plugin_instance->state;
 
     OSPVolume volume = state->volume;
-    assert(volume != NULL);    
+
+    if (volume == NULL)
+    {
+        printf("... ERROR: volume is NULL!\n");
+        return false;
+    }    
 
     const char *s_custom_properties = update.custom_properties().c_str();
     //printf("Received custom properties:\n%s\n", s_custom_properties);
@@ -1038,8 +1054,13 @@ add_isosurfaces_object(const UpdateObject& update)
     PluginState *state = plugin_instance->state;
 
     OSPVolume volume = state->volume;
-    assert(volume != NULL);    
 
+    if (volume == NULL)
+    {
+        printf("... ERROR: volume is NULL!\n");
+        return false;
+    }        
+    
     const char *s_custom_properties = update.custom_properties().c_str();
     //printf("Received custom properties:\n%s\n", s_custom_properties);
     const json &custom_properties = json::parse(s_custom_properties);
@@ -1136,7 +1157,12 @@ add_slices_object(const UpdateObject& update, const Slices& slices)
     PluginState *state = plugin_instance->state;
 
     OSPVolume volume = state->volume;
-    assert(volume != NULL);    
+
+    if (volume == NULL)
+    {
+        printf("... ERROR: volume is NULL!\n");
+        return false;
+    }        
 
     const char *s_custom_properties = update.custom_properties().c_str();
     //printf("Received custom properties:\n%s\n", s_custom_properties);
@@ -1172,7 +1198,12 @@ add_slices_object(const UpdateObject& update, const Slices& slices)
 
         BlenderMesh *blender_mesh = blender_meshes[linked_data];
         OSPGeometry geometry = blender_mesh->geometry;
-        assert(geometry != NULL);
+
+        if (geometry == NULL)
+        {
+            printf("... ERROR: geometry is NULL!\n");
+            return false;
+        }                    
 
         // Set up slice geometry
 
@@ -1850,6 +1881,36 @@ prepare_scene()
     return true;
 }
 
+bool 
+handle_hello(TCPSocket *sock, const ClientMessage& client_message)
+{
+    const uint32_t client_version = client_message.uint_value();    
+
+    HelloResult result;
+    bool res = true;
+
+    if (client_version != PROTOCOL_VERSION)
+    {
+        char s[256];
+        sprintf(s, "Client protocol version %d does not match our protocol version %d", client_version, PROTOCOL_VERSION);
+        printf("ERROR: %s\n", s);
+
+        result.set_success(false);
+        result.set_message(s);
+        res = false;  
+    } 
+    else
+    {
+        printf("Got HELLO message, client protocol version %d matches ours\n", client_version);
+        result.set_success(true);
+    }
+
+    send_protobuf(sock, result);
+
+    return res;
+}
+   
+
 // Connection handling
 
 bool
@@ -1870,8 +1931,7 @@ handle_connection(TCPSocket *sock)
         // Check for new client message
 
         if (sock->is_readable())
-        {
-            printf("Receiving\n");
+        {            
             if (!receive_protobuf(sock, client_message))
             {
                 // XXX if we were rendering, handle the chaos
@@ -1881,11 +1941,32 @@ handle_connection(TCPSocket *sock)
                 return false;
             }
 
-            //printf("Got client message of type %s\n", ClientMessage_Type_Name(client_message.type()).c_str());
-            //printf("%s\n", client_message.DebugString().c_str());
+            printf("Got client message of type %s\n", ClientMessage_Type_Name(client_message.type()).c_str());
+            printf("%s\n", client_message.DebugString().c_str());
 
             switch (client_message.type())
             {
+                case ClientMessage::HELLO:
+                    if (!handle_hello(sock, client_message))
+                    {
+                        sock->close();
+                        return false;
+                    }
+
+                    break;
+
+                case ClientMessage::BYE:
+                    // XXX if we were still rendering, handle the chaos
+                    printf("Got BYE message\n");
+                    sock->close();
+                    return true;
+
+                case ClientMessage::QUIT:
+                    // XXX if we were still rendering, handle the chaos
+                    printf("Got QUIT message\n");
+                    sock->close();
+                    return true;
+
                 case ClientMessage::UPDATE_SCENE:
                     // XXX handle clear_scene
                     // XXX check res
@@ -1948,24 +2029,8 @@ handle_connection(TCPSocket *sock)
 
                     break;
 
-                case ClientMessage::BYE:
-                    // XXX if we were still rendering, handle the chaos
-                    printf("Got BYE message\n");
-                    sock->close();
-                    return true;
-
-                case ClientMessage::QUIT:
-                    // XXX if we were still rendering, handle the chaos
-
-                    printf("Got QUIT message\n");
-
-                    sock->close();
-
-                    return true;
-
                 default:
-
-                    printf("WARNING: unhandled client message!\n");
+                    printf("WARNING: unhandled client message %d!\n", client_message.type());
             }
         }
 

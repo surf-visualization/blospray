@@ -24,7 +24,7 @@ syntax = "proto3";
 message ClientMessage
 {
     enum Type {
-        HELLO = 0;                      // XXX not used atm
+        HELLO = 0;                      
         BYE = 1;
         
         GET_SERVER_STATE = 10;
@@ -56,6 +56,12 @@ message ClientMessage
     string  string_value = 40;          // QUERY_BOUND
 
     // XXX fold different types of submessages in here?
+}
+
+message HelloResult
+{
+    bool    success = 1;
+    string  message = 2;    
 }
 
 message ServerStateResult

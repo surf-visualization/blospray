@@ -1,5 +1,7 @@
 from struct import pack, unpack
 
+PROTOCOL_VERSION = 2
+
 def send_protobuf(sock, pb, sendall=False):
     """Serialize a protobuf object and send it on the socket"""
     s = pb.SerializeToString()

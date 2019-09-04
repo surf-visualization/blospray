@@ -32,8 +32,9 @@ import numpy
 
 sys.path.insert(0, os.path.split(__file__)[0])
 
-from .common import send_protobuf, receive_protobuf
+from .common import PROTOCOL_VERSION, send_protobuf, receive_protobuf
 from .messages_pb2 import (
+    HelloResult,
     CameraSettings, ImageSettings,
     Light, RenderSettings,
     MeshData,
@@ -92,24 +93,42 @@ class Connection:
 
         self.framebuffer_width = self.framebuffer_height = None
 
+    def connect(self):
+        self.sock.connect((self.host, self.port))
+
+        # Handshake
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.HELLO
+        client_message.uint_value = PROTOCOL_VERSION
+        send_protobuf(self.sock, client_message)
+
+        result = HelloResult()
+        receive_protobuf(self.sock, result)
+
+        if not result.success:
+            print('ERROR: Handshake with server:')
+            print(result.message)
+            return False
+
+        return True
+
     def close(self):
-        # XXX send bye
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.BYE
+        send_protobuf(self.sock, client_message)
+
         self.sock.close()
 
     def update(self, data, depsgraph):
-        print(data)
-        print(depsgraph)
+        #print(data)
+        #print(depsgraph)
 
         self.engine.update_stats('', 'Connecting')
 
-        self.sock.connect((self.host, self.port))
+        if not self.connect():
+            return
 
-        # Send HELLO and check returned version
-        #hello = ClientMessage()
-        #hello.type = ClientMessage.HELLO
-        #hello.version = 1
-        #send_protobuf(self.sock, hello)    
-        
+        # Export scene        
         self.export_scene(data, depsgraph)
 
         # Connection will be closed by render(), which is always
@@ -874,9 +893,7 @@ class Connection:
 
         print('Done with render loop')
 
-        client_message = ClientMessage()
-        client_message.type = ClientMessage.QUIT
-        send_protobuf(self.sock, client_message)  
+        self.close()
 
     # Utility
 

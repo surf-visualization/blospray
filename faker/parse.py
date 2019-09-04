@@ -82,6 +82,8 @@ class Object:
         for label, other in self.edges.items():
             g.write('%d -> %d [label="%s"];\n' % (self.addr, other.addr, label))
     
+ospdatatype2name = {}
+ospframebufferformat2name = {}
 
 for line in f:
     e = json.loads(line)
@@ -91,8 +93,14 @@ for line in f:
         args = e['arguments']
     except KeyError:
         args = None
-    
-    if call.startswith('ospNew'):
+
+    if call == '<enums>':
+        for name, value in e['result']['OSPDataType'].items():
+            ospdatatype2name[value] = name
+        for name, value in e['result']['OSPFrameBufferFormat'].items():
+            ospframebufferformat2name[value] = name
+
+    elif call.startswith('ospNew'):
 
         type = call[6:]
         addr = e['result']
@@ -105,6 +113,18 @@ for line in f:
         addr2object[addr] = obj
         pointers.add(addr)
         
+        if call == 'ospNewMaterial':
+            obj.set_property('<materialType>', args['materialType'], False)
+            obj.set_property('<rendererType>', args['rendererType'], False)
+        elif call == 'ospNewData':
+            obj.set_property('numItems', args['numItems'], False)
+            obj.set_property('type', ospdatatype2name[args['type']], False)
+        elif call == 'ospNewFrameBuffer':            
+            obj.set_property('format', ospframebufferformat2name[args['format']], False)
+        elif call in ['ospNewCamera', 'ospNewGeometry', 'ospNewLight', 'ospNewTexture', 'ospNewTransferFunction', 'ospNewVolume']:
+            print(args)
+            obj.set_property('<type>', args['type'], False)
+
         if call == 'ospNewGeometricModel':            
             obj.add_edge('geometry', addr2object[args['geometry']], False)
         elif call == 'ospNewVolumetricModel':
@@ -112,12 +132,7 @@ for line in f:
         elif call == 'ospNewInstance':
             obj.add_edge('instance', addr2object[args['group']], False)
 
-        if call == 'ospNewMaterial':
-            obj.set_property('<materialType>', args['materialType'], False)
-            obj.set_property('<rendererType>', args['rendererType'], False)
-        elif call in ['ospNewCamera', 'ospNewGeometry', 'ospNewLight', 'ospNewTexture', 'ospNewTransferFunction', 'ospNewVolume']:
-            print(args)
-            obj.set_property('<type>', args['type'], False)
+
             
     elif call == 'ospRelease':
         #obj = args['obj']
