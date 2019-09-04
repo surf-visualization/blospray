@@ -22,6 +22,10 @@ class OSPRayUpdateMeshBound(bpy.types.Operator):
         assert obj.type == 'MESH'
         mesh = obj.data
 
+        if obj.mode == 'EDIT':
+            self.report({'ERROR'}, 'Mesh should be in object mode')
+            return {'CANCELLED'}
+
         scene = context.scene
         ospray = scene.ospray
         
@@ -48,9 +52,9 @@ class OSPRayUpdateMeshBound(bpy.types.Operator):
         if not result.success:
             print('ERROR: extent query failed:')
             print(result.message)
-            # XXX how to signal the query failed?
-            return {'FINISHED'}
-            
+            self.report({'ERROR'}, 'Query failed: %s' % result.message)
+            return {'CANCELLED'}
+
         # Receive actual geometry
         vertices_len, edges_len, faces_len, loop_len = unpack('<IIII', receive_buffer(sock, 4*4))
         
