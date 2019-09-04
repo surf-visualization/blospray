@@ -493,29 +493,25 @@ handle_update_blender_mesh(TCPSocket *sock, const std::string& name)
     if (sock->recvall(&triangle_buffer[0], nt*3*sizeof(uint32_t)) == -1)
         return false;
 
-    data = ospNewData(nv, OSP_VEC3F, &vertex_buffer[0]);
-    ospCommit(data);
+    data = ospNewData(nv, OSP_VEC3F, &vertex_buffer[0]);    
     ospSetData(geometry, "vertex.position", data);
     ospRelease(data);
 
     if (flags & MeshData::NORMALS)
     {
-        data = ospNewData(nv, OSP_VEC3F, &normal_buffer[0]);
-        ospCommit(data);
+        data = ospNewData(nv, OSP_VEC3F, &normal_buffer[0]);        
         ospSetData(geometry, "vertex.normal", data);
         ospRelease(data);
     }
 
     if (flags & MeshData::VERTEX_COLORS)
     {
-        data = ospNewData(nv, OSP_VEC4F, &vertex_color_buffer[0]);
-        ospCommit(data);
+        data = ospNewData(nv, OSP_VEC4F, &vertex_color_buffer[0]);        
         ospSetData(geometry, "vertex.color", data);
         ospRelease(data);
     }
 
-    data = ospNewData(nt, OSP_VEC3I, &triangle_buffer[0]);
-    ospCommit(data);
+    data = ospNewData(nt, OSP_VEC3I, &triangle_buffer[0]);    
     ospSetData(geometry, "index", data);
     ospRelease(data);
 
@@ -746,7 +742,7 @@ add_blender_mesh(const UpdateObject& update)
 
     if (it == scene_data_types.end())
     {
-        printf("--> '%s' | WARNING: no linked data found!\n", linked_data.c_str());
+        printf("--> '%s' | WARNING: linked data not found!\n", linked_data.c_str());
         return false;
     }
     else if (it->second != SDT_MESH)
@@ -800,7 +796,7 @@ add_geometry_object(const UpdateObject& update)
 
     if (it == scene_data_types.end())
     {
-        printf("--> '%s' | WARNING: no linked data found!\n", linked_data.c_str());
+        printf("--> '%s' | WARNING: linked data not found!\n", linked_data.c_str());
         return false;
     }
     else if (it->second != SDT_PLUGIN)
@@ -857,7 +853,7 @@ add_scene_object(const UpdateObject& update)
 
     if (it == scene_data_types.end())
     {
-        printf("--> '%s' | WARNING: no linked data found!\n", linked_data.c_str());
+        printf("--> '%s' | WARNING: linked data not found!\n", linked_data.c_str());
         return false;
     }
     else if (it->second != SDT_PLUGIN)
@@ -907,6 +903,7 @@ add_scene_object(const UpdateObject& update)
         for (OSPLight light : state->lights)
         {
             // XXX Sigh, need to apply object2world transform manually
+            // This should be coming in 2.0
             scene_lights.push_back(light);
         }
     }
@@ -924,7 +921,7 @@ add_volume_object(const UpdateObject& update, const Volume& volume_settings)
 
     if (it == scene_data_types.end())
     {
-        printf("--> '%s' | WARNING: no linked data found!\n", linked_data.c_str());
+        printf("--> '%s' | WARNING: linked data not found!\n", linked_data.c_str());
         return false;
     }
     else if (it->second != SDT_PLUGIN)
@@ -982,7 +979,6 @@ add_volume_object(const UpdateObject& update, const Volume& volume_settings)
 
     if (current_renderer_type == "pathtracer")
     {
-
         OSPMaterial volumetricMaterial = ospNewMaterial(current_renderer_type.c_str(), "VolumetricMaterial");
             ospSetFloat(volumetricMaterial, "meanCosine", 0.f);
             ospSetVec3f(volumetricMaterial, "albedo", 1.f, 1.f, 1.f);
@@ -1013,14 +1009,6 @@ add_volume_object(const UpdateObject& update, const Volume& volume_settings)
 
     scene_instances.push_back(instance);
 
-#if 0
-    // See https://github.com/ospray/ospray/pull/165, support for volume transformations was reverted
-    ospSetVec3f(volume, "xfm.l.vx", osp::vec3f{ obj2world[0], obj2world[4], obj2world[8] });
-    ospSetVec3f(volume, "xfm.l.vy", osp::vec3f{ obj2world[1], obj2world[5], obj2world[9] });
-    ospSetVec3f(volume, "xfm.l.vz", osp::vec3f{ obj2world[2], obj2world[6], obj2world[10] });
-    ospSetVec3f(volume, "xfm.p", osp::vec3f{ obj2world[3], obj2world[7], obj2world[11] });
-#endif
-
     return true;
 }
 
@@ -1034,7 +1022,7 @@ add_isosurfaces_object(const UpdateObject& update)
 
     if (it == scene_data_types.end())
     {
-        printf("--> '%s' | WARNING: no linked data found!\n", linked_data.c_str());
+        printf("--> '%s' | WARNING: linked data not found!\n", linked_data.c_str());
         return false;
     }
     else if (it->second != SDT_PLUGIN)
@@ -1074,8 +1062,7 @@ add_isosurfaces_object(const UpdateObject& update)
         printf("... isovalue #%d: %.3f\n", i, isovalues[i]);
     }
 
-    OSPData isovalues_data = ospNewData(n, OSP_FLOAT, isovalues);
-    ospCommit(isovalues_data);	// XXX double-check if a commit is needed for ospNewData, tut examples don't seem to use it
+    OSPData isovalues_data = ospNewData(n, OSP_FLOAT, isovalues);    
     delete [] isovalues;
 
     // XXX hacked temp volume module
@@ -1133,7 +1120,7 @@ add_slices_object(const UpdateObject& update, const Slices& slices)
 
     if (it == scene_data_types.end())
     {
-        printf("--> '%s' | WARNING: no linked data found!\n", linked_data.c_str());
+        printf("--> '%s' | WARNING: linked data not found!\n", linked_data.c_str());
         return false;
     }
     else if (it->second != SDT_PLUGIN)
@@ -1171,7 +1158,7 @@ add_slices_object(const UpdateObject& update, const Slices& slices)
 
         if (it == scene_data_types.end())
         {
-            printf("--> '%s' | WARNING: no linked data found!\n", linked_data.c_str());
+            printf("--> '%s' | WARNING: linked data not found!\n", linked_data.c_str());
             return false;
         }
         else if (it->second != SDT_MESH)
@@ -1238,8 +1225,7 @@ add_slices_object(const UpdateObject& update, const Slices& slices)
 
         printf("... plane[%d]: %.3f, %3f, %.3f, %.3f\n", i, plane[0], plane[1], plane[2], plane[3]);
 
-        OSPData planeData = ospNewData(1, OSP_VEC4F, plane);
-        ospCommit(planeData);
+        OSPData planeData = ospNewData(1, OSP_VEC4F, plane);        
 
             // XXX hacked temp volume module
         auto volumeModel = ospNewVolumetricModel(volume);
@@ -1259,7 +1245,6 @@ add_slices_object(const UpdateObject& update, const Slices& slices)
             ospSetObject(model, "material", default_material);
         ospCommit(model);
         ospRelease(slice_geometry);
-        
 #endif        
     }
     
@@ -1436,15 +1421,6 @@ handle_update_object(TCPSocket *sock)
         return false;
 
     //print_protobuf(update);
-
-    /*
-    Not used on objects atm
-    const char *s_custom_properties = update.custom_properties().c_str();
-    printf("Received custom properties:\n%s\n", s_custom_properties);
-    const json &custom_properties = json::parse(s_custom_properties);
-    printf("Custom properties:\n");
-    printf("%s\n", custom_properties.dump(4).c_str());
-    */
 
     switch (update.type())
     {
@@ -1914,6 +1890,7 @@ handle_connection(TCPSocket *sock)
                     // XXX handle clear_scene
                     // XXX check res
                     // XXX ignore if rendering
+                    clear_scene();
                     receive_scene(sock);
                     break;
 
