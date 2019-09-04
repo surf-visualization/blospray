@@ -157,6 +157,14 @@ struct SceneObject
     OSPGeometricModel           geometric_model;    // Only for type == SOT_GEOMETRY
     OSPVolumetricModel          volumetric_model;   // Only for type == SOT_VOLUME
     OSPLight                    light;              // Only for type == SOT_LIGHT
+
+    SceneObject()
+    {
+        group = nullptr;
+        geometric_model = nullptr;
+        volumetric_model = nullptr;
+        light = nullptr;
+    }
 };
 
 // Top-level scene objects
@@ -422,112 +430,6 @@ create_transfer_function(const std::string& name, float minval, float maxval)
 	}
 
     return nullptr;
-}
-
-bool
-handle_update_blender_mesh(TCPSocket *sock, const std::string& name)
-{
-    printf("BLENDER MESH '%s'\n", name.c_str());
-
-    OSPGeometry geometry;
-    BlenderMesh *blender_mesh;
-
-    SceneDataTypeMap::iterator it = scene_data_types.find(name);
-    if (it == scene_data_types.end())
-    {
-        // No previous mesh with this name
-        printf("... Unseen mesh name, creating new mesh\n");
-        geometry = ospNewGeometry("triangles");
-        scene_data_types[name] = SDT_MESH;
-        blender_mesh = blender_meshes[name] = new BlenderMesh;
-        blender_mesh->geometry = geometry;
-    }
-    else
-    {
-        // Have existing scene data with this name, check what it is
-        SceneDataType type = it->second;
-
-        if (type != SDT_MESH)
-        {
-            printf("... WARNING: scene data '%s' is currently of type %d, overwriting with mesh!\n", name.c_str(), type);
-
-            // XXX do the overwriting correctly ;-)    
-            // erase existing entries
-
-            geometry = ospNewGeometry("triangles");  
-            blender_mesh = blender_meshes[name] = new BlenderMesh;
-            blender_mesh->geometry = geometry;  
-        }
-        else
-        {
-            printf("... WARNING: mesh '%s' already present, overwriting!\n", name.c_str());            
-            blender_mesh = blender_meshes[name];
-            geometry = blender_mesh->geometry;
-        }
-    }
-
-    MeshData    mesh_data;
-    OSPData     data;
-    uint32_t    nv, nt, flags;    
-
-    if (!receive_protobuf(sock, mesh_data))
-        return false;
-
-    nv = mesh_data.num_vertices();
-    nt = mesh_data.num_triangles();
-    flags = mesh_data.flags();
-
-    printf("... %d vertices, %d triangles, flags 0x%08x\n", nv, nt, flags);
-
-    vertex_buffer.reserve(nv*3);
-    if (sock->recvall(&vertex_buffer[0], nv*3*sizeof(float)) == -1)
-        return false;
-
-    if (flags & MeshData::NORMALS)
-    {
-        printf("... Mesh has normals\n");
-        normal_buffer.reserve(nv*3);
-        if (sock->recvall(&normal_buffer[0], nv*3*sizeof(float)) == -1)
-            return false;
-    }
-
-    if (flags & MeshData::VERTEX_COLORS)
-    {
-        printf("... Mesh has vertex colors\n");
-        vertex_color_buffer.reserve(nv*4);
-        if (sock->recvall(&vertex_color_buffer[0], nv*4*sizeof(float)) == -1)
-            return false;
-    }
-
-    triangle_buffer.reserve(nt*3);
-    if (sock->recvall(&triangle_buffer[0], nt*3*sizeof(uint32_t)) == -1)
-        return false;
-
-    data = ospNewData(nv, OSP_VEC3F, &vertex_buffer[0]);    
-    ospSetData(geometry, "vertex.position", data);
-    ospRelease(data);
-
-    if (flags & MeshData::NORMALS)
-    {
-        data = ospNewData(nv, OSP_VEC3F, &normal_buffer[0]);        
-        ospSetData(geometry, "vertex.normal", data);
-        ospRelease(data);
-    }
-
-    if (flags & MeshData::VERTEX_COLORS)
-    {
-        data = ospNewData(nv, OSP_VEC4F, &vertex_color_buffer[0]);        
-        ospSetData(geometry, "vertex.color", data);
-        ospRelease(data);
-    }
-
-    data = ospNewData(nt, OSP_VEC3I, &triangle_buffer[0]);    
-    ospSetData(geometry, "index", data);
-    ospRelease(data);
-
-    ospCommit(geometry);
-
-    return true;
 }
 
 void
@@ -821,25 +723,145 @@ handle_update_plugin_instance(TCPSocket *sock)
     return true;
 }
 
+bool
+handle_update_blender_mesh_data(TCPSocket *sock, const std::string& name)
+{
+    printf("BLENDER MESH DATA '%s'\n", name.c_str());
+
+    OSPGeometry geometry;
+    BlenderMesh *blender_mesh;
+
+    SceneDataTypeMap::iterator it = scene_data_types.find(name);
+    if (it == scene_data_types.end())
+    {
+        // No previous mesh with this name
+        printf("... Unseen name, creating new mesh\n");
+        geometry = ospNewGeometry("triangles");
+        scene_data_types[name] = SDT_MESH;
+        blender_mesh = blender_meshes[name] = new BlenderMesh;
+        blender_mesh->geometry = geometry;
+    }
+    else
+    {
+        // Have existing scene data with this name, check what it is
+        SceneDataType type = it->second;
+
+        if (type != SDT_MESH)
+        {
+            printf("... WARNING: scene data '%s' is currently of type %d, overwriting with mesh!\n", name.c_str(), type);
+
+            // XXX do the overwriting correctly ;-)    
+            // erase existing entries
+
+            geometry = ospNewGeometry("triangles");  
+            blender_mesh = blender_meshes[name] = new BlenderMesh;
+            blender_mesh->geometry = geometry;  
+        }
+        else
+        {
+            printf("... WARNING: mesh '%s' already present, overwriting!\n", name.c_str());            
+            blender_mesh = blender_meshes[name];
+            geometry = blender_mesh->geometry;
+        }
+    }
+
+    MeshData    mesh_data;
+    OSPData     data;
+    uint32_t    nv, nt, flags;    
+
+    if (!receive_protobuf(sock, mesh_data))
+        return false;
+
+    nv = mesh_data.num_vertices();
+    nt = mesh_data.num_triangles();
+    flags = mesh_data.flags();
+
+    printf("... %d vertices, %d triangles, flags 0x%08x\n", nv, nt, flags);
+
+    vertex_buffer.reserve(nv*3);
+    if (sock->recvall(&vertex_buffer[0], nv*3*sizeof(float)) == -1)
+        return false;
+
+    if (flags & MeshData::NORMALS)
+    {
+        printf("... Mesh has normals\n");
+        normal_buffer.reserve(nv*3);
+        if (sock->recvall(&normal_buffer[0], nv*3*sizeof(float)) == -1)
+            return false;
+    }
+
+    if (flags & MeshData::VERTEX_COLORS)
+    {
+        printf("... Mesh has vertex colors\n");
+        vertex_color_buffer.reserve(nv*4);
+        if (sock->recvall(&vertex_color_buffer[0], nv*4*sizeof(float)) == -1)
+            return false;
+    }
+
+    triangle_buffer.reserve(nt*3);
+    if (sock->recvall(&triangle_buffer[0], nt*3*sizeof(uint32_t)) == -1)
+        return false;
+
+    data = ospNewData(nv, OSP_VEC3F, &vertex_buffer[0]);    
+    ospSetData(geometry, "vertex.position", data);
+    ospRelease(data);
+
+    if (flags & MeshData::NORMALS)
+    {
+        data = ospNewData(nv, OSP_VEC3F, &normal_buffer[0]);        
+        ospSetData(geometry, "vertex.normal", data);
+        ospRelease(data);
+    }
+
+    if (flags & MeshData::VERTEX_COLORS)
+    {
+        data = ospNewData(nv, OSP_VEC4F, &vertex_color_buffer[0]);        
+        ospSetData(geometry, "vertex.color", data);
+        ospRelease(data);
+    }
+
+    data = ospNewData(nt, OSP_VEC3I, &triangle_buffer[0]);    
+    ospSetData(geometry, "index", data);
+    ospRelease(data);
+
+    ospCommit(geometry);
+
+    return true;
+}
 
 bool
-add_blender_mesh(const UpdateObject& update)
-{
+update_blender_mesh_object(const UpdateObject& update)
+{    
+    const std::string& object_name = update.name();
+
+    printf("OBJECT '%s' (blender mesh)\n", object_name.c_str());   
+
+    SceneObjectMap::iterator so_it = scene_objects.find(object_name);
+
+    if (so_it != scene_objects.end())
+    {
+        printf("... Have an existing blender mesh object called '%s'\n", object_name.c_str());
+    }
+    else
+    {
+        // New mesh object
+    }
+
+    // Check linked data
+
     const std::string& linked_data = update.data_link();
 
-    printf("OBJECT '%s' (blender mesh)\n", update.name().c_str());    
+    SceneDataTypeMap::iterator sdt_it = scene_data_types.find(linked_data);
 
-    SceneDataTypeMap::iterator it = scene_data_types.find(linked_data);
-
-    if (it == scene_data_types.end())
+    if (sdt_it == scene_data_types.end())
     {
         printf("--> '%s' | WARNING: linked data not found!\n", linked_data.c_str());
         return false;
     }
-    else if (it->second != SDT_MESH)
+    else if (sdt_it->second != SDT_MESH)
     {
         printf("--> '%s' | WARNING: linked data is not of type 'mesh' but of type %d!\n", 
-            linked_data.c_str(), it->second);
+            linked_data.c_str(), sdt_it->second);
         return false;
     }
     else
@@ -876,6 +898,7 @@ add_blender_mesh(const UpdateObject& update)
     ospCommit(instance);
     ospRelease(group);
 
+    // XXX should create this list from scene_objects?
     scene_instances.push_back(instance);
 
     return true;
@@ -1547,7 +1570,7 @@ handle_update_object(TCPSocket *sock)
     switch (update.type())
     {
     case UpdateObject::MESH:
-        add_blender_mesh(update);
+        update_blender_mesh_object(update);
         break;
 
     case UpdateObject::GEOMETRY:
@@ -2082,7 +2105,7 @@ handle_connection(TCPSocket *sock)
                     break;
 
                 case ClientMessage::UPDATE_BLENDER_MESH:
-                    handle_update_blender_mesh(sock, client_message.string_value());
+                    handle_update_blender_mesh_data(sock, client_message.string_value());
                     break;
 
                 case ClientMessage::UPDATE_OBJECT:
