@@ -440,7 +440,7 @@ class Connection:
         # object -> object data combination (including their properties)
         # means, so the server isn't bothered with this.
         
-        print('Updating mesh object "%s"' % obj.name)
+        print('Updating MESH object "%s"' % obj.name)
     
         client_message = ClientMessage()
         client_message.type = ClientMessage.UPDATE_OBJECT    
@@ -479,6 +479,7 @@ class Connection:
                     # XXX properties: single shade, gradient shading, ...
                     
                     volume_usage = obj.ospray.volume_usage
+                    print('Volume usage is %s' % volume_usage)
 
                     if volume_usage == 'volume':
                         update.type = UpdateObject.VOLUME
@@ -511,6 +512,8 @@ class Connection:
                             if childobj.hide_render:
                                 print('Ignoring hidden child object "%s" for slicing' % childobj.name)
                                 continue
+
+                            print('Sending child object "%s" as slice object' % childobj.data.name)
 
                             self.update_blender_mesh(data, depsgraph, childobj.data, childobj.matrix_local)
 
@@ -604,7 +607,7 @@ class Connection:
     def update_blender_mesh(self, data, depsgraph, mesh, xform=None):
 
         if mesh.name in self.mesh_data_exported:
-            print('Not updating mesh data "%s", already sent' % mesh.name)
+            print('Not updating MESH data "%s", already sent' % mesh.name)
             return
     
         # XXX we should export meshes separately, keeping a local
@@ -618,7 +621,7 @@ class Connection:
         # we choose ourselves. But props get copied when duplicating
         # See https://devtalk.blender.org/t/universal-unique-id-per-object/363/3
 
-        self.engine.update_stats('', 'Updating Blender mesh %s' % mesh.name)
+        self.engine.update_stats('', 'Updating Blender MESH %s' % mesh.name)
         
         client_message = ClientMessage()
         client_message.type = ClientMessage.UPDATE_BLENDER_MESH       

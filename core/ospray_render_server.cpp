@@ -1176,10 +1176,10 @@ add_slices_object(const UpdateObject& update, const Slices& slices)
         // XXX temp inserted volumetric model
         auto volume_model = ospNewVolumetricModel(volume);
             OSPTransferFunction tf = create_transfer_function("cool2warm", state->volume_data_range[0], state->volume_data_range[1]);
-            ospSetObject(volume_model, "transferFunction", tf);
-            ospRelease(tf);
+            ospSetObject(volume_model, "transferFunction", tf);            
             //ospSetFloat(volume_model, "samplingRate", 0.5f);
         ospCommit(volume_model);
+        ospRelease(tf);
 
         OSPTexture volume_texture = ospNewTexture("volume");
             ospSetObject(volume_texture, "volume", volume_model);   // XXX volume model, not volume
@@ -1188,10 +1188,12 @@ add_slices_object(const UpdateObject& update, const Slices& slices)
         OSPMaterial material = ospNewMaterial(current_renderer_type.c_str(), "default");
             ospSetObject(material, "map_Kd", volume_texture);
         ospCommit(material);
-        ospRelease(volume_texture);
+        ospRelease(volume_texture);        
 
         OSPGeometricModel geometric_model = ospNewGeometricModel(geometry);
+            ospSetObject(geometric_model, "material", material);
         ospCommit(geometric_model);
+        ospRelease(material);
 
         OSPGroup group = ospNewGroup();
             OSPData data = ospNewData(1, OSP_OBJECT, &geometric_model, 0);
