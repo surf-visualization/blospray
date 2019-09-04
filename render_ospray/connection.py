@@ -321,15 +321,10 @@ class Connection:
                 continue                        
                 
             mesh = obj.data
-            
-            # Send mesh data, but only if it wasn't sent before in the current export
-            if mesh.name not in self.mesh_data_exported:                
-                self.send_updated_mesh_data(data, depsgraph, mesh)            
-                # Remember that we exported this mesh
-                self.mesh_data_exported.add(mesh.name)
-            else:
-                print('Not sending mesh data "%s" again' % mesh.name)
-            
+
+            # Send mesh data
+            self.send_updated_mesh_data(data, depsgraph, mesh)            
+                        
             # Send object linking to the mesh data
             self.send_updated_mesh_object(data, depsgraph, obj, mesh, instance.matrix_world)
     
@@ -440,7 +435,7 @@ class Connection:
         # object -> object data combination (including their properties)
         # means, so the server isn't bothered with this.
         
-        print('Updating MESH object "%s"' % obj.name)
+        print('Updating MESH OBJECT "%s"' % obj.name)
     
         client_message = ClientMessage()
         client_message.type = ClientMessage.UPDATE_OBJECT    
@@ -453,93 +448,102 @@ class Connection:
         custom_properties, plugin_parameters = self._process_properties2(obj, False)
         assert len(plugin_parameters.keys()) == 0
         
-        update.custom_properties = json.dumps(custom_properties)
+        update.custom_properties = json.dumps(custom_properties)    
 
-        extra = []
-        
-        if obj.ospray.ospray_override:
-            
-            if not mesh.ospray.plugin_enabled:
-                # No plugin enabled on the linked mesh data, treat
-                # as regular blender Mesh object
-                update.type = UpdateObject.MESH
-                
-            else:                
-                plugin_type = mesh.ospray.plugin_type
-                print("Plugin type = %s" % plugin_type)
-                
-                if plugin_type == 'geometry':
-                    update.type = UpdateObject.GEOMETRY
-                    
-                elif plugin_type == 'scene':
-                    update.type = UpdateObject.SCENE   
-                    
-                elif plugin_type == 'volume':
-                    
-                    # XXX properties: single shade, gradient shading, ...
-                    
-                    volume_usage = obj.ospray.volume_usage
-                    print('Volume usage is %s' % volume_usage)
-
-                    if volume_usage == 'volume':
-                        update.type = UpdateObject.VOLUME
-                        volume = Volume()
-                        volume.sampling_rate = obj.ospray.sampling_rate
-                        extra.append(volume)
-
-                    elif volume_usage == 'slices':
-                        update.type = UpdateObject.SLICES
-                        #  Process child objects for slices
-                        ss = []
-                        # Apparently the depsgraph leaves out the parenting? So get
-                        # that information from the original object
-                        # XXX need to ignore slice object itself in export, but not its mesh data
-                        children = depsgraph.scene.objects[obj.name].children
-                        print('obj %s: %d CHILDREN' % (obj, len(children)))
-
-                        # volumetric texture and geometric model share the same coordinate space.
-                        # child.matrix_local should provide the transform of child in the parent's
-                        # coordinate system. unfortunately, this means we need to use this transform
-                        # to actually update the geometry on the server to use for slicing. we can
-                        # then transform it with the parent's transform to get it in the right position.                        
-
-                        for childobj in children:
-
-                            if not childobj.type == 'MESH':
-                                print('Ignoring non-mesh child object "%s" for slicing' % childobj.name)
-                                continue
-
-                            if childobj.hide_render:
-                                print('Ignoring hidden child object "%s" for slicing' % childobj.name)
-                                continue
-
-                            print('Sending child object "%s" as slice object' % childobj.data.name)
-
-                            self.update_blender_mesh(data, depsgraph, childobj.data, childobj.matrix_local)
-
-                            slice = Slice()
-                            slice.linked_mesh = childobj.data.name
-                            # Note: this is the parent's object-to-world transform
-                            slice.object2world[:] = matrix2list(obj.matrix_world)
-                            ss.append(slice)                            
-
-                        slices = Slices()
-                        slices.slices.extend(ss)
-                        extra.append(slices)
-
-                    elif volume_usage == 'isosurfaces':
-                        # Isosurface values are read from the custom property 'isovalue'
-                        update.type = UpdateObject.ISOSURFACES
-                        
-        else:
-            # Regular blender Mesh object
+        if not obj.ospray.ospray_override or not mesh.ospray.plugin_enabled:
+            # Not OSPRay enabled or plugin disabled on the linked mesh data.
+            # Treat as regular blender Mesh object            
             update.type = UpdateObject.MESH
-    
-        print('Sending update')
-        send_protobuf(self.sock, client_message)
-        send_protobuf(self.sock, update)
-        for msg in extra:
-            send_protobuf(self.sock, msg)
+                
+            # Check that this object isn't a child used for slicing, in which case it should
+            # not be sent as normal geometry
+            parent = obj.parent 
+            if (parent is not None) and parent.ospray.ospray_override:
+                assert parent.type == 'MESH'
+                parent_mesh = parent.data
+                if (parent_mesh.ospray.plugin_type == 'volume') and (parent.ospray.volume_usage == 'slices'):
+                    print('Object "%s" is child of slice-enabled parent "%s", not sending' % (obj.name, parent.name))
+                    return
+
+            print('Sending update')
+            send_protobuf(self.sock, client_message)
+            send_protobuf(self.sock, update)                    
+
+        else:        
+
+            extra = []
+        
+            plugin_type = mesh.ospray.plugin_type
+            print("Plugin type = %s" % plugin_type)
+            
+            if plugin_type == 'geometry':
+                update.type = UpdateObject.GEOMETRY
+                
+            elif plugin_type == 'scene':
+                update.type = UpdateObject.SCENE   
+                
+            elif plugin_type == 'volume':
+                
+                # XXX properties: single shade, gradient shading, ...
+                
+                volume_usage = obj.ospray.volume_usage
+                print('Volume usage is %s' % volume_usage)
+
+                if volume_usage == 'volume':
+                    update.type = UpdateObject.VOLUME
+                    volume = Volume()
+                    volume.sampling_rate = obj.ospray.sampling_rate
+                    extra.append(volume)
+
+                elif volume_usage == 'slices':
+                    update.type = UpdateObject.SLICES
+                    #  Process child objects for slices
+                    ss = []
+                    # Apparently the depsgraph leaves out the parenting? So get
+                    # that information from the original object
+                    # XXX need to ignore slice object itself in export, but not its mesh data
+                    children = depsgraph.scene.objects[obj.name].children
+                    print('Object "%s" has %d CHILDREN' % (obj.name, len(children)))
+
+                    # XXX volumetric texture and geometric model share the same coordinate space.
+                    # child.matrix_local should provide the transform of child in the parent's
+                    # coordinate system. unfortunately, this means we need to use this transform
+                    # to actually update the geometry on the server to use for slicing. we can
+                    # then transform it with the parent's transform to get it in the right position.                        
+
+                    for childobj in children:
+
+                        if not childobj.type == 'MESH':
+                            print('Ignoring slicing child object "%s", it\'s not a mesh' % childobj.name)
+                            continue
+
+                        if childobj.hide_render:
+                            print('Ignoring slicing child object "%s", it\'s hidden for rendering' % childobj.name)
+                            continue
+
+                        print('Sending slicing child mesh "%s"' % childobj.data.name)
+
+                        self.update_blender_mesh(data, depsgraph, childobj.data, childobj.matrix_local)
+
+                        slice = Slice()
+                        slice.linked_mesh = childobj.data.name
+                        # Note: this is the parent's object-to-world transform
+                        slice.object2world[:] = matrix2list(obj.matrix_world)
+                        ss.append(slice)                            
+
+                    slices = Slices()
+                    slices.slices.extend(ss)
+                    extra.append(slices)
+
+                elif volume_usage == 'isosurfaces':
+                    # Isosurface values are read from the custom property 'isovalue'
+                    update.type = UpdateObject.ISOSURFACES
+                        
+            print('Sending update')
+            send_protobuf(self.sock, client_message)
+            send_protobuf(self.sock, update)
+            for msg in extra:
+                send_protobuf(self.sock, msg)
     
 
     def send_updated_mesh_data(self, data, depsgraph, mesh):
@@ -547,9 +551,11 @@ class Connection:
         """
         Send an update on a Mesh Data block
         """
-        
-        # XXX check if mesh data was already updated, if so skip
-        
+                
+        if mesh.name in self.mesh_data_exported:
+            print('Not sending MESH DATA "%s" again' % mesh.name)
+            return
+                
         if mesh.ospray.plugin_enabled:
             # Plugin instance
             
@@ -568,6 +574,9 @@ class Connection:
             # Treat as regular blender mesh
             # XXX any need to send custom properties?
             self.update_blender_mesh(data, depsgraph, mesh) 
+
+        # Remember that we exported this mesh
+        self.mesh_data_exported.add(mesh.name)          
 
 
     def update_plugin_instance(self, name, plugin_type, plugin_name, plugin_parameters, custom_properties):
@@ -607,7 +616,7 @@ class Connection:
     def update_blender_mesh(self, data, depsgraph, mesh, xform=None):
 
         if mesh.name in self.mesh_data_exported:
-            print('Not updating MESH data "%s", already sent' % mesh.name)
+            print('Not updating MESH DATA "%s", already sent' % mesh.name)
             return
     
         # XXX we should export meshes separately, keeping a local
@@ -621,7 +630,7 @@ class Connection:
         # we choose ourselves. But props get copied when duplicating
         # See https://devtalk.blender.org/t/universal-unique-id-per-object/363/3
 
-        self.engine.update_stats('', 'Updating Blender MESH %s' % mesh.name)
+        self.engine.update_stats('', 'Updating Blender MESH DATA "%s"' % mesh.name)
         
         client_message = ClientMessage()
         client_message.type = ClientMessage.UPDATE_BLENDER_MESH       
@@ -641,7 +650,7 @@ class Connection:
         nv = mesh_data.num_vertices = len(mesh.vertices)
         nt = mesh_data.num_triangles = len(mesh.loop_triangles)
 
-        print('Mesh %s: %d v, %d t' % (mesh.name, nv, nt))
+        print('MESH DATA "%s": %d vertices, %d triangles' % (mesh.name, nv, nt))
 
         # Check if any faces use smooth shading
         # XXX we currently don't handle meshes with both smooth
@@ -650,7 +659,7 @@ class Connection:
         use_smooth = False
         for tri in mesh.loop_triangles:
             if tri.use_smooth:
-                print('Mesh uses smooth shading')
+                print('... mesh uses smooth shading')
                 use_smooth = True
                 flags |= MeshData.NORMALS
                 break
