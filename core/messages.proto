@@ -76,7 +76,6 @@ message QueryBoundResult
     uint32  result_size = 3;
 }
 
-
 message RenderResult 
 {
     enum Type {

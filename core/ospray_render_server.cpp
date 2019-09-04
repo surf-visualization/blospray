@@ -177,21 +177,30 @@ BlenderMeshMap      blender_meshes;
 // XXX perhaps this operation should have its own ...Result type
 bool
 ensure_plugin_is_loaded(GenerateFunctionResult &result, PluginDefinition &definition,
-    const std::string& type, const std::string& name)
+    PluginType type, const std::string& name)
 {
-    if (type == "")
-    {
-        printf("No plugin type provided!\n");
-        return false;
-    }
-
     if (name == "")
     {
         printf("No plugin name provided!\n");
         return false;
     }
 
-    const std::string internal_name = type + "_" + name;
+    std::string internal_name;
+
+    switch (type)
+    {
+    case PT_VOLUME:
+        internal_name = "volume";
+        break;
+    case PT_GEOMETRY:
+        internal_name = "geometry";
+        break;
+    case PT_SCENE:
+        internal_name = "scene";
+        break;
+    }
+
+    internal_name += "_" + name;
 
     PluginDefinitionsMap::iterator it = plugin_definitions.find(internal_name);
 
@@ -521,6 +530,49 @@ handle_update_blender_mesh(TCPSocket *sock, const std::string& name)
     return true;
 }
 
+void
+delete_plugin_instance(const std::string& name)
+{        
+    PluginInstanceMap::iterator it = plugin_instances.find(name);
+
+    if (it == plugin_instances.end())
+    {
+        printf("ERROR: plugin instance '%s' to delete not found!\n", name.c_str());
+        return;
+    }
+
+    PluginInstance *plugin_instance = it->second;
+    PluginState *state = plugin_instance->state;
+    
+    // Released OSPRay resources created by the plugin
+    switch (plugin_instance->type)
+    {
+    case PT_GEOMETRY:
+        ospRelease(state->geometry);
+        break;
+    case PT_VOLUME:
+        ospRelease(state->volume);
+        break;
+    case PT_SCENE:
+        for (auto& kv: state->group_instances)
+            ospRelease(kv.first);    
+        for (OSPLight& l: state->lights)
+            ospRelease(l);
+        break;
+    }
+
+    if (state->bound)
+        delete state->bound;
+    //if (state->data)
+    // XXX call plugin's clear_data_function_t
+
+    delete state;    
+
+    plugin_instances.erase(it);
+    plugin_state.erase(name);
+    scene_data_types.erase(name);
+}
+
 bool
 handle_update_plugin_instance(TCPSocket *sock)
 {
@@ -535,79 +587,34 @@ handle_update_plugin_instance(TCPSocket *sock)
 
     printf("PLUGIN INSTANCE '%s'\n", data_name.c_str());
 
+    bool create_new_instance = false;
     PluginInstance *plugin_instance;
     PluginState *state;    
+    PluginType plugin_type;
+    std::string plugin_type_name;
 
-    SceneDataTypeMap::iterator it = scene_data_types.find(data_name);
-
-    if (it == scene_data_types.end())
-    {
-        // No previous plugin instance with this name
-        printf("... Unseen plugin instance name, creating new plugin instance\n");
-                             
-        plugin_state[data_name] = state = new PluginState; 
-        state->renderer = current_renderer_type;   
-
-        plugin_instances[data_name] = plugin_instance = new PluginInstance;  
-        plugin_instance->state = state;   
-    }
-    else
-    {
-        // Have existing scene data with this name, check what it is
-        SceneDataType type = it->second;
-
-        if (type != SDT_PLUGIN)
-        {
-            printf("... WARNING: scene data '%s' is currently of type %d, overwriting with plugin instance!\n", data_name.c_str(), type);
-
-            // XXX erase existing entries            
-
-            plugin_state[data_name] = state = new PluginState; 
-            state->renderer = current_renderer_type;  
-
-            plugin_instances[data_name] = plugin_instance = new PluginInstance;  
-            plugin_instance->state = state;   
-        }
-        else
-        {
-            printf("... WARNING: plugin instance '%s' already present, overwriting!\n", data_name.c_str());                        
-            
-            plugin_instance = plugin_instances[data_name];
-            state = plugin_state[data_name];
-        }
-    }
-
-    plugin_instance->name = data_name;
-    scene_data_types[data_name] = SDT_PLUGIN;
-
-    std::string plugin_type;
-
-    // XXX handle changing of plugin type
     switch (update.type())
     {
     case UpdatePluginInstance::GEOMETRY:
-        plugin_type = "geometry";
-        plugin_instance->type = PT_GEOMETRY;
+        plugin_type_name = "geometry";
+        plugin_type = PT_GEOMETRY;
         break;
     case UpdatePluginInstance::VOLUME:
-        plugin_type = "volume";
-        plugin_instance->type = PT_VOLUME;
+        plugin_type_name = "volume";
+        plugin_type = PT_VOLUME;
         break;
     case UpdatePluginInstance::SCENE:
-        plugin_type = "scene";
-        plugin_instance->type = PT_SCENE;
+        plugin_type_name = "scene";
+        plugin_type = PT_SCENE;
         break;
     default:
-        printf("... WARNING: unknown plugin instance type!\n");
+        printf("... WARNING: unknown plugin instance type %d!\n", update.type());
         return false;
     }
 
     const std::string &plugin_name = update.plugin_name();
 
-    // XXX handle changing of plugin name
-    plugin_instance->plugin_name = plugin_name;
-
-    printf("... plugin type: %s\n", plugin_type.c_str());
+    printf("... plugin type: %s (%d)\n", plugin_type_name.c_str(), plugin_type);
     printf("... plugin name: '%s'\n", plugin_name.c_str());
 
     const char *s_plugin_parameters = update.plugin_parameters().c_str();
@@ -622,16 +629,94 @@ handle_update_plugin_instance(TCPSocket *sock)
     printf("... custom properties:\n");
     printf("%s\n", custom_properties.dump(4).c_str());
 
-    // XXX handle changes
+    // Check against the current instances
+
+    SceneDataTypeMap::iterator it = scene_data_types.find(data_name);
+
+    if (it != scene_data_types.end())
+    {
+        // Have existing scene data with this name, check what it is
+        SceneDataType data_type = it->second;
+
+        if (data_type != SDT_PLUGIN)
+        {
+            printf("... WARNING: scene data '%s' is currently of type %d, overwriting with new plugin instance!\n", data_name.c_str(), data_type);            
+            // XXX
+            // delete_plugin_instance(data_name);
+            create_new_instance = true;
+        }
+        else
+        {
+            printf("... Have an existing plugin instance called '%s'\n", data_name.c_str());                        
+            
+            plugin_instance = plugin_instances[data_name];
+            state = plugin_state[data_name];
+
+            if (plugin_instance->type != plugin_type || plugin_instance->plugin_name != plugin_name)
+            {
+                printf("... Existing plugin (type %d, name '%s') does't match, overwriting!\n", 
+                    plugin_instance->type, plugin_name.c_str());
+                delete_plugin_instance(data_name);
+                create_new_instance = true;
+            }
+            else
+            {
+                // Plugin still of the same type and name, check if parameters and properties still up to date
+                const std::string& parameters_hash = get_sha1(update.plugin_parameters().c_str());
+                const std::string& custom_props_hash = get_sha1(update.custom_properties().c_str());
+
+                if (parameters_hash != plugin_instance->parameters_hash)
+                {
+                    printf("... Parameters changed, re-running plugin\n");
+                    delete_plugin_instance(data_name);
+                    create_new_instance = true;
+                }
+                else if (custom_props_hash != plugin_instance->custom_properties_hash)
+                {
+                    printf("... Custom properties changed, re-running plugin\n");
+                    delete_plugin_instance(data_name);
+                    create_new_instance = true;
+                }
+                // XXX check renderer type
+                //else if (plugin_instance->)
+                // delete_plugin_instance(data_name);
+            }
+        }
+    }
+    else
+    {
+        // No previous plugin instance with this name
+        printf("... New name, creating new plugin instance\n");
+        create_new_instance = true;
+    }
+
+    // Prepare result
+    // By default all is well, we let the plugin signal something went wrong 
+    GenerateFunctionResult result;    
+    result.set_success(true);    
+
+    if (!create_new_instance)
+    {
+        printf("... Cached plugin instance still up-to-date\n");
+        // XXX we misuse GenerateFunctionResult here, as nothing was generated...
+        send_protobuf(sock, result);
+        return true;
+    }
+
+    // At this point we're creating a new plugin instance
+
+    state = plugin_state[data_name] = new PluginState; 
+    state->renderer = current_renderer_type;   
+
+    plugin_instance = plugin_instances[data_name] = new PluginInstance;  
+    plugin_instance->type = plugin_type;
+    plugin_instance->plugin_name = plugin_name;        
+    plugin_instance->state = state; 
+    plugin_instance->name = data_name;    
     plugin_instance->parameters_hash = get_sha1(s_plugin_parameters);
     plugin_instance->custom_properties_hash = get_sha1(s_custom_properties);    
 
-    // Prepare result
-
-    GenerateFunctionResult result;
-
-    // By default all is well, we let the plugin signal something went wrong 
-    result.set_success(true);
+    scene_data_types[data_name] = SDT_PLUGIN;
 
     // Find generate function
 
@@ -1853,6 +1938,12 @@ handle_query_bound(TCPSocket *sock, const std::string& name)
 bool
 clear_scene()
 {
+    for (OSPInstance& i : scene_instances)
+        ospRelease(i);
+
+    for (OSPLight& l : scene_lights)
+        ospRelease(l);
+
     scene_instances.clear();
     scene_lights.clear();
 
