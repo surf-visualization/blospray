@@ -108,11 +108,12 @@ class Connection:
         #hello = ClientMessage()
         #hello.type = ClientMessage.HELLO
         #hello.version = 1
-        #send_protobuf(self.sock, hello)
-
-        self.mesh_data_exported = set()
+        #send_protobuf(self.sock, hello)    
         
         self.export_scene(data, depsgraph)
+
+        # Connection will be closed by render(), which is always
+        # called after update()
 
     #
     # Scene export
@@ -172,7 +173,7 @@ class Connection:
 
         msg = 'Exporting scene'
         self.engine.update_stats('', msg)
-        print(msg)
+        print(msg)    
 
         client_message = ClientMessage()
         client_message.type = ClientMessage.UPDATE_SCENE
@@ -310,6 +311,8 @@ class Connection:
 
         self.send_updated_ambient_light(world.ospray.ambient_color, world.ospray.ambient_intensity)
 
+        self.mesh_data_exported = set()
+
         for instance in depsgraph.object_instances:
 
             obj = instance.object
@@ -327,7 +330,6 @@ class Connection:
                         
             # Send object linking to the mesh data
             self.send_updated_mesh_object(data, depsgraph, obj, mesh, instance.matrix_world)
-    
 
     def send_updated_ambient_light(self, color, intensity):
 
@@ -464,8 +466,7 @@ class Connection:
                 if (parent_mesh.ospray.plugin_type == 'volume') and (parent.ospray.volume_usage == 'slices'):
                     print('Object "%s" is child of slice-enabled parent "%s", not sending' % (obj.name, parent.name))
                     return
-
-            print('Sending update')
+            
             send_protobuf(self.sock, client_message)
             send_protobuf(self.sock, update)                    
 
@@ -538,8 +539,7 @@ class Connection:
                 elif volume_usage == 'isosurfaces':
                     # Isosurface values are read from the custom property 'isovalue'
                     update.type = UpdateObject.ISOSURFACES
-                        
-            print('Sending update')
+                                    
             send_protobuf(self.sock, client_message)
             send_protobuf(self.sock, update)
             for msg in extra:
@@ -876,7 +876,7 @@ class Connection:
 
         client_message = ClientMessage()
         client_message.type = ClientMessage.QUIT
-        send_protobuf(self.sock, client_message)    
+        send_protobuf(self.sock, client_message)  
 
     # Utility
 

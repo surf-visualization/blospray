@@ -154,15 +154,16 @@ struct SceneObject
 };
 
 // Top-level scene objects
-std::map<std::string, SceneObject>      scene_objects;
-
+typedef std::map<std::string, SceneObject>      SceneObjectMap;
 // Mesh Data, either plugins or regular Blender meshes
 typedef std::map<std::string, SceneDataType>    SceneDataTypeMap;
+typedef std::map<std::string, PluginInstance*>  PluginInstanceMap;
+typedef std::map<std::string, BlenderMesh*>     BlenderMeshMap;
 
+SceneObjectMap      scene_objects;
 SceneDataTypeMap    scene_data_types;
-
-std::map<std::string, PluginInstance*>  plugin_instances;
-std::map<std::string, BlenderMesh*>     blender_meshes;
+PluginInstanceMap   plugin_instances;
+BlenderMeshMap      blender_meshes;
 
 // Plugin handling
 
@@ -1316,6 +1317,54 @@ add_light_object(const UpdateObject& update, const Light& light)
     return true;
 }
 
+bool 
+handle_get_server_state(TCPSocket *sock)
+{    
+    json j;
+    json so;
+    json pi;
+    json bm;
+    json sdt;
+
+    for (auto& kv: scene_objects)
+    {
+        const SceneObject& object = kv.second;
+        so[kv.first] = { {"type", object.type}, {"name", object.name}, {"data_link", object.data_link} };
+    }
+
+    for (auto& kv: plugin_instances)
+    {
+        const PluginInstance* instance = kv.second;
+        pi[kv.first] = { {"name", instance->name} };
+    }
+
+    for (auto& kv: blender_meshes)
+    {
+        const BlenderMesh* mesh = kv.second;
+        bm[kv.first] = { {"name", mesh->name}, {"parameters", mesh->parameters}, {"geometry", (size_t)mesh->geometry} };
+    }
+
+    for (auto& kv: scene_data_types)
+    {
+        sdt[kv.first] = kv.second;
+    }
+
+    j["scene_objects"] = so;
+    j["plugin_instances"] = pi;
+    j["blender_meshes"] = bm;
+    j["scene_data_types"] = sdt;
+
+    ServerStateResult   result;
+
+    //printf("%s\n", j.dump().c_str());
+
+    result.set_state(j.dump(4));
+
+    send_protobuf(sock, result);
+
+    return true;
+}
+
 bool
 handle_update_object(TCPSocket *sock)
 {
@@ -1779,6 +1828,7 @@ handle_connection(TCPSocket *sock)
 
         if (sock->is_readable())
         {
+            printf("Receiving\n");
             if (!receive_protobuf(sock, client_message))
             {
                 // XXX if we were rendering, handle the chaos
@@ -1810,6 +1860,10 @@ handle_connection(TCPSocket *sock)
 
                 case ClientMessage::UPDATE_OBJECT:
                     handle_update_object(sock);
+                    break;
+
+                case ClientMessage::GET_SERVER_STATE:
+                    handle_get_server_state(sock);
                     break;
 
                 case ClientMessage::QUERY_BOUND:
@@ -1849,6 +1903,12 @@ handle_connection(TCPSocket *sock)
                     render_input_queue.push(client_message);
 
                     break;
+
+                case ClientMessage::BYE:
+                    // XXX if we were still rendering, handle the chaos
+                    printf("Got BYE message\n");
+                    sock->close();
+                    return true;
 
                 case ClientMessage::QUIT:
                     // XXX if we were still rendering, handle the chaos

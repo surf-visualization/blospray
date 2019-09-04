@@ -24,9 +24,7 @@ from bpy.types import (Panel,
                        Operator,
                        PropertyGroup,
                        )                       
-
-from .operators import OSPRayUpdateMeshBound
-   
+ 
 class OSPRAY_RENDER_PT_connection(Panel):
     #bl_idname = 'OSPRAY_RENDER_PT_connection'
     bl_label = 'Connection'
@@ -52,7 +50,9 @@ class OSPRAY_RENDER_PT_connection(Panel):
         col = layout.column(align=True)
         col.prop(ospray, 'host') 
         col.prop(ospray, 'port') 
-        
+        col.separator()
+        col.operator('ospray.get_server_state')
+                
         
 class OSPRAY_RENDER_PT_rendering(Panel):
     #bl_idname = 'RENDER_PT_OSPRAY'

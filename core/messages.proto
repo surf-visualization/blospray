@@ -25,6 +25,7 @@ message ClientMessage
 {
     enum Type {
         HELLO = 0;                      // XXX not used atm
+        BYE = 1;
         
         GET_SERVER_STATE = 10;
         
@@ -55,6 +56,11 @@ message ClientMessage
     string  string_value = 40;          // QUERY_BOUND
 
     // XXX fold different types of submessages in here?
+}
+
+message ServerStateResult
+{
+    string  state = 1;
 }
 
 message QueryBoundResult

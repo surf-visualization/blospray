@@ -5,7 +5,7 @@ import numpy
 
 from .common import send_protobuf, receive_protobuf, receive_buffer, receive_into_numpy_array
 from .connection import Connection
-from .messages_pb2 import ClientMessage, QueryBoundResult
+from .messages_pb2 import ClientMessage, QueryBoundResult, ServerStateResult
 
 # XXX if this operator gets called during rendering, then what? :)
 
@@ -72,9 +72,11 @@ class OSPRayUpdateMeshBound(bpy.types.Operator):
         #print(loop_start)
         #print(loop_total)
 
-        # XXX send bye
+        # Bye
+        client_message.type = ClientMessage.BYE
+        send_protobuf(sock, client_message)        
         sock.close()
-        
+
         # XXX use new mesh replace from 2.81 when it becomes available
         
         bm = bmesh.new()        
@@ -100,8 +102,48 @@ class OSPRayUpdateMeshBound(bpy.types.Operator):
         return {'FINISHED'}
         
 
+class OSPRayGetServerState(bpy.types.Operator):
+    
+    """Retrieve server state and store in text editor block"""
+    bl_idname = "ospray.get_server_state"
+    bl_label = "Get server state"
+    bl_options = {'REGISTER'}
+
+    def execute(self, context):
+
+        scene = context.scene
+        ospray = scene.ospray        
+
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)                
+        sock.connect((ospray.host, ospray.port))
+        # XXX hello message
+
+        # Send request
+        print('Getting server state')
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.GET_SERVER_STATE
+        send_protobuf(sock, client_message)
+
+        # Get result
+        result = ServerStateResult()        
+        receive_protobuf(sock, result)
+
+        # Bye
+        client_message.type = ClientMessage.BYE
+        send_protobuf(sock, client_message)        
+        sock.close()
+
+        # Set in text
+        text = bpy.data.texts.new('BLOSPRAY server report')
+        text.write(result.state)
+
+        return {'FINISHED'}
+
+
+
 classes = (
     OSPRayUpdateMeshBound,
+    OSPRayGetServerState
 )
 
 def register():
