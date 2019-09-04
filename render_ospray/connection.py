@@ -94,7 +94,10 @@ class Connection:
         self.framebuffer_width = self.framebuffer_height = None
 
     def connect(self):
-        self.sock.connect((self.host, self.port))
+        try:
+            self.sock.connect((self.host, self.port))
+        except:
+            return False
 
         # Handshake
         client_message = ClientMessage()
@@ -124,9 +127,6 @@ class Connection:
         #print(depsgraph)
 
         self.engine.update_stats('', 'Connecting')
-
-        if not self.connect():
-            return
 
         # Export scene        
         self.export_scene(data, depsgraph)
@@ -892,8 +892,6 @@ class Connection:
         self.engine.end_result(result)
 
         print('Done with render loop')
-
-        self.close()
 
     # Utility
 

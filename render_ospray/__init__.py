@@ -67,12 +67,23 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         exactly the same scene or moving just the camera.
         """
         print('>>> CustomRenderEngine.update()')
+
+        self.update_succeeded = False
         
         ospray = depsgraph.scene.ospray
         
         self.connection = Connection(self, ospray.host, ospray.port)
 
+        if not self.connection.connect():        
+            self.report({'ERROR'}, 'Failed to connect to server')
+            return 
+
         self.connection.update(data, depsgraph)
+
+        # XXX if we fail connecting here there's no way to 
+        # signal to blender that it should not subsequently call render()        
+
+        self.update_succeeded = True
         
     # This is the only method called by blender, in this example
     # we use it to detect preview rendering and call the implementation
@@ -80,6 +91,9 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
     def render(self, depsgraph):
         """Render scene into an image"""
         print('>>> OsprayRenderEngine.render()')
+
+        if not self.update_succeeded:
+            return
         
         self.connection.render(depsgraph)
         

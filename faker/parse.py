@@ -78,7 +78,9 @@ class Object:
         if len(fields) > 0:
             label += '\n\n'
             label += '\n'.join(fields)
-        g.write('%d [label="%s";color="%s"];\n' % (self.addr, label, color))
+
+        shape = 'box' if self.type == 'Data' else 'ellipse'
+        g.write('%d [label="%s";color="%s";shape="%s"];\n' % (self.addr, label, color, shape))
         for label, other in self.edges.items():
             g.write('%d -> %d [label="%s"];\n' % (self.addr, other.addr, label))
     
@@ -117,29 +119,37 @@ for line in f:
             obj.set_property('<materialType>', args['materialType'], False)
             obj.set_property('<rendererType>', args['rendererType'], False)
         elif call == 'ospNewData':
+            data_type = args['type']
+            data_type_name = ospdatatype2name[data_type]
             obj.set_property('numItems', args['numItems'], False)
-            obj.set_property('type', ospdatatype2name[args['type']], False)
+            obj.set_property('type', data_type_name, False)
+            if data_type_name == 'OSP_OBJECT' and 'source' in e:                
+                for idx, objaddr in enumerate(e['source']):
+                    obj.add_edge('[%d]' % idx, addr2object[objaddr], False)
         elif call == 'ospNewFrameBuffer':            
             obj.set_property('format', ospframebufferformat2name[args['format']], False)
-        elif call in ['ospNewCamera', 'ospNewGeometry', 'ospNewLight', 'ospNewTexture', 'ospNewTransferFunction', 'ospNewVolume']:
-            print(args)
+        elif call in ['ospNewCamera', 'ospNewGeometry', 'ospNewLight', 'ospNewRenderer', 'ospNewTexture', 'ospNewTransferFunction', 'ospNewVolume']:            
             obj.set_property('<type>', args['type'], False)
-
-        if call == 'ospNewGeometricModel':            
+        elif call == 'ospNewGeometricModel':            
             obj.add_edge('geometry', addr2object[args['geometry']], False)
         elif call == 'ospNewVolumetricModel':
             obj.add_edge('volume', addr2object[args['volume']], False)
         elif call == 'ospNewInstance':
             obj.add_edge('instance', addr2object[args['group']], False)
 
-
-            
     elif call == 'ospRelease':
         #obj = args['obj']
         #del addr2object[obj]
         pass
         
     elif call == 'ospRenderFrame':
+
+        obj = Object('<ospRenderFrame>', 0)  
+        addr2object[0] = obj
+              
+        for name in ['renderer', 'world', 'camera', 'framebuffer']:
+            obj.add_edge(name, addr2object[args[name]], False)
+
         break
         
     elif call == 'ospCommit':
