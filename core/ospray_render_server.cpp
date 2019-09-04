@@ -1335,19 +1335,17 @@ add_light_object(const UpdateObject& update, const Light& light)
 bool 
 handle_get_server_state(TCPSocket *sock)
 {    
-    json j;
-    json so;
-    json pi;
-    json bm;
-    json sdt;
-    json pd;
+    json j, p;
 
+    p = {};
     for (auto& kv: scene_objects)
     {
         const SceneObject& object = kv.second;
-        so[kv.first] = { {"type", object.type}, {"name", object.name}, {"data_link", object.data_link} };
+        p[kv.first] = { {"type", object.type}, {"name", object.name}, {"data_link", object.data_link} };
     }
+    j["scene_objects"] = p;
 
+    p = {};
     for (auto& kv: plugin_instances)
     {
         const PluginInstance *instance = kv.second;
@@ -1357,7 +1355,7 @@ handle_get_server_state(TCPSocket *sock)
         for (auto& l : state->lights)
             ll.push_back((size_t)l);
 
-        json d = pi[kv.first] = { 
+        json d = p[kv.first] = { 
             {"name", instance->name}, 
             {"type", instance->type},
             {"plugin_name", instance->plugin_name},
@@ -1376,33 +1374,50 @@ handle_get_server_state(TCPSocket *sock)
             } }
         };
     }
+    j["plugin_instances"] = p;
 
+    p = {};
     for (auto& kv: blender_meshes)
     {
         const BlenderMesh *mesh = kv.second;
-        bm[kv.first] = { {"name", mesh->name}, {"parameters", mesh->parameters}, {"geometry", (size_t)mesh->geometry} };
+        p[kv.first] = { {"name", mesh->name}, {"parameters", mesh->parameters}, {"geometry", (size_t)mesh->geometry} };
     }
+    j["blender_meshes"] = p;
 
+    p = {};
     for (auto& kv: scene_data_types)
     {
-        sdt[kv.first] = kv.second;
+        p[kv.first] = kv.second;
     }
+    j["scene_data_types"] = p;
 
+    p = {};
     for (auto& kv: plugin_definitions)
     {
         const PluginDefinition& pdef = kv.second;
-        pd[kv.first] = { {"type", pdef.type}, {"uses_renderer_type", pdef.uses_renderer_type} };    // XXX params
+        p[kv.first] = { {"type", pdef.type}, {"uses_renderer_type", pdef.uses_renderer_type} };    // XXX params
     }
+    j["plugin_definitions"] = p;
 
-    j["scene_objects"] = so;
-    j["plugin_instances"] = pi;
-    j["blender_meshes"] = bm;
-    j["scene_data_types"] = sdt;
-    j["plugin_definitions"] = pd;
+    // Scene 
+
+    json scene;
+
+    p = {};
+    for (auto& i: scene_instances)
+        p.push_back((size_t)i);
+    scene["scene_instances"] = p;
+
+    p = {};
+    for (auto& l: scene_lights)
+        p.push_back((size_t)l);
+    scene["scene_lights"] = p;
+
+    j["scene"] = scene;
+
+    // Send result
 
     ServerStateResult   result;
-
-    //printf("%s\n", j.dump().c_str());
 
     result.set_state(j.dump(4));
 
@@ -1829,6 +1844,15 @@ handle_query_bound(TCPSocket *sock, const std::string& name)
 }
 
 bool
+clear_scene()
+{
+    scene_instances.clear();
+    scene_lights.clear();
+
+    return true;
+}
+
+bool
 prepare_scene()
 {
     printf("Setting up world with %d instance(s)\n", scene_instances.size());
@@ -1846,9 +1870,6 @@ prepare_scene()
     OSPData light_data = ospNewData(scene_lights.size(), OSP_OBJECT, &scene_lights[0], 0);
     ospSetData(renderer, "light", light_data);
     ospCommit(renderer);
-
-    scene_instances.clear();        // XXX hmm, clearing scene here
-    scene_lights.clear();
 
     return true;
 }
