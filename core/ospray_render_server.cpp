@@ -92,8 +92,13 @@ PluginStateMap          plugin_state;
 // blospray plugin attached to it
 struct PluginInstance
 {
-    PluginType      type;
     std::string     name;
+
+    PluginType      type;
+    std::string     plugin_name;
+
+    std::string     parameters_hash;
+    std::string     custom_properties_hash;
 
     // XXX store hash of parameters that the instance was generated from
 
@@ -575,6 +580,7 @@ handle_update_plugin_instance(TCPSocket *sock)
         }
     }
 
+    plugin_instance->name = data_name;
     scene_data_types[data_name] = SDT_PLUGIN;
 
     std::string plugin_type;
@@ -601,6 +607,9 @@ handle_update_plugin_instance(TCPSocket *sock)
 
     const std::string &plugin_name = update.plugin_name();
 
+    // XXX handle changing of plugin name
+    plugin_instance->plugin_name = plugin_name;
+
     printf("... plugin type: %s\n", plugin_type.c_str());
     printf("... plugin name: '%s'\n", plugin_name.c_str());
 
@@ -615,6 +624,10 @@ handle_update_plugin_instance(TCPSocket *sock)
     const json &custom_properties = json::parse(s_custom_properties);
     printf("... custom properties:\n");
     printf("%s\n", custom_properties.dump(4).c_str());
+
+    // XXX handle changes
+    plugin_instance->parameters_hash = get_sha1(s_plugin_parameters);
+    plugin_instance->custom_properties_hash = get_sha1(s_custom_properties);    
 
     // Prepare result
 
@@ -638,8 +651,10 @@ handle_update_plugin_instance(TCPSocket *sock)
 
     if (generate_function == NULL)
     {
-        printf("... ERROR: Plugin returned NULL generate_function!\n");
-        exit(-1);
+        printf("... ERROR: Plugin generate_function is NULL!\n");
+        result.set_message("Plugin generate_function is NULL!");
+        send_protobuf(sock, result);
+        return false;
     }
 
     // Check parameters passed to generate function
@@ -1325,6 +1340,7 @@ handle_get_server_state(TCPSocket *sock)
     json pi;
     json bm;
     json sdt;
+    json pd;
 
     for (auto& kv: scene_objects)
     {
@@ -1334,13 +1350,36 @@ handle_get_server_state(TCPSocket *sock)
 
     for (auto& kv: plugin_instances)
     {
-        const PluginInstance* instance = kv.second;
-        pi[kv.first] = { {"name", instance->name} };
+        const PluginInstance *instance = kv.second;
+        const PluginState *state = instance->state;
+
+        json ll;
+        for (auto& l : state->lights)
+            ll.push_back((size_t)l);
+
+        json d = pi[kv.first] = { 
+            {"name", instance->name}, 
+            {"type", instance->type},
+            {"plugin_name", instance->plugin_name},
+            {"parameters_hash", instance->parameters_hash},
+            {"custom_properties_hash", instance->custom_properties_hash},
+            {"state", {
+                {"renderer", state->renderer},
+                {"parameters", state->parameters},
+                {"bound", (size_t)state->bound},
+                {"geometry", (size_t)state->geometry},
+                {"volume", (size_t)state->volume},
+                {"volume_data_range", { state->volume_data_range[0], state->volume_data_range[1] } },
+                {"data", (size_t)state->data},
+                {"lights", ll},
+                {"group_instances", state->group_instances.size()}
+            } }
+        };
     }
 
     for (auto& kv: blender_meshes)
     {
-        const BlenderMesh* mesh = kv.second;
+        const BlenderMesh *mesh = kv.second;
         bm[kv.first] = { {"name", mesh->name}, {"parameters", mesh->parameters}, {"geometry", (size_t)mesh->geometry} };
     }
 
@@ -1349,10 +1388,17 @@ handle_get_server_state(TCPSocket *sock)
         sdt[kv.first] = kv.second;
     }
 
+    for (auto& kv: plugin_definitions)
+    {
+        const PluginDefinition& pdef = kv.second;
+        pd[kv.first] = { {"type", pdef.type}, {"uses_renderer_type", pdef.uses_renderer_type} };    // XXX params
+    }
+
     j["scene_objects"] = so;
     j["plugin_instances"] = pi;
     j["blender_meshes"] = bm;
     j["scene_data_types"] = sdt;
+    j["plugin_definitions"] = pd;
 
     ServerStateResult   result;
 

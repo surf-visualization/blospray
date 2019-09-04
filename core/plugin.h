@@ -183,9 +183,11 @@ struct PluginState
 
     PluginState()
     {
+        renderer = "";
         bound = nullptr;
         data = nullptr;
         volume = nullptr;
+        volume_data_range[0] = volume_data_range[1] = 0.0f;
         geometry = nullptr;
     }
 };
