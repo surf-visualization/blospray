@@ -677,9 +677,13 @@ handle_update_plugin_instance(TCPSocket *sock)
                     delete_plugin_instance(data_name);
                     create_new_instance = true;
                 }
-                // XXX check renderer type
-                //else if (plugin_instance->)
-                // delete_plugin_instance(data_name);
+                else if (plugin_instance->state->uses_renderer_type && plugin_instance->state->renderer != current_renderer_type)
+                {
+                    printf("... Plugin depends on renderer type, which changed from '%s', re-running plugin\n", 
+                        plugin_instance->state->renderer.c_str());
+                    delete_plugin_instance(data_name);
+                    create_new_instance = true;
+                }
             }
         }
     }
@@ -705,8 +709,18 @@ handle_update_plugin_instance(TCPSocket *sock)
 
     // At this point we're creating a new plugin instance
 
+    PluginDefinition plugin_definition;
+
+    if (!ensure_plugin_is_loaded(result, plugin_definition, plugin_type, plugin_name))
+    {
+        // Something went wrong...
+        send_protobuf(sock, result);
+        return false;
+    }    
+
     state = plugin_state[data_name] = new PluginState; 
     state->renderer = current_renderer_type;   
+    state->uses_renderer_type = plugin_definition.uses_renderer_type;
 
     plugin_instance = plugin_instances[data_name] = new PluginInstance;  
     plugin_instance->type = plugin_type;
@@ -719,15 +733,6 @@ handle_update_plugin_instance(TCPSocket *sock)
     scene_data_types[data_name] = SDT_PLUGIN;
 
     // Find generate function
-
-    PluginDefinition plugin_definition;
-
-    if (!ensure_plugin_is_loaded(result, plugin_definition, plugin_type, plugin_name))
-    {
-        // Something went wrong...
-        send_protobuf(sock, result);
-        return false;
-    }
 
     generate_function_t generate_function = plugin_definition.functions.generate_function;
 
@@ -1464,6 +1469,7 @@ handle_get_server_state(TCPSocket *sock)
             {"custom_properties_hash", instance->custom_properties_hash},
             {"state", {
                 {"renderer", state->renderer},
+                {"uses_renderer_type", state->uses_renderer_type},
                 {"parameters", state->parameters},
                 {"bound", (size_t)state->bound},
                 {"geometry", (size_t)state->geometry},
@@ -1938,6 +1944,8 @@ handle_query_bound(TCPSocket *sock, const std::string& name)
 bool
 clear_scene()
 {
+    printf("Clearing scene\n");
+
     for (OSPInstance& i : scene_instances)
         ospRelease(i);
 
@@ -1946,6 +1954,9 @@ clear_scene()
 
     scene_instances.clear();
     scene_lights.clear();
+
+    if (world != nullptr)
+        ospRelease(world);
 
     return true;
 }

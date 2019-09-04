@@ -1,7 +1,30 @@
 #!/usr/bin/env python
-import sys, json
+import sys, getopt, json
 
-f = open(sys.argv[1], 'rt')
+def usage():
+    print('usage: %s [options] faker.log' % sys.argv[0])
+    print()
+    print('Options:')
+    print('  -r     Stop at first ospRenderFrame')
+    print()
+
+try:
+    options, args = getopt.getopt(sys.argv[1:], 'r')
+except getopt.GetoptError as e:
+    raise
+    
+if len(args) == 0:
+    usage()
+    sys.exit(-1)   
+
+stop_at_first_renderframe = False
+
+for opt, value in options:
+    
+    if opt == '-r':
+        stop_at_first_renderframe = True
+
+f = open(args[0], 'rt')
 
 OBJECT_ARGUMENTS = {
     'ospNewGeometricModel': ['geometry'],
@@ -36,6 +59,7 @@ OBJECT_ARGUMENTS = {
 type_counts = {}
 pointers = set()
 addr2object = {}
+reference_counts = {}
 
 class Object:
     
@@ -53,6 +77,8 @@ class Object:
         self.fields = {}
         self.edges = {}
         self.dirty = False
+
+        self.references = []
         
     def set_property(self, field, value, dirty=True):
         self.fields[field] = value
@@ -62,6 +88,10 @@ class Object:
         self.edges[label] = other
         if dirty:
             self.dirty = True
+
+    def add_reference(self, other):
+        assert other not in self.references        
+        self.references.append(other)
         
     def commit(self):
         self.dirty = False
@@ -84,6 +114,26 @@ class Object:
         for label, other in self.edges.items():
             g.write('%d -> %d [label="%s"];\n' % (self.addr, other.addr, label))
     
+def decref(objaddr):
+
+    left_to_decref = [objaddr]
+
+    while len(left_to_decref) > 0:
+
+        objaddr = left_to_decref.pop()
+        c = reference_counts[objaddr] - 1
+        assert c >= 0
+        if c == 0:
+            print('Object %d (%s) deleted' % (objaddr, addr2object[objaddr].label))
+            obj = addr2object[objaddr]
+            for refobj in obj.references:
+                left_to_decref.append(refobj.addr)
+            del addr2object[objaddr]
+            del reference_counts[objaddr]
+        else:
+            reference_counts[objaddr] = c
+
+
 ospdatatype2name = {}
 ospframebufferformat2name = {}
 
@@ -113,6 +163,7 @@ for line in f:
         obj = Object(type, addr)
         
         addr2object[addr] = obj
+        reference_counts[addr] = 1
         pointers.add(addr)
         
         if call == 'ospNewMaterial':
@@ -124,33 +175,47 @@ for line in f:
             obj.set_property('numItems', args['numItems'], False)
             obj.set_property('type', data_type_name, False)
             if data_type_name == 'OSP_OBJECT' and 'source' in e:                
-                for idx, objaddr in enumerate(e['source']):
-                    obj.add_edge('[%d]' % idx, addr2object[objaddr], False)
+                for idx, otheraddr in enumerate(e['source']):
+                    reference_counts[otheraddr] += 1
+                    otherobj = addr2object[otheraddr]
+                    obj.add_edge('[%d]' % idx, otherobj, False)
+                    obj.add_reference(otherobj)
         elif call == 'ospNewFrameBuffer':            
             obj.set_property('format', ospframebufferformat2name[args['format']], False)
         elif call in ['ospNewCamera', 'ospNewGeometry', 'ospNewLight', 'ospNewRenderer', 'ospNewTexture', 'ospNewTransferFunction', 'ospNewVolume']:            
             obj.set_property('<type>', args['type'], False)
-        elif call == 'ospNewGeometricModel':            
-            obj.add_edge('geometry', addr2object[args['geometry']], False)
+        elif call == 'ospNewGeometricModel':   
+            geomobj = addr2object[args['geometry']]
+            obj.add_edge('geometry', geomobj, False)
+            obj.add_reference(geomobj)
+            reference_counts[args['geometry']] += 1
         elif call == 'ospNewVolumetricModel':
-            obj.add_edge('volume', addr2object[args['volume']], False)
+            volobj = addr2object[args['volume']]
+            obj.add_edge('volume', volobj, False)
+            obj.add_reference(volobj)
+            reference_counts[args['volume']] += 1
         elif call == 'ospNewInstance':
-            obj.add_edge('instance', addr2object[args['group']], False)
+            groupobj = addr2object[args['group']]
+            obj.add_edge('instance', groupobj, False)
+            obj.add_reference(groupobj)
+            reference_counts[args['group']] += 1
 
     elif call == 'ospRelease':
-        #obj = args['obj']
-        #del addr2object[obj]
-        pass
+        objaddr = args['obj']
+        if objaddr != 0:
+            decref(objaddr)   
         
     elif call == 'ospRenderFrame':
 
-        obj = Object('<ospRenderFrame>', 0)  
-        addr2object[0] = obj
-              
-        for name in ['renderer', 'world', 'camera', 'framebuffer']:
-            obj.add_edge(name, addr2object[args[name]], False)
+        if stop_at_first_renderframe:
 
-        break
+            obj = Object('<ospRenderFrame>', 0)  
+            addr2object[0] = obj
+                  
+            for name in ['renderer', 'world', 'camera', 'framebuffer']:
+                obj.add_edge(name, addr2object[args[name]], False)
+
+            break
         
     elif call == 'ospCommit':
         obj = addr2object[args['obj']]
@@ -161,11 +226,17 @@ for line in f:
         obj = addr2object[args['obj']]
         
         if call == 'ospSetData':
-            data = addr2object[args['data']]
-            obj.add_edge(args['id'], data)
+            data = args['data']
+            dataobj = addr2object[data]
+            obj.add_edge(args['id'], dataobj)
+            obj.add_reference(dataobj)
+            reference_counts[data] += 1
         elif call == 'ospSetObject':
-            other = addr2object[args['other']]
-            obj.add_edge(args['id'], other)
+            other = args['other']
+            otherobj = addr2object[other]
+            obj.add_edge(args['id'], otherobj)
+            obj.add_reference(otherobj)
+            reference_counts[other] += 1
         elif call in ['ospSetBool', 'ospSetString', 'ospSetFloat', 'ospSetInt']:
             obj.set_property(args['id'], args['x'])
             

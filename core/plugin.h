@@ -150,6 +150,7 @@ struct PluginState
 {   
     // Renderer type the plugin is called for
     std::string     renderer;
+    bool            uses_renderer_type;
 
     // XXX need to store renderer type as well, for scene plugins,  
     // as an OSPGroup can indirectly link to an OSPMaterial (which is 
