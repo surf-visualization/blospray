@@ -1515,6 +1515,10 @@ handle_get_server_state(TCPSocket *sock)
         for (auto& l : state->lights)
             ll.push_back((size_t)l);
 
+        json gi;
+        for (auto& i : state->group_instances)
+            gi.push_back({(size_t)(i.first), to_string(i.second)});
+
         json d = p[kv.first] = { 
             {"name", instance->name}, 
             {"type", instance->type},
@@ -1531,7 +1535,7 @@ handle_get_server_state(TCPSocket *sock)
                 {"volume_data_range", { state->volume_data_range[0], state->volume_data_range[1] } },
                 {"data", (size_t)state->data},
                 {"lights", ll},
-                {"group_instances", state->group_instances.size()}
+                {"group_instances", gi}
             } }
         };
     }
@@ -2027,12 +2031,13 @@ prepare_scene()
         //ospSetBool(world, "compactMode", true);
         ospSetData(world, "instance", instances);
     ospCommit(world);
-    ospRelease(instances);
+    //ospRelease(instances);
     
-    printf("Have %d light(s) in the scene\n", scene_lights.size());
+    printf("Adding %d light(s) to the scene\n", scene_lights.size());
     OSPData light_data = ospNewData(scene_lights.size(), OSP_OBJECT, &scene_lights[0], 0);
     ospSetData(renderer, "light", light_data);
     ospCommit(renderer);
+    //ospRelease(light_data);
 
     return true;
 }
@@ -2057,7 +2062,7 @@ handle_hello(TCPSocket *sock, const ClientMessage& client_message)
     } 
     else
     {
-        printf("Got HELLO message, client protocol version %d matches ours\n", client_version);
+        //printf("Got HELLO message, client protocol version %d matches ours\n", client_version);
         result.set_success(true);
     }
 
@@ -2066,7 +2071,6 @@ handle_hello(TCPSocket *sock, const ClientMessage& client_message)
     return res;
 }
    
-
 // Connection handling
 
 bool
@@ -2097,8 +2101,8 @@ handle_connection(TCPSocket *sock)
                 return false;
             }
 
-            printf("Got client message of type %s\n", ClientMessage_Type_Name(client_message.type()).c_str());
-            printf("%s\n", client_message.DebugString().c_str());
+            //printf("Got client message of type %s\n", ClientMessage_Type_Name(client_message.type()).c_str());
+            //printf("%s\n", client_message.DebugString().c_str());
 
             switch (client_message.type())
             {
@@ -2149,9 +2153,7 @@ handle_connection(TCPSocket *sock)
 
                 case ClientMessage::QUERY_BOUND:
                     handle_query_bound(sock, client_message.string_value());
-                    //printf("WARNING: message ignored atm!\n");
-
-                    return true;
+                    break;
 
                 case ClientMessage::START_RENDERING:
 
