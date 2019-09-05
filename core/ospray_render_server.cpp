@@ -121,7 +121,7 @@ struct BlenderMesh
 
 enum SceneObjectType
 {
-    SOT_MESH,           // Blender mesh    -> SOT_TRIANGLE_MESH
+    SOT_MESH,           // Blender mesh    -> rename to SOT_TRIANGLE_MESH
     SOT_GEOMETRY,       // OSPRay geometry
     SOT_VOLUME,
     SOT_SLICES,
@@ -158,8 +158,9 @@ struct SceneObject
     OSPVolumetricModel          volumetric_model;   // Only for type == SOT_VOLUME
     OSPLight                    light;              // Only for type == SOT_LIGHT
 
-    SceneObject()
+    SceneObject(SceneObjectType type)
     {
+        this->type = type;
         group = nullptr;
         geometric_model = nullptr;
         volumetric_model = nullptr;
@@ -168,9 +169,10 @@ struct SceneObject
 };
 
 // Top-level scene objects
-typedef std::map<std::string, SceneObject>      SceneObjectMap;
-// Mesh Data, either plugins or regular Blender meshes
+typedef std::map<std::string, SceneObject*>     SceneObjectMap;
+// Type of each Mesh Data, either plugin or regular Blender meshe
 typedef std::map<std::string, SceneDataType>    SceneDataTypeMap;
+
 typedef std::map<std::string, PluginInstance*>  PluginInstanceMap;
 typedef std::map<std::string, BlenderMesh*>     BlenderMeshMap;
 
@@ -726,7 +728,7 @@ handle_update_plugin_instance(TCPSocket *sock)
 bool
 handle_update_blender_mesh_data(TCPSocket *sock, const std::string& name)
 {
-    printf("BLENDER MESH DATA '%s'\n", name.c_str());
+    printf("DATA '%s' (blender mesh)\n", name.c_str());
 
     BlenderMesh *blender_mesh;
     OSPGeometry geometry;
@@ -846,16 +848,27 @@ update_blender_mesh_object(const UpdateObject& update)
 
     printf("OBJECT '%s' (blender mesh)\n", object_name.c_str());   
 
+    bool            create_new_object = false;
+    SceneObject     *scene_object;
+    OSPInstance     instance;
+    OSPGroup        group;
+    OSPGeometricModel model;
+
     SceneObjectMap::iterator so_it = scene_objects.find(object_name);
 
     if (so_it != scene_objects.end())
     {
-        printf("... Have an existing blender mesh object called '%s'\n", object_name.c_str());
+        // XXX check scene object type
+        printf("... Updating existing object\n");
+        scene_object = so_it->second;
+        assert(scene_object->type == SOT_MESH);
+        instance = scene_object->instances[0];
+        assert(instance);
+        group = scene_object->group;
+        model = scene_object->geometric_model;
     }
     else
-    {
-        // New mesh object
-    }
+        create_new_object = true;
 
     // Check linked data
 
@@ -886,26 +899,34 @@ update_blender_mesh_object(const UpdateObject& update)
         return false;
     }    
 
+    if (create_new_object)
+    {
+        // New mesh object
+        scene_object = scene_objects[object_name] = new SceneObject(SOT_MESH);
+        group = scene_object->group = ospNewGroup();
+        instance = ospNewInstance(group);
+        scene_object->instances.push_back(instance);
+        model = ospNewGeometricModel(geometry);
+        ospSetObject(model, "material", default_material);
+    }
+
+    // Update object 
+
     glm::mat4   obj2world;
     float       affine_xform[12];
 
     object2world_from_protobuf(obj2world, update);
     affine3fv_from_mat4(affine_xform, obj2world);
+    ospSetAffine3fv(instance, "xfm", affine_xform);
 
-    OSPGeometricModel model = ospNewGeometricModel(geometry);
-        ospSetObject(model, "material", default_material);
     ospCommit(model);
+    ospCommit(instance);    
 
     OSPData models = ospNewData(1, OSP_OBJECT, &model, 0);
-    OSPGroup group = ospNewGroup();
         ospSetData(group, "geometry", models);
     ospCommit(group);
     ospRelease(model);
     ospRelease(models);
-
-    OSPInstance instance = ospNewInstance(group);
-        ospSetAffine3fv(instance, "xfm", affine_xform);
-    ospCommit(instance);
     ospRelease(group);
 
     // XXX should create this list from scene_objects?
@@ -1479,8 +1500,8 @@ handle_get_server_state(TCPSocket *sock)
     p = {};
     for (auto& kv: scene_objects)
     {
-        const SceneObject& object = kv.second;
-        p[kv.first] = { {"type", object.type}, {"name", object.name}, {"data_link", object.data_link} };
+        const SceneObject* object = kv.second;
+        p[kv.first] = { {"type", object->type}, {"name", object->name}, {"data_link", object->data_link} };
     }
     j["scene_objects"] = p;
 
