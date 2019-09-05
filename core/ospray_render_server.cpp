@@ -728,18 +728,16 @@ handle_update_blender_mesh_data(TCPSocket *sock, const std::string& name)
 {
     printf("BLENDER MESH DATA '%s'\n", name.c_str());
 
-    OSPGeometry geometry;
     BlenderMesh *blender_mesh;
+    OSPGeometry geometry;
+    bool create_new_mesh = false;
 
     SceneDataTypeMap::iterator it = scene_data_types.find(name);
     if (it == scene_data_types.end())
     {
         // No previous mesh with this name
         printf("... Unseen name, creating new mesh\n");
-        geometry = ospNewGeometry("triangles");
-        scene_data_types[name] = SDT_MESH;
-        blender_mesh = blender_meshes[name] = new BlenderMesh;
-        blender_mesh->geometry = geometry;
+        create_new_mesh = true;
     }
     else
     {
@@ -748,21 +746,29 @@ handle_update_blender_mesh_data(TCPSocket *sock, const std::string& name)
 
         if (type != SDT_MESH)
         {
-            printf("... WARNING: scene data '%s' is currently of type %d, overwriting with mesh!\n", name.c_str(), type);
-
-            // XXX do the overwriting correctly ;-)    
-            // erase existing entries
-
-            geometry = ospNewGeometry("triangles");  
-            blender_mesh = blender_meshes[name] = new BlenderMesh;
-            blender_mesh->geometry = geometry;  
+            printf("... WARNING: data '%s' is currently of type %d, overwriting with new mesh!\n", name.c_str(), type);    
+            // XXX erase existing entry
+            create_new_mesh = true;  
         }
         else
         {
-            printf("... WARNING: mesh '%s' already present, overwriting!\n", name.c_str());            
+            printf("... Updating existing mesh\n");            
             blender_mesh = blender_meshes[name];
             geometry = blender_mesh->geometry;
+            // As we're updating an existing geometry these might not get set 
+            // again below, so remove them here. If they are set below there
+            // value will get updated anyway
+            // XXX is it ok to remove a param that was never set?
+            ospRemoveParam(geometry, "vertex.normal");
+            ospRemoveParam(geometry, "vertex.color");
         }
+    }
+
+    if (create_new_mesh)
+    {
+        blender_mesh = blender_meshes[name] = new BlenderMesh;
+        geometry = blender_mesh->geometry = ospNewGeometry("triangles");;
+        scene_data_types[name] = SDT_MESH;
     }
 
     MeshData    mesh_data;
@@ -777,6 +783,8 @@ handle_update_blender_mesh_data(TCPSocket *sock, const std::string& name)
     flags = mesh_data.flags();
 
     printf("... %d vertices, %d triangles, flags 0x%08x\n", nv, nt, flags);
+
+    // Receive mesh data
 
     vertex_buffer.reserve(nv*3);
     if (sock->recvall(&vertex_buffer[0], nv*3*sizeof(float)) == -1)
@@ -801,6 +809,8 @@ handle_update_blender_mesh_data(TCPSocket *sock, const std::string& name)
     triangle_buffer.reserve(nt*3);
     if (sock->recvall(&triangle_buffer[0], nt*3*sizeof(uint32_t)) == -1)
         return false;
+
+    // Set up geometry
 
     data = ospNewData(nv, OSP_VEC3F, &vertex_buffer[0]);    
     ospSetData(geometry, "vertex.position", data);
