@@ -863,7 +863,7 @@ update_blender_mesh_object(const UpdateObject& update)
         scene_object = so_it->second;
         assert(scene_object->type == SOT_MESH);
         instance = scene_object->instances[0];
-        assert(instance);
+        assert(instance != nullptr);
         group = scene_object->group;
         model = scene_object->geometric_model;
     }
@@ -906,7 +906,7 @@ update_blender_mesh_object(const UpdateObject& update)
         group = scene_object->group = ospNewGroup();
         instance = ospNewInstance(group);
         scene_object->instances.push_back(instance);
-        model = ospNewGeometricModel(geometry);
+        model = scene_object->geometric_model = ospNewGeometricModel(geometry);
         ospSetObject(model, "material", default_material);
     }
 
@@ -2031,13 +2031,13 @@ prepare_scene()
         //ospSetBool(world, "compactMode", true);
         ospSetData(world, "instance", instances);
     ospCommit(world);
-    //ospRelease(instances);
+    ospRelease(instances);
     
     printf("Adding %d light(s) to the scene\n", scene_lights.size());
     OSPData light_data = ospNewData(scene_lights.size(), OSP_OBJECT, &scene_lights[0], 0);
     ospSetData(renderer, "light", light_data);
     ospCommit(renderer);
-    //ospRelease(light_data);
+    ospRelease(light_data);
 
     return true;
 }

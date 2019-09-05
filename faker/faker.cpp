@@ -486,9 +486,9 @@ ospCommit(OSPObject obj)
         {"obj", (size_t)obj}
     };
 
-    libcall(obj);
-
     log_json(j);
+
+    libcall(obj);  
 }
 
 void
