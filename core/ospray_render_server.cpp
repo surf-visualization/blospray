@@ -386,6 +386,53 @@ check_plugin_parameters(GenerateFunctionResult& result, const PluginParameter *p
 }
 
 void
+delete_plugin_instance(const std::string& name)
+{        
+    PluginInstanceMap::iterator it = plugin_instances.find(name);
+
+    if (it == plugin_instances.end())
+    {
+        printf("ERROR: plugin instance '%s' to delete not found!\n", name.c_str());
+        return;
+    }
+
+    PluginInstance *plugin_instance = it->second;
+    PluginState *state = plugin_instance->state;
+    
+    // Released OSPRay resources created by the plugin
+    switch (plugin_instance->type)
+    {
+    case PT_GEOMETRY:
+        ospRelease(state->geometry);
+        break;
+    case PT_VOLUME:
+        ospRelease(state->volume);
+        break;
+    case PT_SCENE:
+        for (auto& kv: state->group_instances)
+            ospRelease(kv.first);    
+        for (OSPLight& l: state->lights)
+            ospRelease(l);
+        break;
+    }
+
+    if (state->bound)
+        delete state->bound;
+    //if (state->data)
+    // XXX call plugin's clear_data_function_t
+
+    delete state;    
+
+    plugin_instances.erase(it);
+    plugin_state.erase(name);
+    scene_data_types.erase(name);
+}
+
+//
+// Scene management
+//
+
+void
 delete_object(const std::string& object_name)
 {        
     SceneObjectMap::iterator so_it = scene_objects.find(object_name);
@@ -402,6 +449,101 @@ delete_object(const std::string& object_name)
     scene_data_types.erase(object_name);
 }
 
+void 
+delete_scene_data(const std::string& name)
+{
+    SceneDataTypeMap::iterator it = scene_data_types.find(name);
+
+    if (it == scene_data_types.end())
+    {
+        printf("ERROR: scene data '%s' to delete not found!\n", name.c_str());
+        return;
+    }
+
+    if (it->second == SDT_PLUGIN)
+        delete_plugin_instance(name);
+    else
+    {
+        assert(it->second == SDT_MESH);
+        printf("XXX todo: delete blender mesh\n");
+        //delete_blender_mesh(name);
+    }
+}
+
+/*
+Find scene object by name, create new if not found.
+Three cases:
+1. no existing object with name -> create new
+2. existing object with name, but of wrong type -> delete existing, create new
+3. existing object with name and correct type -> return existing
+
+The parameter created will be signal whether a new SceneObject was created.
+*/
+
+SceneObject*
+find_or_replace_scene_object(const std::string& name, SceneObjectType type, bool& created)
+{
+    SceneObject *scene_object;
+
+    SceneObjectMap::iterator it = scene_objects.find(name);
+
+    if (it != scene_objects.end())
+    {
+        scene_object = it->second;
+        if (scene_object->type != type)
+        {
+            printf("... WARNING: existing object is of type %d, replacing with type %d\n", 
+                scene_object->type, type);
+            delete_object(name);
+            created = true;
+        }
+        else
+        {        
+            printf("... Existing object matches type %d\n", type);
+            created = false;
+        }
+    }
+    else
+    {
+        printf("... Creating new object\n", type);
+        created = true;
+    }
+
+    if (created)
+    {
+        scene_object = new SceneObject(type);
+        scene_object->name = name;
+        scene_objects[name] = scene_object;        
+    }
+
+    return scene_object;
+}
+
+bool
+scene_data_with_type_exists(const std::string& name, SceneDataType type)
+{
+    SceneDataTypeMap::iterator sdt_it = scene_data_types.find(name);
+
+    if (sdt_it == scene_data_types.end())
+    {
+        printf("... Scene data '%s' does not exist\n", name.c_str());
+        return false;
+    }
+    else if (sdt_it->second != type)
+    {
+        printf("... Scene data '%s' is not of type %d, but of type %d\n", 
+            name.c_str(), type, sdt_it->second);
+        return false;
+    }
+
+    printf("... Scene data '%s' found, type %d\n", name.c_str(), type);
+    
+    return true;        
+}
+
+//
+// Scene elements
+//
 
 void
 prepare_renderers()
@@ -473,71 +615,6 @@ create_transfer_function(const std::string& name, float minval, float maxval)
     return nullptr;
 }
 
-void
-delete_plugin_instance(const std::string& name)
-{        
-    PluginInstanceMap::iterator it = plugin_instances.find(name);
-
-    if (it == plugin_instances.end())
-    {
-        printf("ERROR: plugin instance '%s' to delete not found!\n", name.c_str());
-        return;
-    }
-
-    PluginInstance *plugin_instance = it->second;
-    PluginState *state = plugin_instance->state;
-    
-    // Released OSPRay resources created by the plugin
-    switch (plugin_instance->type)
-    {
-    case PT_GEOMETRY:
-        ospRelease(state->geometry);
-        break;
-    case PT_VOLUME:
-        ospRelease(state->volume);
-        break;
-    case PT_SCENE:
-        for (auto& kv: state->group_instances)
-            ospRelease(kv.first);    
-        for (OSPLight& l: state->lights)
-            ospRelease(l);
-        break;
-    }
-
-    if (state->bound)
-        delete state->bound;
-    //if (state->data)
-    // XXX call plugin's clear_data_function_t
-
-    delete state;    
-
-    plugin_instances.erase(it);
-    plugin_state.erase(name);
-    scene_data_types.erase(name);
-}
-
-void 
-delete_scene_data(const std::string& name)
-{
-    SceneDataTypeMap::iterator it = scene_data_types.find(name);
-
-    if (it == scene_data_types.end())
-    {
-        printf("ERROR: scene data '%s' to delete not found!\n", name.c_str());
-        return;
-    }
-
-    if (it->second == SDT_PLUGIN)
-        delete_plugin_instance(name);
-    else
-    {
-        assert(it->second == SDT_MESH);
-        printf("XXX todo: delete blender mesh\n");
-        //delete_blender_mesh(name);
-    }
-}
-
-
 bool
 handle_update_plugin_instance(TCPSocket *sock)
 {
@@ -552,7 +629,7 @@ handle_update_plugin_instance(TCPSocket *sock)
 
     printf("PLUGIN INSTANCE '%s'\n", data_name.c_str());
 
-    bool create_new_instance = false;
+    bool create_new_instance;
     PluginInstance *plugin_instance;
     PluginState *state;    
     PluginType plugin_type;
@@ -596,66 +673,45 @@ handle_update_plugin_instance(TCPSocket *sock)
 
     // Check against the current instances
 
-    SceneDataTypeMap::iterator it = scene_data_types.find(data_name);
+    create_new_instance = true;
 
-    if (it != scene_data_types.end())
+    if (scene_data_with_type_exists(data_name, SDT_PLUGIN))
     {
-        // Have existing scene data with this name, check what it is
-        SceneDataType data_type = it->second;
+        // Have existing plugin instance with this name, check what it is
+        plugin_instance = plugin_instances[data_name];
+        state = plugin_state[data_name];
 
-        if (data_type != SDT_PLUGIN)
+        if (plugin_instance->type != plugin_type || plugin_instance->plugin_name != plugin_name)
         {
-            printf("... WARNING: scene data '%s' is currently of type %d, overwriting with new plugin instance!\n", data_name.c_str(), data_type);
-            delete_scene_data(data_name);
-            create_new_instance = true;
+            printf("... Existing plugin (type %d, name '%s') does't match, overwriting!\n", 
+                plugin_instance->type, plugin_name.c_str());
+            delete_plugin_instance(data_name);            
         }
         else
         {
-            printf("... Have an existing plugin instance called '%s'\n", data_name.c_str());                        
-            
-            plugin_instance = plugin_instances[data_name];
-            state = plugin_state[data_name];
+            // Plugin still of the same type and name, check if parameters and properties still up to date
+            const std::string& parameters_hash = get_sha1(update.plugin_parameters().c_str());
+            const std::string& custom_props_hash = get_sha1(update.custom_properties().c_str());
 
-            if (plugin_instance->type != plugin_type || plugin_instance->plugin_name != plugin_name)
+            if (parameters_hash != plugin_instance->parameters_hash)
             {
-                printf("... Existing plugin (type %d, name '%s') does't match, overwriting!\n", 
-                    plugin_instance->type, plugin_name.c_str());
-                delete_plugin_instance(data_name);
-                create_new_instance = true;
+                printf("... Parameters changed, re-running plugin\n");
+                delete_plugin_instance(data_name);                
+            }
+            else if (custom_props_hash != plugin_instance->custom_properties_hash)
+            {
+                printf("... Custom properties changed, re-running plugin\n");
+                delete_plugin_instance(data_name);                
+            }
+            else if (plugin_instance->state->uses_renderer_type && plugin_instance->state->renderer != current_renderer_type)
+            {
+                printf("... Plugin depends on renderer type, which changed from '%s', re-running plugin\n", 
+                    plugin_instance->state->renderer.c_str());
+                delete_plugin_instance(data_name);                
             }
             else
-            {
-                // Plugin still of the same type and name, check if parameters and properties still up to date
-                const std::string& parameters_hash = get_sha1(update.plugin_parameters().c_str());
-                const std::string& custom_props_hash = get_sha1(update.custom_properties().c_str());
-
-                if (parameters_hash != plugin_instance->parameters_hash)
-                {
-                    printf("... Parameters changed, re-running plugin\n");
-                    delete_plugin_instance(data_name);
-                    create_new_instance = true;
-                }
-                else if (custom_props_hash != plugin_instance->custom_properties_hash)
-                {
-                    printf("... Custom properties changed, re-running plugin\n");
-                    delete_plugin_instance(data_name);
-                    create_new_instance = true;
-                }
-                else if (plugin_instance->state->uses_renderer_type && plugin_instance->state->renderer != current_renderer_type)
-                {
-                    printf("... Plugin depends on renderer type, which changed from '%s', re-running plugin\n", 
-                        plugin_instance->state->renderer.c_str());
-                    delete_plugin_instance(data_name);
-                    create_new_instance = true;
-                }
-            }
+                create_new_instance = false;
         }
-    }
-    else
-    {
-        // No previous plugin instance with this name
-        printf("... Creating new plugin instance\n");
-        create_new_instance = true;
     }
 
     // Prepare result
@@ -671,7 +727,7 @@ handle_update_plugin_instance(TCPSocket *sock)
         return true;
     }
 
-    // At this point we're creating a new plugin instance
+    // At this point we're creating a new plugin instance, check the plugin itself first
 
     PluginDefinition plugin_definition;
 
@@ -681,22 +737,6 @@ handle_update_plugin_instance(TCPSocket *sock)
         send_protobuf(sock, result);
         return false;
     }    
-
-    state = plugin_state[data_name] = new PluginState; 
-    state->renderer = current_renderer_type;   
-    state->uses_renderer_type = plugin_definition.uses_renderer_type;
-
-    plugin_instance = plugin_instances[data_name] = new PluginInstance;  
-    plugin_instance->type = plugin_type;
-    plugin_instance->plugin_name = plugin_name;        
-    plugin_instance->state = state; 
-    plugin_instance->name = data_name;    
-    plugin_instance->parameters_hash = get_sha1(s_plugin_parameters);
-    plugin_instance->custom_properties_hash = get_sha1(s_custom_properties);    
-
-    scene_data_types[data_name] = SDT_PLUGIN;
-
-    // Find generate function
 
     generate_function_t generate_function = plugin_definition.functions.generate_function;
 
@@ -715,9 +755,26 @@ handle_update_plugin_instance(TCPSocket *sock)
         // Something went wrong...
         send_protobuf(sock, result);
         return false;
-    }
+    }    
 
+    // Create plugin instance and state
+    // XXX delete plugin instance and state below in case of error
+
+    state = plugin_state[data_name] = new PluginState; 
+    state->renderer = current_renderer_type;   
+    state->uses_renderer_type = plugin_definition.uses_renderer_type;
     state->parameters = plugin_parameters;
+
+    // XXX move this to below the generate function
+    plugin_instance = plugin_instances[data_name] = new PluginInstance;  
+    plugin_instance->type = plugin_type;
+    plugin_instance->plugin_name = plugin_name;        
+    plugin_instance->state = state; 
+    plugin_instance->name = data_name;    
+    plugin_instance->parameters_hash = get_sha1(s_plugin_parameters);
+    plugin_instance->custom_properties_hash = get_sha1(s_custom_properties);    
+
+    scene_data_types[data_name] = SDT_PLUGIN;
 
     // Call generate function
 
@@ -901,84 +958,14 @@ handle_update_blender_mesh_data(TCPSocket *sock, const std::string& name)
     return true;
 }
 
-
-/*
-Find scene object by name, create new if not found.
-Three cases:
-1. no existing object with name -> create new
-2. existing object with name, but of wrong type -> delete existing, create new
-3. existing object with name and correct type -> return existing
-
-The parameter created will be signal whether a new SceneObject was created.
-*/
-
-SceneObject*
-find_or_replace_scene_object(const std::string& name, SceneObjectType type, bool& created)
-{
-    SceneObject     *scene_object;
-
-    SceneObjectMap::iterator it = scene_objects.find(name);
-
-    if (it != scene_objects.end())
-    {
-        scene_object = it->second;
-        if (scene_object->type != type)
-        {
-            printf("... WARNING: existing object is of type %d, replacing with type %d\n", 
-                scene_object->type, type);
-            delete_object(name);
-            created = true;
-        }
-        else
-        {        
-            printf("... Existing object matches type %d\n", type);
-            created = false;
-        }
-    }
-    else
-    {
-        printf("... Creating new object\n", type);
-        created = true;
-    }
-
-    if (created)
-    {
-        scene_object = new SceneObject(type);
-        scene_object->name = name;
-        scene_objects[name] = scene_object;        
-    }
-
-    return scene_object;
-}
-
-bool
-scene_data_with_type_exists(const std::string& name, SceneDataType type)
-{
-    SceneDataTypeMap::iterator sdt_it = scene_data_types.find(name);
-
-    if (sdt_it == scene_data_types.end())
-    {
-        printf("--> '%s' | WARNING: linked data not found!\n", name.c_str());
-        return false;
-    }
-    else if (sdt_it->second != type)
-    {
-        printf("--> '%s' | WARNING: linked data is not of type %d, but of type %d!\n", 
-            name.c_str(), type, sdt_it->second);
-        return false;
-    }
-
-    printf("--> '%s' (%d)\n", name.c_str(), type);
-    
-    return true;        
-}
-
 bool
 update_blender_mesh_object(const UpdateObject& update)
 {    
     const std::string& object_name = update.name();
+    const std::string& linked_data = update.data_link();
 
     printf("OBJECT '%s' (blender mesh)\n", object_name.c_str());   
+    printf("--> '%s'\n", linked_data.c_str());
 
     bool            created;
     SceneObject     *scene_object;
@@ -1003,8 +990,6 @@ update_blender_mesh_object(const UpdateObject& update)
     }
 
     // Check linked data
-
-    const std::string& linked_data = update.data_link();
 
     if (!scene_data_with_type_exists(linked_data, SDT_MESH))
         return false;
@@ -1055,11 +1040,12 @@ update_blender_mesh_object(const UpdateObject& update)
 
 bool
 add_geometry_object(const UpdateObject& update)
-{    
-    printf("OBJECT [%s] (geometry)\n", update.name().c_str());    
+{   
+    const std::string& linked_data = update.data_link(); 
 
-    const std::string& linked_data = update.data_link();
-
+    printf("OBJECT '%s' (geometry)\n", update.name().c_str());    
+    printf("--> '%s'\n", linked_data.c_str());
+    
     if (!scene_data_with_type_exists(linked_data, SDT_PLUGIN))
         return false;
 
@@ -1107,10 +1093,10 @@ add_geometry_object(const UpdateObject& update)
 bool
 add_scene_object(const UpdateObject& update)
 {    
-    printf("OBJECT '%s' (scene)\n", update.name().c_str());    
-
     const std::string& linked_data = update.data_link();
-    SceneDataTypeMap::iterator it = scene_data_types.find(linked_data);
+
+    printf("OBJECT '%s' (scene)\n", update.name().c_str());    
+    printf("--> '%s'\n", linked_data.c_str());
 
     if (!scene_data_with_type_exists(linked_data, SDT_PLUGIN))
         return false;
@@ -1165,10 +1151,11 @@ add_scene_object(const UpdateObject& update)
 bool
 add_volume_object(const UpdateObject& update, const Volume& volume_settings)
 {
-    printf("OBJECT '%s' (volume)\n", update.name().c_str());   
-
     const std::string& linked_data = update.data_link(); 
 
+    printf("OBJECT '%s' (volume)\n", update.name().c_str()); 
+    printf("--> '%s'\n", linked_data.c_str());  
+    
     if (!scene_data_with_type_exists(linked_data, SDT_PLUGIN))
         return false;
 
@@ -1260,9 +1247,10 @@ add_volume_object(const UpdateObject& update, const Volume& volume_settings)
 bool
 add_isosurfaces_object(const UpdateObject& update)
 {
-    printf("OBJECT '%s' (isosurfaces)\n", update.name().c_str());    
-
     const std::string& linked_data = update.data_link();    
+
+    printf("OBJECT '%s' (isosurfaces)\n", update.name().c_str()); 
+    printf("--> '%s'\n", linked_data.c_str());     
 
     if (!scene_data_with_type_exists(linked_data, SDT_PLUGIN))
         return false;
@@ -1352,9 +1340,10 @@ add_isosurfaces_object(const UpdateObject& update)
 bool
 add_slices_object(const UpdateObject& update, const Slices& slices)
 {
-    printf("OBJECT '%s' (slices)\n", update.name().c_str());
-    
     const std::string& linked_data = update.data_link();
+
+    printf("OBJECT '%s' (slices)\n", update.name().c_str());
+    printf("--> '%s'\n", linked_data.c_str());     
 
      if (!scene_data_with_type_exists(linked_data, SDT_PLUGIN))
         return false;
@@ -1495,8 +1484,10 @@ bool
 update_light_object(const UpdateObject& update, const LightSettings& light_settings)
 {
     const std::string& object_name = light_settings.object_name();
+    const std::string& linked_data = light_settings.light_name();    
+
     printf("OBJECT '%s' (light)\n", object_name.c_str());
-    printf("--> '%s' (blender light data)\n", light_settings.light_name().c_str());    // XXX not set for ambient
+    printf("--> '%s' (blender light data)\n", linked_data.c_str());    // XXX not set for ambient
 
     SceneObject *scene_object;
     OSPLight light;
@@ -2245,7 +2236,6 @@ handle_connection(TCPSocket *sock)
                     return true;
 
                 case ClientMessage::UPDATE_SCENE:
-                    // XXX handle clear_scene
                     // XXX check res
                     // XXX ignore if rendering
                     clear_scene();
