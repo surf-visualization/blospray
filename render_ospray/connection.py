@@ -328,6 +328,7 @@ class Connection:
 
         # Scene objects
 
+        # XXX turn into render setting
         self.send_updated_ambient_light(world.ospray.ambient_color, world.ospray.ambient_intensity)
 
         self.mesh_data_exported = set()

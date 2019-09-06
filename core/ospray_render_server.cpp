@@ -145,7 +145,6 @@ struct SceneObject
     //json            parameters;
 
     std::string     data_link;              // Name of linked scene data, may be ""
-    //PluginInstance  *plugin_instance;       // May be NULL
 
     // Corresponding OSPRay elements in the scene (aka world)
 
@@ -166,6 +165,27 @@ struct SceneObject
         geometric_model = nullptr;
         volumetric_model = nullptr;
         light = nullptr;
+    }
+
+    ~SceneObject() 
+    {
+        switch (type)
+        {
+        case SOT_LIGHT:
+            ospRelease(light);
+            break;
+        case SOT_VOLUME:
+            ospRelease(volumetric_model);
+            ospRelease(group);
+            break;
+        case SOT_GEOMETRY:
+            ospRelease(geometric_model);
+            ospRelease(group);
+            break;
+        }
+
+        for (OSPInstance& i : instances)
+            ospRelease(i);
     }
 };
 
@@ -366,6 +386,24 @@ check_plugin_parameters(GenerateFunctionResult& result, const PluginParameter *p
 }
 
 void
+delete_object(const std::string& object_name)
+{        
+    SceneObjectMap::iterator so_it = scene_objects.find(object_name);
+
+    if (so_it == scene_objects.end())
+    {
+        printf("ERROR: object to delete '%s' not found!\n", object_name.c_str());
+        return;
+    }
+
+    SceneObject *scene_object = so_it->second;
+    delete scene_object;
+
+    scene_data_types.erase(object_name);
+}
+
+
+void
 prepare_renderers()
 {
     OSPMaterial m;
@@ -545,9 +583,8 @@ handle_update_plugin_instance(TCPSocket *sock)
 
         if (data_type != SDT_PLUGIN)
         {
-            printf("... WARNING: scene data '%s' is currently of type %d, overwriting with new plugin instance!\n", data_name.c_str(), data_type);            
-            // XXX
-            // delete_plugin_instance(data_name);
+            printf("... WARNING: scene data '%s' is currently of type %d, overwriting with new plugin instance!\n", data_name.c_str(), data_type);
+            delete_plugin_instance(data_name);
             create_new_instance = true;
         }
         else
@@ -860,13 +897,22 @@ update_blender_mesh_object(const UpdateObject& update)
     if (so_it != scene_objects.end())
     {
         // XXX check scene object type
-        printf("... Updating existing object\n");
+        
         scene_object = so_it->second;
-        assert(scene_object->type == SOT_MESH);
-        instance = scene_object->instances[0];
-        assert(instance != nullptr);
-        group = scene_object->group;
-        geometric_model = scene_object->geometric_model;
+        if (scene_object->type != SOT_MESH)
+        {
+            printf("... WARNING: existing object is of type %d, replacing it\n", scene_object->type);
+            delete_object(object_name);
+            create_new_object = true;
+        }
+        else
+        {        
+            printf("... Updating existing object\n");
+            instance = scene_object->instances[0];
+            assert(instance != nullptr);
+            group = scene_object->group;
+            geometric_model = scene_object->geometric_model;
+        }
     }
     else
         create_new_object = true;
@@ -904,6 +950,8 @@ update_blender_mesh_object(const UpdateObject& update)
     {
         // New mesh object
         scene_object = scene_objects[object_name] = new SceneObject(SOT_MESH);
+        scene_object->name = object_name;
+        scene_object->data_link = linked_data;
         group = scene_object->group = ospNewGroup();
         instance = ospNewInstance(group);
         scene_object->instances.push_back(instance);
@@ -1443,19 +1491,26 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
 
     if (so_it != scene_objects.end())
     {
-        // XXX check scene object type
-        printf("... Updating existing light\n");
         scene_object = so_it->second;
-        assert(scene_object->type == SOT_LIGHT);
-        light = scene_object->light;
-        assert(light != nullptr);
-        light_type = scene_object->light_type;
-        if (light_type != light_settings.type())
-        {            
-            printf("... Light type changed from %d to %d, creating new light\n",
-                light_type, light_settings.type());
-            create_new_light = true;
-            // XXX delete existing     
+        if (scene_object->type != SOT_LIGHT)
+        {
+            printf("... | WARNING: existing object is of type %d, replacing it\n", scene_object->type);
+            delete_object(object_name);
+            create_new_light = true;            
+        }
+        else
+        {
+            printf("... Updating existing light\n");            
+            light = scene_object->light;
+            assert(light != nullptr);
+            light_type = scene_object->light_type;
+            if (light_type != light_settings.type())
+            {            
+                printf("... Light type changed from %d to %d, replacing with new light\n",
+                    light_type, light_settings.type());
+                delete_object(object_name);
+                create_new_light = true;
+            }
         }
     }
     else
@@ -1497,17 +1552,6 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
         scene_object->data_link = light_settings.light_name();
     }
 
-    // XXX turn into render setting, as there is no way to create an ambient light object
-    // in blender
-    if (light_settings.type() == LightSettings::AMBIENT)
-    {                
-        ospSetFloat(light, "intensity", light_settings.intensity());
-        ospSetVec3f(light, "color", light_settings.color(0), light_settings.color(1), light_settings.color(2));
-        ospCommit(light);
-        scene_lights.push_back(light);
-        return true;
-    }
-
     if (light_settings.type() == LightSettings::SPOT)
     {
         ospSetFloat(light, "openingAngle", light_settings.opening_angle());
@@ -1532,7 +1576,7 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
     ospSetFloat(light, "intensity", light_settings.intensity());
     ospSetBool(light, "visible", light_settings.visible());
 
-    if (light_settings.type() != LightSettings::SUN)
+    if (light_settings.type() != LightSettings::SUN && light_settings.type() != LightSettings::AMBIENT)
         ospSetVec3f(light, "position", light_settings.position(0), light_settings.position(1), light_settings.position(2));
 
     if (light_settings.type() == LightSettings::SUN || light_settings.type() == LightSettings::SPOT)
