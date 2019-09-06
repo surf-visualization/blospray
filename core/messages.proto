@@ -49,6 +49,7 @@ message ClientMessage
     }
     
     Type    type = 1;
+    uint32  sequence = 2;
         
     //bool    bool_value = 10;
     uint32  uint_value = 20;            // HELLO     

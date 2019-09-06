@@ -2211,6 +2211,7 @@ handle_connection(TCPSocket *sock)
 
             //printf("Got client message of type %s\n", ClientMessage_Type_Name(client_message.type()).c_str());
             //printf("%s\n", client_message.DebugString().c_str());
+            //printf("ClientMessage %d received\n", client_message.sequence());
 
             switch (client_message.type())
             {

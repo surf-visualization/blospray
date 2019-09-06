@@ -30,6 +30,8 @@ from struct import pack, unpack
 
 import numpy
 
+next_sequence = 1
+
 sys.path.insert(0, os.path.split(__file__)[0])
 
 from .common import PROTOCOL_VERSION, send_protobuf, receive_protobuf
@@ -337,19 +339,25 @@ class Connection:
 
             obj = instance.object
 
+            print('DEPSGRAPH object instance "%s", type=%s, is_instance=%d, random_id=%d' % \
+                (obj.name, obj.type, instance.is_instance, instance.random_id))
+
             if obj.type == 'LIGHT':
                 self.send_updated_light(data, depsgraph, obj)
                 continue
             elif obj.type != 'MESH':
-                continue                        
-                
+                continue
+        
             mesh = obj.data
 
             # Send mesh data
             self.send_updated_mesh_data(data, depsgraph, mesh)            
                         
             # Send object linking to the mesh data
-            self.send_updated_mesh_object(data, depsgraph, obj, mesh, instance.matrix_world)
+            self.send_updated_mesh_object(data, depsgraph, obj, mesh, instance.matrix_world, instance.is_instance, instance.random_id)
+
+        print('EXPORT done, next_sequence = %d' % next_sequence)
+        
 
     def send_updated_ambient_light(self, color, intensity):
 
@@ -451,19 +459,29 @@ class Connection:
         send_protobuf(self.sock, light_settings)
 
 
-    def send_updated_mesh_object(self, data, depsgraph, obj, mesh, matrix_world):
+    def send_updated_mesh_object(self, data, depsgraph, obj, mesh, matrix_world, is_instance, random_id):
 
         # We do a bit of the logic here in determining what a certain
         # object -> object data combination (including their properties)
         # means, so the server isn't bothered with this.
+
+        name = obj.name
         
-        print('Updating MESH OBJECT "%s"' % obj.name)
+        s = 'Updating MESH OBJECT "%s"' % name
+        if is_instance:
+            s += ' (instance %d)' % random_id
+            name = '%s [%d]' % (name, random_id)
+        print(s)
+
+        global next_sequence
     
         client_message = ClientMessage()
         client_message.type = ClientMessage.UPDATE_OBJECT    
+        client_message.sequence = next_sequence
+        next_sequence += 1
         
         update = UpdateObject()
-        update.name = obj.name
+        update.name = name
         update.object2world[:] = matrix2list(matrix_world)
         update.data_link = mesh.name
         

@@ -133,25 +133,23 @@ float_swap(float value)
     return val.f;
 };
 
+static uint8_t receive_buffer[1024];
+
 template<typename T>
 bool
 receive_protobuf(TCPSocket *sock, T& protobuf)
-{
-    std::vector<char> receive_buffer;
+{    
     uint32_t message_size;
     
     if (sock->recvall(&message_size, 4) == -1)
         return false;
-    
-    receive_buffer.reserve(message_size);
+
+    assert(message_size < 1024);
         
-    if (sock->recvall(&receive_buffer[0], message_size) == -1)
+    if (sock->recvall(receive_buffer, message_size) == -1)
         return false;
-    
-    // XXX this probably makes a copy?
-    std::string message(&receive_buffer[0], message_size);
-    
-    protobuf.ParseFromString(message);
+
+    protobuf.ParseFromArray(receive_buffer, message_size);
     
     return true;
 }
