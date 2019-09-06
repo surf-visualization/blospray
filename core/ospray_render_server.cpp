@@ -139,7 +139,6 @@ enum SceneDataType
 struct SceneObject
 {
     SceneObjectType type;                   // XXX the type of scene objects actually depends on the type of data linked
-    std::string     name;
 
     glm::mat4       object2world;
     //json            parameters;
@@ -512,7 +511,6 @@ find_or_replace_scene_object(const std::string& name, SceneObjectType type, bool
     if (created)
     {
         scene_object = new SceneObject(type);
-        scene_object->name = name;
         scene_objects[name] = scene_object;        
     }
 
@@ -1555,7 +1553,6 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
         scene_object = scene_objects[object_name] = new SceneObject(SOT_LIGHT);
         scene_object->light = light;
         scene_object->light_type = light_type;
-        scene_object->name = object_name;
         scene_object->data_link = light_settings.light_name();
     }
 
@@ -1608,7 +1605,7 @@ handle_get_server_state(TCPSocket *sock)
     for (auto& kv: scene_objects)
     {
         const SceneObject* object = kv.second;
-        p[kv.first] = { {"type", object->type}, {"name", object->name}, {"data_link", object->data_link} };
+        p[kv.first] = { {"type", object->type}, {"data_link", object->data_link} };
     }
     j["scene_objects"] = p;
 
