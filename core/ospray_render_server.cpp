@@ -987,7 +987,8 @@ update_blender_mesh_object(const UpdateObject& update)
     {
         instance = scene_object->instances[0];
         assert(instance != nullptr);
-        group = scene_object->group;        
+        group = scene_object->group;
+        assert(group != nullptr);
     }
 
     // Check linked data
@@ -1008,11 +1009,13 @@ update_blender_mesh_object(const UpdateObject& update)
     {
         scene_object->data_link = linked_data;
         geometric_model = scene_object->geometric_model = ospNewGeometricModel(geometry);
-        // XXX the material is renderer dependent...
-        ospSetObject(geometric_model, "material", default_material);
+            // XXX the material is renderer dependent...
+            ospSetObject(geometric_model, "material", default_material);
+        ospCommit(geometric_model);
     }
     else
     {
+        // XXX need this for updating material
         geometric_model = scene_object->geometric_model;
     }
 
@@ -1025,7 +1028,6 @@ update_blender_mesh_object(const UpdateObject& update)
     affine3fv_from_mat4(affine_xform, obj2world);
     ospSetAffine3fv(instance, "xfm", affine_xform);
 
-    ospCommit(geometric_model);
     ospCommit(instance);    
 
     OSPData models = ospNewData(1, OSP_OBJECT, &geometric_model, 0);
@@ -1041,15 +1043,42 @@ update_blender_mesh_object(const UpdateObject& update)
 
 
 bool
-add_geometry_object(const UpdateObject& update)
+update_geometry_object(const UpdateObject& update)
 {   
+    const std::string& object_name = update.name();
     const std::string& linked_data = update.data_link(); 
 
-    printf("OBJECT '%s' (geometry)\n", update.name().c_str());    
+    printf("OBJECT '%s' (geometry)\n", object_name.c_str());    
     printf("--> '%s'\n", linked_data.c_str());
+
+    // Check linked data    
     
     if (!scene_data_with_type_exists(linked_data, SDT_PLUGIN))
         return false;
+
+    bool            created;
+    SceneObject     *scene_object;
+    OSPInstance     instance;
+    OSPGroup        group;
+    OSPGeometricModel geometric_model;
+
+    scene_object = find_or_replace_scene_object(object_name, SOT_GEOMETRY, created);
+
+    if (created)
+    {
+        // New geometry object
+        group = scene_object->group = ospNewGroup();
+        instance = ospNewInstance(group);
+        scene_object->instances.push_back(instance);
+    }
+    else
+    {
+        geometric_model = scene_object->geometric_model;
+        instance = scene_object->instances[0];
+        assert(instance != nullptr);
+        group = scene_object->group;
+        assert(group != nullptr);        
+    }
 
     PluginInstance* plugin_instance = plugin_instances[linked_data];
     assert(plugin_instance->type == PT_GEOMETRY);
@@ -1063,29 +1092,26 @@ add_geometry_object(const UpdateObject& update)
         return false;
     }    
 
+    if (created)
+    {
+        geometric_model = ospNewGeometricModel(geometry); 
+            ospSetObject(geometric_model, "material", default_material);
+        ospCommit(geometric_model);
+
+        OSPData models = ospNewData(1, OSP_OBJECT, &geometric_model, 0);        
+        ospSetData(group, "geometry", models);
+        ospCommit(group);
+        ospRelease(models);
+    }
+
     glm::mat4   obj2world;
     float       affine_xform[12];
 
     object2world_from_protobuf(obj2world, update);
     affine3fv_from_mat4(affine_xform, obj2world);
 
-    OSPGeometricModel model = ospNewGeometricModel(geometry);
-        ospSetObject(model, "material", default_material);
-    ospCommit(model);
-
-    OSPData models = ospNewData(1, OSP_OBJECT, &model, 0);
-
-    OSPGroup group = ospNewGroup();
-        ospSetData(group, "geometry", models);
-    ospCommit(group);
-
-    ospRelease(model);
-    ospRelease(models);
-
-    OSPInstance instance = ospNewInstance(group);
-        ospSetAffine3fv(instance, "xfm", affine_xform);
+    ospSetAffine3fv(instance, "xfm", affine_xform);    
     ospCommit(instance);
-    ospRelease(group);
 
     scene_instances.push_back(instance);
 
@@ -1719,7 +1745,7 @@ handle_update_object(TCPSocket *sock)
         break;
 
     case UpdateObject::GEOMETRY:
-        add_geometry_object(update);
+        update_geometry_object(update);
         break;
 
     case UpdateObject::SCENE:
@@ -2319,7 +2345,7 @@ handle_connection(TCPSocket *sock)
                     // New framebuffer (for a single sample) available, send
                     // it to the client
 
-                    printf("Frame available, sample %d (%s, %d bytes)\n", render_result.sample(), render_result.file_name().c_str(), render_result.file_size());
+                    //printf("Frame available, sample %d (%s, %d bytes)\n", render_result.sample(), render_result.file_name().c_str(), render_result.file_size());
 
                     sock->sendfile(render_result.file_name().c_str());
 
