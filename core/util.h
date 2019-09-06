@@ -33,6 +33,10 @@
 #endif
 #include <glm/gtc/type_ptr.hpp>
 
+// Protobuf message printing
+#include <google/protobuf/io/zero_copy_stream_impl.h>
+#include <google/protobuf/text_format.h>
+
 #include <ospray.h>
 #include "messages.pb.h"
 #include "tcpsocket.h"
@@ -170,6 +174,50 @@ send_protobuf(TCPSocket *sock, T& protobuf)
         return false;
     
     return true;
+}
+
+template<typename T>
+void
+object2world_from_protobuf(glm::mat4 &matrix, T& protobuf)
+{
+    float *M = glm::value_ptr(matrix);
+    
+    // Protobuf elements assumed in row-major order 
+    // (while GLM uses column-major order)
+    M[0] = protobuf.object2world(0);
+    M[1] = protobuf.object2world(4);
+    M[2] = protobuf.object2world(8);
+    M[3] = protobuf.object2world(12);
+
+    M[4] = protobuf.object2world(1);
+    M[5] = protobuf.object2world(5);
+    M[6] = protobuf.object2world(9);
+    M[7] = protobuf.object2world(13);
+    
+    M[8] = protobuf.object2world(2);
+    M[9] = protobuf.object2world(6);
+    M[10] = protobuf.object2world(10);
+    M[11] = protobuf.object2world(14);
+    
+    M[12] = protobuf.object2world(3);
+    M[13] = protobuf.object2world(7);
+    M[14] = protobuf.object2world(11);
+    M[15] = protobuf.object2world(15);    
+}
+
+template<typename T>
+void
+print_protobuf(const T& protobuf)
+{
+    google::protobuf::io::FileOutputStream* output = new google::protobuf::io::FileOutputStream(1);         // stdout
+    
+    // XXX add message type
+    printf("--- %s message ---\n", protobuf.GetTypeName().c_str());
+    bool success = google::protobuf::TextFormat::Print(protobuf, output);
+    output->Flush();
+    printf("------------------------\n");
+        
+    delete output;
 }
 
 // https://stackoverflow.com/a/39833022/9296788

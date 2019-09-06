@@ -33,63 +33,131 @@ target_include_directories(volume_raw
     ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-# geometry_plane
+# volume_testing
+
+add_library(volume_testing SHARED volume_testing.cpp)
+set_target_properties(volume_testing PROPERTIES PREFIX "")   
+target_link_libraries(volume_testing PUBLIC ${OSPRAY_LIBRARIES} ospray::ospray_testing)
+target_include_directories(volume_testing
+    PUBLIC
+    ${PROTOBUF_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_BINARY_DIR}
+)
+
+# geometry_plane (for testing)
 
 add_library(geometry_plane SHARED geometry_plane.cpp)
 set_target_properties(geometry_plane PROPERTIES PREFIX "")   
 target_link_libraries(geometry_plane PUBLIC ${OSPRAY_LIBRARIES})
+target_include_directories(geometry_plane
+    PUBLIC
+    ${PROTOBUF_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_BINARY_DIR}
+)
+
+# geometry_ply
+
+if(PLUGIN_PLY)
+
+    # XXX Rply path
+
+    add_library(geometry_ply SHARED geometry_ply.cpp ${CMAKE_SOURCE_DIR}/rply-1.1.4/rply.c)
+    set_target_properties(geometry_ply PROPERTIES PREFIX "")   
+    target_link_libraries(geometry_ply PUBLIC ${OSPRAY_LIBRARIES})
+    target_include_directories(geometry_ply
+        PUBLIC
+        ${CMAKE_SOURCE_DIR}/rply-1.1.4
+        ${PROTOBUF_INCLUDE_DIRS}
+        ${CMAKE_CURRENT_BINARY_DIR}
+    )
+
+endif(PLUGIN_PLY)
 
 # scene_rbc
 
 add_library(scene_rbc SHARED scene_rbc.cpp)
 set_target_properties(scene_rbc PROPERTIES PREFIX "")   
 target_link_libraries(scene_rbc PUBLIC ${OSPRAY_LIBRARIES})
+target_include_directories(scene_rbc
+    PUBLIC
+    ${PROTOBUF_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_BINARY_DIR}
+)
+
+
+# scene_cornellbox
+
+add_library(scene_cornellbox SHARED scene_cornellbox.cpp)
+set_target_properties(scene_cornellbox PROPERTIES PREFIX "")   
+target_link_libraries(scene_cornellbox PUBLIC ${OSPRAY_LIBRARIES} ospray::ospray_testing)
+target_include_directories(scene_cornellbox
+    PUBLIC
+    ${PROTOBUF_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_BINARY_DIR}
+)
+
 
 if(PLUGIN_COSMOGRID)
 
-    # geometry_cosmogrid
-
-    FIND_PACKAGE(HDF5)
-    IF (HDF5_IS_PARALLEL)
-        FIND_PACKAGE(MPI)
-    ENDIF()
-
-    INCLUDE_DIRECTORIES (${HDF5_INCLUDE_DIRS})
-    IF (HDF5_IS_PARALLEL)
-        INCLUDE_DIRECTORIES (${MPI_CXX_INCLUDE_PATH})
-        SET(HDF5LIBS "${HDF5_LIBRARIES}" "${MPI_CXX_LIBRARIES}")
-    ELSE()
-        SET(HDF5LIBS "${HDF5_LIBRARIES}")
-    ENDIF()
+    # scene_cosmogrid
 
     SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -std=c++11")
 
-    INCLUDE_DIRECTORIES (${HDF5_INCLUDE_DIRS})
-    INCLUDE_DIRECTORIES (${MPI_CXX_INCLUDE_PATH})
-
-    add_library(geometry_cosmogrid SHARED geometry_cosmogrid.cpp)
-    set_target_properties(geometry_cosmogrid PROPERTIES PREFIX "")   
-    target_link_libraries(geometry_cosmogrid PUBLIC ${OSPRAY_LIBRARIES} ${HDF5LIBS})
-    target_include_directories(geometry_cosmogrid
+    add_library(scene_cosmogrid SHARED scene_cosmogrid.cpp)
+    set_target_properties(scene_cosmogrid PROPERTIES PREFIX "")   
+    target_link_libraries(scene_cosmogrid PUBLIC ${OSPRAY_LIBRARIES} ${HDF5LIBS})
+    target_include_directories(scene_cosmogrid
         PUBLIC
         /home/paulm/projects/uhdf5-git
+        /home/melis/projects/uhdf5
         ${PROTOBUF_INCLUDE_DIRS}
         ${CMAKE_CURRENT_BINARY_DIR}    
     )
 
 endif(PLUGIN_COSMOGRID)
 
+if(PLUGIN_VOLUME_HDF5)
+    add_library(volume_hdf5 SHARED volume_hdf5.cpp)
+    set_target_properties(volume_hdf5 PROPERTIES PREFIX "")   
+    target_link_libraries(volume_hdf5 PUBLIC ${OSPRAY_LIBRARIES} ${HDF5LIBS})
+    target_include_directories(volume_hdf5
+        PUBLIC
+        /home/paulm/projects/uhdf5-git
+        /home/melis/projects/uhdf5        
+        ${PROTOBUF_INCLUDE_DIRS}
+        ${CMAKE_CURRENT_BINARY_DIR}
+    )
+endif(PLUGIN_VOLUME_HDF5)
+
 install(TARGETS 
     volume_raw 
+    volume_testing
     geometry_plane
     scene_rbc
+    scene_cornellbox
     DESTINATION bin)
     
 
 if(PLUGIN_COSMOGRID)
 
     install(TARGETS 
-        geometry_cosmogrid 
+        scene_cosmogrid 
         DESTINATION bin)
 
 endif(PLUGIN_COSMOGRID)
+
+if(PLUGIN_PLY)
+
+    install(TARGETS 
+        geometry_ply 
+        DESTINATION bin)
+
+endif(PLUGIN_PLY)
+
+if(PLUGIN_VOLUME_HDF5)
+
+    install(TARGETS 
+        volume_hdf5 
+        DESTINATION bin)
+
+endif(PLUGIN_VOLUME_HDF5)

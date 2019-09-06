@@ -18,12 +18,11 @@
 # limitations under the License.                                           #
 # ======================================================================== #
 
-# - Use depsgraph fields to determine what to render
 # - Make sockets non-blocking and use select() to handle errors on the server side
 
 import bpy, bmesh
 #from bgl import *
-from mathutils import Vector
+from mathutils import Vector, Matrix
 
 import sys, array, json, os, select, socket, time
 from math import tan, atan, degrees, radians
@@ -33,13 +32,16 @@ import numpy
 
 sys.path.insert(0, os.path.split(__file__)[0])
 
-from .common import send_protobuf, receive_protobuf
+from .common import PROTOCOL_VERSION, send_protobuf, receive_protobuf
 from .messages_pb2 import (
+    HelloResult,
     CameraSettings, ImageSettings,
-    LightSettings, Light, RenderSettings,
-    SceneElement, MeshData,
+    Light, RenderSettings,
+    MeshData,
     ClientMessage, GenerateFunctionResult,
-    RenderResult
+    RenderResult,
+    UpdateObject, UpdatePluginInstance,
+    Volume, Slices, Slice
 )
 
 # Object to world matrix
@@ -67,17 +69,18 @@ def customproperties2dict(obj, filepath_keys=['file']):
             properties[k] = v.to_dict()
         elif hasattr(v, 'to_list'):
             properties[k] = v.to_list()
+        elif isinstance(v, str):
+            if k == 'file' or k.endswith('_file'):
+                # Convert blendfile-relative paths to full paths, e.g.
+                # //.../file.name -> /.../.../file.name
+                v = bpy.path.abspath(v)
+            properties[k] = v
         else:
             # XXX assumes simple type that can be serialized to json
             properties[k] = v
 
-    for k in filepath_keys:
-        if k in properties:
-            # Convert blendfile-relative paths to full paths, e.g.
-            # //.../file.name -> /.../.../file.name
-            properties[k] = bpy.path.abspath(properties[k])
-
     return properties
+
 
 class Connection:
 
@@ -90,157 +93,46 @@ class Connection:
 
         self.framebuffer_width = self.framebuffer_height = None
 
+    def connect(self):
+        try:
+            self.sock.connect((self.host, self.port))
+        except:
+            return False
+
+        # Handshake
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.HELLO
+        client_message.uint_value = PROTOCOL_VERSION
+        send_protobuf(self.sock, client_message)
+
+        result = HelloResult()
+        receive_protobuf(self.sock, result)
+
+        if not result.success:
+            print('ERROR: Handshake with server:')
+            print(result.message)
+            return False
+
+        return True
+
     def close(self):
-        # XXX send bye
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.BYE
+        send_protobuf(self.sock, client_message)
+
         self.sock.close()
 
     def update(self, data, depsgraph):
-        print(data)
-        print(depsgraph)
+        #print(data)
+        #print(depsgraph)
 
         self.engine.update_stats('', 'Connecting')
 
-        self.sock.connect((self.host, self.port))
-
-        # Send HELLO and check returned version
-        #hello = ClientMessage()
-        #hello.type = ClientMessage.HELLO
-        #hello.version = 1
-        #send_protobuf(self.sock, hello)
-
-        self.exported_meshes = set()
+        # Export scene        
         self.export_scene(data, depsgraph)
 
-    def render(self, depsgraph):
-
-        """
-        if self.is_preview:
-            self.render_preview(depsgraph)
-        else:
-            self.render_scene(depsgraph)
-        """
-
-        # Signal server to start rendering
-
-        client_message = ClientMessage()
-        client_message.type = ClientMessage.START_RENDERING
-        send_protobuf(self.sock, client_message)
-
-        # Read back successive framebuffer samples
-
-        num_pixels = self.framebuffer_width * self.framebuffer_height
-        bytes_left = num_pixels*4 * 4
-
-        framebuffer = numpy.zeros(bytes_left, dtype=numpy.uint8)
-
-        t0 = time.time()
-
-        result = self.engine.begin_result(0, 0, self.framebuffer_width, self.framebuffer_height)
-        # Only Combined and Depth seem to be available
-        layer = result.layers[0].passes["Combined"]
-
-        FBFILE = '/dev/shm/blosprayfb.exr'
-
-        sample = 1
-        cancel_sent = False
-
-        self.engine.update_stats('', 'Rendering sample %d/%d' % (sample, self.render_samples))
-
-        # XXX this loop blocks too often, might need to move it to a separate thread,
-        # but OTOH we're already using select() to detect when to read
-        while True:
-
-            # Check for incoming render results
-
-            r, w, e = select.select([self.sock], [], [], 0)
-
-            if len(r) == 1:
-
-                render_result = RenderResult()
-                # XXX handle receive error
-                receive_protobuf(self.sock, render_result)
-
-                if render_result.type == RenderResult.FRAME:
-
-                    # New framebuffer (for a single pixel sample) is available
-
-                    """
-                    # XXX Slow: get as raw block of floats
-                    print('[%6.3f] _read_framebuffer start' % (time.time()-t0))
-                    self._read_framebuffer(framebuffer, self.framebuffer_width, self.framebuffer_height)
-                    print('[%6.3f] _read_framebuffer end' % (time.time()-t0))
-
-                    pixels = framebuffer.view(numpy.float32).reshape((num_pixels, 4))
-                    print(pixels.shape)
-                    print('[%6.3f] view() end' % (time.time()-t0))
-
-                    # Here we write the pixel values to the RenderResult
-                    # XXX This is the slow part
-                    print(type(layer.rect))
-                    layer.rect = pixels
-                    self.update_result(result)
-                    """
-
-                    # We read the framebuffer file content from the server
-                    # and locally write it to FBFILE, which then gets loaded by Blender
-
-                    # XXX both receiving into a file and loading from file block
-                    # the blender UI for a short time
-
-                    print('[%6.3f] _read_framebuffer_to_file start' % (time.time()-t0))
-                    self._read_framebuffer_to_file(FBFILE, render_result.file_size)
-                    print('[%6.3f] _read_framebuffer_to_file end' % (time.time()-t0))
-
-                    # Sigh, this needs an image file format. I.e. reading in a raw framebuffer
-                    # of floats isn't possible, hence the OpenEXR file
-                    # XXX result.load_from_file(...), instead of result.layers[0].load_from_file(...), would work as well?
-                    result.layers[0].load_from_file(FBFILE)
-
-                    # Remove file
-                    os.unlink(FBFILE)
-
-                    self.engine.update_result(result)
-
-                    print('[%6.3f] update_result() done' % (time.time()-t0))
-
-                    self.engine.update_progress(sample/self.render_samples)
-
-                    sample += 1
-
-                    # XXX perhaps use update_memory_stats()
-
-                    self.engine.update_stats(
-                        'Server %.1f MB' % render_result.memory_usage,
-                        'Rendering sample %d/%d' % (sample, self.render_samples))
-
-                elif render_result.type == RenderResult.CANCELED:
-                    print('Rendering CANCELED!')
-                    self.engine.update_stats('', 'Rendering canceled')
-                    cancel_sent = True
-                    break
-
-                elif render_result.type == RenderResult.DONE:
-                    self.engine.update_stats('', 'Rendering done')
-                    print('Rendering done!')
-                    break
-
-            # Check if render was canceled
-
-            if self.engine.test_break() and not cancel_sent:
-                client_message = ClientMessage()
-                client_message.type = ClientMessage.CANCEL_RENDERING
-                send_protobuf(self.sock, client_message)
-                cancel_sent = True
-
-            time.sleep(0.001)
-
-        self.engine.end_result(result)
-
-        print('Done with render loop')
-
-        client_message = ClientMessage()
-        client_message.type = ClientMessage.QUIT
-        send_protobuf(self.sock, client_message)
+        # Connection will be closed by render(), which is always
+        # called after update()
 
     #
     # Scene export
@@ -252,11 +144,11 @@ class Connection:
         Custom properties starting with an underscore become
         element properties (key without the underscore), all the others
         become plugin parameters, set in the key "plugin_parameters",
-        *but only if a property key 'plugin_name' is set*.
+        *but only if a property key 'plugin_type' is set*.
         """
 
         plugin_parameters = None
-        if 'plugin_name' in properties:
+        if 'plugin_type' in properties:
             if 'plugin_parameters' in properties:
                 plugin_parameters = properties['plugin_parameters']
             else:
@@ -271,279 +163,36 @@ class Connection:
                 properties[k[1:]] = v
             elif plugin_parameters is not None:
                 plugin_parameters[k] = v
-
-    def export_ospray_volume(self, obj, data, depsgraph):
-
-        # Volume data (i.e. mesh)
-
-        mesh = obj.data
-
-        msg = 'Exporting mesh %s (ospray volume)' % mesh.name
-        self.engine.update_stats('', msg)
-        print(msg)
-
-        # Properties
+                
+    def _process_properties2(self, obj, extract_plugin_parameters=False):
+        """
+        Get Blender custom properties set on obj.
+        Custom properties starting with an underscore become
+        element properties (with a key without the underscore), 
+        all the others become plugin parameters, but only if
+        extract_plugin_parameters is True.
+        """
 
         properties = {}
-        properties['plugin_name'] = mesh.ospray.plugin
-        properties['plugin_type'] = mesh.ospray.plugin_type
-        self._process_properties(mesh, properties)
+        plugin_parameters = {}
 
-        print('Sending properties:')
-        print(properties)
-
-        element = SceneElement()
-        element.type = SceneElement.VOLUME_DATA
-        element.name = mesh.name
-        element.properties = json.dumps(properties)
-        # XXX add a copy of the object's xform, as the volume loading plugin might need it
-        element.object2world[:] = matrix2list(obj.matrix_world)
-
-        send_protobuf(self.sock, element)
-
-        # Wait for volume to be loaded on the server, signaled
-        # by the return of a result value
-
-        generate_function_result = GenerateFunctionResult()
-
-        receive_protobuf(self.sock, generate_function_result)
-
-        if not generate_function_result.success:
-            print('ERROR: volume generation failed:')
-            print(generate_function_result.message)
-            return
-
-        id = generate_function_result.hash
-        print(id)
-
-        mesh['loaded_id'] = id
-        print('Exported volume received id %s' % id)
-
-        # Volume object
-
-        msg = 'Exporting object %s (ospray volume)' % obj.name
-        self.engine.update_stats('', msg)
-        print(msg)
-
-        properties = {}
-        properties['representation'] = obj.ospray.representation
-        self._process_properties(obj, properties)
+        for k, v in customproperties2dict(obj).items():
+            #print('k', k, 'v', v)
+            if k[0] == '_':
+                #print(properties, k, v)
+                properties[k[1:]] = v
+            elif extract_plugin_parameters:
+                plugin_parameters[k] = v       
+            else:
+                properties[k] = v
+                
+        return properties, plugin_parameters
         
-        properties['sampling_rate'] = obj.ospray.sampling_rate
-        #properties['gradient_shading'] = obj.ospray.gradient_shading
-        #properties['pre_integration'] = obj.ospray.pre_integration
-        #properties['single_shade'] = obj.ospray.single_shade        
-
-        print('Sending properties:')
-        print(properties)
-
-        element = SceneElement()
-        element.type = SceneElement.VOLUME_OBJECT
-        element.name = obj.name
-        element.properties = json.dumps(properties)
-        element.object2world[:] = matrix2list(obj.matrix_world)
-        element.data_link = mesh.name
-
-        send_protobuf(self.sock, element)
-
-    def export_ospray_geometry(self, obj, data, depsgraph):
-
-        # User-defined geometry (server-side)
-
-        mesh = obj.data
-
-        msg = 'Exporting mesh %s (ospray geometry)' % mesh.name
-        self.engine.update_stats('', msg)
-        print(msg)
-
-        # Properties
-
-        properties = {}
-        properties['plugin_name'] = mesh.ospray.plugin
-        properties['plugin_type'] = mesh.ospray.plugin_type
-
-        self._process_properties(mesh, properties)
-
-        print('Sending properties:')
-        print(properties)
-
-        element = SceneElement()
-        element.type = SceneElement.GEOMETRY_DATA
-        element.name = mesh.name
-        element.properties = json.dumps(properties)
-        # XXX add a copy of the object's xform, as the geometry loading plugin might need it
-        element.object2world[:] = matrix2list(obj.matrix_world)
-
-        send_protobuf(self.sock, element)
-
-        # Wait for geometry to be loaded on the server, signaled
-        # by the return of a result value
-
-        generate_function_result = GenerateFunctionResult()
-
-        receive_protobuf(self.sock, generate_function_result)
-
-        if not generate_function_result.success:
-            print('ERROR: geometry generation failed:')
-            print(generate_function_result.message)
-            return
-
-        # XXX
-        #id = generate_function_result.hash
-        id = '12345'
-        print(id)
-
-        mesh['loaded_id'] = id
-        print('Exported geometry received id %s' % id)
-
-        # Geometry object
-
-        msg = 'Exporting object %s (ospray geometry)' % obj.name
-        self.engine.update_stats('', msg)
-        print(msg)
-
-        properties = {}
-
-        self._process_properties(obj, properties)
-
-        print('Sending properties:')
-        print(properties)
-
-        element = SceneElement()
-        element.type = SceneElement.GEOMETRY_OBJECT
-        element.name = obj.name
-        element.properties = json.dumps(properties)
-        element.object2world[:] = matrix2list(obj.matrix_world)
-        element.data_link = mesh.name
-
-        send_protobuf(self.sock, element)
-
-
-    def export_mesh(self, mesh, data, depsgraph):
-
-        msg = 'Exporting mesh %s' % mesh.name
-        self.engine.update_stats('', msg)
-        print(msg)
-
-        properties = {}
-
-        self._process_properties(mesh, properties)
-
-        print('Sending properties:')
-        print(properties)
-
-        element = SceneElement()
-        element.type = SceneElement.MESH_DATA
-        element.name = mesh.name
-        element.properties = json.dumps(properties)
-        send_protobuf(self.sock, element)
-
-        mesh_data = MeshData()
-        flags = 0
-
-        # Send (triangulated) geometry
-
-        mesh.calc_loop_triangles()
-
-        nv = mesh_data.num_vertices = len(mesh.vertices)
-        nt = mesh_data.num_triangles = len(mesh.loop_triangles)
-
-        print('Mesh %s: %d v, %d t' % (mesh.name, nv, nt))
-
-        # Check if any faces use smooth shading
-        # XXX we currently don't handle meshes with both smooth
-        # and non-smooth faces, but those are probably not very common anyway
-
-        use_smooth = False
-        for tri in mesh.loop_triangles:
-            if tri.use_smooth:
-                print('Mesh uses smooth shading')
-                use_smooth = True
-                flags |= MeshData.NORMALS
-                break
-
-        # Vertex colors
-        #https://blender.stackexchange.com/a/8561
-        if mesh.vertex_colors:
-            flags |= MeshData.VERTEX_COLORS
-
-        # Send mesh data
-
-        mesh_data.flags = flags
-
-        send_protobuf(self.sock, mesh_data)
-
-        # Send vertices
-
-        vertices = numpy.empty(nv*3, dtype=numpy.float32)
-
-        for idx, v in enumerate(mesh.vertices):
-            p = v.co
-            vertices[3*idx+0] = p.x
-            vertices[3*idx+1] = p.y
-            vertices[3*idx+2] = p.z
-            
-        #print(vertices)
-
-        self.sock.send(vertices.tobytes())
-
-        # Vertex normals
-
-        if use_smooth:
-            normals = numpy.empty(nv*3, dtype=numpy.float32)
-
-            for idx, v in enumerate(mesh.vertices):
-                # XXX use .index?
-                n = v.normal
-                normals[3*idx+0] = n.x
-                normals[3*idx+1] = n.y
-                normals[3*idx+2] = n.z
-
-            self.sock.send(normals.tobytes())
-
-        # Vertex colors
-
-        if mesh.vertex_colors:
-            vcol_layer = mesh.vertex_colors.active
-            vcol_data = vcol_layer.data
-
-            vertex_colors = numpy.empty(nv*4, dtype=numpy.float32)
-
-            for poly in mesh.polygons:
-                for loop_index in poly.loop_indices:
-                    loop_vert_index = mesh.loops[loop_index].vertex_index
-                    color = vcol_data[loop_index].color
-                    # RGBA vertex colors in Blender 2.8x
-                    vertex_colors[4*loop_vert_index+0] = color[0]
-                    vertex_colors[4*loop_vert_index+1] = color[1]
-                    vertex_colors[4*loop_vert_index+2] = color[2]
-                    vertex_colors[4*loop_vert_index+3] = 1.0
-
-            self.sock.send(vertex_colors.tobytes())
-
-        # Send triangles
-
-        triangles = numpy.empty(nt*3, dtype=numpy.uint32)   # XXX opt possible when less than 64k vertices ;-)
-
-        for idx, tri in enumerate(mesh.loop_triangles):
-            triangles[3*idx+0] = tri.vertices[0]
-            triangles[3*idx+1] = tri.vertices[1]
-            triangles[3*idx+2] = tri.vertices[2]
-            
-        print(triangles)
-
-        self.sock.send(triangles.tobytes())
-
-        # Remember that we exported this mesh
-
-        self.exported_meshes.add(mesh.name)
-
-
     def export_scene(self, data, depsgraph):
 
         msg = 'Exporting scene'
         self.engine.update_stats('', msg)
-        print(msg)
+        print(msg)    
 
         client_message = ClientMessage()
         client_message.type = ClientMessage.UPDATE_SCENE
@@ -570,7 +219,7 @@ class Connection:
         if render.use_border:
             # XXX nice, in ospray the render region is set on the *camera*,
             # while in blender it is a *render* setting, but we pass it as
-            # an *image* settings :)
+            # an *image* setting :)
 
             # Blender: X to the right, Y up, i.e. (0,0) is lower-left, same
             # as ospray. BUT: ospray always fills up the complete framebuffer
@@ -664,85 +313,8 @@ class Connection:
         render_settings.ao_samples = scene.ospray.ao_samples
         #render_settings.shadows_enabled = scene.ospray.shadows_enabled     # XXX removed in 2.0?
 
-        # Lights
-
-        self.engine.update_stats('', 'Exporting lights')
-
-        light_settings = LightSettings()
-
-        light_settings.ambient_color[:] = world.ospray.ambient_color
-        light_settings.ambient_intensity = world.ospray.ambient_intensity
-
-        type2enum = dict(POINT=Light.POINT, SUN=Light.SUN, SPOT=Light.SPOT, AREA=Light.AREA)
-
-        lights = []
-        for instance in depsgraph.object_instances:
-
-            obj = instance.object
-
-            if obj.type != 'LIGHT':
-                continue
-
-            data = obj.data
-            xform = obj.matrix_world
-
-            ospray_data = data.ospray
-
-            light = Light()
-            light.type = type2enum[data.type]
-            light.object2world[:] = matrix2list(xform)
-            light.object_name = obj.name
-            light.light_name = data.name
-
-            light.color[:] = data.color
-            light.intensity = ospray_data.intensity
-            light.visible = ospray_data.visible      
-
-            if data.type == 'SUN':
-                light.angular_diameter = ospray_data.angular_diameter
-            elif data.type != 'AREA':
-                light.position[:] = (xform[0][3], xform[1][3], xform[2][3])
-
-            if data.type in ['SUN', 'SPOT']:
-                light.direction[:] = obj.matrix_world @ Vector((0, 0, -1)) - obj.location
-
-            if data.type == 'SPOT':
-                # Blender:
-                # .spot_size = full angle where light shines, in degrees
-                # .spot_blend = factor in [0,1], 0 = no penumbra, 1 = penumbra is full angle
-                light.opening_angle = degrees(data.spot_size)
-                light.penumbra_angle = 0.5*data.spot_blend*degrees(data.spot_size)
-                # assert light.penumbra_angle < 0.5*light.opening_angle
-
-            if data.type in ['POINT', 'SPOT']:
-                light.radius = data.shadow_soft_size
-
-            if data.type == 'AREA':
-                size_x = data.size
-                size_y = data.size_y
-
-                # Local
-                position = Vector((-0.5*size_x, -0.5*size_y, 0))
-                edge1 = position + Vector((0, size_y, 0))
-                edge2 = position + Vector((size_x, 0, 0))
-
-                # World
-                position = obj.matrix_world @ position
-                edge1 = obj.matrix_world @ edge1 - position
-                edge2 = obj.matrix_world @ edge2 - position
-
-                light.position[:] = position
-                light.edge1[:] = edge1
-                light.edge2[:] = edge2
-
-            lights.append(light)
-
-        # Assigning to lights[:] doesn't work, need to use extend()
-        light_settings.lights.extend(lights)
-
         #
         # Send scene
-        # XXX why isn't the lights export code below?
         #
 
         # Image settings
@@ -754,81 +326,572 @@ class Connection:
         # Camera settings
         send_protobuf(self.sock, camera_settings)
 
-        # Light settings
-        send_protobuf(self.sock, light_settings)
+        # Scene objects
 
-        # Objects (meshes, including meshes marked as volumes)
+        self.send_updated_ambient_light(world.ospray.ambient_color, world.ospray.ambient_intensity)
+
+        self.mesh_data_exported = set()
 
         for instance in depsgraph.object_instances:
 
             obj = instance.object
 
-            if obj.type != 'MESH':
+            if obj.type == 'LIGHT':
+                self.send_updated_light(data, depsgraph, obj)
                 continue
-
-            representation = obj.ospray.representation
-            print('Scene object %s, representation %s' % (obj.name, representation))
-
-            # XXX split off iso and slices
-            if representation in ['volume', 'volume_isosurfaces', 'volume_slices']:
-                self.export_ospray_volume(obj, data, depsgraph)
-                continue
-            elif representation == 'geometry':
-                self.export_ospray_geometry(obj, data, depsgraph)
-                continue
-            elif representation != 'regular':
-                print('WARNING: object "%s" has unhandled representation type "%s"' % \
-                    (obj.name, representation))
-                continue
-
-            # Regular blender mesh
-
+            elif obj.type != 'MESH':
+                continue                        
+                
             mesh = obj.data
 
-            # Export mesh if not already done so earlier, we can then link to it
-            # when exporting the object below
+            # Send mesh data
+            self.send_updated_mesh_data(data, depsgraph, mesh)            
+                        
+            # Send object linking to the mesh data
+            self.send_updated_mesh_object(data, depsgraph, obj, mesh, instance.matrix_world)
 
-            # XXX we should export meshes separately, keeping a local
-            # list which ones we already exported (by name).
-            # Then for MESH objects use the name of the mesh to instantiate
-            # it using the given xform. This gives us real instancing.
-            # But a user can change a mesh's name. However, we can
-            # sort of handle this by using the local name list and deleting
-            # (also on the server) whichever name's we don't see when exporting.
-            # Could also set a custom property on meshes with a unique ID
-            # we choose ourselves. But props get copied when duplicating
-            # See https://devtalk.blender.org/t/universal-unique-id-per-object/363/3
+    def send_updated_ambient_light(self, color, intensity):
 
-            if mesh.name not in self.exported_meshes:
-                self.export_mesh(mesh, data, depsgraph)
+        light = Light()
+        light.type = Light.AMBIENT
+        light.object_name = '<ambient>'
 
-            self.engine.update_stats('', 'Exporting object %s (mesh)' % obj.name)
+        light.color[:] = color
+        light.intensity = intensity
 
-            properties = {}
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.UPDATE_OBJECT  
 
-            self._process_properties(mesh, properties)
+        update = UpdateObject()
+        update.type = UpdateObject.LIGHT
+        update.name = '<ambient>'
+        
+        # XXX using three messages :-/
+        send_protobuf(self.sock, client_message)
+        send_protobuf(self.sock, update)
+        send_protobuf(self.sock, light)
 
-            print('Sending properties:')
-            print(properties)
 
-            element = SceneElement()
-            element.type = SceneElement.MESH_OBJECT
-            element.name = obj.name
-            element.data_link = mesh.name
-            element.properties = json.dumps(properties)
-            if instance.is_instance:
-                print('%s (%s) is instance' % (obj.name, mesh.name))
-                element.object2world[:] = matrix2list(instance.matrix_world)
-            else:
-                element.object2world[:] = matrix2list(obj.matrix_world)
+    def send_updated_light(self, data, depsgraph, obj):
 
-            send_protobuf(self.sock, element)
+        self.engine.update_stats('', 'Light %s' % obj.name)
 
-        # Signal last data was sent!
+        TYPE2ENUM = dict(POINT=Light.POINT, SUN=Light.SUN, SPOT=Light.SPOT, AREA=Light.AREA)
 
-        element = SceneElement()
-        element.type = SceneElement.NONE
-        send_protobuf(self.sock, element)
+        data = obj.data
+        xform = obj.matrix_world
+
+        ospray_data = data.ospray
+
+        light = Light()
+        light.type = TYPE2ENUM[data.type]
+        light.object2world[:] = matrix2list(xform)      # XXX get from updateobject
+        light.object_name = obj.name
+        light.light_name = data.name
+
+        light.color[:] = data.color
+        light.intensity = ospray_data.intensity
+        light.visible = ospray_data.visible
+
+        if data.type == 'SUN':
+            light.angular_diameter = ospray_data.angular_diameter
+        elif data.type != 'AREA':
+            light.position[:] = (xform[0][3], xform[1][3], xform[2][3])
+
+        if data.type in ['SUN', 'SPOT']:
+            light.direction[:] = obj.matrix_world @ Vector((0, 0, -1)) - obj.location
+
+        if data.type == 'SPOT':
+            # Blender:
+            # .spot_size = full angle where light shines, in degrees
+            # .spot_blend = factor in [0,1], 0 = no penumbra, 1 = penumbra is full angle
+            light.opening_angle = degrees(data.spot_size)
+            light.penumbra_angle = 0.5*data.spot_blend*degrees(data.spot_size)
+            # assert light.penumbra_angle < 0.5*light.opening_angle
+
+        if data.type in ['POINT', 'SPOT']:
+            light.radius = data.shadow_soft_size        # XXX what is this called in ospray?
+
+        if data.type == 'AREA':
+            size_x = data.size
+            size_y = data.size_y
+
+            # Local
+            position = Vector((-0.5*size_x, -0.5*size_y, 0))
+            edge1 = position + Vector((0, size_y, 0))
+            edge2 = position + Vector((size_x, 0, 0))
+
+            # World
+            position = obj.matrix_world @ position
+            edge1 = obj.matrix_world @ edge1 - position
+            edge2 = obj.matrix_world @ edge2 - position
+
+            light.position[:] = position
+            light.edge1[:] = edge1
+            light.edge2[:] = edge2
+
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.UPDATE_OBJECT  
+
+        update = UpdateObject()
+        update.type = UpdateObject.LIGHT
+        update.name = obj.name
+        update.object2world[:] = matrix2list(xform)
+        update.data_link = data.name
+        
+        custom_properties, plugin_parameters = self._process_properties2(obj, False)
+        assert len(plugin_parameters.keys()) == 0
+        
+        update.custom_properties = json.dumps(custom_properties)  
+
+        # XXX using three messages :-/
+        send_protobuf(self.sock, client_message)
+        send_protobuf(self.sock, update)
+        send_protobuf(self.sock, light)
+
+
+    def send_updated_mesh_object(self, data, depsgraph, obj, mesh, matrix_world):
+
+        # We do a bit of the logic here in determining what a certain
+        # object -> object data combination (including their properties)
+        # means, so the server isn't bothered with this.
+        
+        print('Updating MESH OBJECT "%s"' % obj.name)
+    
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.UPDATE_OBJECT    
+        
+        update = UpdateObject()
+        update.name = obj.name
+        update.object2world[:] = matrix2list(matrix_world)
+        update.data_link = mesh.name
+        
+        custom_properties, plugin_parameters = self._process_properties2(obj, False)
+        assert len(plugin_parameters.keys()) == 0
+        
+        update.custom_properties = json.dumps(custom_properties)    
+
+        if not obj.ospray.ospray_override or not mesh.ospray.plugin_enabled:
+            # Not OSPRay enabled or plugin disabled on the linked mesh data.
+            # Treat as regular blender Mesh object            
+            update.type = UpdateObject.MESH
+                
+            # Check that this object isn't a child used for slicing, in which case it should
+            # not be sent as normal geometry
+            parent = obj.parent 
+            if (parent is not None) and parent.ospray.ospray_override:
+                assert parent.type == 'MESH'
+                parent_mesh = parent.data
+                if (parent_mesh.ospray.plugin_type == 'volume') and (parent.ospray.volume_usage == 'slices'):
+                    print('Object "%s" is child of slice-enabled parent "%s", not sending' % (obj.name, parent.name))
+                    return
+            
+            send_protobuf(self.sock, client_message)
+            send_protobuf(self.sock, update)                    
+
+        else:        
+
+            extra = []
+        
+            plugin_type = mesh.ospray.plugin_type
+            print("Plugin type = %s" % plugin_type)
+            
+            if plugin_type == 'geometry':
+                update.type = UpdateObject.GEOMETRY
+                
+            elif plugin_type == 'scene':
+                update.type = UpdateObject.SCENE   
+                
+            elif plugin_type == 'volume':
+                
+                # XXX properties: single shade, gradient shading, ...
+                
+                volume_usage = obj.ospray.volume_usage
+                print('Volume usage is %s' % volume_usage)
+
+                if volume_usage == 'volume':
+                    update.type = UpdateObject.VOLUME
+                    volume = Volume()
+                    volume.sampling_rate = obj.ospray.sampling_rate
+                    extra.append(volume)
+
+                elif volume_usage == 'slices':
+                    update.type = UpdateObject.SLICES
+                    #  Process child objects for slices
+                    ss = []
+                    # Apparently the depsgraph leaves out the parenting? So get
+                    # that information from the original object
+                    # XXX need to ignore slice object itself in export, but not its mesh data
+                    children = depsgraph.scene.objects[obj.name].children
+                    print('Object "%s" has %d CHILDREN' % (obj.name, len(children)))
+
+                    # XXX volumetric texture and geometric model share the same coordinate space.
+                    # child.matrix_local should provide the transform of child in the parent's
+                    # coordinate system. unfortunately, this means we need to use this transform
+                    # to actually update the geometry on the server to use for slicing. we can
+                    # then transform it with the parent's transform to get it in the right position.                        
+
+                    for childobj in children:
+
+                        if not childobj.type == 'MESH':
+                            print('Ignoring slicing child object "%s", it\'s not a mesh' % childobj.name)
+                            continue
+
+                        if childobj.hide_render:
+                            print('Ignoring slicing child object "%s", it\'s hidden for rendering' % childobj.name)
+                            continue
+
+                        print('Sending slicing child mesh "%s"' % childobj.data.name)
+
+                        self.update_blender_mesh(data, depsgraph, childobj.data, childobj.matrix_local)
+
+                        slice = Slice()
+                        slice.linked_mesh = childobj.data.name
+                        # Note: this is the parent's object-to-world transform
+                        slice.object2world[:] = matrix2list(obj.matrix_world)
+                        ss.append(slice)                            
+
+                    slices = Slices()
+                    slices.slices.extend(ss)
+                    extra.append(slices)
+
+                elif volume_usage == 'isosurfaces':
+                    # Isosurface values are read from the custom property 'isovalue'
+                    update.type = UpdateObject.ISOSURFACES
+                                    
+            send_protobuf(self.sock, client_message)
+            send_protobuf(self.sock, update)
+            for msg in extra:
+                send_protobuf(self.sock, msg)
+    
+
+    def send_updated_mesh_data(self, data, depsgraph, mesh):
+        
+        """
+        Send an update on a Mesh Data block
+        """
+                
+        if mesh.name in self.mesh_data_exported:
+            print('Not sending MESH DATA "%s" again' % mesh.name)
+            return
+                
+        if mesh.ospray.plugin_enabled:
+            # Plugin instance
+            
+            print('Updating plugin-enabled mesh "%s"' % mesh.name)
+            
+            ospray = mesh.ospray            
+            plugin_enabled = ospray.plugin_enabled
+            plugin_name = ospray.plugin_name
+            plugin_type = ospray.plugin_type
+            
+            custom_properties, plugin_parameters = self._process_properties2(mesh, True)
+            
+            self.update_plugin_instance(mesh.name, plugin_type, plugin_name, plugin_parameters, custom_properties)
+
+        else:
+            # Treat as regular blender mesh
+            # XXX any need to send custom properties?
+            self.update_blender_mesh(data, depsgraph, mesh) 
+
+        # Remember that we exported this mesh
+        self.mesh_data_exported.add(mesh.name)          
+
+
+    def update_plugin_instance(self, name, plugin_type, plugin_name, plugin_parameters, custom_properties):
+        
+        self.engine.update_stats('', 'Updating plugin instance %s (plugin type %s)' % (name, plugin_type))
+        
+        type2enum = dict(
+            geometry = UpdatePluginInstance.GEOMETRY,
+            volume = UpdatePluginInstance.VOLUME,
+            scene = UpdatePluginInstance.SCENE
+        )
+        
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.UPDATE_PLUGIN_INSTANCE            
+        
+        update = UpdatePluginInstance()
+        update.type = type2enum[plugin_type]
+        update.name = name
+        
+        update.plugin_name = plugin_name
+        update.plugin_parameters = json.dumps(plugin_parameters)
+        update.custom_properties = json.dumps(custom_properties)
+        
+        send_protobuf(self.sock, client_message)
+        send_protobuf(self.sock, update)
+        
+        generate_function_result = GenerateFunctionResult()
+        
+        receive_protobuf(self.sock, generate_function_result)
+        
+        if not generate_function_result.success:
+            print('ERROR: plugin generation failed:')
+            print(generate_function_result.message)
+            return
+        
+
+    def update_blender_mesh(self, data, depsgraph, mesh, xform=None):
+
+        if mesh.name in self.mesh_data_exported:
+            print('Not updating MESH DATA "%s", already sent' % mesh.name)
+            return
+    
+        # XXX we should export meshes separately, keeping a local
+        # list which ones we already exported (by name).
+        # Then for MESH objects use the name of the mesh to instantiate
+        # it using the given xform. This gives us real instancing.
+        # But a user can change a mesh's name. However, we can
+        # sort of handle this by using the local name list and deleting
+        # (also on the server) whichever name's we don't see when exporting.
+        # Could also set a custom property on meshes with a unique ID
+        # we choose ourselves. But props get copied when duplicating
+        # See https://devtalk.blender.org/t/universal-unique-id-per-object/363/3
+
+        self.engine.update_stats('', 'Updating Blender MESH DATA "%s"' % mesh.name)
+        
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.UPDATE_BLENDER_MESH       
+        client_message.string_value = mesh.name
+        
+        send_protobuf(self.sock, client_message)
+        
+        # Send the actual mesh geometry
+        
+        mesh_data = MeshData()
+        flags = 0
+
+        # Send (triangulated) geometry
+
+        mesh.calc_loop_triangles()
+
+        nv = mesh_data.num_vertices = len(mesh.vertices)
+        nt = mesh_data.num_triangles = len(mesh.loop_triangles)
+
+        print('MESH DATA "%s": %d vertices, %d triangles' % (mesh.name, nv, nt))
+
+        # Check if any faces use smooth shading
+        # XXX we currently don't handle meshes with both smooth
+        # and non-smooth faces, but those are probably not very common anyway
+
+        use_smooth = False
+        for tri in mesh.loop_triangles:
+            if tri.use_smooth:
+                print('... mesh uses smooth shading')
+                use_smooth = True
+                flags |= MeshData.NORMALS
+                break
+
+        # Vertex colors
+        #https://blender.stackexchange.com/a/8561
+        if mesh.vertex_colors:
+            flags |= MeshData.VERTEX_COLORS
+
+        # Send mesh data
+
+        mesh_data.flags = flags
+
+        send_protobuf(self.sock, mesh_data)
+
+        # Send vertices
+
+        vertices = numpy.empty(nv*3, dtype=numpy.float32)
+
+        if xform is None:
+            xform = Matrix()    # Identity
+
+        for idx, v in enumerate(mesh.vertices):
+                p = xform @ v.co
+                vertices[3*idx+0] = p.x
+                vertices[3*idx+1] = p.y
+                vertices[3*idx+2] = p.z
+            
+        #print(vertices)
+
+        self.sock.send(vertices.tobytes())
+
+        # Send vertex normals (if set)
+
+        if use_smooth:
+            normals = numpy.empty(nv*3, dtype=numpy.float32)
+
+            for idx, v in enumerate(mesh.vertices):
+                # XXX use .index?
+                n = v.normal
+                normals[3*idx+0] = n.x
+                normals[3*idx+1] = n.y
+                normals[3*idx+2] = n.z
+
+            self.sock.send(normals.tobytes())
+
+        # Send vertex colors (if set)
+
+        if mesh.vertex_colors:
+            vcol_layer = mesh.vertex_colors.active
+            vcol_data = vcol_layer.data
+
+            vertex_colors = numpy.empty(nv*4, dtype=numpy.float32)
+
+            for poly in mesh.polygons:
+                for loop_index in poly.loop_indices:
+                    loop_vert_index = mesh.loops[loop_index].vertex_index
+                    color = vcol_data[loop_index].color
+                    # RGBA vertex colors in Blender 2.8x
+                    vertex_colors[4*loop_vert_index+0] = color[0]
+                    vertex_colors[4*loop_vert_index+1] = color[1]
+                    vertex_colors[4*loop_vert_index+2] = color[2]
+                    vertex_colors[4*loop_vert_index+3] = 1.0
+
+            self.sock.send(vertex_colors.tobytes())
+
+        # Send triangles
+
+        triangles = numpy.empty(nt*3, dtype=numpy.uint32)   # XXX opt possible with <64k vertices ;-)
+
+        for idx, tri in enumerate(mesh.loop_triangles):
+            triangles[3*idx+0] = tri.vertices[0]
+            triangles[3*idx+1] = tri.vertices[1]
+            triangles[3*idx+2] = tri.vertices[2]
+            
+        #print(triangles)
+
+        self.sock.send(triangles.tobytes())
+
+        self.mesh_data_exported.add(mesh.name)
+
+                
+                
+    #
+    # Rendering
+    #
+    
+    def render(self, depsgraph):
+
+        """
+        if self.is_preview:
+            self.render_preview(depsgraph)
+        else:
+            self.render_scene(depsgraph)
+        """
+
+        # Signal server to start rendering
+
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.START_RENDERING
+        send_protobuf(self.sock, client_message)
+
+        # Read back successive framebuffer samples
+
+        num_pixels = self.framebuffer_width * self.framebuffer_height
+        bytes_left = num_pixels*4 * 4
+
+        framebuffer = numpy.zeros(bytes_left, dtype=numpy.uint8)
+
+        t0 = time.time()
+
+        result = self.engine.begin_result(0, 0, self.framebuffer_width, self.framebuffer_height)
+        # Only Combined and Depth seem to be available
+        layer = result.layers[0].passes["Combined"]
+
+        FBFILE = '/dev/shm/blosprayfb.exr'
+
+        sample = 1
+        cancel_sent = False
+
+        self.engine.update_stats('', 'Rendering sample %d/%d' % (sample, self.render_samples))
+
+        # XXX this loop blocks too often, might need to move it to a separate thread,
+        # but OTOH we're already using select() to detect when to read
+        while True:
+
+            # Check for incoming render results
+
+            r, w, e = select.select([self.sock], [], [], 0)
+
+            if len(r) == 1:
+
+                render_result = RenderResult()
+                # XXX handle receive error
+                receive_protobuf(self.sock, render_result)
+
+                if render_result.type == RenderResult.FRAME:
+
+                    # New framebuffer (for a single pixel sample) is available
+
+                    """
+                    # XXX Slow: get as raw block of floats
+                    print('[%6.3f] _read_framebuffer start' % (time.time()-t0))
+                    self._read_framebuffer(framebuffer, self.framebuffer_width, self.framebuffer_height)
+                    print('[%6.3f] _read_framebuffer end' % (time.time()-t0))
+
+                    pixels = framebuffer.view(numpy.float32).reshape((num_pixels, 4))
+                    print(pixels.shape)
+                    print('[%6.3f] view() end' % (time.time()-t0))
+
+                    # Here we write the pixel values to the RenderResult
+                    # XXX This is the slow part
+                    print(type(layer.rect))
+                    layer.rect = pixels
+                    self.update_result(result)
+                    """
+
+                    # We read the framebuffer file content from the server
+                    # and locally write it to FBFILE, which then gets loaded by Blender
+
+                    # XXX both receiving into a file and loading from file 
+                    # block the blender UI for a short time
+
+                    print('[%6.3f] _read_framebuffer_to_file start' % (time.time()-t0))
+                    self._read_framebuffer_to_file(FBFILE, render_result.file_size)
+                    print('[%6.3f] _read_framebuffer_to_file end' % (time.time()-t0))
+
+                    # Sigh, this needs an image file format. I.e. reading in a raw framebuffer
+                    # of floats isn't possible, hence the OpenEXR file
+                    # XXX result.load_from_file(...), instead of result.layers[0].load_from_file(...), would work as well?
+                    result.layers[0].load_from_file(FBFILE)
+
+                    # Remove file
+                    os.unlink(FBFILE)
+
+                    self.engine.update_result(result)
+
+                    print('[%6.3f] update_result() done' % (time.time()-t0))
+
+                    self.engine.update_progress(sample/self.render_samples)
+
+                    sample += 1
+
+                    # XXX perhaps use update_memory_stats()
+
+                    self.engine.update_stats(
+                        'Server %.1f MB' % render_result.memory_usage,
+                        'Rendering sample %d/%d' % (sample, self.render_samples))
+
+                elif render_result.type == RenderResult.CANCELED:
+                    print('Rendering CANCELED!')
+                    self.engine.update_stats('', 'Rendering canceled')
+                    cancel_sent = True
+                    break
+
+                elif render_result.type == RenderResult.DONE:
+                    self.engine.update_stats('', 'Rendering done')
+                    print('Rendering done!')
+                    break
+
+            # Check if render was canceled
+
+            if self.engine.test_break() and not cancel_sent:
+                client_message = ClientMessage()
+                client_message.type = ClientMessage.CANCEL_RENDERING
+                send_protobuf(self.sock, client_message)
+                cancel_sent = True
+
+            time.sleep(0.001)
+
+        self.engine.end_result(result)
+
+        print('Done with render loop')
 
     # Utility
 
@@ -866,56 +929,3 @@ class Connection:
                 # XXX check d
                 f.write(d)
                 bytes_left -= len(d)
-
-
-
-
-"""
-
-# Update mesh to match bbox
-# XXX need to check if this is even supported behaviour in the
-# new depsgraph method, as we're changing data that is only supposed
-# to be valid during export (as it basically is a private copy of the scene data)
-
-verts = [
-    Vector((bbox[0], bbox[1], bbox[2])),
-    Vector((bbox[3], bbox[1], bbox[2])),
-    Vector((bbox[3], bbox[4], bbox[2])),
-    Vector((bbox[0], bbox[4], bbox[2])),
-    Vector((bbox[0], bbox[1], bbox[5])),
-    Vector((bbox[3], bbox[1], bbox[5])),
-    Vector((bbox[3], bbox[4], bbox[5])),
-    Vector((bbox[0], bbox[4], bbox[5]))
-]
-
-edges = [
-    (0, 1), (1, 2), (2, 3), (3, 0),
-    (4, 5), (5, 6), (6, 7), (7, 4),
-    (0, 4), (1, 5), (2, 6), (3, 7)
-]
-
-bm = bmesh.new()
-
-bm_verts = []
-for vi, v in enumerate(verts):
-    bm_verts.append(bm.verts.new(v))
-
-for i, j in edges:
-    bm.edges.new((bm_verts[i], bm_verts[j]))
-
-bm.to_mesh(mesh)
-bm.free()
-
-mesh.validate(verbose=True)
-
-print([v.co for v in mesh.vertices])
-"""
-
-"""
-faces = []
-mesh = bpy.data.meshes.new(name="Volume extent")
-mesh.from_pydata(verts, edges, faces)
-mesh.validate(verbose=True)
-obj.data = mesh
-"""
-

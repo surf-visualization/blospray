@@ -23,7 +23,9 @@ project(blospray)
 # 3.9 does not have a cmake module to find protobuf
 cmake_minimum_required(VERSION 3.12)
 
-option(PLUGIN_COSMOGRID "Build cosmogrid geometry plugin (needs uhdf5)" OFF)
+option(PLUGIN_COSMOGRID "Build cosmogrid scene plugin (needs uhdf5 and HDF5)" OFF)
+option(PLUGIN_PLY "Build PLY geometry plugin (needs rply 1.1.4 sources)" OFF)
+option(PLUGIN_VOLUME_HDF5 "Build PLY geometry plugin (needs uhdf5 and HDF5)" OFF)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmakemodules")
 
@@ -54,6 +56,22 @@ endif()
 
 set(CMAKE_CXX_STANDARD 11)
 
+if(PLUGIN_COSMOGRID OR PLUGIN_VOLUME_HDF5)
+    FIND_PACKAGE(HDF5)
+    IF (HDF5_IS_PARALLEL)
+        FIND_PACKAGE(MPI)
+    ENDIF()
+
+    INCLUDE_DIRECTORIES (${HDF5_INCLUDE_DIRS})
+    IF (HDF5_IS_PARALLEL)
+        INCLUDE_DIRECTORIES (${MPI_CXX_INCLUDE_PATH})
+        SET(HDF5LIBS "${HDF5_LIBRARIES}" "${MPI_CXX_LIBRARIES}")
+    ELSE()
+        SET(HDF5LIBS "${HDF5_LIBRARIES}")
+    ENDIF()
+endif(PLUGIN_COSMOGRID OR PLUGIN_VOLUME_HDF5)
+
+include_directories("${CMAKE_SOURCE_DIR}/core")		# json.hpp in faker
 include_directories(${OSPRAY_INCLUDE_DIRS})
 include_directories(${Boost_INCLUDE_DIR})
 include_directories(${GLM_INCLUDE_DIRS})
@@ -66,3 +84,6 @@ add_subdirectory(plugins)
 
 # Tests
 add_subdirectory(tests)
+
+# Faker
+add_subdirectory(faker)

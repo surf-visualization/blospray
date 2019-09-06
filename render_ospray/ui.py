@@ -24,11 +24,9 @@ from bpy.types import (Panel,
                        Operator,
                        PropertyGroup,
                        )                       
-
-from .operators import OSPRayUpdateMeshBound
-   
-class RENDER_PT_OSPRAY_CONNECTION(Panel):
-    bl_idname = 'RENDER_PT_OSPRAY_CONNECTION'
+ 
+class OSPRAY_RENDER_PT_connection(Panel):
+    #bl_idname = 'OSPRAY_RENDER_PT_connection'
     bl_label = 'Connection'
     bl_space_type = 'PROPERTIES'   
     bl_region_type = 'WINDOW'    
@@ -50,12 +48,14 @@ class RENDER_PT_OSPRAY_CONNECTION(Panel):
         ospray = scene.ospray
         
         col = layout.column(align=True)
-        col.prop(ospray, 'host', text='Host') 
-        col.prop(ospray, 'port', text='Port') 
+        col.prop(ospray, 'host') 
+        col.prop(ospray, 'port') 
+        col.separator()
+        col.operator('ospray.get_server_state')
+                
         
-        
-class RENDER_PT_OSPRAY_RENDERING(Panel):
-    bl_idname = 'RENDER_PT_OSPRAY'
+class OSPRAY_RENDER_PT_rendering(Panel):
+    #bl_idname = 'RENDER_PT_OSPRAY'
     bl_label = 'Rendering'
     bl_space_type = 'PROPERTIES'   
     bl_region_type = 'WINDOW'    
@@ -77,18 +77,19 @@ class RENDER_PT_OSPRAY_RENDERING(Panel):
         ospray = scene.ospray
         
         col = layout.column(align=True)
-        col.prop(ospray, 'renderer', text='Type') 
-        col.prop(ospray, 'samples', text='Samples') 
-        col.prop(ospray, 'ao_samples', text='AO Samples') 
-        #col.prop(ospray, 'shadows_enabled', text='Shadows')    # XXX Removed in 2.0?
+        col.prop(ospray, 'renderer') 
+        col.prop(ospray, 'samples') 
+        col.prop(ospray, 'ao_samples') 
+        #col.prop(ospray, 'shadows_enabled')    # XXX Removed in 2.0?
 
 
-class OBJECT_PT_OSPRAY(Panel):
-    bl_idname = 'OBJECT_PT_OSPRAY'
-    bl_label = 'OSPRay Settings'
+class OSPRAY_OBJECT_PT_settings(Panel):
+    #bl_idname = 'OSPRAY_OBJECT_PT_settings'
+    bl_label = 'OSPRay'
     bl_space_type = 'PROPERTIES'   
     bl_region_type = 'WINDOW'    
     bl_context = 'object'  
+    bl_options = {'DEFAULT_CLOSED'}
     
     COMPAT_ENGINES = {'OSPRAY'}
     
@@ -97,6 +98,9 @@ class OBJECT_PT_OSPRAY(Panel):
         obj = context.object
         return ((context.engine in cls.COMPAT_ENGINES) and 
                 obj and (obj.type in {'MESH'}))
+                
+    def draw_header(self, context):
+        self.layout.prop(context.object.ospray, 'ospray_override', text="")                
     
     def draw(self, context):
         layout = self.layout
@@ -108,26 +112,30 @@ class OBJECT_PT_OSPRAY(Panel):
         
         # XXX align labels to the left
         col = layout.column(align=True)
-        col.prop(ospray, 'representation', text='Representation', expand=True) 
+        #col.prop(ospray, 'ospray_override')
 
 
-class OBJECT_PT_OSPRAY_VOLUME(Panel):
-    bl_idname = 'OBJECT_PT_OSPRAY_VOLUME'
-    bl_label = 'OSPRay Volume Settings'
+class OSPRAY_OBJECT_PT_volume(Panel):
+    #bl_idname = 'OSPRAY_OBJECT_PT_volume'
+    bl_label = 'Volume'
     bl_space_type = 'PROPERTIES'   
     bl_region_type = 'WINDOW'    
     bl_context = 'object'  
+    bl_parent_id = 'OSPRAY_OBJECT_PT_settings'
     
     COMPAT_ENGINES = {'OSPRAY'}
     
     @classmethod
     def poll(cls, context):
+        if context.engine not in cls.COMPAT_ENGINES:
+            return False
+            
         obj = context.object
-        return (
-            (context.engine in cls.COMPAT_ENGINES) 
-            and obj and (obj.type in {'MESH'}) 
-            and (obj.ospray.representation in {'volume'})       # XXX also for isosurf and slices?
-        )
+        if obj is None or (obj.type not in {'MESH'}):
+            return False
+            
+        mesh = obj.data
+        return mesh.ospray.plugin_type == 'volume'
     
     def draw(self, context):
         layout = self.layout
@@ -139,18 +147,22 @@ class OBJECT_PT_OSPRAY_VOLUME(Panel):
         
         # XXX align labels to the left
         col = layout.column(align=True)
-        #col.prop(ospray, 'gradient_shading', text='Gradient shading') 
-        #col.prop(ospray, 'pre_integration', text='Pre-integration') 
-        #col.prop(ospray, 'single_shade', text='Single shade') 
-        col.prop(ospray, 'sampling_rate', text='Sampling rate') 
+        col.prop(ospray, 'volume_usage', expand=True)
+        col.separator()
+        # XXX only show when volume is attached
+        #col.prop(ospray, 'gradient_shading')
+        #col.prop(ospray, 'pre_integration')
+        #col.prop(ospray, 'single_shade')
+        col.prop(ospray, 'sampling_rate')
     
     
-class DATA_PT_OSPRAY_MESH(Panel):
-    bl_idname = 'DATA_PT_OSPRAY_MESH'
-    bl_label = 'OSPRay Settings'
+class OSPRAY_MESH_PT_data(Panel):
+    #bl_idname = 'OSPRAY_MESH_PT_data'
+    bl_label = 'OSPRay'
     bl_space_type = 'PROPERTIES'   
     bl_region_type = 'WINDOW'    
     bl_context = 'data'  
+    bl_options = {'DEFAULT_CLOSED'}
     
     COMPAT_ENGINES = {'OSPRAY'}
     
@@ -166,19 +178,21 @@ class DATA_PT_OSPRAY_MESH(Panel):
         mesh = context.mesh
         ospray = mesh.ospray
         
+        # XXX plugin panel?
         col = layout.column(align=True)
-        col.prop(ospray, 'plugin_type', text='Plugin type') 
-        col.prop(ospray, 'plugin', text='Plugin name') 
+        col.prop(ospray, 'plugin_enabled')
+        col.prop(ospray, 'plugin_type')
+        col.prop(ospray, 'plugin_name')
 
         col.separator()
         # XXX only show this mesh from "ospray-enabled" meshes
         # XXX only enable after sync with server once?
-        col.operator('ospray.update_mesh_bound', text='Update bound')    # XXX why need this text, doesn't it use bl_label?
+        col.operator('ospray.update_mesh_bound')
 
     
 """
-class DATA_PT_OSPRAY_MESH_VOLUME(Panel):
-    bl_idname = 'DATA_PT_OSPRAY_MESH_VOLUME'
+class OSPRAY_MESH_PT_volume(Panel):
+    #bl_idname = 'OSPRAY_MESH_PT_volume'
     bl_label = 'OSPRay Volume'
     bl_space_type = 'PROPERTIES'   
     bl_region_type = 'WINDOW'    
@@ -201,8 +215,8 @@ class DATA_PT_OSPRAY_MESH_VOLUME(Panel):
 """        
     
     
-class DATA_PT_OSPRAY_LIGHT(Panel):
-    bl_idname = 'DATA_PT_OSPRAY_LIGHT'
+class OSPRAY_LIGHT_PT_data(Panel):
+    #bl_idname = 'OSPRAY_LIGHT_PT_data'
     bl_label = 'Light'
     bl_space_type = 'PROPERTIES'   
     bl_region_type = 'WINDOW'    
@@ -225,28 +239,28 @@ class DATA_PT_OSPRAY_LIGHT(Panel):
 
         col = layout.column()            
 
-        col.prop(blender_light, "color", text="Color")
-        col.prop(ospray_light, "intensity", text="Intensity", slider=False)
-        col.prop(ospray_light, "visible", text="Visible")
+        col.prop(blender_light, "color")
+        col.prop(ospray_light, "intensity", slider=False)
+        col.prop(ospray_light, "visible")
         
         if blender_light.type in {'SUN'}:
-            col.prop(ospray_light, "angular_diameter", text="Angular diameter")
+            col.prop(ospray_light, "angular_diameter")
 
         if blender_light.type in {'POINT', 'SPOT'}:
-            col.prop(blender_light, "shadow_soft_size", text="Size")
+            col.prop(blender_light, "shadow_soft_size")
 
         if blender_light.type in {'SPOT'}:
-            col.prop(blender_light, "spot_size", text="Size")
-            col.prop(blender_light, "spot_blend", text="Blend")
-            col.prop(blender_light, "show_cone", text="Show cone")
+            col.prop(blender_light, "spot_size")
+            col.prop(blender_light, "spot_blend")
+            col.prop(blender_light, "show_cone")
             
         if blender_light.type in {'AREA'}:
-            col.prop(blender_light, "size", text="Size in X")
-            col.prop(blender_light, "size_y", text="Size in Y")            
+            col.prop(blender_light, "size")     # XXX why not size_x?
+            col.prop(blender_light, "size_y")
   
   
-class WORLD_PT_OSPRAY(Panel):
-    bl_idname = 'WORLD_PT_OSPRAY'
+class OSPRAY_WORLD_PT_lighting(Panel):
+    #bl_idname = 'OSPRAY_WORLD_PT_lighting'
     bl_label = 'World'
     bl_space_type = 'PROPERTIES'   
     bl_region_type = 'WINDOW'    
@@ -268,20 +282,20 @@ class WORLD_PT_OSPRAY(Panel):
         ospray = world.ospray
         
         col = layout.column(align=True)
-        col.prop(ospray, 'background_color', text='Background') 
-        col.prop(ospray, 'ambient_color', text='Ambient color') 
-        col.prop(ospray, 'ambient_intensity', text='Ambient intensity') 
+        col.prop(ospray, 'background_color') 
+        col.prop(ospray, 'ambient_color') 
+        col.prop(ospray, 'ambient_intensity') 
         
 
 classes = (
-    RENDER_PT_OSPRAY_CONNECTION,
-    RENDER_PT_OSPRAY_RENDERING,
-    OBJECT_PT_OSPRAY,
-    OBJECT_PT_OSPRAY_VOLUME,
-    DATA_PT_OSPRAY_MESH,
-    #DATA_PT_OSPRAY_MESH_VOLUME,
-    DATA_PT_OSPRAY_LIGHT,
-    WORLD_PT_OSPRAY,
+    OSPRAY_RENDER_PT_connection,
+    OSPRAY_RENDER_PT_rendering,
+    OSPRAY_OBJECT_PT_settings,
+    OSPRAY_OBJECT_PT_volume,
+    OSPRAY_MESH_PT_data,
+    #OSPRAY_MESH_PT_volume,
+    OSPRAY_LIGHT_PT_data,
+    OSPRAY_WORLD_PT_lighting,
 )
 
 from bl_ui import (

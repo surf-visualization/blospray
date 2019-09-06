@@ -110,6 +110,7 @@ destroy_scene
 
 typedef std::pair<OSPGroup, glm::mat4>      GroupInstance;
 typedef std::vector<GroupInstance>          GroupInstances;
+typedef std::vector<OSPLight>               Lights;
 
 // A plugin can return a bounding mesh, to be used as proxy object
 // in the blender scene. The mesh geometry is defined in the same way
@@ -147,6 +148,15 @@ struct BoundingMesh
 // of the "instances" managed by the plugin
 struct PluginState
 {   
+    // Renderer type the plugin is called for
+    std::string     renderer;
+    bool            uses_renderer_type;
+
+    // XXX need to store renderer type as well, for scene plugins,  
+    // as an OSPGroup can indirectly link to an OSPMaterial (which is 
+    // tied to specific renderer type)
+    // geometry/volume are renderer-independent, want to keep that
+    
     // Custom properties set on the Blender mesh data.
     // XXX Will be updated by the server when needed.
     json            parameters;
@@ -163,18 +173,22 @@ struct PluginState
     // Volume plugin:
     OSPVolume       volume;
     float           volume_data_range[2];
+    // XXX could add optional TF
     
     // Geometry plugin:
     OSPGeometry     geometry;    
     
     // Scene plugin:
-    GroupInstances  group_instances;  
+    GroupInstances  group_instances;    // Need a refcount of at least 1 to survive in the list
+    Lights          lights;
 
     PluginState()
     {
+        renderer = "";
         bound = nullptr;
         data = nullptr;
         volume = nullptr;
+        volume_data_range[0] = volume_data_range[1] = 0.0f;
         geometry = nullptr;
     }
 };
@@ -238,7 +252,7 @@ enum ParameterFlags
     
     FLAG_VOLUME     = 0x1,      // Parameter applies to volume generation
     FLAG_GEOMETRY   = 0x2,      // Parameter applies to geometry generation
-    FLAG_SCENE      = 0x3,      // Parameter applies to scene generation
+    FLAG_SCENE      = 0x3,      // Parameter applies to scene generation            // XXX rename to "groups" plugin, to avoid confusion on the word "scene"?
     
     //FLAG_OPTIONAL   = 0x10,     // Parameter is optional
 };
@@ -277,11 +291,21 @@ enum PluginType
     PT_SCENE = 3
 };
 
+enum PluginRenderer
+{
+    PR_ANY = 0,
+    PR_SCIVIS,
+    PR_PATHTRACER
+};
+
 typedef struct
 {
     PluginType          type;
+    //PluginRenderer      renderer;
+    bool                uses_renderer_type;
+
     PluginParameter     *parameters;
-    PluginFunctions     functions;
+    PluginFunctions     functions;    
 }
 PluginDefinition;
 

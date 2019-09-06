@@ -64,6 +64,7 @@ target_link_libraries(ospray_render_server
     dl
     Threads::Threads
     ${OSPRAY_LIBRARIES} 
+    ospray::ospray_testing
     ${OPENIMAGEIO_LIBRARIES} 
     ${Boost_LIBRARIES}
     ${PROTOBUF_LIBRARIES}

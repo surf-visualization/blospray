@@ -21,7 +21,7 @@
 bl_info = {
     "name": "OSPRay",
     "author": "Paul Melis",
-    "version": (0, 0, 1),
+    "version": (0, 0, 2),
     "blender": (2, 80, 0),
     "location": "Render > Engine > OSPRay",
     "description": "OSPRay integration for blender",
@@ -67,12 +67,23 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         exactly the same scene or moving just the camera.
         """
         print('>>> CustomRenderEngine.update()')
+
+        self.update_succeeded = False
         
         ospray = depsgraph.scene.ospray
         
         self.connection = Connection(self, ospray.host, ospray.port)
 
+        if not self.connection.connect():        
+            self.report({'ERROR'}, 'Failed to connect to server')
+            return 
+
         self.connection.update(data, depsgraph)
+
+        # XXX if we fail connecting here there's no way to 
+        # signal to blender that it should not subsequently call render()        
+
+        self.update_succeeded = True
         
     # This is the only method called by blender, in this example
     # we use it to detect preview rendering and call the implementation
@@ -80,6 +91,9 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
     def render(self, depsgraph):
         """Render scene into an image"""
         print('>>> OsprayRenderEngine.render()')
+
+        if not self.update_succeeded:
+            return
         
         self.connection.render(depsgraph)
         
@@ -88,33 +102,35 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
     # If the two view_... methods are defined the interactive rendered
     # mode becomes available
     
-    def NO_view_update(self, context, depsgraph):
-        """Update on data changes for viewport render"""
-        print('>>> OsprayRenderEngine.view_update()')
-        
-        region = context.region
-        view_camera_offset = list(context.region_data.view_camera_offset)
-        view_camera_zoom = context.region_data.view_camera_zoom
-        print(region.width, region.height)
-        print(view_camera_offset, view_camera_zoom)
-        
-        width = region.width
-        height = region.height
-        channels_per_pixel = 4
-        
-        self.buffer = Buffer(GL_UNSIGNED_BYTE, [width * height * channels_per_pixel])
+    if False:
+    
+        def view_update(self, context, depsgraph):
+            """Update on data changes for viewport render"""
+            print('>>> OsprayRenderEngine.view_update()')
+            
+            region = context.region
+            view_camera_offset = list(context.region_data.view_camera_offset)
+            view_camera_zoom = context.region_data.view_camera_zoom
+            print(region.width, region.height)
+            print(view_camera_offset, view_camera_zoom)
+            
+            width = region.width
+            height = region.height
+            channels_per_pixel = 4
+            
+            self.buffer = Buffer(GL_UNSIGNED_BYTE, [width * height * channels_per_pixel])
 
-    def NO_view_draw(self, context, depsgraph):
-        """Draw viewport render"""
-        # Note: some changes in blender do not cause a view_update(),
-        # but only a view_draw()
-        print('>>> CustomRenderEngine.view_draw()')
-        # XXX need to draw ourselves with OpenGL bgl module :-/
-        region = context.region
-        view_camera_offset = list(context.region_data.view_camera_offset)
-        view_camera_zoom = context.region_data.view_camera_zoom
-        print(region.width, region.height)
-        print(view_camera_offset, view_camera_zoom)
+        def view_draw(self, context, depsgraph):
+            """Draw viewport render"""
+            # Note: some changes in blender do not cause a view_update(),
+            # but only a view_draw()
+            print('>>> CustomRenderEngine.view_draw()')
+            # XXX need to draw ourselves with OpenGL bgl module :-/
+            region = context.region
+            view_camera_offset = list(context.region_data.view_camera_offset)
+            view_camera_zoom = context.region_data.view_camera_zoom
+            print(region.width, region.height)
+            print(view_camera_offset, view_camera_zoom)
         
     # Nodes
     

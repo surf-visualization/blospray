@@ -406,10 +406,10 @@ create_volume(float *bbox,
     
     OSPVolume volume = ospNewVolume("shared_structured_volume");
     
-        OSPData voxelData = ospNewData(dims[0]*dims[1]*dims[2], dataType, grid_field_values, OSP_DATA_SHARED_BUFFER);   
+        OSPData voxelData = ospNewData(dims[0]*dims[1]*dims[2], dataType, grid_field_values);//, OSP_DATA_SHARED_BUFFER);   
         ospCommit(voxelData);
     
-        ospSetData(volume, "voxelData", voxelData);
+        ospSetObject(volume, "voxelData", voxelData);
         ospRelease(voxelData);
 
         ospSetInt(volume, "voxelType", dataType);
@@ -584,6 +584,7 @@ generate(GenerateFunctionResult &result, PluginState *state)
     else
     {
         // XXX fixed
+        printf("WARNING: using default data range of [0,1] for volume data\n");
         minval = 0.0f;
         maxval = 1.0f;
     }
@@ -646,6 +647,7 @@ extern "C" bool
 initialize(PluginDefinition *def)
 {
     def->type = PT_VOLUME;
+    def->uses_renderer_type = false;
     def->parameters = parameters;
     def->functions = functions;
     
