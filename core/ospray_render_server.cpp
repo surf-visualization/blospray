@@ -852,7 +852,7 @@ update_blender_mesh_object(const UpdateObject& update)
     SceneObject     *scene_object;
     OSPInstance     instance;
     OSPGroup        group;
-    OSPGeometricModel model;
+    OSPGeometricModel geometric_model;
 
     SceneObjectMap::iterator so_it = scene_objects.find(object_name);
 
@@ -865,7 +865,7 @@ update_blender_mesh_object(const UpdateObject& update)
         instance = scene_object->instances[0];
         assert(instance != nullptr);
         group = scene_object->group;
-        model = scene_object->geometric_model;
+        geometric_model = scene_object->geometric_model;
     }
     else
         create_new_object = true;
@@ -906,8 +906,8 @@ update_blender_mesh_object(const UpdateObject& update)
         group = scene_object->group = ospNewGroup();
         instance = ospNewInstance(group);
         scene_object->instances.push_back(instance);
-        model = scene_object->geometric_model = ospNewGeometricModel(geometry);
-        ospSetObject(model, "material", default_material);
+        geometric_model = scene_object->geometric_model = ospNewGeometricModel(geometry);
+        ospSetObject(geometric_model, "material", default_material);
     }
 
     // Update object 
@@ -919,15 +919,13 @@ update_blender_mesh_object(const UpdateObject& update)
     affine3fv_from_mat4(affine_xform, obj2world);
     ospSetAffine3fv(instance, "xfm", affine_xform);
 
-    ospCommit(model);
+    ospCommit(geometric_model);
     ospCommit(instance);    
 
-    OSPData models = ospNewData(1, OSP_OBJECT, &model, 0);
+    OSPData models = ospNewData(1, OSP_OBJECT, &geometric_model, 0);
         ospSetData(group, "geometry", models);
-    ospCommit(group);
-    ospRelease(model);
-    ospRelease(models);
-    ospRelease(group);
+    ospCommit(group);    
+    ospRelease(models); 
 
     // XXX should create this list from scene_objects?
     scene_instances.push_back(instance);
@@ -2031,13 +2029,13 @@ prepare_scene()
         //ospSetBool(world, "compactMode", true);
         ospSetData(world, "instance", instances);
     ospCommit(world);
-    ospRelease(instances);
+    //ospRelease(instances);
     
     printf("Adding %d light(s) to the scene\n", scene_lights.size());
     OSPData light_data = ospNewData(scene_lights.size(), OSP_OBJECT, &scene_lights[0], 0);
     ospSetData(renderer, "light", light_data);
     ospCommit(renderer);
-    ospRelease(light_data);
+    //ospRelease(light_data);
 
     return true;
 }

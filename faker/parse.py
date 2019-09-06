@@ -5,7 +5,7 @@ def usage():
     print('usage: %s [options] faker.log' % sys.argv[0])
     print()
     print('Options:')
-    print('  -r     Stop at first ospRenderFrame')
+    print('  -r     Stop at ospRenderFrame (may be repeated)')
     print()
 
 try:
@@ -17,12 +17,11 @@ if len(args) == 0:
     usage()
     sys.exit(-1)   
 
-stop_at_first_renderframe = False
+stop_at_renderframe = 0
 
 for opt, value in options:
-    
     if opt == '-r':
-        stop_at_first_renderframe = True
+        stop_at_renderframe += 1
 
 f = open(args[0], 'rt')
 
@@ -60,12 +59,19 @@ type_counts = {}
 pointers = set()
 addr2object = {}
 reference_counts = {}
+addr2deletedobjects = {}
+
+ospdatatype2name = {}
+ospframebufferformat2name = {}
+
+renderframe_call_count = 0
 
 class Object:
     
     def __init__(self, type, addr):
         self.addr = addr
         self.type = type
+        self.deleted = False
         
         if type not in type_counts:
             type_counts[type] = count = 1
@@ -104,13 +110,15 @@ class Object:
             value = self.fields[field]
             fields.append('%s = %s' % (field,value))
 
-        label = self.label
+        c = '?' if self.addr not in reference_counts else str(reference_counts[self.addr])
+        label = '%s [%s]' % (self.label, c)
         if len(fields) > 0:
             label += '\n\n'
             label += '\n'.join(fields)
 
         shape = 'box' if self.type == 'Data' else 'ellipse'
-        g.write('%d [label="%s";color="%s";shape="%s"];\n' % (self.addr, label, color, shape))
+        style = 'dotted' if self.deleted else 'solid'
+        g.write('%d [label="%s";color="%s";shape="%s";style="%s"];\n' % (self.addr, label, color, shape, style))
         for label, other in self.edges.items():
             g.write('%d -> %d [label="%s"];\n' % (self.addr, other.addr, label))
     
@@ -124,127 +132,145 @@ def decref(objaddr):
         c = reference_counts[objaddr] - 1
         assert c >= 0
         if c == 0:
-            print('Object %d (%s) deleted' % (objaddr, addr2object[objaddr].label))
             obj = addr2object[objaddr]
-            for refobj in obj.references:
-                left_to_decref.append(refobj.addr)
+            print('Object %d (%s) deleted' % (objaddr, obj.label))            
+            obj.deleted = True
+
             del addr2object[objaddr]
             del reference_counts[objaddr]
+            if objaddr not in addr2deletedobjects:
+                addr2deletedobjects[objaddr] = [obj]
+            else:
+                addr2deletedobjects[objaddr].append(obj)            
+
+            for refobj in obj.references:
+                left_to_decref.append(refobj.addr)
+
         else:
             reference_counts[objaddr] = c
 
 
-ospdatatype2name = {}
-ospframebufferformat2name = {}
+try:
 
-for line in f:
-    e = json.loads(line)
-    
-    call = e['call']
-    try:
-        args = e['arguments']
-    except KeyError:
-        args = None
+    for line in f:
+        e = json.loads(line)
+        
+        call = e['call']
+        try:
+            args = e['arguments']
+        except KeyError:
+            args = None
 
-    if call == '<enums>':
-        for name, value in e['result']['OSPDataType'].items():
-            ospdatatype2name[value] = name
-        for name, value in e['result']['OSPFrameBufferFormat'].items():
-            ospframebufferformat2name[value] = name
+        if call == '<enums>':
+            for name, value in e['result']['OSPDataType'].items():
+                ospdatatype2name[value] = name
+            for name, value in e['result']['OSPFrameBufferFormat'].items():
+                ospframebufferformat2name[value] = name
 
-    elif call.startswith('ospNew'):
+        elif call.startswith('ospNew'):
 
-        type = call[6:]
-        addr = e['result']
-        
-        if addr in addr2object:
-            print('Address %d is being reused' % addr)
-        
-        obj = Object(type, addr)
-        
-        addr2object[addr] = obj
-        reference_counts[addr] = 1
-        pointers.add(addr)
-        
-        if call == 'ospNewMaterial':
-            obj.set_property('<materialType>', args['materialType'], False)
-            obj.set_property('<rendererType>', args['rendererType'], False)
-        elif call == 'ospNewData':
-            data_type = args['type']
-            data_type_name = ospdatatype2name[data_type]
-            obj.set_property('numItems', args['numItems'], False)
-            obj.set_property('type', data_type_name, False)
-            if data_type_name == 'OSP_OBJECT' and 'source' in e:                
-                for idx, otheraddr in enumerate(e['source']):
-                    reference_counts[otheraddr] += 1
-                    otherobj = addr2object[otheraddr]
-                    obj.add_edge('[%d]' % idx, otherobj, False)
-                    obj.add_reference(otherobj)
-        elif call == 'ospNewFrameBuffer':            
-            obj.set_property('format', ospframebufferformat2name[args['format']], False)
-        elif call in ['ospNewCamera', 'ospNewGeometry', 'ospNewLight', 'ospNewRenderer', 'ospNewTexture', 'ospNewTransferFunction', 'ospNewVolume']:            
-            obj.set_property('<type>', args['type'], False)
-        elif call == 'ospNewGeometricModel':   
-            geomobj = addr2object[args['geometry']]
-            obj.add_edge('geometry', geomobj, False)
-            obj.add_reference(geomobj)
-            reference_counts[args['geometry']] += 1
-        elif call == 'ospNewVolumetricModel':
-            volobj = addr2object[args['volume']]
-            obj.add_edge('volume', volobj, False)
-            obj.add_reference(volobj)
-            reference_counts[args['volume']] += 1
-        elif call == 'ospNewInstance':
-            groupobj = addr2object[args['group']]
-            obj.add_edge('instance', groupobj, False)
-            obj.add_reference(groupobj)
-            reference_counts[args['group']] += 1
-
-    elif call == 'ospRelease':
-        objaddr = args['obj']
-        if objaddr != 0:
-            decref(objaddr)   
-        
-    elif call == 'ospRenderFrame':
-
-        if stop_at_first_renderframe:
-
-            obj = Object('<ospRenderFrame>', 0)  
-            addr2object[0] = obj
-                  
-            for name in ['renderer', 'world', 'camera', 'framebuffer']:
-                obj.add_edge(name, addr2object[args[name]], False)
-
-            break
-        
-    elif call == 'ospCommit':
-        obj = addr2object[args['obj']]
-        obj.commit()
-        
-    elif call.startswith('ospSet'):
-        
-        obj = addr2object[args['obj']]
-        
-        if call == 'ospSetData':
-            data = args['data']
-            dataobj = addr2object[data]
-            obj.add_edge(args['id'], dataobj)
-            obj.add_reference(dataobj)
-            reference_counts[data] += 1
-        elif call == 'ospSetObject':
-            other = args['other']
-            otherobj = addr2object[other]
-            obj.add_edge(args['id'], otherobj)
-            obj.add_reference(otherobj)
-            reference_counts[other] += 1
-        elif call in ['ospSetBool', 'ospSetString', 'ospSetFloat', 'ospSetInt']:
-            obj.set_property(args['id'], args['x'])
+            type = call[6:]
+            addr = e['result']
             
+            if addr in addr2object:
+                print('Address %d is being reused' % addr)
+            
+            obj = Object(type, addr)
+            
+            addr2object[addr] = obj
+            reference_counts[addr] = 1
+            pointers.add(addr)
+            
+            if call == 'ospNewMaterial':
+                obj.set_property('<materialType>', args['materialType'], False)
+                obj.set_property('<rendererType>', args['rendererType'], False)
+            elif call == 'ospNewData':
+                data_type = args['type']
+                data_type_name = ospdatatype2name[data_type]
+                obj.set_property('numItems', args['numItems'], False)
+                obj.set_property('type', data_type_name, False)
+                if data_type_name == 'OSP_OBJECT' and 'source' in e:                
+                    for idx, otheraddr in enumerate(e['source']):
+                        reference_counts[otheraddr] += 1
+                        otherobj = addr2object[otheraddr]
+                        obj.add_edge('[%d]' % idx, otherobj, False)
+                        obj.add_reference(otherobj)
+            elif call == 'ospNewFrameBuffer':            
+                obj.set_property('format', ospframebufferformat2name[args['format']], False)
+            elif call in ['ospNewCamera', 'ospNewGeometry', 'ospNewLight', 'ospNewRenderer', 'ospNewTexture', 'ospNewTransferFunction', 'ospNewVolume']:            
+                obj.set_property('<type>', args['type'], False)
+            elif call == 'ospNewGeometricModel':   
+                geomobj = addr2object[args['geometry']]
+                obj.add_edge('geometry', geomobj, False)
+                obj.add_reference(geomobj)
+                reference_counts[args['geometry']] += 1
+            elif call == 'ospNewVolumetricModel':
+                volobj = addr2object[args['volume']]
+                obj.add_edge('volume', volobj, False)
+                obj.add_reference(volobj)
+                reference_counts[args['volume']] += 1
+            elif call == 'ospNewInstance':
+                groupobj = addr2object[args['group']]
+                obj.add_edge('instance', groupobj, False)
+                obj.add_reference(groupobj)
+                reference_counts[args['group']] += 1
+
+        elif call == 'ospRelease':
+            objaddr = args['obj']
+            if objaddr == 0:
+                print('WARNING: ospRelease(0)')
+            decref(objaddr)   
+            
+        elif call == 'ospRenderFrame':
+
+            renderframe_call_count += 1
+
+            if renderframe_call_count == stop_at_renderframe:
+
+                obj = Object('<ospRenderFrame>', 0)  
+                addr2object[0] = obj    # XXX 0
+                      
+                for name in ['renderer', 'world', 'camera', 'framebuffer']:
+                    argaddr = args[name]
+                    obj.add_edge(name, addr2object[argaddr], False)
+
+                break
+            
+        elif call == 'ospCommit':
+            obj = addr2object[args['obj']]
+            obj.commit()
+            
+        elif call.startswith('ospSet'):
+            
+            obj = addr2object[args['obj']]
+            
+            if call == 'ospSetData':
+                dataaddr = args['data']
+                dataobj = addr2object[dataaddr]
+                obj.add_edge(args['id'], dataobj)
+                obj.add_reference(dataobj)
+                reference_counts[dataaddr] += 1
+            elif call == 'ospSetObject':
+                otheraddr = args['other']
+                otherobj = addr2object[otheraddr]
+                obj.add_edge(args['id'], otherobj)
+                obj.add_reference(otherobj)
+                reference_counts[otheraddr] += 1
+            elif call in ['ospSetBool', 'ospSetString', 'ospSetFloat', 'ospSetInt']:
+                obj.set_property(args['id'], args['x'])
+            
+except KeyError as e:
+    print(repr(e))
+
 g = open('dump.dot', 'wt')
 g.write('digraph {\n')
 
-for addr, obj in addr2object.items():
+for addr, obj in addr2object.items():    
     obj.dot(g)
+
+for addr, objs in addr2deletedobjects.items():    
+    for obj in objs:
+        obj.dot(g)
     
 g.write('}\n')
 g.close()
