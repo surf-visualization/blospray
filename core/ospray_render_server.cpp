@@ -516,6 +516,28 @@ delete_plugin_instance(const std::string& name)
     scene_data_types.erase(name);
 }
 
+void 
+delete_scene_data(const std::string& name)
+{
+    SceneDataTypeMap::iterator it = scene_data_types.find(name);
+
+    if (it == scene_data_types.end())
+    {
+        printf("ERROR: scene data '%s' to delete not found!\n", name.c_str());
+        return;
+    }
+
+    if (it->second == SDT_PLUGIN)
+        delete_plugin_instance(name);
+    else
+    {
+        assert(it->second == SDT_MESH);
+        printf("XXX todo: delete blender mesh\n");
+        //delete_blender_mesh(name);
+    }
+}
+
+
 bool
 handle_update_plugin_instance(TCPSocket *sock)
 {
@@ -584,7 +606,7 @@ handle_update_plugin_instance(TCPSocket *sock)
         if (data_type != SDT_PLUGIN)
         {
             printf("... WARNING: scene data '%s' is currently of type %d, overwriting with new plugin instance!\n", data_name.c_str(), data_type);
-            delete_plugin_instance(data_name);
+            delete_scene_data(data_name);
             create_new_instance = true;
         }
         else
@@ -879,6 +901,78 @@ handle_update_blender_mesh_data(TCPSocket *sock, const std::string& name)
     return true;
 }
 
+
+/*
+Find scene object by name, create new if not found.
+Three cases:
+1. no existing object with name -> create new
+2. existing object with name, but of wrong type -> delete existing, create new
+3. existing object with name and correct type -> return existing
+
+The parameter created will be signal whether a new SceneObject was created.
+*/
+
+SceneObject*
+find_or_replace_scene_object(const std::string& name, SceneObjectType type, bool& created)
+{
+    SceneObject     *scene_object;
+
+    SceneObjectMap::iterator it = scene_objects.find(name);
+
+    if (it != scene_objects.end())
+    {
+        scene_object = it->second;
+        if (scene_object->type != type)
+        {
+            printf("... WARNING: existing object is of type %d, replacing with type %d\n", 
+                scene_object->type, type);
+            delete_object(name);
+            created = true;
+        }
+        else
+        {        
+            printf("... Existing object matches type %d\n", type);
+            created = false;
+        }
+    }
+    else
+    {
+        printf("... Creating new object\n", type);
+        created = true;
+    }
+
+    if (created)
+    {
+        scene_object = new SceneObject(type);
+        scene_object->name = name;
+        scene_objects[name] = scene_object;        
+    }
+
+    return scene_object;
+}
+
+bool
+scene_data_with_type_exists(const std::string& name, SceneDataType type)
+{
+    SceneDataTypeMap::iterator sdt_it = scene_data_types.find(name);
+
+    if (sdt_it == scene_data_types.end())
+    {
+        printf("--> '%s' | WARNING: linked data not found!\n", name.c_str());
+        return false;
+    }
+    else if (sdt_it->second != type)
+    {
+        printf("--> '%s' | WARNING: linked data is not of type %d, but of type %d!\n", 
+            name.c_str(), type, sdt_it->second);
+        return false;
+    }
+
+    printf("--> '%s' (%d)\n", name.c_str(), type);
+    
+    return true;        
+}
+
 bool
 update_blender_mesh_object(const UpdateObject& update)
 {    
@@ -886,56 +980,34 @@ update_blender_mesh_object(const UpdateObject& update)
 
     printf("OBJECT '%s' (blender mesh)\n", object_name.c_str());   
 
-    bool            create_new_object = false;
+    bool            created;
     SceneObject     *scene_object;
     OSPInstance     instance;
     OSPGroup        group;
     OSPGeometricModel geometric_model;
 
-    SceneObjectMap::iterator so_it = scene_objects.find(object_name);
+    scene_object = find_or_replace_scene_object(object_name, SOT_MESH, created);
 
-    if (so_it != scene_objects.end())
+    if (created)
     {
-        // XXX check scene object type
-        
-        scene_object = so_it->second;
-        if (scene_object->type != SOT_MESH)
-        {
-            printf("... WARNING: existing object is of type %d, replacing it\n", scene_object->type);
-            delete_object(object_name);
-            create_new_object = true;
-        }
-        else
-        {        
-            printf("... Updating existing object\n");
-            instance = scene_object->instances[0];
-            assert(instance != nullptr);
-            group = scene_object->group;
-            geometric_model = scene_object->geometric_model;
-        }
+        // New mesh object        
+        group = scene_object->group = ospNewGroup();
+        instance = ospNewInstance(group);
+        scene_object->instances.push_back(instance);
     }
     else
-        create_new_object = true;
+    {
+        instance = scene_object->instances[0];
+        assert(instance != nullptr);
+        group = scene_object->group;        
+    }
 
     // Check linked data
 
     const std::string& linked_data = update.data_link();
 
-    SceneDataTypeMap::iterator sdt_it = scene_data_types.find(linked_data);
-
-    if (sdt_it == scene_data_types.end())
-    {
-        printf("--> '%s' | WARNING: linked data not found!\n", linked_data.c_str());
+    if (!scene_data_with_type_exists(linked_data, SDT_MESH))
         return false;
-    }
-    else if (sdt_it->second != SDT_MESH)
-    {
-        printf("--> '%s' | WARNING: linked data is not of type 'mesh' but of type %d!\n", 
-            linked_data.c_str(), sdt_it->second);
-        return false;
-    }
-    else
-        printf("--> '%s' (blender mesh data)\n", linked_data.c_str());
 
     BlenderMesh *blender_mesh = blender_meshes[linked_data];
     OSPGeometry geometry = blender_mesh->geometry;
@@ -946,17 +1018,15 @@ update_blender_mesh_object(const UpdateObject& update)
         return false;
     }    
 
-    if (create_new_object)
+    if (created)
     {
-        // New mesh object
-        scene_object = scene_objects[object_name] = new SceneObject(SOT_MESH);
-        scene_object->name = object_name;
         scene_object->data_link = linked_data;
-        group = scene_object->group = ospNewGroup();
-        instance = ospNewInstance(group);
-        scene_object->instances.push_back(instance);
         geometric_model = scene_object->geometric_model = ospNewGeometricModel(geometry);
         ospSetObject(geometric_model, "material", default_material);
+    }
+    else
+    {
+        geometric_model = scene_object->geometric_model;
     }
 
     // Update object 
@@ -989,20 +1059,9 @@ add_geometry_object(const UpdateObject& update)
     printf("OBJECT [%s] (geometry)\n", update.name().c_str());    
 
     const std::string& linked_data = update.data_link();
-    SceneDataTypeMap::iterator it = scene_data_types.find(linked_data);
 
-    if (it == scene_data_types.end())
-    {
-        printf("--> '%s' | WARNING: linked data not found!\n", linked_data.c_str());
+    if (!scene_data_with_type_exists(linked_data, SDT_PLUGIN))
         return false;
-    }
-    else if (it->second != SDT_PLUGIN)
-    {
-        printf("--> '%s' | WARNING: linked data is not a plugin instance!\n", linked_data.c_str());
-        return false;
-    }
-    else
-        printf("--> '%s' (geometry XXX?)\n", linked_data.c_str());
 
     PluginInstance* plugin_instance = plugin_instances[linked_data];
     assert(plugin_instance->type == PT_GEOMETRY);
@@ -1053,18 +1112,8 @@ add_scene_object(const UpdateObject& update)
     const std::string& linked_data = update.data_link();
     SceneDataTypeMap::iterator it = scene_data_types.find(linked_data);
 
-    if (it == scene_data_types.end())
-    {
-        printf("--> '%s' | WARNING: linked data not found!\n", linked_data.c_str());
+    if (!scene_data_with_type_exists(linked_data, SDT_PLUGIN))
         return false;
-    }
-    else if (it->second != SDT_PLUGIN)
-    {
-        printf("--> '%s' | WARNING: linked data is not a plugin instance!\n", linked_data.c_str());
-        return false;
-    }
-    else
-        printf("--> '%s' (scene XXX?)\n", linked_data.c_str());
 
     PluginInstance* plugin_instance = plugin_instances[linked_data];
     assert(plugin_instance->type == PT_SCENE);
@@ -1119,20 +1168,9 @@ add_volume_object(const UpdateObject& update, const Volume& volume_settings)
     printf("OBJECT '%s' (volume)\n", update.name().c_str());   
 
     const std::string& linked_data = update.data_link(); 
-    SceneDataTypeMap::iterator it = scene_data_types.find(linked_data);
 
-    if (it == scene_data_types.end())
-    {
-        printf("--> '%s' | WARNING: linked data not found!\n", linked_data.c_str());
+    if (!scene_data_with_type_exists(linked_data, SDT_PLUGIN))
         return false;
-    }
-    else if (it->second != SDT_PLUGIN)
-    {
-        printf("--> '%s' | WARNING: linked data is not a plugin instance!\n", linked_data.c_str());
-        return false;
-    }    
-    else
-        printf("--> '%s' (OSPRay volume?)\n", linked_data.c_str());
 
     PluginInstance* plugin_instance = plugin_instances[linked_data];
     assert(plugin_instance->type == PT_VOLUME);
@@ -1225,20 +1263,9 @@ add_isosurfaces_object(const UpdateObject& update)
     printf("OBJECT '%s' (isosurfaces)\n", update.name().c_str());    
 
     const std::string& linked_data = update.data_link();    
-    SceneDataTypeMap::iterator it = scene_data_types.find(linked_data);
 
-    if (it == scene_data_types.end())
-    {
-        printf("--> '%s' | WARNING: linked data not found!\n", linked_data.c_str());
+    if (!scene_data_with_type_exists(linked_data, SDT_PLUGIN))
         return false;
-    }
-    else if (it->second != SDT_PLUGIN)
-    {
-        printf("--> '%s' | WARNING: linked data is not a plugin instance!\n", linked_data.c_str());
-        return false;
-    }    
-    else
-        printf("--> '%s' (OSPRay volume?)\n", linked_data.c_str());
 
     PluginInstance* plugin_instance = plugin_instances[linked_data];
     assert(plugin_instance->type == PT_VOLUME);
@@ -1327,21 +1354,10 @@ add_slices_object(const UpdateObject& update, const Slices& slices)
 {
     printf("OBJECT '%s' (slices)\n", update.name().c_str());
     
-    const std::string& linked_data = update.data_link(); 
-    SceneDataTypeMap::iterator it = scene_data_types.find(linked_data);
+    const std::string& linked_data = update.data_link();
 
-    if (it == scene_data_types.end())
-    {
-        printf("--> '%s' | WARNING: linked data not found!\n", linked_data.c_str());
+     if (!scene_data_with_type_exists(linked_data, SDT_PLUGIN))
         return false;
-    }
-    else if (it->second != SDT_PLUGIN)
-    {
-        printf("--> '%s' | WARNING: linked data is not a plugin instance!\n", linked_data.c_str());
-        return false;
-    }    
-    else
-        printf("--> '%s' (OSPRay volume?)\n", linked_data.c_str());
 
     PluginInstance* plugin_instance = plugin_instances[linked_data];
     assert(plugin_instance->type == PT_VOLUME);
