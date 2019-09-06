@@ -108,10 +108,13 @@ struct PluginInstance
     PluginState     *state;     // XXX store as object, not as pointer?
 };
 
-// A regular Blender Mesh
+// A regular Blender Mesh XXX currently triangles only
 struct BlenderMesh
 {
     std::string     name;
+    uint32_t        num_vertices;
+    uint32_t        num_triangles;
+
     json            parameters;     // XXX not sure we need this
 
     OSPGeometry     geometry;
@@ -895,8 +898,8 @@ handle_update_blender_mesh_data(TCPSocket *sock, const std::string& name)
     if (!receive_protobuf(sock, mesh_data))
         return false;
 
-    nv = mesh_data.num_vertices();
-    nt = mesh_data.num_triangles();
+    nv = blender_mesh->num_vertices = mesh_data.num_vertices();
+    nt = blender_mesh->num_triangles = mesh_data.num_triangles();
     flags = mesh_data.flags();
 
     printf("... %d vertices, %d triangles, flags 0x%08x\n", nv, nt, flags);
@@ -1005,6 +1008,7 @@ update_blender_mesh_object(const UpdateObject& update)
     {
         scene_object->data_link = linked_data;
         geometric_model = scene_object->geometric_model = ospNewGeometricModel(geometry);
+        // XXX the material is renderer dependent...
         ospSetObject(geometric_model, "material", default_material);
     }
     else
@@ -1649,7 +1653,10 @@ handle_get_server_state(TCPSocket *sock)
     for (auto& kv: blender_meshes)
     {
         const BlenderMesh *mesh = kv.second;
-        p[kv.first] = { {"name", mesh->name}, {"parameters", mesh->parameters}, {"geometry", (size_t)mesh->geometry} };
+        p[kv.first] = { 
+            {"name", mesh->name}, {"parameters", mesh->parameters}, {"geometry", (size_t)mesh->geometry},
+            {"num_vertices", mesh->num_vertices}, {"num_triangles", mesh->num_triangles}
+        };
     }
     j["blender_meshes"] = p;
 

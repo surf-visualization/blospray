@@ -48,9 +48,7 @@ endif()
 # a non-standard place. Use pkg-config instead.
 pkg_check_modules(PROTOBUF REQUIRED protobuf)
 
-if(PROTOBUF_FOUND)
-    message ("protobuf found")
-else()
+if(NOT PROTOBUF_FOUND)
     message (FATAL_ERROR "Cannot find Protobuf")
 endif()
 

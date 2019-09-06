@@ -333,6 +333,8 @@ class Connection:
 
         self.mesh_data_exported = set()
 
+        print('DEPSGRAPH STATS:', depsgraph.debug_stats())
+
         for instance in depsgraph.object_instances:
 
             obj = instance.object
@@ -348,7 +350,7 @@ class Connection:
         
             mesh = obj.data
 
-            # Send mesh data
+            # Send mesh data first, so the object sent after can refer to it
             self.send_updated_mesh_data(data, depsgraph, mesh)            
                         
             # Send object linking to the mesh data
@@ -852,9 +854,9 @@ class Connection:
                     # XXX both receiving into a file and loading from file 
                     # block the blender UI for a short time
 
-                    print('[%6.3f] _read_framebuffer_to_file start' % (time.time()-t0))
+                    #print('[%6.3f] _read_framebuffer_to_file start' % (time.time()-t0))
                     self._read_framebuffer_to_file(FBFILE, render_result.file_size)
-                    print('[%6.3f] _read_framebuffer_to_file end' % (time.time()-t0))
+                    #print('[%6.3f] _read_framebuffer_to_file end' % (time.time()-t0))
 
                     # Sigh, this needs an image file format. I.e. reading in a raw framebuffer
                     # of floats isn't possible, hence the OpenEXR file
@@ -866,7 +868,7 @@ class Connection:
 
                     self.engine.update_result(result)
 
-                    print('[%6.3f] update_result() done' % (time.time()-t0))
+                    #print('[%6.3f] update_result() done' % (time.time()-t0))
 
                     self.engine.update_progress(sample/self.render_samples)
 
@@ -928,7 +930,7 @@ class Connection:
     
     def _read_framebuffer_to_file(self, fname, size):
 
-        print('_read_framebuffer_to_file(%s, %d)' % (fname, size))
+        #print('_read_framebuffer_to_file(%s, %d)' % (fname, size))
 
         # XXX use select() in a loop, to allow UI updates more frequently
 
