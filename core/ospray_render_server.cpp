@@ -1299,23 +1299,7 @@ render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
         gettimeofday(&t2, NULL);
         printf("frame in %.3f seconds\n", time_diff(t1, t2));
         
-        // Save framebuffer to file
-        sprintf(fname, "/dev/shm/blosprayfb%04d.exr", i);
-        
-        framebuffer_file_size = write_framebuffer_exr(fname);
-        // XXX check result value
-        
-        // Signal a new frame is available
-        RenderResult rs;
-        rs.set_type(RenderResult::FRAME);
-        rs.set_sample(i);
-        rs.set_file_name(fname);
-        rs.set_file_size(framebuffer_file_size);
-        rs.set_memory_usage(memory_usage());
-        
-        render_result_queue.push(rs);
-        
-        // XXX handle cancel input
+        // Check for cancel before writing framebuffer to file
         
         if (render_input_queue.size() > 0)
         {
@@ -1332,6 +1316,22 @@ render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
                 return;
             }
         }
+        
+        // Save framebuffer to file
+        sprintf(fname, "/dev/shm/blosprayfb%04d.exr", i);
+        
+        framebuffer_file_size = write_framebuffer_exr(fname);
+        // XXX check result value
+        
+        // Signal a new frame is available
+        RenderResult rs;
+        rs.set_type(RenderResult::FRAME);
+        rs.set_sample(i);
+        rs.set_file_name(fname);
+        rs.set_file_size(framebuffer_file_size);
+        rs.set_memory_usage(memory_usage());
+        
+        render_result_queue.push(rs);
     }
     
     RenderResult rs;

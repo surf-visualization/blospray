@@ -72,7 +72,7 @@ message RenderResult
     
     // FRAME
     uint32  sample = 2;
-    string  file_name = 3;
+    string  file_name = 3;          // Only used for server-internal purposes
     uint32  file_size = 4;
     float   memory_usage = 5;
 }

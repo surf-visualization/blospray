@@ -1,0 +1,49 @@
+[User presses F12]
+<- UPDATE_....
+    scene objects
+    camera
+<- ClientMessage START_RENDERING
+    type=FINAL
+    resolution
+    number of samples S
+-> RenderResult FRAME (times S)
+-> RenderResult DONE
+
+[User cancels rendering]
+<- ClientMessage CANCEL_RENDERING
+-> RenderResult FRAME (optional)
+-> RenderResult CANCELED
+
+---------------------------------------------------------------------
+
+[User switches to interactive rendering]
+<- UPDATE_....
+    scene objects
+    camera
+<- ClientMessage START_RENDERING
+    type=INTERACTIVE
+    viewport resolution
+    initial resolution factor
+    number of samples S
+-> RenderResult FRAME (times S)
+-> RenderResult DONE
+    
+[scene/camera updated]
+<- UPDATE_...
+# Should server stop rendering after UPDATE_ messages?
+# So client restarts rendering manually
+<- ClientMessage START_RENDERING
+    viewport resolution
+    max. number of samples S
+-> RenderResult FRAME (times S)
+-> RenderResult DONE
+    
+[viewport changed]
+<- ClientMessage START_RENDERING
+    viewport resolution
+    max. number of samples S
+-> RenderResult FRAME (times S)
+-> RenderResult DONE
+    
+[User switches out of interactive rendering]
+<- ClientMessage STOP_RENDERING             // same as CANCEL_RENDERING?
