@@ -30,8 +30,6 @@ from struct import pack, unpack
 
 import numpy
 
-next_sequence = 1
-
 sys.path.insert(0, os.path.split(__file__)[0])
 
 from .common import PROTOCOL_VERSION, send_protobuf, receive_protobuf
@@ -354,10 +352,7 @@ class Connection:
             self.send_updated_mesh_data(data, depsgraph, mesh)            
                         
             # Send object linking to the mesh data
-            self.send_updated_mesh_object(data, depsgraph, obj, mesh, instance.matrix_world, instance.is_instance, instance.random_id)
-
-        print('EXPORT done, next_sequence = %d' % next_sequence)
-        
+            self.send_updated_mesh_object(data, depsgraph, obj, mesh, instance.matrix_world, instance.is_instance, instance.random_id)        
 
     def send_updated_ambient_light(self, color, intensity):
 
@@ -473,12 +468,8 @@ class Connection:
             name = '%s [%d]' % (name, random_id)
         print(s)
 
-        global next_sequence
-    
         client_message = ClientMessage()
         client_message.type = ClientMessage.UPDATE_OBJECT    
-        client_message.sequence = next_sequence
-        next_sequence += 1
         
         update = UpdateObject()
         update.name = name

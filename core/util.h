@@ -161,6 +161,7 @@ send_protobuf(TCPSocket *sock, T& protobuf)
     std::string message;
     uint32_t message_size;
     
+    // XXX use SerializeToArray
     protobuf.SerializeToString(&message);
     
     message_size = message.size();
