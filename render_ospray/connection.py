@@ -36,7 +36,7 @@ from .common import PROTOCOL_VERSION, send_protobuf, receive_protobuf
 from .messages_pb2 import (
     HelloResult,
     CameraSettings, ImageSettings,
-    Light, RenderSettings,
+    LightSettings, RenderSettings,
     MeshData,
     ClientMessage, GenerateFunctionResult,
     RenderResult,
@@ -352,12 +352,12 @@ class Connection:
 
     def send_updated_ambient_light(self, color, intensity):
 
-        light = Light()
-        light.type = Light.AMBIENT
-        light.object_name = '<ambient>'
+        light_settings = LightSettings()
+        light_settings.type = LightSettings.AMBIENT
+        light_settings.object_name = '<ambient>'
 
-        light.color[:] = color
-        light.intensity = intensity
+        light_settings.color[:] = color
+        light_settings.intensity = intensity
 
         client_message = ClientMessage()
         client_message.type = ClientMessage.UPDATE_OBJECT  
@@ -369,48 +369,48 @@ class Connection:
         # XXX using three messages :-/
         send_protobuf(self.sock, client_message)
         send_protobuf(self.sock, update)
-        send_protobuf(self.sock, light)
+        send_protobuf(self.sock, light_settings)
 
 
     def send_updated_light(self, data, depsgraph, obj):
 
         self.engine.update_stats('', 'Light %s' % obj.name)
 
-        TYPE2ENUM = dict(POINT=Light.POINT, SUN=Light.SUN, SPOT=Light.SPOT, AREA=Light.AREA)
+        TYPE2ENUM = dict(POINT=LightSettings.POINT, SUN=LightSettings.SUN, SPOT=LightSettings.SPOT, AREA=LightSettings.AREA)
 
         data = obj.data
         xform = obj.matrix_world
 
         ospray_data = data.ospray
 
-        light = Light()
-        light.type = TYPE2ENUM[data.type]
-        light.object2world[:] = matrix2list(xform)      # XXX get from updateobject
-        light.object_name = obj.name
-        light.light_name = data.name
+        light_settings = LightSettings()
+        light_settings.type = TYPE2ENUM[data.type]
+        light_settings.object2world[:] = matrix2list(xform)      # XXX get from updateobject
+        light_settings.object_name = obj.name
+        light_settings.light_name = data.name
 
-        light.color[:] = data.color
-        light.intensity = ospray_data.intensity
-        light.visible = ospray_data.visible
+        light_settings.color[:] = data.color
+        light_settings.intensity = ospray_data.intensity
+        light_settings.visible = ospray_data.visible
 
         if data.type == 'SUN':
-            light.angular_diameter = ospray_data.angular_diameter
+            light_settings.angular_diameter = ospray_data.angular_diameter
         elif data.type != 'AREA':
-            light.position[:] = (xform[0][3], xform[1][3], xform[2][3])
+            light_settings.position[:] = (xform[0][3], xform[1][3], xform[2][3])
 
         if data.type in ['SUN', 'SPOT']:
-            light.direction[:] = obj.matrix_world @ Vector((0, 0, -1)) - obj.location
+            light_settings.direction[:] = obj.matrix_world @ Vector((0, 0, -1)) - obj.location
 
         if data.type == 'SPOT':
             # Blender:
             # .spot_size = full angle where light shines, in degrees
             # .spot_blend = factor in [0,1], 0 = no penumbra, 1 = penumbra is full angle
-            light.opening_angle = degrees(data.spot_size)
-            light.penumbra_angle = 0.5*data.spot_blend*degrees(data.spot_size)
+            light_settings.opening_angle = degrees(data.spot_size)
+            light_settings.penumbra_angle = 0.5*data.spot_blend*degrees(data.spot_size)
             # assert light.penumbra_angle < 0.5*light.opening_angle
 
         if data.type in ['POINT', 'SPOT']:
-            light.radius = data.shadow_soft_size        # XXX what is this called in ospray?
+            light_settings.radius = data.shadow_soft_size        # XXX what is this called in ospray?
 
         if data.type == 'AREA':
             size_x = data.size
@@ -426,9 +426,9 @@ class Connection:
             edge1 = obj.matrix_world @ edge1 - position
             edge2 = obj.matrix_world @ edge2 - position
 
-            light.position[:] = position
-            light.edge1[:] = edge1
-            light.edge2[:] = edge2
+            light_settings.position[:] = position
+            light_settings.edge1[:] = edge1
+            light_settings.edge2[:] = edge2
 
         client_message = ClientMessage()
         client_message.type = ClientMessage.UPDATE_OBJECT  
@@ -447,7 +447,7 @@ class Connection:
         # XXX using three messages :-/
         send_protobuf(self.sock, client_message)
         send_protobuf(self.sock, update)
-        send_protobuf(self.sock, light)
+        send_protobuf(self.sock, light_settings)
 
 
     def send_updated_mesh_object(self, data, depsgraph, obj, mesh, matrix_world):

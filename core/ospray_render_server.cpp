@@ -157,6 +157,7 @@ struct SceneObject
     OSPGeometricModel           geometric_model;    // Only for type == SOT_GEOMETRY
     OSPVolumetricModel          volumetric_model;   // Only for type == SOT_VOLUME
     OSPLight                    light;              // Only for type == SOT_LIGHT
+    LightSettings::Type         light_type;         // Only for type == SOT_LIGHT
 
     SceneObject(SceneObjectType type)
     {
@@ -594,7 +595,7 @@ handle_update_plugin_instance(TCPSocket *sock)
     else
     {
         // No previous plugin instance with this name
-        printf("... New name, creating new plugin instance\n");
+        printf("... Creating new plugin instance\n");
         create_new_instance = true;
     }
 
@@ -750,7 +751,7 @@ handle_update_blender_mesh_data(TCPSocket *sock, const std::string& name)
         {
             printf("... WARNING: data '%s' is currently of type %d, overwriting with new mesh!\n", name.c_str(), type);    
             // XXX erase existing entry
-            create_new_mesh = true;  
+            create_new_mesh = true;
         }
         else
         {
@@ -1424,68 +1425,125 @@ add_slices_object(const UpdateObject& update, const Slices& slices)
     return true;
 }
 
+// XXX at some point lights will become regular scene objects in ospray 2.0,
+// for now treat them separately
 bool
-add_light_object(const UpdateObject& update, const Light& light)
+update_light_object(const UpdateObject& update, const LightSettings& light_settings)
 {
-    OSPLight osp_light;
+    const std::string& object_name = light_settings.object_name();
+    printf("OBJECT '%s' (light)\n", object_name.c_str());
+    printf("--> '%s' (blender light data)\n", light_settings.light_name().c_str());    // XXX not set for ambient
 
-    printf("OBJECT '%s' (light)\n", light.object_name().c_str());
-    printf("--> '%s' (blender light data)\n", light.light_name().c_str());    // XXX not set for ambient
+    SceneObject *scene_object;
+    OSPLight light;
+    LightSettings::Type light_type;
+    bool create_new_light = false;
 
-    // XXX turn into render setting
-    if (light.type() == Light::AMBIENT)
-    {        
-        osp_light = ospNewLight("ambient");
-        ospSetFloat(osp_light, "intensity", light.intensity());
-        ospSetVec3f(osp_light, "color", light.color(0), light.color(1), light.color(2));
-        ospCommit(osp_light);
-        scene_lights.push_back(osp_light);
+    SceneObjectMap::iterator so_it = scene_objects.find(object_name);
+
+    if (so_it != scene_objects.end())
+    {
+        // XXX check scene object type
+        printf("... Updating existing light\n");
+        scene_object = so_it->second;
+        assert(scene_object->type == SOT_LIGHT);
+        light = scene_object->light;
+        assert(light != nullptr);
+        light_type = scene_object->light_type;
+        if (light_type != light_settings.type())
+        {            
+            printf("... Light type changed from %d to %d, creating new light\n",
+                light_type, light_settings.type());
+            create_new_light = true;
+            // XXX delete existing     
+        }
+    }
+    else
+    {
+        // No existing scene object with this name
+        printf("... Creating new light\n");
+        create_new_light = true;
+    }
+
+    light_type = light_settings.type();
+
+    if (create_new_light)
+    {
+        switch (light_type)
+        {
+        case LightSettings::AMBIENT:
+            light = ospNewLight("ambient");
+            break; 
+        case LightSettings::POINT:
+            light = ospNewLight("sphere");
+            break; 
+        case LightSettings::SPOT:
+            light = ospNewLight("spot");
+            break; 
+        case LightSettings::SUN:
+            light = ospNewLight("distant");
+            break; 
+        case  LightSettings::AREA:
+            light = ospNewLight("quad");
+            break; 
+        default:
+            printf("ERROR: unhandled light type %d!\n", light_type);
+        }
+
+        scene_object = scene_objects[object_name] = new SceneObject(SOT_LIGHT);
+        scene_object->light = light;
+        scene_object->light_type = light_type;
+        scene_object->name = object_name;
+        scene_object->data_link = light_settings.light_name();
+    }
+
+    // XXX turn into render setting, as there is no way to create an ambient light object
+    // in blender
+    if (light_settings.type() == LightSettings::AMBIENT)
+    {                
+        ospSetFloat(light, "intensity", light_settings.intensity());
+        ospSetVec3f(light, "color", light_settings.color(0), light_settings.color(1), light_settings.color(2));
+        ospCommit(light);
+        scene_lights.push_back(light);
         return true;
     }
 
-    if (light.type() == Light::POINT)
+    if (light_settings.type() == LightSettings::SPOT)
     {
-        osp_light = ospNewLight("sphere");
+        ospSetFloat(light, "openingAngle", light_settings.opening_angle());
+        ospSetFloat(light, "penumbraAngle", light_settings.penumbra_angle());
     }
-    else if (light.type() == Light::SPOT)
+    else if (light_settings.type() == LightSettings::SUN)
     {
-        osp_light = ospNewLight("spot");
-        ospSetFloat(osp_light, "openingAngle", light.opening_angle());
-        ospSetFloat(osp_light, "penumbraAngle", light.penumbra_angle());
+        ospSetFloat(light, "angularDiameter", light_settings.angular_diameter());
     }
-    else if (light.type() == Light::SUN)
-    {
-        osp_light = ospNewLight("distant");
-        ospSetFloat(osp_light, "angularDiameter", light.angular_diameter());
-    }
-    else if (light.type() == Light::AREA)
+    else if (light_settings.type() == LightSettings::AREA)
     {
         // XXX blender's area light is more general than ospray's quad light
-        osp_light = ospNewLight("quad");
-        ospSetVec3f(osp_light, "edge1", light.edge1(0), light.edge1(1), light.edge1(2));
-        ospSetVec3f(osp_light, "edge2", light.edge2(0), light.edge2(1), light.edge2(2));
+        ospSetVec3f(light, "edge1", light_settings.edge1(0), light_settings.edge1(1), light_settings.edge1(2));
+        ospSetVec3f(light, "edge2", light_settings.edge2(0), light_settings.edge2(1), light_settings.edge2(2));
     }
     //else
     // XXX HDRI
 
-    printf("... intensity %.3f, visible %d\n", light.intensity(), light.visible());
+    printf("... intensity %.3f, visible %d\n", light_settings.intensity(), light_settings.visible());
 
-    ospSetVec3f(osp_light, "color", light.color(0), light.color(1), light.color(2));
-    ospSetFloat(osp_light, "intensity", light.intensity());
-    ospSetBool(osp_light, "visible", light.visible());
+    ospSetVec3f(light, "color", light_settings.color(0), light_settings.color(1), light_settings.color(2));
+    ospSetFloat(light, "intensity", light_settings.intensity());
+    ospSetBool(light, "visible", light_settings.visible());
 
-    if (light.type() != Light::SUN)
-        ospSetVec3f(osp_light, "position", light.position(0), light.position(1), light.position(2));
+    if (light_settings.type() != LightSettings::SUN)
+        ospSetVec3f(light, "position", light_settings.position(0), light_settings.position(1), light_settings.position(2));
 
-    if (light.type() == Light::SUN || light.type() == Light::SPOT)
-        ospSetVec3f(osp_light, "direction", light.direction(0), light.direction(1), light.direction(2));
+    if (light_settings.type() == LightSettings::SUN || light_settings.type() == LightSettings::SPOT)
+        ospSetVec3f(light, "direction", light_settings.direction(0), light_settings.direction(1), light_settings.direction(2));
 
-    if (light.type() == Light::POINT || light.type() == Light::SPOT)
-        ospSetFloat(osp_light, "radius", light.radius());
+    if (light_settings.type() == LightSettings::POINT || light_settings.type() == LightSettings::SPOT)
+        ospSetFloat(light, "radius", light_settings.radius());
 
-    ospCommit(osp_light);
+    ospCommit(light);
 
-    scene_lights.push_back(osp_light);
+    scene_lights.push_back(light);
 
     return true;
 }
@@ -1593,7 +1651,6 @@ bool
 handle_update_object(TCPSocket *sock)
 {
     UpdateObject    update;    
-    Light           light;
 
     if (!receive_protobuf(sock, update))
         return false;
@@ -1637,9 +1694,12 @@ handle_update_object(TCPSocket *sock)
         break;
 
     case UpdateObject::LIGHT:
-        if (!receive_protobuf(sock, light))
+        {
+        LightSettings light_settings;
+        if (!receive_protobuf(sock, light_settings))
             return false;
-        add_light_object(update, light);
+        update_light_object(update, light_settings);
+        }
         break;
 
     default:

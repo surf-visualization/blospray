@@ -230,7 +230,7 @@ message RenderSettings
     bool            shadows_enabled = 5;    // XXX no longer in API2?
 }
 
-message Light 
+message LightSettings
 {
     enum Type {        
         AMBIENT = 0;
