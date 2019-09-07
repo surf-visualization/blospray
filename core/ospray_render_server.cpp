@@ -405,9 +405,11 @@ delete_scene_data(const std::string& name)
 /*
 Find scene object by name, create new if not found.
 Three cases:
-1. no existing object with name -> create new
-2. existing object with name, but of wrong type -> delete existing, create new
-3. existing object with name and correct type -> return existing
+1. no existing object with name 
+2. existing object with name, but of wrong type 
+3. existing object with name and correct type 
+
+Returns NULL if no existing object found with given name.
 */
 
 SceneObject*
@@ -423,8 +425,8 @@ find_scene_object(const std::string& name, SceneObjectType type, bool delete_exi
         {
             if (delete_existing_mismatch)
             {
-                printf("... WARNING: existing object is not of type %d, but of type %d, deleting\n", 
-                    type, scene_object->type);
+                printf("... WARNING: existing object is not of type %d (%s), but of type %d (%s), deleting\n", 
+                    type, SceneObjectType_names[type], scene_object->type, SceneObjectType_names[scene_object->type]);
                 delete_object(name);
                 return nullptr;
             }
@@ -433,7 +435,7 @@ find_scene_object(const std::string& name, SceneObjectType type, bool delete_exi
         }
         else
         {        
-            printf("... Existing object matches type %d\n", type);
+            printf("... Existing object matches type %d (%s)\n", type, SceneObjectType_names[type]);
             return scene_object;
         }
     }
@@ -446,21 +448,21 @@ find_scene_object(const std::string& name, SceneObjectType type, bool delete_exi
 bool
 scene_data_with_type_exists(const std::string& name, SceneDataType type)
 {
-    SceneDataTypeMap::iterator sdt_it = scene_data_types.find(name);
+    SceneDataTypeMap::iterator it = scene_data_types.find(name);
 
-    if (sdt_it == scene_data_types.end())
+    if (it == scene_data_types.end())
     {
         printf("... Scene data '%s' does not exist\n", name.c_str());
         return false;
     }
-    else if (sdt_it->second != type)
+    else if (it->second != type)
     {
-        printf("... Scene data '%s' is not of type %d, but of type %d\n", 
-            name.c_str(), type, sdt_it->second);
+        printf("... Scene data '%s' is not of type %d (%s), but of type %d (%s)\n", 
+            name.c_str(), type, SceneDataType_names[type], it->second, SceneDataType_names[it->second]);
         return false;
     }
 
-    printf("... Scene data '%s' found, type %d\n", name.c_str(), type);
+    printf("... Scene data '%s' found, type %d (%s)\n", name.c_str(), type, SceneDataType_names[type]);
     
     return true;        
 }
@@ -1181,6 +1183,7 @@ update_volume_object(const UpdateObject& update, const Volume& volume_settings)
 
     if (scene_object == nullptr)
     {
+        scene_objects[object_name] = volume_object;
         volumetric_model = volume_object->volumetric_model = ospNewVolumetricModel(volume);
 
         OSPTransferFunction tf = create_transfer_function("cool2warm", state->volume_data_range[0], state->volume_data_range[1]);
@@ -1217,7 +1220,6 @@ update_volume_object(const UpdateObject& update, const Volume& volume_settings)
     ospSetAffine3fv(instance, "xfm", affine_xform);
     ospCommit(instance);
 
-    scene_objects[object_name] = volume_object;
     scene_instances.push_back(instance);
 
     return true;
@@ -1226,13 +1228,45 @@ update_volume_object(const UpdateObject& update, const Volume& volume_settings)
 bool
 add_isosurfaces_object(const UpdateObject& update)
 {
+    const std::string& object_name = update.name();
     const std::string& linked_data = update.data_link();    
 
     printf("OBJECT '%s' (isosurfaces)\n", update.name().c_str()); 
     printf("--> '%s'\n", linked_data.c_str());     
 
+    SceneObject         *scene_object;
+    SceneObjectIsosurfaces   *isosurfaces_object;
+    OSPInstance         instance;
+    OSPGroup            group;
+    OSPGeometry         isosurfaces_geometry;
+    OSPVolumetricModel  volumetric_model;
+    OSPGeometricModel   geometric_model;
+
+    scene_object = find_scene_object(object_name, SOT_ISOSURFACES);
+
+    if (scene_object != nullptr)
+        isosurfaces_object = (SceneObjectIsosurfaces*) scene_object;
+    else
+        isosurfaces_object = new SceneObjectIsosurfaces;
+
+    instance = isosurfaces_object->instance;
+    assert(instance != nullptr);
+    group = isosurfaces_object->group;
+    assert(group != nullptr); 
+    volumetric_model = isosurfaces_object->volumetric_model;
+    geometric_model = isosurfaces_object->geometric_model;
+    assert(geometric_model != nullptr);
+    isosurfaces_geometry = isosurfaces_object->isosurfaces_geometry;
+    assert(isosurfaces_geometry != nullptr);
+
+    // Check linked data
+
     if (!scene_data_with_type_exists(linked_data, SDT_PLUGIN))
+    {
+        if (scene_object != nullptr)
+            delete isosurfaces_object;
         return false;
+    }
 
     PluginInstance* plugin_instance = plugin_instances[linked_data];
     assert(plugin_instance->type == PT_VOLUME);
@@ -1243,9 +1277,27 @@ add_isosurfaces_object(const UpdateObject& update)
     if (volume == NULL)
     {
         printf("... ERROR: volume is NULL!\n");
+        if (scene_object != nullptr)
+            delete isosurfaces_object;
         return false;
     }        
-    
+
+    if (scene_object != nullptr)
+    {
+        scene_objects[object_name] = isosurfaces_object;
+
+        // XXX hacked temp volume module
+        volumetric_model = isosurfaces_object->volumetric_model = ospNewVolumetricModel(volume);
+            OSPTransferFunction tf = create_transfer_function("cool2warm", state->volume_data_range[0], state->volume_data_range[1]);
+            ospSetObject(volumetric_model, "transferFunction", tf);
+            ospRelease(tf);
+            //ospSetFloat(volumeModel, "samplingRate", 0.5f);
+         ospCommit(volumetric_model);
+
+        ospSetObject(geometric_model, "material", default_material);
+        ospCommit(geometric_model);
+     }
+
     const char *s_custom_properties = update.custom_properties().c_str();
     //printf("Received custom properties:\n%s\n", s_custom_properties);
     const json &custom_properties = json::parse(s_custom_properties);
@@ -1271,45 +1323,22 @@ add_isosurfaces_object(const UpdateObject& update)
     OSPData isovalues_data = ospNewData(n, OSP_FLOAT, isovalues);    
     delete [] isovalues;
 
-    // XXX hacked temp volume module
-    auto volumeModel = ospNewVolumetricModel(volume);
-        OSPTransferFunction tf = create_transfer_function("cool2warm", state->volume_data_range[0], state->volume_data_range[1]);
-        ospSetObject(volumeModel, "transferFunction", tf);
-        ospRelease(tf);
-        //ospSetFloat(volumeModel, "samplingRate", 0.5f);
-  	ospCommit(volumeModel);
+    ospSetObject(isosurfaces_geometry, "volume", volumetric_model);       		// XXX structured vol example indicates this needs to be the volume model??
+    ospRelease(volume);
 
-    OSPGeometry isosurface = ospNewGeometry("isosurfaces");
+    ospSetData(isosurfaces_geometry, "isovalue", isovalues_data);
+    ospRelease(isovalues_data);
 
-        ospSetObject(isosurface, "volume", volumeModel);       		// XXX structured vol example indicates this needs to be the volume model??
-        ospRelease(volume);
+    ospCommit(isosurfaces_geometry);
 
-        ospSetData(isosurface, "isovalue", isovalues_data);
-        ospRelease(isovalues_data);
-
-    ospCommit(isosurface);
-
-    OSPGeometricModel model = ospNewGeometricModel(isosurface);
-        ospSetObject(model, "material", default_material);
-    ospCommit(model);
-    ospRelease(isosurface);
-    
-    OSPGroup group = ospNewGroup();
-        OSPData data = ospNewData(1, OSP_OBJECT, &model, 0);
-        ospSetObject(group, "geometry", data);                  // SetObject or SetData?
-        //ospRelease(model);
-    ospCommit(group);
- 
     glm::mat4   obj2world;
     float       affine_xform[12];
 
     object2world_from_protobuf(obj2world, update);
     affine3fv_from_mat4(affine_xform, obj2world);
 
-    OSPInstance instance = ospNewInstance(group);
-        ospSetAffine3fv(instance, "xfm", affine_xform);
+    ospSetAffine3fv(instance, "xfm", affine_xform);
     ospCommit(instance);
-    ospRelease(group);
 
     scene_instances.push_back(instance);
     
@@ -1592,7 +1621,7 @@ handle_get_server_state(TCPSocket *sock)
     for (auto& kv: scene_objects)
     {
         const SceneObject* object = kv.second;
-        p[kv.first] = { {"type", object->type}, {"data_link", object->data_link} };
+        p[kv.first] = { {"type", SceneObjectType_names[object->type]}, {"data_link", object->data_link} };
     }
     j["scene_objects"] = p;
 
@@ -1646,7 +1675,7 @@ handle_get_server_state(TCPSocket *sock)
     p = {};
     for (auto& kv: scene_data_types)
     {
-        p[kv.first] = kv.second;
+        p[kv.first] = SceneDataType_names[kv.second];
     }
     j["scene_data_types"] = p;
 
@@ -1654,7 +1683,7 @@ handle_get_server_state(TCPSocket *sock)
     for (auto& kv: plugin_definitions)
     {
         const PluginDefinition& pdef = kv.second;
-        p[kv.first] = { {"type", pdef.type}, {"uses_renderer_type", pdef.uses_renderer_type} };    // XXX params
+        p[kv.first] = { {"type", PluginType_names[pdef.type]}, {"uses_renderer_type", pdef.uses_renderer_type} };    // XXX params
     }
     j["plugin_definitions"] = p;
 
