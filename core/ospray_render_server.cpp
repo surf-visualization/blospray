@@ -47,6 +47,7 @@
 #include "util.h"
 #include "plugin.h"
 #include "messages.pb.h"
+#include "scene.h"
 
 using json = nlohmann::json;
 
@@ -118,77 +119,6 @@ struct BlenderMesh
     json            parameters;     // XXX not sure we need this
 
     OSPGeometry     geometry;
-};
-
-// Server-side data associated with a blender Mesh Object
-
-enum SceneObjectType
-{
-    SOT_MESH,           // Blender mesh    -> rename to SOT_TRIANGLE_MESH
-    SOT_GEOMETRY,       // OSPRay geometry
-    SOT_VOLUME,
-    SOT_SLICES,
-    SOT_ISOSURFACES,
-    SOT_SCENE,
-    SOT_LIGHT           // In OSPRay these are actually stored on the renderer, not in the scene    // XXX not used?
-};
-
-enum SceneDataType
-{
-    SDT_PLUGIN,
-    SDT_MESH
-};
-
-struct SceneObject
-{
-    SceneObjectType type;                   // XXX the type of scene objects actually depends on the type of data linked
-
-    glm::mat4       object2world;
-    //json            parameters;
-
-    std::string     data_link;              // Name of linked scene data, may be ""
-
-    // Corresponding OSPRay elements in the scene (aka world)
-
-    // Either a single OSPInstance in case of a geometry/volume/mesh,
-    // or a list of instances of OSPGroup's (with their xforms) when
-    // provided by a scene plugin
-    std::vector<OSPInstance>    instances;          // Will have 1 item for type != SOT_SCENE
-    OSPGroup                    group;              // Only for type in [SOT_GEOMETRY, SOT_VOLUME]
-    OSPGeometricModel           geometric_model;    // Only for type == SOT_GEOMETRY
-    OSPVolumetricModel          volumetric_model;   // Only for type == SOT_VOLUME
-    OSPLight                    light;              // Only for type == SOT_LIGHT
-    LightSettings::Type         light_type;         // Only for type == SOT_LIGHT
-
-    SceneObject(SceneObjectType type)
-    {
-        this->type = type;
-        group = nullptr;
-        geometric_model = nullptr;
-        volumetric_model = nullptr;
-        light = nullptr;
-    }
-
-    ~SceneObject() 
-    {
-        switch (type)
-        {
-        case SOT_LIGHT:
-            ospRelease(light);
-            break;
-        case SOT_VOLUME:
-            ospRelease(volumetric_model);
-            ospRelease(group);
-            break;
-        case SOT_GEOMETRY:
-            ospRelease(geometric_model);
-            ospRelease(group);
-            break;
-        }
-
-        for (OSPInstance& i : instances)
-            ospRelease(i);
-    }
 };
 
 // Top-level scene objects
@@ -478,15 +408,12 @@ Three cases:
 1. no existing object with name -> create new
 2. existing object with name, but of wrong type -> delete existing, create new
 3. existing object with name and correct type -> return existing
-
-The parameter created will be signal whether a new SceneObject was created.
 */
 
 SceneObject*
-find_or_replace_scene_object(const std::string& name, SceneObjectType type, bool& created)
+find_scene_object(const std::string& name, SceneObjectType type, bool delete_existing_mismatch=true)
 {
     SceneObject *scene_object;
-
     SceneObjectMap::iterator it = scene_objects.find(name);
 
     if (it != scene_objects.end())
@@ -494,30 +421,26 @@ find_or_replace_scene_object(const std::string& name, SceneObjectType type, bool
         scene_object = it->second;
         if (scene_object->type != type)
         {
-            printf("... WARNING: existing object is of type %d, replacing with type %d\n", 
-                scene_object->type, type);
-            delete_object(name);
-            created = true;
+            if (delete_existing_mismatch)
+            {
+                printf("... WARNING: existing object is not of type %d, but of type %d, deleting\n", 
+                    type, scene_object->type);
+                delete_object(name);
+                return nullptr;
+            }
+            else
+                return scene_object;
         }
         else
         {        
             printf("... Existing object matches type %d\n", type);
-            created = false;
+            return scene_object;
         }
     }
-    else
-    {
-        printf("... Creating new object\n", type);
-        created = true;
-    }
 
-    if (created)
-    {
-        scene_object = new SceneObject(type);
-        scene_objects[name] = scene_object;        
-    }
+    printf("... No existing object\n");
 
-    return scene_object;
+    return nullptr;
 }
 
 bool
@@ -968,33 +891,31 @@ update_blender_mesh_object(const UpdateObject& update)
     printf("OBJECT '%s' (blender mesh)\n", object_name.c_str());   
     printf("--> '%s'\n", linked_data.c_str());
 
-    bool            created;
     SceneObject     *scene_object;
+    SceneObjectMesh *mesh_object;
     OSPInstance     instance;
     OSPGroup        group;
     OSPGeometricModel geometric_model;
 
-    scene_object = find_or_replace_scene_object(object_name, SOT_MESH, created);
+    scene_object = find_scene_object(object_name, SOT_MESH);
 
-    if (created)
-    {
-        // New mesh object        
-        group = scene_object->group = ospNewGroup();
-        instance = ospNewInstance(group);
-        scene_object->instances.push_back(instance);
-    }
+    if (scene_object == nullptr)
+        mesh_object = new SceneObjectMesh;    
     else
-    {
-        instance = scene_object->instances[0];
-        assert(instance != nullptr);
-        group = scene_object->group;
-        assert(group != nullptr);
-    }
+        mesh_object = (SceneObjectMesh*) scene_object;
+
+    instance = mesh_object->instance;
+    assert(instance != nullptr);
+    group = mesh_object->group;
+    assert(group != nullptr);
 
     // Check linked data
 
     if (!scene_data_with_type_exists(linked_data, SDT_MESH))
+    {
+        delete mesh_object;
         return false;
+    }
 
     BlenderMesh *blender_mesh = blender_meshes[linked_data];
     OSPGeometry geometry = blender_mesh->geometry;
@@ -1002,13 +923,14 @@ update_blender_mesh_object(const UpdateObject& update)
     if (geometry == NULL)
     {
         printf("... ERROR: geometry is NULL!\n");
+        delete mesh_object;
         return false;
     }    
 
-    if (created)
+    if (scene_object == nullptr)
     {
-        scene_object->data_link = linked_data;
-        geometric_model = scene_object->geometric_model = ospNewGeometricModel(geometry);
+        mesh_object->data_link = linked_data;
+        geometric_model = mesh_object->geometric_model = ospNewGeometricModel(geometry);
             // XXX the material is renderer dependent...
             ospSetObject(geometric_model, "material", default_material);
         ospCommit(geometric_model);
@@ -1016,7 +938,7 @@ update_blender_mesh_object(const UpdateObject& update)
     else
     {
         // XXX need this for updating material
-        geometric_model = scene_object->geometric_model;
+        geometric_model = mesh_object->geometric_model;
     }
 
     // Update object 
@@ -1035,6 +957,7 @@ update_blender_mesh_object(const UpdateObject& update)
     ospCommit(group);    
     ospRelease(models); 
 
+    scene_objects[object_name] = mesh_object;
     // XXX should create this list from scene_objects?
     scene_instances.push_back(instance);
 
@@ -1051,33 +974,30 @@ update_geometry_object(const UpdateObject& update)
     printf("OBJECT '%s' (geometry)\n", object_name.c_str());    
     printf("--> '%s'\n", linked_data.c_str());
 
-    // Check linked data    
-    
-    if (!scene_data_with_type_exists(linked_data, SDT_PLUGIN))
-        return false;
-
-    bool            created;
     SceneObject     *scene_object;
+    SceneObjectGeometry *geometry_object;
     OSPInstance     instance;
     OSPGroup        group;
     OSPGeometricModel geometric_model;
 
-    scene_object = find_or_replace_scene_object(object_name, SOT_GEOMETRY, created);
+    scene_object = find_scene_object(object_name, SOT_GEOMETRY);
 
-    if (created)
-    {
-        // New geometry object
-        group = scene_object->group = ospNewGroup();
-        instance = ospNewInstance(group);
-        scene_object->instances.push_back(instance);
-    }
+    if (scene_object == nullptr)
+        geometry_object = new SceneObjectGeometry;
     else
+        geometry_object = (SceneObjectGeometry*) scene_object;
+
+    instance = geometry_object->instance;
+    assert(instance != nullptr);
+    group = geometry_object->group;
+    assert(group != nullptr);        
+
+    // Check linked data    
+    
+    if (!scene_data_with_type_exists(linked_data, SDT_PLUGIN))
     {
-        geometric_model = scene_object->geometric_model;
-        instance = scene_object->instances[0];
-        assert(instance != nullptr);
-        group = scene_object->group;
-        assert(group != nullptr);        
+        delete geometry_object;
+        return false;
     }
 
     PluginInstance* plugin_instance = plugin_instances[linked_data];
@@ -1089,12 +1009,13 @@ update_geometry_object(const UpdateObject& update)
     if (geometry == NULL)
     {
         printf("... ERROR: geometry is NULL!\n");
+        delete geometry_object;
         return false;
     }    
 
-    if (created)
+    if (scene_object == nullptr)
     {
-        geometric_model = ospNewGeometricModel(geometry); 
+        geometric_model = geometry_object->geometric_model = ospNewGeometricModel(geometry); 
             ospSetObject(geometric_model, "material", default_material);
         ospCommit(geometric_model);
 
@@ -1113,6 +1034,7 @@ update_geometry_object(const UpdateObject& update)
     ospSetAffine3fv(instance, "xfm", affine_xform);    
     ospCommit(instance);
 
+    scene_objects[object_name] = geometry_object;
     scene_instances.push_back(instance);
 
     return true;
@@ -1121,6 +1043,7 @@ update_geometry_object(const UpdateObject& update)
 bool
 add_scene_object(const UpdateObject& update)
 {    
+    const std::string& object_name = update.name();
     const std::string& linked_data = update.data_link();
 
     printf("OBJECT '%s' (scene)\n", update.name().c_str());    
@@ -1129,23 +1052,47 @@ add_scene_object(const UpdateObject& update)
     if (!scene_data_with_type_exists(linked_data, SDT_PLUGIN))
         return false;
 
+    SceneObject     *scene_object;
+    SceneObjectScene *scene_object_scene;       // XXX yuck
+
+    scene_object = find_scene_object(object_name, SOT_SCENE);
+
+    if (scene_object != nullptr)
+    {
+        scene_object_scene = (SceneObjectScene*) scene_object;
+        for (OSPInstance &i : scene_object_scene->instances)
+            ospRelease(i);
+        scene_object_scene->instances.clear();
+        //scene_object_scene->lights.clear();
+    }
+    else
+        scene_object_scene = new SceneObjectScene;
+
+    // Check linked data    
+    
+    if (!scene_data_with_type_exists(linked_data, SDT_PLUGIN))
+    {
+        delete scene_object_scene;
+        return false;
+    }
+
     PluginInstance* plugin_instance = plugin_instances[linked_data];
     assert(plugin_instance->type == PT_SCENE);
     PluginState *state = plugin_instance->state;
 
-    GroupInstances instances = state->group_instances;
+    GroupInstances group_instances = state->group_instances;
 
-    if (instances.size() == 0)
+    if (group_instances.size() == 0)
         printf("... WARNING: no instances to add!\n");
     else
-        printf("... Adding %d instances to scene!\n", instances.size());
+        printf("... Adding %d instances to scene!\n", group_instances.size());
 
     glm::mat4   obj2world;
     float       affine_xform[12];
 
     object2world_from_protobuf(obj2world, update);
 
-    for (GroupInstance& gi : instances)
+    for (GroupInstance& gi : group_instances)
     {
         OSPGroup group = gi.first;
         const glm::mat4 instance_xform = gi.second;
@@ -1155,8 +1102,8 @@ add_scene_object(const UpdateObject& update)
         OSPInstance instance = ospNewInstance(group);
             ospSetAffine3fv(instance, "xfm", affine_xform);
         ospCommit(instance);
-        //ospRelease(group);
 
+        scene_object_scene->instances.push_back(instance);
         scene_instances.push_back(instance);
     }
 
@@ -1169,9 +1116,12 @@ add_scene_object(const UpdateObject& update)
         {
             // XXX Sigh, need to apply object2world transform manually
             // This should be coming in 2.0
+            scene_object_scene->lights.push_back(light);
             scene_lights.push_back(light);
         }
     }
+
+    scene_objects[object_name] = scene_object_scene;
 
     return true;
 }
@@ -1518,10 +1468,12 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
     printf("--> '%s' (blender light data)\n", linked_data.c_str());    // XXX not set for ambient
 
     SceneObject *scene_object;
+    SceneObjectLight *light_object;
     OSPLight light;
     LightSettings::Type light_type;
     bool create_new_light = false;
 
+    // XXX use find_scene_object()
     SceneObjectMap::iterator so_it = scene_objects.find(object_name);
 
     if (so_it != scene_objects.end())
@@ -1535,10 +1487,13 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
         }
         else
         {
-            printf("... Updating existing light\n");            
-            light = scene_object->light;
+            printf("... Updating existing light\n");    
+
+            light_object = (SceneObjectLight*) scene_object;
+
+            light = light_object->light;
             assert(light != nullptr);
-            light_type = scene_object->light_type;
+            light_type = light_object->light_type;
             if (light_type != light_settings.type())
             {            
                 printf("... Light type changed from %d to %d, replacing with new light\n",
@@ -1580,10 +1535,10 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
             printf("ERROR: unhandled light type %d!\n", light_type);
         }
 
-        scene_object = scene_objects[object_name] = new SceneObject(SOT_LIGHT);
-        scene_object->light = light;
-        scene_object->light_type = light_type;
-        scene_object->data_link = light_settings.light_name();
+        light_object = new SceneObjectLight;
+        light_object->light = light;
+        light_object->light_type = light_type;
+        light_object->data_link = light_settings.light_name();
     }
 
     if (light_settings.type() == LightSettings::SPOT)
@@ -1621,6 +1576,7 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
 
     ospCommit(light);
 
+    scene_objects[object_name] = light_object;
     scene_lights.push_back(light);
 
     return true;
