@@ -810,7 +810,7 @@ handle_update_blender_mesh_data(TCPSocket *sock, const std::string& name)
     if (create_new_mesh)
     {
         blender_mesh = blender_meshes[name] = new BlenderMesh;
-        geometry = blender_mesh->geometry = ospNewGeometry("triangles");;
+        geometry = blender_mesh->geometry = ospNewGeometry("triangles");
         scene_data_types[name] = SDT_MESH;
     }
 
@@ -913,7 +913,8 @@ update_blender_mesh_object(const UpdateObject& update)
 
     if (!scene_data_with_type_exists(linked_data, SDT_MESH))
     {
-        delete mesh_object;
+        if (scene_object == nullptr)
+            delete mesh_object;
         return false;
     }
 
@@ -923,7 +924,8 @@ update_blender_mesh_object(const UpdateObject& update)
     if (geometry == NULL)
     {
         printf("... ERROR: geometry is NULL!\n");
-        delete mesh_object;
+        if (scene_object == nullptr)
+            delete mesh_object;
         return false;
     }    
 
@@ -996,7 +998,8 @@ update_geometry_object(const UpdateObject& update)
     
     if (!scene_data_with_type_exists(linked_data, SDT_PLUGIN))
     {
-        delete geometry_object;
+        if (scene_object == nullptr)
+            delete geometry_object;
         return false;
     }
 
@@ -1009,7 +1012,8 @@ update_geometry_object(const UpdateObject& update)
     if (geometry == NULL)
     {
         printf("... ERROR: geometry is NULL!\n");
-        delete geometry_object;
+        if (scene_object == nullptr)
+            delete geometry_object;
         return false;
     }    
 
@@ -1041,16 +1045,13 @@ update_geometry_object(const UpdateObject& update)
 }
 
 bool
-add_scene_object(const UpdateObject& update)
+update_scene_object(const UpdateObject& update)
 {    
     const std::string& object_name = update.name();
     const std::string& linked_data = update.data_link();
 
     printf("OBJECT '%s' (scene)\n", update.name().c_str());    
     printf("--> '%s'\n", linked_data.c_str());
-
-    if (!scene_data_with_type_exists(linked_data, SDT_PLUGIN))
-        return false;
 
     SceneObject     *scene_object;
     SceneObjectScene *scene_object_scene;       // XXX yuck
@@ -1063,7 +1064,7 @@ add_scene_object(const UpdateObject& update)
         for (OSPInstance &i : scene_object_scene->instances)
             ospRelease(i);
         scene_object_scene->instances.clear();
-        //scene_object_scene->lights.clear();
+        scene_object_scene->lights.clear();
     }
     else
         scene_object_scene = new SceneObjectScene;
@@ -1071,8 +1072,9 @@ add_scene_object(const UpdateObject& update)
     // Check linked data    
     
     if (!scene_data_with_type_exists(linked_data, SDT_PLUGIN))
-    {
-        delete scene_object_scene;
+    {   
+        if (scene_object == nullptr)
+            delete scene_object_scene;
         return false;
     }
 
@@ -1126,16 +1128,43 @@ add_scene_object(const UpdateObject& update)
     return true;
 }
 
+// XXX has a bug when switching renderer types
 bool
-add_volume_object(const UpdateObject& update, const Volume& volume_settings)
+update_volume_object(const UpdateObject& update, const Volume& volume_settings)
 {
+    const std::string& object_name = update.name();
     const std::string& linked_data = update.data_link(); 
 
     printf("OBJECT '%s' (volume)\n", update.name().c_str()); 
     printf("--> '%s'\n", linked_data.c_str());  
+
+    SceneObject         *scene_object;
+    SceneObjectVolume   *volume_object;
+    OSPInstance         instance;
+    OSPGroup            group;
+    OSPVolumetricModel  volumetric_model;
+
+    scene_object = find_scene_object(object_name, SOT_VOLUME);
+
+    if (scene_object != nullptr)
+        volume_object = (SceneObjectVolume*) scene_object;
+    else
+        volume_object = new SceneObjectVolume;
+
+    instance = volume_object->instance;
+    assert(instance != nullptr);
+    group = volume_object->group;
+    assert(group != nullptr); 
+    volumetric_model = volume_object->volumetric_model;
+
+    // Check linked data
     
     if (!scene_data_with_type_exists(linked_data, SDT_PLUGIN))
+    {
+        if (scene_object == nullptr)
+            delete volume_object;   
         return false;
+    }
 
     PluginInstance* plugin_instance = plugin_instances[linked_data];
     assert(plugin_instance->type == PT_VOLUME);
@@ -1146,64 +1175,37 @@ add_volume_object(const UpdateObject& update, const Volume& volume_settings)
     if (volume == NULL)
     {
         printf("... ERROR: volume is NULL!\n");
+        delete volume_object;
         return false;
     }    
 
-    const char *s_custom_properties = update.custom_properties().c_str();
-    //printf("Received custom properties:\n%s\n", s_custom_properties);
-    const json &custom_properties = json::parse(s_custom_properties);
-    printf("... custom properties:\n");
-    printf("%s\n", custom_properties.dump(4).c_str());
-
-    OSPVolumetricModel volume_model = ospNewVolumetricModel(volume);
-
-        // Set up further volume properties
-        // XXX not sure these are handled correctly, and working in API2
-
-        ospSetFloat(volume_model,  "samplingRate", volume_settings.sampling_rate());
-
-        /*
-        if (properties.find("gradient_shading") != properties.end())
-            ospSetBool(volume_model,  "gradientShadingEnabled", properties["gradient_shading"].get<bool>());
-        else
-            ospSetBool(volume_model,  "gradientShadingEnabled", false);
-
-        if (properties.find("pre_integration") != properties.end())
-            ospSetBool(volume_model,  "preIntegration", properties["pre_integration"].get<bool>());
-        else
-            ospSetBool(volume_model,  "preIntegration", false);
-
-        if (properties.find("single_shade") != properties.end())
-            ospSetBool(volume_model,  "singleShade", properties["single_shade"].get<bool>());
-        else
-            ospSetBool(volume_model,  "singleShade", true);
-
-        ospSetBool(volume_model, "adaptiveSampling", false);
-        */
+    if (scene_object == nullptr)
+    {
+        volumetric_model = volume_object->volumetric_model = ospNewVolumetricModel(volume);
 
         OSPTransferFunction tf = create_transfer_function("cool2warm", state->volume_data_range[0], state->volume_data_range[1]);
-        ospSetObject(volume_model, "transferFunction", tf);
+        ospSetObject(volumetric_model, "transferFunction", tf);
         ospRelease(tf);
 
-    ospCommit(volume_model);
+        if (current_renderer_type == "pathtracer")
+        {
+            OSPMaterial volumetricMaterial = ospNewMaterial(current_renderer_type.c_str(), "VolumetricMaterial");
+                ospSetFloat(volumetricMaterial, "meanCosine", 0.f);
+                ospSetVec3f(volumetricMaterial, "albedo", 1.f, 1.f, 1.f);
+            ospCommit(volumetricMaterial);
 
-    if (current_renderer_type == "pathtracer")
-    {
-        OSPMaterial volumetricMaterial = ospNewMaterial(current_renderer_type.c_str(), "VolumetricMaterial");
-            ospSetFloat(volumetricMaterial, "meanCosine", 0.f);
-            ospSetVec3f(volumetricMaterial, "albedo", 1.f, 1.f, 1.f);
-        ospCommit(volumetricMaterial);
-
-        ospSetObject(volume_model, "material", volumetricMaterial);
-        ospRelease(volumetricMaterial);
-
-        ospCommit(volume_model);
+            ospSetObject(volumetric_model, "material", volumetricMaterial);
+            ospRelease(volumetricMaterial);
+        }
     }
 
-    OSPGroup group = ospNewGroup();
-        OSPData data = ospNewData(1, OSP_OBJECT, &volume_model, 0);
+    // XXX not sure these are handled correctly, and working in API2
+    ospSetFloat(volumetric_model,  "samplingRate", volume_settings.sampling_rate());
+
+    ospCommit(volumetric_model);
+
+    OSPData data = ospNewData(1, OSP_OBJECT, &volumetric_model, 0);
         ospSetObject(group, "volume", data);                        // XXX why ospSetObject?
-        //ospRelease(volume_model);
     ospCommit(group);
 
     glm::mat4   obj2world;
@@ -1212,11 +1214,10 @@ add_volume_object(const UpdateObject& update, const Volume& volume_settings)
     object2world_from_protobuf(obj2world, update);
     affine3fv_from_mat4(affine_xform, obj2world);
 
-    OSPInstance instance = ospNewInstance(group);
-        ospSetAffine3fv(instance, "xfm", affine_xform);
+    ospSetAffine3fv(instance, "xfm", affine_xform);
     ospCommit(instance);
-    ospRelease(group);
 
+    scene_objects[object_name] = volume_object;
     scene_instances.push_back(instance);
 
     return true;
@@ -1705,7 +1706,7 @@ handle_update_object(TCPSocket *sock)
         break;
 
     case UpdateObject::SCENE:
-        add_scene_object(update);
+        update_scene_object(update);
         break;
 
     case UpdateObject::VOLUME:
@@ -1713,7 +1714,7 @@ handle_update_object(TCPSocket *sock)
         Volume volume;
         if (!receive_protobuf(sock, volume))
             return false;
-        add_volume_object(update, volume);
+        update_volume_object(update, volume);
         }
         break;
 

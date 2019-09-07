@@ -97,14 +97,13 @@ struct SceneObjectVolume : SceneObject
 	{
 		type = SOT_VOLUME;
 		volumetric_model = nullptr;   
-		group = nullptr;
-		instance = nullptr;
+		group = ospNewGroup();
+		instance = ospNewInstance(group);
 	}           
 
 	virtual ~SceneObjectVolume()
 	{
 		ospRelease(volumetric_model);
-		//ospRelease(group);
 		ospRelease(instance);
 	}
 };
