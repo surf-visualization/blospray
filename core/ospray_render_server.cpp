@@ -335,10 +335,12 @@ delete_plugin_instance(const std::string& name)
     switch (plugin_instance->type)
     {
     case PT_GEOMETRY:
-        ospRelease(state->geometry);
+        if (state->geometry)
+            ospRelease(state->geometry);
         break;
     case PT_VOLUME:
-        ospRelease(state->volume);
+        if (state->volume)
+            ospRelease(state->volume);
         break;
     case PT_SCENE:
         for (auto& kv: state->group_instances)
@@ -367,15 +369,15 @@ delete_plugin_instance(const std::string& name)
 void
 delete_object(const std::string& object_name)
 {        
-    SceneObjectMap::iterator so_it = scene_objects.find(object_name);
+    SceneObjectMap::iterator it = scene_objects.find(object_name);
 
-    if (so_it == scene_objects.end())
+    if (it == scene_objects.end())
     {
         printf("ERROR: object to delete '%s' not found!\n", object_name.c_str());
         return;
     }
 
-    SceneObject *scene_object = so_it->second;
+    SceneObject *scene_object = it->second;
     delete scene_object;
 
     scene_data_types.erase(object_name);
@@ -421,6 +423,7 @@ find_scene_object(const std::string& name, SceneObjectType type, bool delete_exi
     if (it != scene_objects.end())
     {
         scene_object = it->second;
+        printf("find %s, result %016x\n", name.c_str(), scene_object);
         if (scene_object->type != type)
         {
             if (delete_existing_mismatch)
@@ -559,20 +562,16 @@ handle_update_plugin_instance(TCPSocket *sock)
     PluginInstance *plugin_instance;
     PluginState *state;    
     PluginType plugin_type;
-    std::string plugin_type_name;
 
     switch (update.type())
     {
     case UpdatePluginInstance::GEOMETRY:
-        plugin_type_name = "geometry";
         plugin_type = PT_GEOMETRY;
         break;
     case UpdatePluginInstance::VOLUME:
-        plugin_type_name = "volume";
         plugin_type = PT_VOLUME;
         break;
     case UpdatePluginInstance::SCENE:
-        plugin_type_name = "scene";
         plugin_type = PT_SCENE;
         break;
     default:
@@ -580,9 +579,10 @@ handle_update_plugin_instance(TCPSocket *sock)
         return false;
     }
 
+    const char *plugin_type_name = PluginType_names[plugin_type];
     const std::string &plugin_name = update.plugin_name();
 
-    printf("... plugin type: %s (%d)\n", plugin_type_name.c_str(), plugin_type);
+    printf("... plugin type: %s\n", plugin_type_name);
     printf("... plugin name: '%s'\n", plugin_name.c_str());
 
     const char *s_plugin_parameters = update.plugin_parameters().c_str();
@@ -605,6 +605,7 @@ handle_update_plugin_instance(TCPSocket *sock)
     {
         // Have existing plugin instance with this name, check what it is
         plugin_instance = plugin_instances[data_name];
+        assert(plugin_state.find(data_name) != plugin_state.end());
         state = plugin_state[data_name];
 
         if (plugin_instance->type != plugin_type || plugin_instance->plugin_name != plugin_name)
@@ -616,8 +617,8 @@ handle_update_plugin_instance(TCPSocket *sock)
         else
         {
             // Plugin still of the same type and name, check if parameters and properties still up to date
-            const std::string& parameters_hash = get_sha1(update.plugin_parameters().c_str());
-            const std::string& custom_props_hash = get_sha1(update.custom_properties().c_str());
+            const std::string& parameters_hash = get_sha1(update.plugin_parameters());
+            const std::string& custom_props_hash = get_sha1(update.custom_properties());
 
             if (parameters_hash != plugin_instance->parameters_hash)
             {
@@ -686,21 +687,10 @@ handle_update_plugin_instance(TCPSocket *sock)
     // Create plugin instance and state
     // XXX delete plugin instance and state below in case of error
 
-    state = plugin_state[data_name] = new PluginState; 
+    state = new PluginState; 
     state->renderer = current_renderer_type;   
     state->uses_renderer_type = plugin_definition.uses_renderer_type;
     state->parameters = plugin_parameters;
-
-    // XXX move this to below the generate function
-    plugin_instance = plugin_instances[data_name] = new PluginInstance;  
-    plugin_instance->type = plugin_type;
-    plugin_instance->plugin_name = plugin_name;        
-    plugin_instance->state = state; 
-    plugin_instance->name = data_name;    
-    plugin_instance->parameters_hash = get_sha1(s_plugin_parameters);
-    plugin_instance->custom_properties_hash = get_sha1(s_custom_properties);    
-
-    scene_data_types[data_name] = SDT_PLUGIN;
 
     // Call generate function
 
@@ -719,6 +709,7 @@ handle_update_plugin_instance(TCPSocket *sock)
         printf("... ERROR: generate function failed:\n");
         printf("... %s\n", result.message().c_str());
         send_protobuf(sock, result);
+        delete state;
         return false;
     }
 
@@ -734,6 +725,7 @@ handle_update_plugin_instance(TCPSocket *sock)
             send_protobuf(sock, result);
 
             printf("... ERROR: geometry generate function did not set an OSPGeometry!\n");
+            delete state;
             return false;
         }    
 
@@ -746,6 +738,7 @@ handle_update_plugin_instance(TCPSocket *sock)
             send_protobuf(sock, result);
 
             printf("... ERROR: volume generate function did not set an OSPVolume!\n");
+            delete state;
             return false;
         }
 
@@ -761,6 +754,16 @@ handle_update_plugin_instance(TCPSocket *sock)
 
     // Load function succeeded
 
+    plugin_instance = new PluginInstance;
+    plugin_instance->type = plugin_type;
+    plugin_instance->plugin_name = plugin_name;        
+    plugin_instance->state = state; 
+    plugin_instance->name = data_name;    
+    plugin_instance->parameters_hash = get_sha1(s_plugin_parameters);
+    plugin_instance->custom_properties_hash = get_sha1(s_custom_properties);    
+
+    plugin_instances[data_name] = plugin_instance;
+    plugin_state[data_name] = state;
     scene_data_types[data_name] = SDT_PLUGIN;
 
     send_protobuf(sock, result);
@@ -791,8 +794,7 @@ handle_update_blender_mesh_data(TCPSocket *sock, const std::string& name)
 
         if (type != SDT_MESH)
         {
-            printf("... WARNING: data '%s' is currently of type %s, overwriting with new mesh!\n", 
-                name.c_str(), SceneDataType_names[type]);
+            printf("... WARNING: data is currently of type %s, overwriting with new mesh!\n", SceneDataType_names[type]);
             delete_scene_data(name);
             create_new_mesh = true;
         }
@@ -898,7 +900,7 @@ update_blender_mesh_object(const UpdateObject& update)
     SceneObjectMesh *mesh_object;
     OSPInstance     instance;
     OSPGroup        group;
-    OSPGeometricModel geometric_model;
+    OSPGeometricModel gmodel;
 
     scene_object = find_scene_object(object_name, SOT_MESH);
 
@@ -935,15 +937,15 @@ update_blender_mesh_object(const UpdateObject& update)
     if (scene_object == nullptr)
     {
         mesh_object->data_link = linked_data;
-        geometric_model = mesh_object->geometric_model = ospNewGeometricModel(geometry);
+        gmodel = mesh_object->gmodel = ospNewGeometricModel(geometry);
             // XXX the material is renderer dependent...
-            ospSetObject(geometric_model, "material", default_material);
-        ospCommit(geometric_model);
+            ospSetObject(gmodel, "material", default_material);
+        ospCommit(gmodel);
     }
     else
     {
         // XXX need this for updating material
-        geometric_model = mesh_object->geometric_model;
+        gmodel = mesh_object->gmodel;
     }
 
     // Update object 
@@ -957,11 +959,13 @@ update_blender_mesh_object(const UpdateObject& update)
 
     ospCommit(instance);    
 
-    OSPData models = ospNewData(1, OSP_OBJECT, &geometric_model, 0);
+    OSPData models = ospNewData(1, OSP_OBJECT, &gmodel, 0);
         ospSetData(group, "geometry", models);
     ospCommit(group);    
     ospRelease(models); 
 
+    assert(scene_objects.find(object_name) == scene_objects.end());
+    printf("setting object %s -> %016x\n", object_name.c_str(), mesh_object);
     scene_objects[object_name] = mesh_object;
     // XXX should create this list from scene_objects?
     scene_instances.push_back(instance);
@@ -983,7 +987,7 @@ update_geometry_object(const UpdateObject& update)
     SceneObjectGeometry *geometry_object;
     OSPInstance     instance;
     OSPGroup        group;
-    OSPGeometricModel geometric_model;
+    OSPGeometricModel gmodel;
 
     scene_object = find_scene_object(object_name, SOT_GEOMETRY);
 
@@ -1022,11 +1026,11 @@ update_geometry_object(const UpdateObject& update)
 
     if (scene_object == nullptr)
     {
-        geometric_model = geometry_object->geometric_model = ospNewGeometricModel(geometry); 
-            ospSetObject(geometric_model, "material", default_material);
-        ospCommit(geometric_model);
+        gmodel = geometry_object->gmodel = ospNewGeometricModel(geometry); 
+            ospSetObject(gmodel, "material", default_material);
+        ospCommit(gmodel);
 
-        OSPData models = ospNewData(1, OSP_OBJECT, &geometric_model, 0);        
+        OSPData models = ospNewData(1, OSP_OBJECT, &gmodel, 0);        
         ospSetData(group, "geometry", models);
         ospCommit(group);
         ospRelease(models);
@@ -1041,6 +1045,8 @@ update_geometry_object(const UpdateObject& update)
     ospSetAffine3fv(instance, "xfm", affine_xform);    
     ospCommit(instance);
 
+    assert(scene_objects.find(object_name) == scene_objects.end());
+    printf("setting object %s -> %016x\n", object_name.c_str(), geometry_object);
     scene_objects[object_name] = geometry_object;
     scene_instances.push_back(instance);
 
@@ -1070,7 +1076,11 @@ update_scene_object(const UpdateObject& update)
         scene_object_scene->lights.clear();
     }
     else
+    {
         scene_object_scene = new SceneObjectScene;
+        printf("allocating SceneObjectScene %016x\n", scene_object_scene);
+        scene_object_scene->data_link = linked_data;
+    }
 
     // Check linked data    
     
@@ -1126,6 +1136,8 @@ update_scene_object(const UpdateObject& update)
         }
     }
 
+    assert(scene_objects.find(object_name) == scene_objects.end());
+    printf("setting object %s -> %016x\n", object_name.c_str(), scene_object_scene);
     scene_objects[object_name] = scene_object_scene;
 
     return true;
@@ -1145,7 +1157,7 @@ update_volume_object(const UpdateObject& update, const Volume& volume_settings)
     SceneObjectVolume   *volume_object;
     OSPInstance         instance;
     OSPGroup            group;
-    OSPVolumetricModel  volumetric_model;
+    OSPVolumetricModel  vmodel;
 
     scene_object = find_scene_object(object_name, SOT_VOLUME);
 
@@ -1158,7 +1170,7 @@ update_volume_object(const UpdateObject& update, const Volume& volume_settings)
     assert(instance != nullptr);
     group = volume_object->group;
     assert(group != nullptr); 
-    volumetric_model = volume_object->volumetric_model;
+    vmodel = volume_object->vmodel;
 
     // Check linked data
     
@@ -1184,11 +1196,13 @@ update_volume_object(const UpdateObject& update, const Volume& volume_settings)
 
     if (scene_object == nullptr)
     {
+        assert(scene_objects.find(object_name) == scene_objects.end());
+        printf("setting %s -> %016x\n", object_name.c_str(), volume_object);
         scene_objects[object_name] = volume_object;
-        volumetric_model = volume_object->volumetric_model = ospNewVolumetricModel(volume);
+        vmodel = volume_object->vmodel = ospNewVolumetricModel(volume);
 
         OSPTransferFunction tf = create_transfer_function("cool2warm", state->volume_data_range[0], state->volume_data_range[1]);
-        ospSetObject(volumetric_model, "transferFunction", tf);
+        ospSetObject(vmodel, "transferFunction", tf);
         ospRelease(tf);
 
         if (current_renderer_type == "pathtracer")
@@ -1198,17 +1212,17 @@ update_volume_object(const UpdateObject& update, const Volume& volume_settings)
                 ospSetVec3f(volumetricMaterial, "albedo", 1.f, 1.f, 1.f);
             ospCommit(volumetricMaterial);
 
-            ospSetObject(volumetric_model, "material", volumetricMaterial);
+            ospSetObject(vmodel, "material", volumetricMaterial);
             ospRelease(volumetricMaterial);
         }
     }
 
     // XXX not sure these are handled correctly, and working in API2
-    ospSetFloat(volumetric_model,  "samplingRate", volume_settings.sampling_rate());
+    ospSetFloat(vmodel,  "samplingRate", volume_settings.sampling_rate());
 
-    ospCommit(volumetric_model);
+    ospCommit(vmodel);
 
-    OSPData data = ospNewData(1, OSP_OBJECT, &volumetric_model, 0);
+    OSPData data = ospNewData(1, OSP_OBJECT, &vmodel, 0);
         ospSetObject(group, "volume", data);                        // XXX why ospSetObject?
     ospCommit(group);
 
@@ -1240,8 +1254,8 @@ update_isosurfaces_object(const UpdateObject& update)
     OSPInstance         instance;
     OSPGroup            group;
     OSPGeometry         isosurfaces_geometry;
-    OSPVolumetricModel  volumetric_model;
-    OSPGeometricModel   geometric_model;
+    OSPVolumetricModel  vmodel;
+    OSPGeometricModel   gmodel;
 
     scene_object = find_scene_object(object_name, SOT_ISOSURFACES);
 
@@ -1254,9 +1268,9 @@ update_isosurfaces_object(const UpdateObject& update)
     assert(instance != nullptr);
     group = isosurfaces_object->group;
     assert(group != nullptr); 
-    volumetric_model = isosurfaces_object->volumetric_model;
-    geometric_model = isosurfaces_object->geometric_model;
-    assert(geometric_model != nullptr);
+    vmodel = isosurfaces_object->vmodel;
+    gmodel = isosurfaces_object->gmodel;
+    assert(gmodel != nullptr);
     isosurfaces_geometry = isosurfaces_object->isosurfaces_geometry;
     assert(isosurfaces_geometry != nullptr);
 
@@ -1285,18 +1299,20 @@ update_isosurfaces_object(const UpdateObject& update)
 
     if (scene_object != nullptr)
     {
+        assert(scene_objects.find(object_name) == scene_objects.end());
+        printf("setting %s -> %016x\n", object_name.c_str(), isosurfaces_object);
         scene_objects[object_name] = isosurfaces_object;
 
         // XXX hacked temp volume module
-        volumetric_model = isosurfaces_object->volumetric_model = ospNewVolumetricModel(volume);
+        vmodel = isosurfaces_object->vmodel = ospNewVolumetricModel(volume);
             OSPTransferFunction tf = create_transfer_function("cool2warm", state->volume_data_range[0], state->volume_data_range[1]);
-            ospSetObject(volumetric_model, "transferFunction", tf);
+            ospSetObject(vmodel, "transferFunction", tf);
             ospRelease(tf);
             //ospSetFloat(volumeModel, "samplingRate", 0.5f);
-         ospCommit(volumetric_model);
+         ospCommit(vmodel);
 
-        ospSetObject(geometric_model, "material", default_material);
-        ospCommit(geometric_model);
+        ospSetObject(gmodel, "material", default_material);
+        ospCommit(gmodel);
      }
 
     const char *s_custom_properties = update.custom_properties().c_str();
@@ -1324,7 +1340,7 @@ update_isosurfaces_object(const UpdateObject& update)
     OSPData isovalues_data = ospNewData(n, OSP_FLOAT, isovalues);    
     delete [] isovalues;
 
-    ospSetObject(isosurfaces_geometry, "volume", volumetric_model);       		// XXX structured vol example indicates this needs to be the volume model??
+    ospSetObject(isosurfaces_geometry, "volume", vmodel);       		// XXX structured vol example indicates this needs to be the volume model??
     ospRelease(volume);
 
     ospSetData(isosurfaces_geometry, "isovalue", isovalues_data);
@@ -1499,52 +1515,32 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
     printf("--> '%s' (blender light data)\n", linked_data.c_str());    // XXX not set for ambient
 
     SceneObject *scene_object;
-    SceneObjectLight *light_object;
+    SceneObjectLight *light_object = nullptr;
     OSPLight light;
     LightSettings::Type light_type;
     bool create_new_light = false;
 
-    // XXX use find_scene_object()
-    SceneObjectMap::iterator so_it = scene_objects.find(object_name);
+    scene_object = find_scene_object(object_name, SOT_LIGHT);
 
-    if (so_it != scene_objects.end())
+    if (scene_object != nullptr)
     {
-        scene_object = so_it->second;
-        if (scene_object->type != SOT_LIGHT)
-        {
-            printf("... | WARNING: existing object is of type %s, replacing it\n", SceneObjectType_names[scene_object->type]);
+        light_object = (SceneObjectLight*) scene_object;
+        light = light_object->light;
+        assert(light != nullptr);
+        light_type = light_object->light_type;
+        if (light_type != light_settings.type())
+        {            
+            printf("... Light type changed from %d to %d, replacing with new light\n",
+                light_type, light_settings.type());
             delete_object(object_name);
-            create_new_light = true;            
-        }
-        else
-        {
-            printf("... Updating existing light\n");    
-
-            light_object = (SceneObjectLight*) scene_object;
-
-            light = light_object->light;
-            assert(light != nullptr);
-            light_type = light_object->light_type;
-            if (light_type != light_settings.type())
-            {            
-                printf("... Light type changed from %d to %d, replacing with new light\n",
-                    light_type, light_settings.type());
-                delete_object(object_name);
-                create_new_light = true;
-            }
+            light_object = nullptr;
         }
     }
-    else
+    
+    if (light_object == nullptr)
     {
-        // No existing scene object with this name
-        printf("... Creating new light\n");
-        create_new_light = true;
-    }
-
-    light_type = light_settings.type();
-
-    if (create_new_light)
-    {
+        light_type = light_settings.type();
+        light_object = new SceneObjectLight;
         switch (light_type)
         {
         case LightSettings::AMBIENT:
@@ -1566,10 +1562,13 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
             printf("ERROR: unhandled light type %d!\n", light_type);
         }
 
-        light_object = new SceneObjectLight;
         light_object->light = light;
         light_object->light_type = light_type;
         light_object->data_link = light_settings.light_name();
+
+        assert(scene_objects.find(object_name) == scene_objects.end());
+        printf("setting %s -> %016x\n", object_name.c_str(), light_object);
+        scene_objects[object_name] = light_object;
     }
 
     if (light_settings.type() == LightSettings::SPOT)
@@ -1607,7 +1606,6 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
 
     ospCommit(light);
 
-    scene_objects[object_name] = light_object;
     scene_lights.push_back(light);
 
     return true;
@@ -1642,7 +1640,7 @@ handle_get_server_state(TCPSocket *sock)
 
         json d = p[kv.first] = { 
             {"name", instance->name}, 
-            {"type", instance->type},
+            {"type", PluginType_names[instance->type]},
             {"plugin_name", instance->plugin_name},
             {"parameters_hash", instance->parameters_hash},
             {"custom_properties_hash", instance->custom_properties_hash},
@@ -2127,7 +2125,7 @@ handle_query_bound(TCPSocket *sock, const std::string& name)
 bool
 clear_scene()
 {
-    printf("Clearing scene\n");
+    printf("Clearing scene (OSPRay elements only)\n");
 
     for (OSPInstance& i : scene_instances)
         ospRelease(i);
@@ -2421,16 +2419,17 @@ main(int argc, const char **argv)
 
     while (true)
     {
-        printf("Waiting for new connection...\n");
+        //printf("Waiting for new connection...\n");
 
         sock = listen_sock->accept();
 
+        printf("---------------------------------------------------------------\n");
         printf("Got new connection\n");
 
         if (!handle_connection(sock))
             printf("Error handling connection!\n");
-        else
-            printf("Connection successfully handled\n");
+        //else
+        //    printf("Connection successfully handled\n");
     }
 
     return 0;

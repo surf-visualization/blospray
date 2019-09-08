@@ -26,6 +26,7 @@ cmake_minimum_required(VERSION 3.12)
 option(PLUGIN_COSMOGRID "Build cosmogrid scene plugin (needs uhdf5 and HDF5)" OFF)
 option(PLUGIN_PLY "Build PLY geometry plugin (needs rply 1.1.4 sources)" OFF)
 option(PLUGIN_VOLUME_HDF5 "Build PLY geometry plugin (needs uhdf5 and HDF5)" OFF)
+option(ADDRESS_SANITIZER "Compile with GCC's AddressSanitizer" OFF)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmakemodules")
 
@@ -53,6 +54,13 @@ if(NOT PROTOBUF_FOUND)
 endif()
 
 set(CMAKE_CXX_STANDARD 11)
+
+# ASAN_OPTIONS=halt_on_error=0
+if (ADDRESS_SANITIZER)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -fsanitize-recover=address -O0 -fno-omit-frame-pointer")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fsanitize-recover=address -O0 -fno-omit-frame-pointer")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address -fsanitize-recover=address -fno-omit-frame-pointer")
+endif(ADDRESS_SANITIZER)
 
 if(PLUGIN_COSMOGRID OR PLUGIN_VOLUME_HDF5)
     FIND_PACKAGE(HDF5)

@@ -50,49 +50,51 @@ struct SceneObject
 
 struct SceneObjectMesh : SceneObject
 {
-	OSPGeometricModel geometric_model;
+	OSPGeometricModel gmodel;
 	OSPGroup group;
 	OSPInstance instance;
 
 	SceneObjectMesh(): SceneObject()
 	{
 		type = SOT_MESH;
-		geometric_model = nullptr;
+		gmodel = nullptr;
 		group = ospNewGroup();
 		instance = ospNewInstance(group);
 	}           
 
 	virtual ~SceneObjectMesh()
 	{
-		ospRelease(geometric_model);
+		if (gmodel)
+			ospRelease(gmodel);
 		ospRelease(instance);
 	}
 };
 
 struct SceneObjectGeometry : SceneObject
 {
-	OSPGeometricModel geometric_model;
+	OSPGeometricModel gmodel;
 	OSPGroup group;
 	OSPInstance instance;
 
 	SceneObjectGeometry(): SceneObject()
 	{
 		type = SOT_GEOMETRY;
-		geometric_model = nullptr;
+		gmodel = nullptr;
 		group = ospNewGroup();
 		instance = ospNewInstance(group);
 	}           
 
 	virtual ~SceneObjectGeometry()
 	{
-		ospRelease(geometric_model);
+		if (gmodel)
+			ospRelease(gmodel);
 		ospRelease(instance);
 	}
 };
 
 struct SceneObjectVolume : SceneObject
 {
-	OSPVolumetricModel volumetric_model;
+	OSPVolumetricModel vmodel;
 	OSPGroup group;
 	OSPInstance instance;
 	// XXX TF and material
@@ -100,14 +102,15 @@ struct SceneObjectVolume : SceneObject
 	SceneObjectVolume(): SceneObject()
 	{
 		type = SOT_VOLUME;
-		volumetric_model = nullptr;   
+		vmodel = nullptr;   
 		group = ospNewGroup();
 		instance = ospNewInstance(group);
 	}           
 
 	virtual ~SceneObjectVolume()
 	{
-		ospRelease(volumetric_model);
+		if (vmodel)
+			ospRelease(vmodel);
 		ospRelease(instance);
 	}
 };
@@ -115,9 +118,9 @@ struct SceneObjectVolume : SceneObject
 
 struct SceneObjectIsosurfaces : SceneObject
 {
-	OSPVolumetricModel volumetric_model;
+	OSPVolumetricModel vmodel;
 	OSPGeometry isosurfaces_geometry;
-	OSPGeometricModel geometric_model;
+	OSPGeometricModel gmodel;
 	OSPGroup group;
 	OSPInstance instance;
 	// XXX TF and material
@@ -125,11 +128,11 @@ struct SceneObjectIsosurfaces : SceneObject
 	SceneObjectIsosurfaces(): SceneObject()
 	{
 		type = SOT_ISOSURFACES;
-		volumetric_model = nullptr;
+		vmodel = nullptr;
 		isosurfaces_geometry = ospNewGeometry("isosurfaces"); 
-		geometric_model = ospNewGeometricModel(isosurfaces_geometry);
+		gmodel = ospNewGeometricModel(isosurfaces_geometry);
 		group = ospNewGroup();
-		OSPData data = ospNewData(1, OSP_OBJECT, &geometric_model, 0);
+		OSPData data = ospNewData(1, OSP_OBJECT, &gmodel, 0);
 	        ospSetObject(group, "geometry", data);
 	    ospCommit(group);
 		instance = ospNewInstance(group);
@@ -137,7 +140,8 @@ struct SceneObjectIsosurfaces : SceneObject
 
 	virtual ~SceneObjectIsosurfaces()
 	{
-		ospRelease(volumetric_model);
+		if (vmodel)
+			ospRelease(vmodel);
 		ospRelease(instance);
 	}
 };
@@ -155,6 +159,7 @@ struct SceneObjectScene : SceneObject
 
 	virtual ~SceneObjectScene()
 	{
+		fprintf(stderr, "desc");
         for (OSPInstance& i : instances)
             ospRelease(i);
         for (OSPLight& l : lights)
