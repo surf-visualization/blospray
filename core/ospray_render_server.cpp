@@ -1226,7 +1226,7 @@ update_volume_object(const UpdateObject& update, const Volume& volume_settings)
 }
 
 bool
-add_isosurfaces_object(const UpdateObject& update)
+update_isosurfaces_object(const UpdateObject& update)
 {
     const std::string& object_name = update.name();
     const std::string& linked_data = update.data_link();    
@@ -1748,7 +1748,7 @@ handle_update_object(TCPSocket *sock)
         break;
 
     case UpdateObject::ISOSURFACES:
-        add_isosurfaces_object(update);
+        update_isosurfaces_object(update);
         break;
     
     case UpdateObject::SLICES:

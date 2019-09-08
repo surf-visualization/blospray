@@ -128,7 +128,7 @@ class Connection:
 
         self.engine.update_stats('', 'Connecting')
 
-        # Export scene        
+        # Export scene    
         self.export_scene(data, depsgraph)
 
         # Connection will be closed by render(), which is always
