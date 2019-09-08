@@ -425,8 +425,8 @@ find_scene_object(const std::string& name, SceneObjectType type, bool delete_exi
         {
             if (delete_existing_mismatch)
             {
-                printf("... WARNING: existing object is not of type %d (%s), but of type %d (%s), deleting\n", 
-                    type, SceneObjectType_names[type], scene_object->type, SceneObjectType_names[scene_object->type]);
+                printf("... WARNING: existing object is not of type %s, but of type %s, deleting\n", 
+                    SceneObjectType_names[type], SceneObjectType_names[scene_object->type]);
                 delete_object(name);
                 return nullptr;
             }
@@ -435,7 +435,7 @@ find_scene_object(const std::string& name, SceneObjectType type, bool delete_exi
         }
         else
         {        
-            printf("... Existing object matches type %d (%s)\n", type, SceneObjectType_names[type]);
+            printf("... Existing object matches type %s\n", SceneObjectType_names[type]);
             return scene_object;
         }
     }
@@ -457,12 +457,12 @@ scene_data_with_type_exists(const std::string& name, SceneDataType type)
     }
     else if (it->second != type)
     {
-        printf("... Scene data '%s' is not of type %d (%s), but of type %d (%s)\n", 
-            name.c_str(), type, SceneDataType_names[type], it->second, SceneDataType_names[it->second]);
+        printf("... Scene data '%s' is not of type %s, but of type %s\n", 
+            name.c_str(), SceneDataType_names[type], SceneDataType_names[it->second]);
         return false;
     }
 
-    printf("... Scene data '%s' found, type %d (%s)\n", name.c_str(), type, SceneDataType_names[type]);
+    printf("... Scene data '%s' found, type %s\n", name.c_str(), SceneDataType_names[type]);
     
     return true;        
 }
@@ -609,8 +609,8 @@ handle_update_plugin_instance(TCPSocket *sock)
 
         if (plugin_instance->type != plugin_type || plugin_instance->plugin_name != plugin_name)
         {
-            printf("... Existing plugin (type %d, name '%s') does't match, overwriting!\n", 
-                plugin_instance->type, plugin_name.c_str());
+            printf("... Existing plugin (type %s, name '%s') does't match, overwriting!\n", 
+                PluginType_names[plugin_instance->type], plugin_name.c_str());
             delete_plugin_instance(data_name);            
         }
         else
@@ -791,8 +791,9 @@ handle_update_blender_mesh_data(TCPSocket *sock, const std::string& name)
 
         if (type != SDT_MESH)
         {
-            printf("... WARNING: data '%s' is currently of type %d, overwriting with new mesh!\n", name.c_str(), type);    
-            // XXX erase existing entry
+            printf("... WARNING: data '%s' is currently of type %s, overwriting with new mesh!\n", 
+                name.c_str(), SceneDataType_names[type]);
+            delete_scene_data(name);
             create_new_mesh = true;
         }
         else
@@ -1393,8 +1394,8 @@ add_slices_object(const UpdateObject& update, const Slices& slices)
         }
         else if (it->second != SDT_MESH)
         {
-            printf("--> '%s' | WARNING: linked data is not of type 'mesh' but of type %d!\n", 
-                linked_data.c_str(), it->second);
+            printf("--> '%s' | WARNING: linked data is not of type SDT_MESH but of type %s!\n", 
+                linked_data.c_str(), SceneDataType_names[it->second]);
             return false;
         }
         else
@@ -1511,7 +1512,7 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
         scene_object = so_it->second;
         if (scene_object->type != SOT_LIGHT)
         {
-            printf("... | WARNING: existing object is of type %d, replacing it\n", scene_object->type);
+            printf("... | WARNING: existing object is of type %s, replacing it\n", SceneObjectType_names[scene_object->type]);
             delete_object(object_name);
             create_new_light = true;            
         }
