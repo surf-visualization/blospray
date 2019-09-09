@@ -965,9 +965,9 @@ update_blender_mesh_object(const UpdateObject& update)
     ospCommit(group);    
     ospRelease(models); 
 
-    assert(scene_objects.find(object_name) == scene_objects.end());
-    printf("setting object %s -> %016x\n", object_name.c_str(), mesh_object);
-    scene_objects[object_name] = mesh_object;
+    if (scene_object == nullptr)
+        scene_objects[object_name] = mesh_object;
+
     // XXX should create this list from scene_objects?
     scene_instances.push_back(instance);
 
@@ -1046,9 +1046,9 @@ update_geometry_object(const UpdateObject& update)
     ospSetAffine3fv(instance, "xfm", affine_xform);    
     ospCommit(instance);
 
-    assert(scene_objects.find(object_name) == scene_objects.end());
-    printf("setting object %s -> %016x\n", object_name.c_str(), geometry_object);
-    scene_objects[object_name] = geometry_object;
+    if (scene_object == nullptr)
+        scene_objects[object_name] = geometry_object;
+
     scene_instances.push_back(instance);
 
     return true;
@@ -1137,9 +1137,8 @@ update_scene_object(const UpdateObject& update)
         }
     }
 
-    assert(scene_objects.find(object_name) == scene_objects.end());
-    printf("setting object %s -> %016x\n", object_name.c_str(), scene_object_scene);
-    scene_objects[object_name] = scene_object_scene;
+    if (scene_object == nullptr)
+        scene_objects[object_name] = scene_object_scene;
 
     return true;
 }
@@ -1235,6 +1234,9 @@ update_volume_object(const UpdateObject& update, const Volume& volume_settings)
 
     ospSetAffine3fv(instance, "xfm", affine_xform);
     ospCommit(instance);
+
+    if (scene_object == nullptr)
+        scene_objects[object_name] = volume_object;
 
     scene_instances.push_back(instance);
 
@@ -1358,6 +1360,9 @@ update_isosurfaces_object(const UpdateObject& update)
     ospSetAffine3fv(instance, "xfm", affine_xform);
     ospCommit(instance);
 
+    if (scene_object == nullptr)
+        scene_objects[object_name] = isosurfaces_object;
+
     scene_instances.push_back(instance);
     
     return true;
@@ -1468,6 +1473,9 @@ add_slices_object(const UpdateObject& update, const Slices& slices)
         ospCommit(instance);
         ospRelease(group);
 
+        //if (scene_object == nullptr)
+        //scene_objects[object_name] = ...
+
         scene_instances.push_back(instance);
 
 #if 0
@@ -1567,8 +1575,6 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
         light_object->light_type = light_type;
         light_object->data_link = light_settings.light_name();
 
-        assert(scene_objects.find(object_name) == scene_objects.end());
-        printf("setting %s -> %016x\n", object_name.c_str(), light_object);
         scene_objects[object_name] = light_object;
     }
 
