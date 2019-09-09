@@ -195,7 +195,7 @@ message CameraSettings
     }
     
     Type    type = 1;
-    string  object_name = 2;
+    string  object_name = 2;        // Don't need this. Let's use only a single camera
     string  camera_name = 3;
 
     repeated float position = 10;

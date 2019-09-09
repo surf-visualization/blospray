@@ -11,7 +11,7 @@
 
 [User cancels rendering]
 <- ClientMessage CANCEL_RENDERING
--> RenderResult FRAME (optional)
+-> RenderResult FRAME [zero or more]
 -> RenderResult CANCELED
 
 ---------------------------------------------------------------------
