@@ -380,7 +380,7 @@ delete_object(const std::string& object_name)
     SceneObject *scene_object = it->second;
     delete scene_object;
 
-    scene_data_types.erase(object_name);
+    scene_objects.erase(object_name);
 }
 
 void 
@@ -399,9 +399,11 @@ delete_scene_data(const std::string& name)
     else
     {
         assert(it->second == SDT_MESH);
-        printf("XXX todo: delete blender mesh\n");
+        // XXX todo
         //delete_blender_mesh(name);
     }
+
+    scene_data_types.erase(name);
 }
 
 /*
@@ -423,12 +425,11 @@ find_scene_object(const std::string& name, SceneObjectType type, bool delete_exi
     if (it != scene_objects.end())
     {
         scene_object = it->second;
-        printf("find %s, result %016x\n", name.c_str(), scene_object);
         if (scene_object->type != type)
         {
             if (delete_existing_mismatch)
             {
-                printf("... WARNING: existing object is not of type %s, but of type %s, deleting\n", 
+                printf("... Existing object is not of type %s, but of type %s, deleting\n", 
                     SceneObjectType_names[type], SceneObjectType_names[scene_object->type]);
                 delete_object(name);
                 return nullptr;
@@ -907,7 +908,7 @@ update_blender_mesh_object(const UpdateObject& update)
     if (scene_object == nullptr)
         mesh_object = new SceneObjectMesh;    
     else
-        mesh_object = (SceneObjectMesh*) scene_object;
+        mesh_object = dynamic_cast<SceneObjectMesh*>(scene_object);
 
     instance = mesh_object->instance;
     assert(instance != nullptr);
@@ -994,7 +995,7 @@ update_geometry_object(const UpdateObject& update)
     if (scene_object == nullptr)
         geometry_object = new SceneObjectGeometry;
     else
-        geometry_object = (SceneObjectGeometry*) scene_object;
+        geometry_object = dynamic_cast<SceneObjectGeometry*>(scene_object);
 
     instance = geometry_object->instance;
     assert(instance != nullptr);
@@ -1069,7 +1070,7 @@ update_scene_object(const UpdateObject& update)
 
     if (scene_object != nullptr)
     {
-        scene_object_scene = (SceneObjectScene*) scene_object;
+        scene_object_scene = dynamic_cast<SceneObjectScene*>(scene_object);
         for (OSPInstance &i : scene_object_scene->instances)
             ospRelease(i);
         scene_object_scene->instances.clear();
@@ -1162,7 +1163,7 @@ update_volume_object(const UpdateObject& update, const Volume& volume_settings)
     scene_object = find_scene_object(object_name, SOT_VOLUME);
 
     if (scene_object != nullptr)
-        volume_object = (SceneObjectVolume*) scene_object;
+        volume_object = dynamic_cast<SceneObjectVolume*>(scene_object);
     else
         volume_object = new SceneObjectVolume;
 
@@ -1260,7 +1261,7 @@ update_isosurfaces_object(const UpdateObject& update)
     scene_object = find_scene_object(object_name, SOT_ISOSURFACES);
 
     if (scene_object != nullptr)
-        isosurfaces_object = (SceneObjectIsosurfaces*) scene_object;
+        isosurfaces_object = dynamic_cast<SceneObjectIsosurfaces*>(scene_object);
     else
         isosurfaces_object = new SceneObjectIsosurfaces;
 
@@ -1524,7 +1525,7 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
 
     if (scene_object != nullptr)
     {
-        light_object = (SceneObjectLight*) scene_object;
+        light_object = dynamic_cast<SceneObjectLight*>(scene_object);
         light = light_object->light;
         assert(light != nullptr);
         light_type = light_object->light_type;

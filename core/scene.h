@@ -45,7 +45,7 @@ struct SceneObject
     std::string     data_link;              // Name of linked scene data, may be ""
 
     SceneObject() {}
-    ~SceneObject() {}
+    virtual ~SceneObject() {}
 };
 
 struct SceneObjectMesh : SceneObject

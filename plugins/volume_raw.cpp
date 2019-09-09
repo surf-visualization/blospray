@@ -280,7 +280,7 @@ load(float *bbox, float *data_range, GenerateFunctionResult &result, const json 
     }
     else 
     {
-        snprintf(msg, 1024, "ERROR: unhandled voxel data type '%s'!\n", voxelType);
+        snprintf(msg, 1024, "ERROR: unhandled voxel data type '%s'!\n", voxelType.c_str());
         result.set_success(false);
         result.set_message(msg);
         fprintf(stderr, "%s\n", msg);
@@ -305,7 +305,7 @@ load(float *bbox, float *data_range, GenerateFunctionResult &result, const json 
         }
         else
         {
-            fprintf(stderr, "WARNING: no endian flip available for data type '%s'!\n", voxelType);
+            fprintf(stderr, "WARNING: no endian flip available for data type '%s'!\n", voxelType.c_str());
         }
     }
 
@@ -510,7 +510,7 @@ generate(GenerateFunctionResult &result, PluginState *state)
     }
     else 
     {
-        snprintf(msg, 1024, "ERROR: unhandled voxel data type '%s'!\n", voxelType);
+        snprintf(msg, 1024, "ERROR: unhandled voxel data type '%s'!\n", voxelType.c_str());
         result.set_success(false);
         result.set_message(msg);
         fprintf(stderr, "%s\n", msg);
@@ -536,7 +536,7 @@ generate(GenerateFunctionResult &result, PluginState *state)
         // XXX handle double swap
         else
         {
-            fprintf(stderr, "WARNING: no endian flip available for data type '%s'!\n", voxelType);
+            fprintf(stderr, "WARNING: no endian flip available for data type '%s'!\n", voxelType.c_str());
         }
     }
 
