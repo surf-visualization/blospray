@@ -36,7 +36,7 @@ from .common import PROTOCOL_VERSION, send_protobuf, receive_protobuf
 from .messages_pb2 import (
     HelloResult,
     CameraSettings, ImageSettings,
-    Light, RenderSettings,
+    LightSettings, RenderSettings,
     MeshData,
     ClientMessage, GenerateFunctionResult,
     RenderResult,
@@ -128,7 +128,7 @@ class Connection:
 
         self.engine.update_stats('', 'Connecting')
 
-        # Export scene        
+        # Export scene    
         self.export_scene(data, depsgraph)
 
         # Connection will be closed by render(), which is always
@@ -328,36 +328,42 @@ class Connection:
 
         # Scene objects
 
+        # XXX turn into render setting
         self.send_updated_ambient_light(world.ospray.ambient_color, world.ospray.ambient_intensity)
 
         self.mesh_data_exported = set()
+
+        print('DEPSGRAPH STATS:', depsgraph.debug_stats())
 
         for instance in depsgraph.object_instances:
 
             obj = instance.object
 
+            print('DEPSGRAPH object instance "%s", type=%s, is_instance=%d, random_id=%d' % \
+                (obj.name, obj.type, instance.is_instance, instance.random_id))
+
             if obj.type == 'LIGHT':
                 self.send_updated_light(data, depsgraph, obj)
                 continue
             elif obj.type != 'MESH':
-                continue                        
-                
+                continue
+        
             mesh = obj.data
 
-            # Send mesh data
+            # Send mesh data first, so the object sent after can refer to it
             self.send_updated_mesh_data(data, depsgraph, mesh)            
                         
             # Send object linking to the mesh data
-            self.send_updated_mesh_object(data, depsgraph, obj, mesh, instance.matrix_world)
+            self.send_updated_mesh_object(data, depsgraph, obj, mesh, instance.matrix_world, instance.is_instance, instance.random_id)        
 
     def send_updated_ambient_light(self, color, intensity):
 
-        light = Light()
-        light.type = Light.AMBIENT
-        light.object_name = '<ambient>'
+        light_settings = LightSettings()
+        light_settings.type = LightSettings.AMBIENT
+        light_settings.object_name = '<ambient>'
 
-        light.color[:] = color
-        light.intensity = intensity
+        light_settings.color[:] = color
+        light_settings.intensity = intensity
 
         client_message = ClientMessage()
         client_message.type = ClientMessage.UPDATE_OBJECT  
@@ -369,48 +375,48 @@ class Connection:
         # XXX using three messages :-/
         send_protobuf(self.sock, client_message)
         send_protobuf(self.sock, update)
-        send_protobuf(self.sock, light)
+        send_protobuf(self.sock, light_settings)
 
 
     def send_updated_light(self, data, depsgraph, obj):
 
         self.engine.update_stats('', 'Light %s' % obj.name)
 
-        TYPE2ENUM = dict(POINT=Light.POINT, SUN=Light.SUN, SPOT=Light.SPOT, AREA=Light.AREA)
+        TYPE2ENUM = dict(POINT=LightSettings.POINT, SUN=LightSettings.SUN, SPOT=LightSettings.SPOT, AREA=LightSettings.AREA)
 
         data = obj.data
         xform = obj.matrix_world
 
         ospray_data = data.ospray
 
-        light = Light()
-        light.type = TYPE2ENUM[data.type]
-        light.object2world[:] = matrix2list(xform)      # XXX get from updateobject
-        light.object_name = obj.name
-        light.light_name = data.name
+        light_settings = LightSettings()
+        light_settings.type = TYPE2ENUM[data.type]
+        light_settings.object2world[:] = matrix2list(xform)      # XXX get from updateobject
+        light_settings.object_name = obj.name
+        light_settings.light_name = data.name
 
-        light.color[:] = data.color
-        light.intensity = ospray_data.intensity
-        light.visible = ospray_data.visible
+        light_settings.color[:] = data.color
+        light_settings.intensity = ospray_data.intensity
+        light_settings.visible = ospray_data.visible
 
         if data.type == 'SUN':
-            light.angular_diameter = ospray_data.angular_diameter
+            light_settings.angular_diameter = ospray_data.angular_diameter
         elif data.type != 'AREA':
-            light.position[:] = (xform[0][3], xform[1][3], xform[2][3])
+            light_settings.position[:] = (xform[0][3], xform[1][3], xform[2][3])
 
         if data.type in ['SUN', 'SPOT']:
-            light.direction[:] = obj.matrix_world @ Vector((0, 0, -1)) - obj.location
+            light_settings.direction[:] = obj.matrix_world @ Vector((0, 0, -1)) - obj.location
 
         if data.type == 'SPOT':
             # Blender:
             # .spot_size = full angle where light shines, in degrees
             # .spot_blend = factor in [0,1], 0 = no penumbra, 1 = penumbra is full angle
-            light.opening_angle = degrees(data.spot_size)
-            light.penumbra_angle = 0.5*data.spot_blend*degrees(data.spot_size)
+            light_settings.opening_angle = degrees(data.spot_size)
+            light_settings.penumbra_angle = 0.5*data.spot_blend*degrees(data.spot_size)
             # assert light.penumbra_angle < 0.5*light.opening_angle
 
         if data.type in ['POINT', 'SPOT']:
-            light.radius = data.shadow_soft_size        # XXX what is this called in ospray?
+            light_settings.radius = data.shadow_soft_size        # XXX what is this called in ospray?
 
         if data.type == 'AREA':
             size_x = data.size
@@ -426,9 +432,9 @@ class Connection:
             edge1 = obj.matrix_world @ edge1 - position
             edge2 = obj.matrix_world @ edge2 - position
 
-            light.position[:] = position
-            light.edge1[:] = edge1
-            light.edge2[:] = edge2
+            light_settings.position[:] = position
+            light_settings.edge1[:] = edge1
+            light_settings.edge2[:] = edge2
 
         client_message = ClientMessage()
         client_message.type = ClientMessage.UPDATE_OBJECT  
@@ -447,22 +453,28 @@ class Connection:
         # XXX using three messages :-/
         send_protobuf(self.sock, client_message)
         send_protobuf(self.sock, update)
-        send_protobuf(self.sock, light)
+        send_protobuf(self.sock, light_settings)
 
 
-    def send_updated_mesh_object(self, data, depsgraph, obj, mesh, matrix_world):
+    def send_updated_mesh_object(self, data, depsgraph, obj, mesh, matrix_world, is_instance, random_id):
 
         # We do a bit of the logic here in determining what a certain
         # object -> object data combination (including their properties)
         # means, so the server isn't bothered with this.
+
+        name = obj.name
         
-        print('Updating MESH OBJECT "%s"' % obj.name)
-    
+        s = 'Updating MESH OBJECT "%s"' % name
+        if is_instance:
+            s += ' (instance %d)' % random_id
+            name = '%s [%d]' % (name, random_id)
+        print(s)
+
         client_message = ClientMessage()
         client_message.type = ClientMessage.UPDATE_OBJECT    
         
         update = UpdateObject()
-        update.name = obj.name
+        update.name = name
         update.object2world[:] = matrix2list(matrix_world)
         update.data_link = mesh.name
         
@@ -842,9 +854,9 @@ class Connection:
                     # XXX both receiving into a file and loading from file 
                     # block the blender UI for a short time
 
-                    print('[%6.3f] _read_framebuffer_to_file start' % (time.time()-t0))
+                    #print('[%6.3f] _read_framebuffer_to_file start' % (time.time()-t0))
                     self._read_framebuffer_to_file(FBFILE, render_result.file_size)
-                    print('[%6.3f] _read_framebuffer_to_file end' % (time.time()-t0))
+                    #print('[%6.3f] _read_framebuffer_to_file end' % (time.time()-t0))
 
                     # Sigh, this needs an image file format. I.e. reading in a raw framebuffer
                     # of floats isn't possible, hence the OpenEXR file
@@ -856,7 +868,7 @@ class Connection:
 
                     self.engine.update_result(result)
 
-                    print('[%6.3f] update_result() done' % (time.time()-t0))
+                    #print('[%6.3f] update_result() done' % (time.time()-t0))
 
                     self.engine.update_progress(sample/self.render_samples)
 
@@ -918,7 +930,7 @@ class Connection:
     
     def _read_framebuffer_to_file(self, fname, size):
 
-        print('_read_framebuffer_to_file(%s, %d)' % (fname, size))
+        #print('_read_framebuffer_to_file(%s, %d)' % (fname, size))
 
         # XXX use select() in a loop, to allow UI updates more frequently
 

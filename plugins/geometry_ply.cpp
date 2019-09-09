@@ -25,15 +25,6 @@
 #include <vector>
 #include "plugin.h"
 
-//
-// rply stuff (arrays and callbacks)
-//
-// We don't use std::vector's for this as the deallocation will be
-// done from _MyDeallocObject. It might be possible to place a 
-// std::vector in _MyDeallocObject, but for now we're using malloc()
-// and friends.
-//
-
 static std::vector<float> vertices;
 static int      next_vertex_element_index;
 
@@ -125,8 +116,6 @@ load_ply_file(GenerateFunctionResult &result, PluginState *state)
     const std::string& plyfile = state->parameters["file"];
     char        msg[1024];
     int         vertex_values_per_loop = 1;
-    
-    // Open PLY file
 
     p_ply ply = ply_open(plyfile.c_str(), NULL, 0, NULL);
     if (!ply)

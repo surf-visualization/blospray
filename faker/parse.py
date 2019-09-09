@@ -108,6 +108,8 @@ class Object:
         fields = []
         for field in sorted(self.fields.keys()):
             value = self.fields[field]
+            if field == 'voxelType':
+                value = ospdatatype2name[value]
             fields.append('%s = %s' % (field,value))
 
         c = '?' if self.addr not in reference_counts else str(reference_counts[self.addr])

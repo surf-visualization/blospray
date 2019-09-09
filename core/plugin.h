@@ -298,6 +298,10 @@ enum PluginRenderer
     PR_PATHTRACER
 };
 
+static const char *PluginType_names[] = {
+    "???", "PT_GEOMETRY", "PT_VOLUME", "PT_SCENE"
+};
+
 typedef struct
 {
     PluginType          type;

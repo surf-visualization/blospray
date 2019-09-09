@@ -39,6 +39,7 @@ if "bpy" in locals():
     #imp.reload(render)
     #imp.reload(update_files)
     
+import sys
 import bpy
 from .connection import Connection
 
@@ -78,7 +79,11 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             self.report({'ERROR'}, 'Failed to connect to server')
             return 
 
-        self.connection.update(data, depsgraph)
+        try:
+            self.connection.update(data, depsgraph)
+        except:
+            self.report({'ERROR'}, 'Exception while updating scene on server: %s' % sys.exc_info()[0])
+            return 
 
         # XXX if we fail connecting here there's no way to 
         # signal to blender that it should not subsequently call render()        
@@ -95,9 +100,11 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         if not self.update_succeeded:
             return
         
-        self.connection.render(depsgraph)
-        
-        self.connection.close()
+        try:
+            self.connection.render(depsgraph)
+            self.connection.close()
+        except:
+            self.report({'ERROR'}, 'Exception while rendering scene on server: %s' % sys.exc_info()[0])
 
     # If the two view_... methods are defined the interactive rendered
     # mode becomes available
