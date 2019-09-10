@@ -318,6 +318,9 @@ class Connection:
         render_settings.type = RenderSettings.FINAL
         render_settings.background_color[:] = world.ospray.background_color
         self.render_samples = render_settings.samples = scene.ospray.samples
+        render_settings.max_depth = scene.ospray.max_depth
+        render_settings.min_contribution = scene.ospray.min_contribution
+        render_settings.variance_threshold = scene.ospray.variance_threshold
         if scene.ospray.renderer == 'scivis':
             render_settings.ao_samples = scene.ospray.ao_samples
             render_settings.ao_radius = scene.ospray.ao_radius
@@ -893,7 +896,7 @@ class Connection:
 
                     self.engine.update_stats(
                         'Server %.1f MB' % render_result.memory_usage,
-                        'Rendering sample %d/%d' % (sample, self.render_samples))
+                        'Variance %.3f | Rendering sample %d/%d' % (render_result.variance, sample, self.render_samples))
 
                 elif render_result.type == RenderResult.CANCELED:
                     print('Rendering CANCELED!')

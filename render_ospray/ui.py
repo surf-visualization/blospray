@@ -81,6 +81,9 @@ class OSPRAY_RENDER_PT_rendering(Panel):
         col.separator()
 
         col.prop(ospray, 'samples')
+        col.prop(ospray, 'max_depth')
+        col.prop(ospray, 'min_contribution')
+        col.prop(ospray, 'variance_threshold')
         col.separator()
         
         if ospray.renderer == 'scivis':

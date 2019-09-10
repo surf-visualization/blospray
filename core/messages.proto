@@ -89,9 +89,10 @@ message RenderResult
     
     // FRAME
     uint32  sample = 2;
-    string  file_name = 3;          // Only used for server-internal purposes
-    uint32  file_size = 4;
-    float   memory_usage = 5;
+    float   variance = 3;
+    string  file_name = 4;          // Only used for server-internal purposes
+    uint32  file_size = 5;
+    float   memory_usage = 6;
 }
 
 // Scene
@@ -230,17 +231,21 @@ message RenderSettings
     string          renderer = 1;
     Type            type = 2;
 
+    // All renderers
     uint32          samples = 3;
+    uint32          max_depth = 4;
+    float           min_contribution = 5;
+    float           variance_threshold = 6;
 
     // Scivis renderer only
-    uint32          ao_samples = 4;         
-    float           ao_radius = 5;          
-    float           ao_intensity = 6;       
+    uint32          ao_samples = 20;         
+    float           ao_radius = 21;          
+    float           ao_intensity = 22;       
 
     // Pathtracer renderer only
-    uint32          roulette_depth = 7;
-    float           max_contribution = 8;
-    bool            geometry_lights = 9;
+    uint32          roulette_depth = 30;
+    float           max_contribution = 31;
+    bool            geometry_lights = 32;
     
     repeated float  background_color = 50;   // RGBA
     

@@ -1874,7 +1874,7 @@ receive_scene(TCPSocket *sock)
 
         printf("Initializing framebuffer of %dx%d pixels\n", framebuffer_width, framebuffer_height);
 
-        framebuffer = ospNewFrameBuffer(framebuffer_width, framebuffer_height, OSP_FB_RGBA32F, OSP_FB_COLOR | /*OSP_FB_DEPTH |*/ OSP_FB_ACCUM);
+        framebuffer = ospNewFrameBuffer(framebuffer_width, framebuffer_height, OSP_FB_RGBA32F, OSP_FB_COLOR | /*OSP_FB_DEPTH |*/ OSP_FB_ACCUM | OSP_FB_VARIANCE);
         // XXX is this call needed here?
         ospResetAccumulation(framebuffer);
 
@@ -1890,6 +1890,10 @@ receive_scene(TCPSocket *sock)
     // Reuse existing renderer
     current_renderer_type = renderer_type;
     renderer = renderers[current_renderer_type.c_str()];
+
+    ospSetInt(renderer, "maxDepth", render_settings.max_depth());
+    ospSetFloat(renderer, "minContribution", render_settings.min_contribution());
+    ospSetBool(renderer, "varianceThreshold", render_settings.variance_threshold());
 
     printf("Background color %f, %f, %f, %f\n", render_settings.background_color(0),
         render_settings.background_color(1),
@@ -2027,6 +2031,7 @@ render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
     struct timeval t0, t1, t2;
     size_t  framebuffer_file_size;
     char fname[1024];
+    float variance;
 
     gettimeofday(&t0, NULL);
 
@@ -2052,7 +2057,7 @@ render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
         estimated variance can be used by the application as a quality indicator and
         thus to decide whether to stop or to continue progressive rendering.
         */
-        ospRenderFrame(framebuffer, renderer, camera, world);
+        variance = ospRenderFrame(framebuffer, renderer, camera, world);
 
         gettimeofday(&t2, NULL);
         printf("frame in %.3f seconds\n", time_diff(t1, t2));
@@ -2068,6 +2073,7 @@ render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
 
                 RenderResult rs;
                 rs.set_type(RenderResult::CANCELED);
+                rs.set_variance(variance);
                 render_result_queue.push(rs);
 
                 return;

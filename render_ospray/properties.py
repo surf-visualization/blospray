@@ -98,12 +98,38 @@ class RenderOspraySettingsScene(PropertyGroup):
         max=65535
         )
 
+    # General renderer settings
+
     samples: IntProperty(
         name='Samples',
-        description='Number of samples per pixel',
+        description='Number of samples per pixel (spp)',
         default = 4,
         min = 1,
-        max = 256
+        max = 1024
+        )
+
+    max_depth: IntProperty(
+        name='Max depth',
+        description='Maximum ray recursion depth (maxDepth)',
+        default = 20,
+        min = 0,
+        max = 128
+        )
+
+    min_contribution: FloatProperty(
+        name='Min contribution',
+        description='Sample contributions below this value will be neglected to speedup rendering (minContribution)',
+        default = 0.001,
+        min = 0,
+        max = 100
+        )
+
+    variance_threshold: FloatProperty(
+        name='Variance threshold',
+        description='Threshold for adaptive accumulation (varianceThreshold)',
+        default = 0,
+        min = 0,
+        max = 100
         )
 
     # Scivis renderer
