@@ -57,7 +57,7 @@ const uint32_t  PROTOCOL_VERSION = 2;
 OSPRenderer     renderer;
 std::string     current_renderer_type;
 OSPWorld        world;
-OSPCamera       camera;
+OSPCamera       camera = nullptr;
 OSPFrameBuffer  framebuffer;
 
 std::map<std::string, OSPRenderer>  renderers;
@@ -1783,6 +1783,79 @@ handle_update_object(TCPSocket *sock)
     return true;
 }
 
+void
+handle_update_camera(TCPSocket *sock)
+{
+    // Update camera
+
+    receive_protobuf(sock, camera_settings);
+
+    printf("OBJECT '%s' (camera)\n", camera_settings.object_name().c_str());
+    printf("--> '%s' (camera data)\n", camera_settings.camera_name().c_str());
+
+    float cam_pos[3], cam_viewdir[3], cam_updir[3];
+
+    cam_pos[0] = camera_settings.position(0);
+    cam_pos[1] = camera_settings.position(1);
+    cam_pos[2] = camera_settings.position(2);
+
+    cam_viewdir[0] = camera_settings.view_dir(0);
+    cam_viewdir[1] = camera_settings.view_dir(1);
+    cam_viewdir[2] = camera_settings.view_dir(2);
+
+    cam_updir[0] = camera_settings.up_dir(0);
+    cam_updir[1] = camera_settings.up_dir(1);
+    cam_updir[2] = camera_settings.up_dir(2);
+    
+    // XXX for now create new cam object
+    if (camera != nullptr)
+        ospRelease(camera);
+
+    switch (camera_settings.type())
+    {
+        case CameraSettings::PERSPECTIVE:
+            camera = ospNewCamera("perspective");
+            ospSetFloat(camera, "fovy",  camera_settings.fov_y());
+            break;
+
+        case CameraSettings::ORTHOGRAPHIC:
+            camera = ospNewCamera("orthographic");
+            ospSetFloat(camera, "height", camera_settings.height());
+            break;
+
+        case CameraSettings::PANORAMIC:
+            camera = ospNewCamera("panoramic");
+            break;
+
+        default:
+            fprintf(stderr, "WARNING: unknown camera type %d\n", camera_settings.type());
+            break;
+    }
+
+    ospSetFloat(camera, "aspect", camera_settings.aspect());        // XXX panoramic only
+    ospSetFloat(camera, "nearClip", camera_settings.clip_start());
+
+    ospSetVec3fv(camera, "position", cam_pos);
+    ospSetVec3fv(camera, "direction", cam_viewdir);
+    ospSetVec3fv(camera, "up",  cam_updir);
+
+    if (camera_settings.dof_focus_distance() > 0.0f)
+    {
+        // XXX seem to stuck in loop during rendering when distance is 0
+        ospSetFloat(camera, "focusDistance", camera_settings.dof_focus_distance());
+        ospSetFloat(camera, "apertureRadius", camera_settings.dof_aperture());
+    }
+
+    if (image_settings.border_size() == 4)
+    {
+        ospSetVec2f(camera, "imageStart", image_settings.border(0), image_settings.border(1));
+        ospSetVec2f(camera, "imageEnd", image_settings.border(2), image_settings.border(3));
+    }
+
+    ospCommit(camera);
+}
+
+
 
 // XXX currently has big memory leak as we never release the new objects ;-)
 bool
@@ -1868,70 +1941,6 @@ receive_scene(TCPSocket *sock)
     ospCommit(renderer);
 
     default_material = materials[renderer_type.c_str()];
-
-    // Update camera
-
-    receive_protobuf(sock, camera_settings);
-
-    printf("OBJECT '%s' (camera)\n", camera_settings.object_name().c_str());
-    printf("--> '%s' (camera data)\n", camera_settings.camera_name().c_str());
-
-    float cam_pos[3], cam_viewdir[3], cam_updir[3];
-
-    cam_pos[0] = camera_settings.position(0);
-    cam_pos[1] = camera_settings.position(1);
-    cam_pos[2] = camera_settings.position(2);
-
-    cam_viewdir[0] = camera_settings.view_dir(0);
-    cam_viewdir[1] = camera_settings.view_dir(1);
-    cam_viewdir[2] = camera_settings.view_dir(2);
-
-    cam_updir[0] = camera_settings.up_dir(0);
-    cam_updir[1] = camera_settings.up_dir(1);
-    cam_updir[2] = camera_settings.up_dir(2);
-
-    switch (camera_settings.type())
-    {
-        case CameraSettings::PERSPECTIVE:
-            camera = ospNewCamera("perspective");
-            ospSetFloat(camera, "fovy",  camera_settings.fov_y());
-            break;
-
-        case CameraSettings::ORTHOGRAPHIC:
-            camera = ospNewCamera("orthographic");
-            ospSetFloat(camera, "height", camera_settings.height());
-            break;
-
-        case CameraSettings::PANORAMIC:
-            camera = ospNewCamera("panoramic");
-            break;
-
-        default:
-            fprintf(stderr, "WARNING: unknown camera type %d\n", camera_settings.type());
-            break;
-    }
-
-    ospSetFloat(camera, "aspect", camera_settings.aspect());        // XXX panoramic only
-    ospSetFloat(camera, "nearClip", camera_settings.clip_start());
-
-    ospSetVec3fv(camera, "position", cam_pos);
-    ospSetVec3fv(camera, "direction", cam_viewdir);
-    ospSetVec3fv(camera, "up",  cam_updir);
-
-    if (camera_settings.dof_focus_distance() > 0.0f)
-    {
-        // XXX seem to stuck in loop during rendering when distance is 0
-        ospSetFloat(camera, "focusDistance", camera_settings.dof_focus_distance());
-        ospSetFloat(camera, "apertureRadius", camera_settings.dof_aperture());
-    }
-
-    if (image_settings.border_size() == 4)
-    {
-        ospSetVec2f(camera, "imageStart", image_settings.border(0), image_settings.border(1));
-        ospSetVec2f(camera, "imageEnd", image_settings.border(2), image_settings.border(3));
-    }
-
-    ospCommit(camera);
 
     // Done!
 
@@ -2275,6 +2284,10 @@ handle_connection(TCPSocket *sock)
 
                 case ClientMessage::UPDATE_OBJECT:
                     handle_update_object(sock);
+                    break;
+                
+                case ClientMessage::UPDATE_CAMERA:
+                    handle_update_camera(sock);
                     break;
 
                 case ClientMessage::GET_SERVER_STATE:

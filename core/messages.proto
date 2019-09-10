@@ -35,6 +35,7 @@ message ClientMessage
         UPDATE_OBJECT = 20;
         UPDATE_BLENDER_MESH = 21;
         UPDATE_PLUGIN_INSTANCE = 22;
+        UPDATE_CAMERA = 23;
 
         DELETE_OBJECT = 30;
         DELETE_BLENDER_MESH = 31;

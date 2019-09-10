@@ -188,6 +188,64 @@ class Connection:
                 
         return properties, plugin_parameters
         
+
+    def send_updated_camera(self, camobj):
+        
+        # Camera
+
+        cam_xform = cam_obj.matrix_world
+        cam_data = cam_obj.data
+
+        camera_settings = CameraSettings()
+        camera_settings.object_name = cam_obj.name
+        camera_settings.camera_name = cam_data.name
+
+        camera_settings.aspect = aspect
+        camera_settings.clip_start = cam_data.clip_start
+        # XXX no far clip in ospray :)
+
+        if cam_data.type == 'PERSP':
+            camera_settings.type = CameraSettings.PERSPECTIVE
+
+            # Get camera FOV (in degrees)
+            hfov = cam_data.angle
+            image_plane_width = 2 * tan(hfov/2)
+            image_plane_height = image_plane_width / aspect
+            vfov = 2*atan(image_plane_height/2)
+            camera_settings.fov_y = degrees(vfov)
+
+        elif cam_data.type == 'ORTHO':
+            camera_settings.type = CameraSettings.ORTHOGRAPHIC
+            camera_settings.height = cam_data.ortho_scale / aspect
+
+        elif cam_data.type == 'PANO':
+            camera_settings.type = CameraSettings.PANORAMIC
+
+        else:
+            raise ValueError('Unknown camera type "%s"' % cam_data.type)
+
+        camera_settings.position[:] = list(cam_obj.location)
+        camera_settings.view_dir[:] = list(cam_xform @ Vector((0, 0, -1)) - cam_obj.location)
+        camera_settings.up_dir[:] = list(cam_xform @ Vector((0, 1, 0)) - cam_obj.location)
+
+        # Depth of field
+        camera_settings.dof_focus_distance = 0
+        camera_settings.dof_aperture = 0.0
+
+        if cam_data.dof.use_dof:
+            dof_settings = cam_data.dof
+            if dof_settings.focus_object is not None:
+                focus_world = dof_settings.focus_object.matrix_world.translation
+                cam_world = cam_obj.matrix_world.translation
+                camera_settings.dof_focus_distance = (focus_world - cam_world).length
+            else:
+                camera_settings.dof_focus_distance = dof_settings.focus_distance
+
+            # Camera focal length in mm + f-stop -> aperture in m
+            camera_settings.dof_aperture = (0.5 * cam_data.lens / dof_settings.aperture_fstop) / 1000
+            
+        send_protobuf(self.sock, camera_settings)
+        
     def export_scene(self, data, depsgraph):
 
         msg = 'Exporting scene'
@@ -250,60 +308,6 @@ class Connection:
         image_settings.width = self.framebuffer_width
         image_settings.height = self.framebuffer_height
 
-        # Camera
-
-        cam_obj = scene.camera
-        cam_xform = cam_obj.matrix_world
-        cam_data = cam_obj.data
-
-        camera_settings = CameraSettings()
-        camera_settings.object_name = cam_obj.name
-        camera_settings.camera_name = cam_data.name
-
-        camera_settings.aspect = aspect
-        camera_settings.clip_start = cam_data.clip_start
-        # XXX no far clip in ospray :)
-
-        if cam_data.type == 'PERSP':
-            camera_settings.type = CameraSettings.PERSPECTIVE
-
-            # Get camera FOV (in degrees)
-            hfov = cam_data.angle
-            image_plane_width = 2 * tan(hfov/2)
-            image_plane_height = image_plane_width / aspect
-            vfov = 2*atan(image_plane_height/2)
-            camera_settings.fov_y = degrees(vfov)
-
-        elif cam_data.type == 'ORTHO':
-            camera_settings.type = CameraSettings.ORTHOGRAPHIC
-            camera_settings.height = cam_data.ortho_scale / aspect
-
-        elif cam_data.type == 'PANO':
-            camera_settings.type = CameraSettings.PANORAMIC
-
-        else:
-            raise ValueError('Unknown camera type "%s"' % cam_data.type)
-
-        camera_settings.position[:] = list(cam_obj.location)
-        camera_settings.view_dir[:] = list(cam_xform @ Vector((0, 0, -1)) - cam_obj.location)
-        camera_settings.up_dir[:] = list(cam_xform @ Vector((0, 1, 0)) - cam_obj.location)
-
-        # Depth of field
-        camera_settings.dof_focus_distance = 0
-        camera_settings.dof_aperture = 0.0
-
-        if cam_data.dof.use_dof:
-            dof_settings = cam_data.dof
-            if dof_settings.focus_object is not None:
-                focus_world = dof_settings.focus_object.matrix_world.translation
-                cam_world = cam_obj.matrix_world.translation
-                camera_settings.dof_focus_distance = (focus_world - cam_world).length
-            else:
-                camera_settings.dof_focus_distance = dof_settings.focus_distance
-
-            # Camera focal length in mm + f-stop -> aperture in m
-            camera_settings.dof_aperture = (0.5 * cam_data.lens / dof_settings.aperture_fstop) / 1000
-
         # Render settings
 
         render_settings = RenderSettings()
@@ -324,8 +328,8 @@ class Connection:
         send_protobuf(self.sock, render_settings)
 
         # Camera settings
-        send_protobuf(self.sock, camera_settings)
-
+        self.send_updated_camera(self.sock)
+        
         # Scene objects
 
         # XXX turn into render setting
