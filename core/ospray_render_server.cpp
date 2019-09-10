@@ -2060,10 +2060,10 @@ render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
         variance = ospRenderFrame(framebuffer, renderer, camera, world);
 
         gettimeofday(&t2, NULL);
-        printf("frame in %.3f seconds\n", time_diff(t1, t2));
+        printf("frame in %.3f seconds (variance %.3f)\n", time_diff(t1, t2), variance);
         
         // Check for cancel before writing framebuffer to file
-       if (render_input_queue.size() > 0)
+        if (render_input_queue.size() > 0)
         {
             ClientMessage cm = render_input_queue.pop();
 
@@ -2073,7 +2073,6 @@ render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
 
                 RenderResult rs;
                 rs.set_type(RenderResult::CANCELED);
-                rs.set_variance(variance);
                 render_result_queue.push(rs);
 
                 return;
@@ -2090,6 +2089,7 @@ render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
         RenderResult rs;
         rs.set_type(RenderResult::FRAME);
         rs.set_sample(i);
+        rs.set_variance(variance);
         rs.set_file_name(fname);
         rs.set_file_size(framebuffer_file_size);
         rs.set_memory_usage(memory_usage());
