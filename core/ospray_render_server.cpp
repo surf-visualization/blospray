@@ -73,7 +73,6 @@ OSPMaterial         default_material;               // XXX hack for now, rendere
 
 ImageSettings   image_settings;
 RenderSettings  render_settings;
-CameraSettings  camera_settings;
 
 // Geometry buffers used during network receive
 
@@ -1786,11 +1785,11 @@ handle_update_object(TCPSocket *sock)
 void
 handle_update_camera(TCPSocket *sock)
 {
-    // Update camera
+    CameraSettings camera_settings;
 
     receive_protobuf(sock, camera_settings);
 
-    printf("OBJECT '%s' (camera)\n", camera_settings.object_name().c_str());
+    printf("CAMERA '%s' (camera)\n", camera_settings.object_name().c_str());
     printf("--> '%s' (camera data)\n", camera_settings.camera_name().c_str());
 
     float cam_pos[3], cam_viewdir[3], cam_updir[3];
@@ -1910,6 +1909,7 @@ receive_scene(TCPSocket *sock)
     else
     {
         // Pathtracer, work around unsupported bgColor
+        // https://github.com/ospray/ospray/issues/347
 
         // XXX appears to be broken? The backplate color *is* used, but only in areas where
         // there is non-zero alpha, i.e. something is hit.
@@ -2242,7 +2242,6 @@ handle_connection(TCPSocket *sock)
 
             //printf("Got client message of type %s\n", ClientMessage_Type_Name(client_message.type()).c_str());
             //printf("%s\n", client_message.DebugString().c_str());
-            //printf("ClientMessage %d received\n", client_message.sequence());
 
             switch (client_message.type())
             {

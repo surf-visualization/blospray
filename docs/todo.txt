@@ -1,5 +1,3 @@
-Port plugin geometry_cosmogrid to new style
-
 OSPRAY things/bugs
 - Volume rendering currently is buggy work when applying a transform
   to the volumetricmodel
@@ -9,8 +7,6 @@ OSPRAY things/bugs
   OSPRay also only supports setting the clipping start, not a far clip value.
 
 Bugs
-- Add top-level exception handling in the server
-- Updating volume mesh with the operator in edit mode fails
 - https://developer.blender.org/T59089 (get evee render instead of custom one)
 - https://developer.blender.org/T64295 (custom props not updating in UI)
 
@@ -54,9 +50,7 @@ Must haves
 - TF editor in Blender
 - Interactive preview rendering, including adaptive accumulation
 - Better error handling and recovery
-- Better handling of instancing and (particle system) duplication, i.e. don't duplicate mesh
 - Cancel render during export of large scenes (if this is even possible)
-- Caching of large data sets across renders
 
 Very nice to haves ;-)
 - UI buttons to preload/clear the scene on the server, including

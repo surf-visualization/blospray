@@ -168,6 +168,7 @@ class OSPRayGetServerState(bpy.types.Operator):
         # Set in text
         text = bpy.data.texts.new('BLOSPRAY server report')
         text.write(result.state)
+        text.current_line_index = 0
 
         return {'FINISHED'}
 

@@ -39,7 +39,7 @@ if "bpy" in locals():
     #imp.reload(render)
     #imp.reload(update_files)
     
-import sys
+import sys, traceback
 import bpy
 from .connection import Connection
 
@@ -82,6 +82,10 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         try:
             self.connection.update(data, depsgraph)
         except:
+            exc_type, exc_value, exc_traceback = sys.exc_info()            
+            lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+            print('ERROR: Exception while updating scene on server:')
+            print(''.join(lines))
             self.report({'ERROR'}, 'Exception while updating scene on server: %s' % sys.exc_info()[0])
             return 
 

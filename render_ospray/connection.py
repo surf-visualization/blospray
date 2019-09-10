@@ -189,7 +189,7 @@ class Connection:
         return properties, plugin_parameters
         
 
-    def send_updated_camera(self, camobj):
+    def send_updated_camera(self, sock, cam_obj, aspect):
         
         # Camera
 
@@ -244,6 +244,10 @@ class Connection:
             # Camera focal length in mm + f-stop -> aperture in m
             camera_settings.dof_aperture = (0.5 * cam_data.lens / dof_settings.aperture_fstop) / 1000
             
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.UPDATE_CAMERA
+
+        send_protobuf(self.sock, client_message)
         send_protobuf(self.sock, camera_settings)
         
     def export_scene(self, data, depsgraph):
@@ -328,7 +332,8 @@ class Connection:
         send_protobuf(self.sock, render_settings)
 
         # Camera settings
-        self.send_updated_camera(self.sock)
+        # XXX needs aspect
+        self.send_updated_camera(self.sock, scene.camera, aspect)
         
         # Scene objects
 

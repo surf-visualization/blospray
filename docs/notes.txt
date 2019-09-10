@@ -1,3 +1,9 @@
+cycles vs ospray:
+- area light in ospray uses power-per-unit area, so scaling an (area)
+  light leads to more light in the scene
+- no far clipping in ospray
+
+
 https://docs.blender.org/api/2.79/bpy.types.RenderEngine.html
 
 https://github.com/LuxCoreRender/BlendLuxCore/blob/master/engine/__init__.py
