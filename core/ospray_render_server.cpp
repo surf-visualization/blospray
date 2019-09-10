@@ -1899,6 +1899,8 @@ receive_scene(TCPSocket *sock)
     if (renderer_type == "scivis")
     {
         ospSetInt(renderer, "aoSamples", render_settings.ao_samples());
+        ospSetFloat(renderer, "aoRadius", render_settings.ao_radius());
+        ospSetFloat(renderer, "aoIntensity", render_settings.ao_intensity());
 
         ospSetVec4f(renderer, "bgColor",
             render_settings.background_color(0),
@@ -1908,7 +1910,13 @@ receive_scene(TCPSocket *sock)
     }
     else
     {
-        // Pathtracer, work around unsupported bgColor
+        // Pathtracer
+
+        ospSetInt(renderer, "rouletteDepth", render_settings.roulette_depth());
+        ospSetFloat(renderer, "maxContribution", render_settings.max_contribution());
+        ospSetBool(renderer, "geometryLights", render_settings.geometry_lights());
+
+        // Work around unsupported bgColor
         // https://github.com/ospray/ospray/issues/347
 
         // XXX appears to be broken? The backplate color *is* used, but only in areas where

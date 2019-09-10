@@ -221,14 +221,30 @@ message CameraSettings
 
 message RenderSettings
 {
+    enum Type {
+        FINAL = 0;
+        INTERACTIVE = 1;
+        //PREVIEW = 2;
+    }
+
     string          renderer = 1;
+    Type            type = 2;
+
+    uint32          samples = 3;
+
+    // Scivis renderer only
+    uint32          ao_samples = 4;         
+    float           ao_radius = 5;          
+    float           ao_intensity = 6;       
+
+    // Pathtracer renderer only
+    uint32          roulette_depth = 7;
+    float           max_contribution = 8;
+    bool            geometry_lights = 9;
     
-    uint32          samples = 2;
-    uint32          ao_samples = 3;
+    repeated float  background_color = 50;   // RGBA
     
-    repeated float  background_color = 4;   // RGBA
-    
-    bool            shadows_enabled = 5;    // XXX no longer in API2?
+    bool            shadows_enabled = 80;    // XXX no longer in API2?
 }
 
 message LightSettings

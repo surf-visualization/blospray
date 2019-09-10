@@ -77,9 +77,21 @@ class OSPRAY_RENDER_PT_rendering(Panel):
         ospray = scene.ospray
         
         col = layout.column(align=True)
-        col.prop(ospray, 'renderer') 
-        col.prop(ospray, 'samples') 
-        col.prop(ospray, 'ao_samples') 
+        col.prop(ospray, 'renderer', expand=True)
+        col.separator()
+
+        col.prop(ospray, 'samples')
+        col.separator()
+        
+        if ospray.renderer == 'scivis':
+            col.prop(ospray, 'ao_samples') 
+            col.prop(ospray, 'ao_radius') 
+            col.prop(ospray, 'ao_intensity') 
+        else:
+            # Path tracer
+            col.prop(ospray, 'roulette_depth') 
+            col.prop(ospray, 'max_contribution') 
+            col.prop(ospray, 'geometry_lights') 
         #col.prop(ospray, 'shadows_enabled')    # XXX Removed in 2.0?
 
 

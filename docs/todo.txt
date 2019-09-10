@@ -7,6 +7,9 @@ OSPRAY things/bugs
   OSPRay also only supports setting the clipping start, not a far clip value.
 
 Bugs
+- Doing a render in e.g. scivis and then switching to pathtracer leaves
+  certain scene elements using the wrong material (which is renderer dependent)
+  causing a segfault during render
 - https://developer.blender.org/T59089 (get evee render instead of custom one)
 - https://developer.blender.org/T64295 (custom props not updating in UI)
 

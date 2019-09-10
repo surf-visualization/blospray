@@ -189,7 +189,7 @@ class Connection:
         return properties, plugin_parameters
         
 
-    def send_updated_camera(self, sock, cam_obj, aspect):
+    def send_updated_camera(self, sock, cam_obj):
         
         # Camera
 
@@ -200,7 +200,7 @@ class Connection:
         camera_settings.object_name = cam_obj.name
         camera_settings.camera_name = cam_data.name
 
-        camera_settings.aspect = aspect
+        camera_settings.aspect = self.framebuffer_aspect
         camera_settings.clip_start = cam_data.clip_start
         # XXX no far clip in ospray :)
 
@@ -210,13 +210,13 @@ class Connection:
             # Get camera FOV (in degrees)
             hfov = cam_data.angle
             image_plane_width = 2 * tan(hfov/2)
-            image_plane_height = image_plane_width / aspect
+            image_plane_height = image_plane_width / self.framebuffer_aspect
             vfov = 2*atan(image_plane_height/2)
             camera_settings.fov_y = degrees(vfov)
 
         elif cam_data.type == 'ORTHO':
             camera_settings.type = CameraSettings.ORTHOGRAPHIC
-            camera_settings.height = cam_data.ortho_scale / aspect
+            camera_settings.height = cam_data.ortho_scale / self.framebuffer_aspect
 
         elif cam_data.type == 'PANO':
             camera_settings.type = CameraSettings.PANORAMIC
@@ -267,12 +267,11 @@ class Connection:
         scale = render.resolution_percentage / 100.0
         self.framebuffer_width = int(render.resolution_x * scale)
         self.framebuffer_height = int(render.resolution_y * scale)
-
-        aspect = self.framebuffer_width / self.framebuffer_height
+        self.framebuffer_aspect = self.framebuffer_width / self.framebuffer_height
 
         print("%d x %d (scale %d%%) -> %d x %d (aspect %.3f)" % \
             (render.resolution_x, render.resolution_y, render.resolution_percentage,
-            self.framebuffer_width, self.framebuffer_height, aspect))
+            self.framebuffer_width, self.framebuffer_height, self.framebuffer_aspect))
 
         # Image
 
@@ -316,9 +315,17 @@ class Connection:
 
         render_settings = RenderSettings()
         render_settings.renderer = scene.ospray.renderer
+        render_settings.type = RenderSettings.FINAL
         render_settings.background_color[:] = world.ospray.background_color
         self.render_samples = render_settings.samples = scene.ospray.samples
-        render_settings.ao_samples = scene.ospray.ao_samples
+        if scene.ospray.renderer == 'scivis':
+            render_settings.ao_samples = scene.ospray.ao_samples
+            render_settings.ao_radius = scene.ospray.ao_radius
+            render_settings.ao_intensity = scene.ospray.ao_intensity
+        elif scene.ospray.renderer == 'pathtracer':
+            render_settings.roulette_depth = scene.ospray.roulette_depth
+            render_settings.max_contribution = scene.ospray.max_contribution
+            render_settings.geometry_lights = scene.ospray.geometry_lights
         #render_settings.shadows_enabled = scene.ospray.shadows_enabled     # XXX removed in 2.0?
 
         #
@@ -332,8 +339,7 @@ class Connection:
         send_protobuf(self.sock, render_settings)
 
         # Camera settings
-        # XXX needs aspect
-        self.send_updated_camera(self.sock, scene.camera, aspect)
+        self.send_updated_camera(self.sock, scene.camera)
         
         # Scene objects
 

@@ -18,7 +18,7 @@
 # limitations under the License.                                           #
 # ======================================================================== #
 
-import bpy
+import bpy, math
 
 from bpy.props import (
     BoolProperty,
@@ -105,15 +105,57 @@ class RenderOspraySettingsScene(PropertyGroup):
         min = 1,
         max = 256
         )
+
+    # Scivis renderer
         
     ao_samples: IntProperty(
         name='AO samples',
-        description='Number of AO rays per sample (aoSamples)',
+        description='Number of rays per sample to compute ambient occlusion (aoSamples)',
         default = 2,
         min = 0,
         max = 32
         )
-        
+
+    ao_radius: FloatProperty(
+        name='AO radius',
+        description='Maximum distance to consider for ambient occlusion (aoRadius)',
+        default = 1000000,     # The OSPRay default of 1e20 doesn't work well in the Blender UI
+        min = 0,
+        max = 1e20
+        )
+
+    ao_intensity: FloatProperty(
+        name='AO intensity',
+        description='Ambient occlusion strength (aoIntensity)',
+        default = 1,
+        min = 0,
+        max = 100
+        )
+
+    # Pathtracer
+
+    roulette_depth: IntProperty(
+        name='Roulette depth',
+        description='Ray recursion depth at which to start Russian roulette termination (rouletteDepth)',
+        default = 5,
+        min = 0,
+        max = 64
+        )
+
+    max_contribution: FloatProperty(
+        name='Max contribution',
+        description='Samples are clamped to this value before they are accumulated into the framebuffer (maxContribution)',
+        default = 1000000,    # The actual OSPRay default is inf, but in the blender UI you can't set it to that value
+        min = 0,
+        max = math.inf
+        )
+
+    geometry_lights: BoolProperty(
+        name="Geometry lights",
+        description="Whether to render light emitted from geometries (geometryLights)",
+        default = True
+        )
+
     """
     # XXX removed in 2.0?
     shadows_enabled: BoolProperty(
