@@ -71,7 +71,6 @@ bool            keep_framebuffer_files = getenv("BLOSPRAY_KEEP_FRAMEBUFFER_FILES
 
 OSPMaterial         default_material;               // XXX hack for now, renderer-type dependent
 
-ImageSettings   image_settings;
 RenderSettings  render_settings;
 
 // Geometry buffers used during network receive
@@ -1845,11 +1844,12 @@ handle_update_camera(TCPSocket *sock)
         ospSetFloat(camera, "apertureRadius", camera_settings.dof_aperture());
     }
 
-    if (image_settings.border_size() == 4)
+    if (camera_settings.border_size() == 4)
     {
-        ospSetVec2f(camera, "imageStart", image_settings.border(0), image_settings.border(1));
-        ospSetVec2f(camera, "imageEnd", image_settings.border(2), image_settings.border(3));
-    }
+        // Border render enabled
+        ospSetVec2f(camera, "imageStart", camera_settings.border(0), camera_settings.border(1));
+        ospSetVec2f(camera, "imageEnd", camera_settings.border(2), camera_settings.border(3));
+    }    
 
     ospCommit(camera);
 }
@@ -1862,15 +1862,18 @@ receive_scene(TCPSocket *sock)
 {
     // Image settings
 
-    receive_protobuf(sock, image_settings);
+    FramebufferSettings framebuffer_settings;
 
-    if (framebuffer_width != image_settings.width() || framebuffer_height != image_settings.height())
+    receive_protobuf(sock, framebuffer_settings);
+
+    if (framebuffer_width != framebuffer_settings.width() || framebuffer_height != framebuffer_settings.height())
     {
-        framebuffer_width = image_settings.width() ;
-        framebuffer_height = image_settings.height();
-
+        // Reallocate framebuffer as its resolution changed
         if (framebuffer_created)
             ospRelease(framebuffer);
+
+        framebuffer_width = framebuffer_settings.width() ;
+        framebuffer_height = framebuffer_settings.height();
 
         printf("Initializing framebuffer of %dx%d pixels\n", framebuffer_width, framebuffer_height);
 
@@ -2099,6 +2102,8 @@ render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
 
     RenderResult rs;
     rs.set_type(RenderResult::DONE);
+    rs.set_variance(variance);
+    rs.set_memory_usage(memory_usage());
     render_result_queue.push(rs);
 
     gettimeofday(&t2, NULL);

@@ -181,11 +181,10 @@ message MeshData
 
 // Settings
 
-message ImageSettings
+message FramebufferSettings
 {
     uint32          width = 1;
-    uint32          height = 2;
-    repeated float  border = 3;
+    uint32          height = 2;    
 }
 
 message CameraSettings
@@ -199,6 +198,7 @@ message CameraSettings
     Type    type = 1;
     string  object_name = 2;        // Don't need this. Let's use only a single camera
     string  camera_name = 3;
+    repeated float  border = 4;
 
     repeated float position = 10;
     repeated float view_dir = 11;

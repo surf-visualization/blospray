@@ -35,7 +35,7 @@ sys.path.insert(0, os.path.split(__file__)[0])
 from .common import PROTOCOL_VERSION, send_protobuf, receive_protobuf
 from .messages_pb2 import (
     HelloResult,
-    CameraSettings, ImageSettings,
+    CameraSettings, FramebufferSettings,
     LightSettings, RenderSettings,
     MeshData,
     ClientMessage, GenerateFunctionResult,
@@ -189,7 +189,7 @@ class Connection:
         return properties, plugin_parameters
         
 
-    def send_updated_camera(self, sock, cam_obj):
+    def send_updated_camera(self, sock, cam_obj, border=None):
         
         # Camera
 
@@ -243,6 +243,9 @@ class Connection:
 
             # Camera focal length in mm + f-stop -> aperture in m
             camera_settings.dof_aperture = (0.5 * cam_data.lens / dof_settings.aperture_fstop) / 1000
+
+        if border is not None:
+            camera_settings.border[:] = border
             
         client_message = ClientMessage()
         client_message.type = ClientMessage.UPDATE_CAMERA
@@ -275,7 +278,8 @@ class Connection:
 
         # Image
 
-        image_settings = ImageSettings()
+        border = None
+        framebuffer_settings = FramebufferSettings()
 
         if render.use_border:
             # XXX nice, in ospray the render region is set on the *camera*,
@@ -287,11 +291,14 @@ class Connection:
             # with the specified image region, so we don't have a direct
             # equivalent of only rendering a sub-region of the full
             # framebuffer as in blender :-/
+            # We need to set the framebuffer resolution to the cropped region
+            # as well.
 
             min_x = render.border_min_x
             min_y = render.border_min_y
             max_x = render.border_max_x
             max_y = render.border_max_y
+            print('Border render enabled: %.3f, %.3f -> %.3f, %.3f' % (min_x, min_y, max_x, max_y))
 
             left = int(min_x*self.framebuffer_width)
             right = int(max_x*self.framebuffer_width)
@@ -300,16 +307,20 @@ class Connection:
 
             # Crop region in ospray is set in normalized screen-space coordinates,
             # i.e. bottom-left of pixel (i,j) is (i,j), but top-right is (i+1,j+1)
-            image_settings.border[:] = [
+            border = [
                 left/self.framebuffer_width, bottom/self.framebuffer_height,
                 (right+1)/self.framebuffer_width, (top+1)/self.framebuffer_height
             ]
 
             self.framebuffer_width = right - left + 1
             self.framebuffer_height = top - bottom + 1
+            # XXX we don't update the fb aspect when border render is active as the camera
+            # settings need to full fb aspect
+            #self.framebuffer_aspect = self.framebuffer_width / self.framebuffer_height
+            print('Framebuffer for border render: %d x %d' % (self.framebuffer_width, self.framebuffer_height))
 
-        image_settings.width = self.framebuffer_width
-        image_settings.height = self.framebuffer_height
+        framebuffer_settings.width = self.framebuffer_width
+        framebuffer_settings.height = self.framebuffer_height
 
         # Render settings
 
@@ -336,14 +347,14 @@ class Connection:
         #
 
         # Image settings
-        send_protobuf(self.sock, image_settings)
+        send_protobuf(self.sock, framebuffer_settings)
 
         # Render settings
         send_protobuf(self.sock, render_settings)
 
         # Camera settings
-        self.send_updated_camera(self.sock, scene.camera)
-        
+        self.send_updated_camera(self.sock, scene.camera, border)        
+
         # Scene objects
 
         # XXX turn into render setting
@@ -905,7 +916,8 @@ class Connection:
                     break
 
                 elif render_result.type == RenderResult.DONE:
-                    self.engine.update_stats('', 'Rendering done')
+                    # XXX this message is never really shown, the final timing stats get shown instead
+                    self.engine.update_stats('', 'Variance %.3f | Rendering done' % render_result.variance)
                     print('Rendering done!')
                     break
 
