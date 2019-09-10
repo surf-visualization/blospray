@@ -118,7 +118,7 @@ typedef std::vector<OSPLight>               Lights;
 
 struct BoundingMesh
 {
-    // Convenience method for constructing an axis-aligned bounding box (edges only)
+    // Convenience methods for constructing an axis-aligned bounding box
     static BoundingMesh *bbox_edges(float xmin, float ymin, float zmin, float xmax, float ymax, float zmax);
     static BoundingMesh *bbox_mesh(float xmin, float ymin, float zmin, float xmax, float ymax, float zmax);
     
@@ -246,6 +246,7 @@ enum ParameterType
     PARAM_LAST
 };
 
+// XXX revise the flags stuff
 enum ParameterFlags
 {
     FLAG_NONE       = 0x0,
@@ -302,6 +303,10 @@ static const char *PluginType_names[] = {
     "???", "PT_GEOMETRY", "PT_VOLUME", "PT_SCENE"
 };
 
+static const char *PluginRenderer_names[] = {
+    "PR_ANY", "PR_SCIVIS", "PR_PATHTRACER"
+};
+
 typedef struct
 {
     PluginType          type;
@@ -332,20 +337,7 @@ Some notes regarding our plugins:
   query while returning a tight bound for load(), which would then update
   the bound geometry in Blender
   
-- Should we store any state in plugins or only pass it through the
-  parameters? Plugins only work like functions in the current scheme in that they
-  provide data when called that gets owned and managed by the server. 
-  A plugin might also get called more than once for different objects
-  in the scene. Managing these multiple instances should be handled
-  by the server, not the plugin.
-  
-- Can we get rid of the object2world xform in the API calls? The only
-  reason we have them is because a structured volume in ospray can't
-  be arbitrarily transformed, which should get fixed at some point.
-  Are there other uses for the parameter outside of ospray?
-
 - How to add a framenumber/timestamp parameter to the plugin API?
-
 */
 
 
