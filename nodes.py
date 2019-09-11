@@ -10,7 +10,7 @@ class OSPRayShaderNodeCategory(NodeCategory):
     def poll(cls, context):
         print(context.space_data.tree_type)
         #return context.scene.render.engine == 'OSPRAY'
-        return context.space_data.tree_type == 'ObjectNodeTree'
+        return context.space_data.tree_type == 'ShaderNodeTree'
 
 
 class PovraySocketFloat_0_1(bpy.types.NodeSocket):
@@ -38,7 +38,7 @@ class MyCustomSocket(bpy.types.NodeSocket):
     bl_color = (1.0, 0.4, 0.216, 0.5)
 
     def draw(self, context, layout, node, text):
-        pass
+        layout.label(text=text)
     
     def draw_color(self, context, node):
         return (1, 0, 0, 1)    
@@ -92,17 +92,17 @@ class OSPRayOutputNode(bpy.types.Node):
 
     def init(self, context):
         #self.inputs.new('PovraySocketTexture', "Texture")
-        pass
+        self.outputs.new('NodeSocketVector', "Diffuse")
 
     def draw_buttons(self, context, layout):
 
         ob=context.object
-        layout.prop(ob.pov, "object_ior",slider=True)
+        #layout.prop(ob.pov, "object_ior",slider=True)
 
     def draw_buttons_ext(self, context, layout):
 
         ob=context.object
-        layout.prop(ob.pov, "object_ior",slider=True)
+        #layout.prop(ob.pov, "object_ior",slider=True)
 
     def draw_label(self):
         return "Output"
@@ -120,7 +120,7 @@ node_classes = (
 
 node_categories = [
 
-    OSPRayShaderNodeCategory("SHADEROUTPUT", "Output", items=[
+    OSPRayShaderNodeCategory("SHADEROUTPUT", "OSPRay Output", items=[
         NodeItem("OSPRayOutputNode"),
         NodeItem('CustomNodeType'),
     ]),
