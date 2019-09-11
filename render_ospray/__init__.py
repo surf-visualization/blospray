@@ -49,8 +49,11 @@ PORT = 5909
 class OsprayRenderEngine(bpy.types.RenderEngine):
     bl_idname = "OSPRAY"
     bl_label = "OSPRay"
+    # See ./source/blender/makesrna/intern/rna_render.c
+    # scripts/startup/nodeitems_builtins.py defines the builtin nodes AND
+    # for which renderers they are shown
     bl_use_preview = False                  # Availability of material preview renders
-    bl_use_shading_nodes = True             # XXX no longer available in 2.8?
+    #bl_use_shading_nodes = True            # No longer available in 2.8, see 095df1ac217f3e43667f94ab189a67175bcd7af5
     bl_use_shading_nodes_custom = False     # If True will hide cycles shading nodes
     
     def __init__(self):

@@ -337,9 +337,12 @@ enabled_panels = {
         #'DATA_PT_camera',
         #'DATA_PT_camera_background_image',
         'DATA_PT_camera_display',
+        #'DATA_PT_camera_display_composition_guides',
+        #'DATA_PT_camera_display_passepartout',
         'DATA_PT_camera_dof',
         'DATA_PT_camera_dof_aperture',     # This is a GPU-specific panel, the regular aperture settings are cycles specific
         #'DATA_PT_camera_safe_areas',
+        #'DATA_PT_camera_safe_areas_center_cut',
         #'DATA_PT_camera_stereoscopy',
         'DATA_PT_context_camera',
         'DATA_PT_custom_props_camera',
@@ -348,14 +351,16 @@ enabled_panels = {
     ],
     
     properties_data_empty : [
-        'DATA_PT_empty'
+        #'DATA_PT_empty', 
+        #'DATA_PT_empty_image'
     ],
     
     properties_data_light : [
         # Enable this one, as it is the parent of a number of panels, such DATA_PT_spot.
         # If not enabled those panels won't show up. However, this shows a number of
         # light settings that are not appropriate for OSPRay, such as point.specular_factor
-        #'DATA_PT_EEVEE_light',      
+        #'DATA_PT_EEVEE_light',    
+        #'DATA_PT_EEVEE_light_distance',        
         #'DATA_PT_EEVEE_shadow',
         #'DATA_PT_EEVEE_shadow_cascaded_shadow_map',
         #'DATA_PT_EEVEE_shadow_contact',
@@ -376,6 +381,7 @@ enabled_panels = {
         #'DATA_PT_customdata',
         #'DATA_PT_face_maps',
         'DATA_PT_normals',
+        #'DATA_PT_normals_auto_smooth',
         #'DATA_PT_shape_keys',
         #'DATA_PT_texture_space',
         #'DATA_PT_uv_texture',
@@ -383,6 +389,34 @@ enabled_panels = {
         'DATA_PT_vertex_groups',
     ],
     
+    properties_material: [
+        #'EEVEE_MATERIAL_PT_context_material',
+        #'EEVEE_MATERIAL_PT_settings',
+        #'EEVEE_MATERIAL_PT_surface',
+        #'EEVEE_MATERIAL_PT_viewport_settings',
+        #'EEVEE_MATERIAL_PT_volume',
+        'MATERIAL_PT_custom_props',     # XXX These 3 don't show up?
+        'MATERIAL_PT_preview',
+        #'MATERIAL_PT_viewport',   
+    ],
+    
+    properties_object: [                # XXX These apparently show up regardless of the compat_engines value?
+        #'OBJECT_PT_collections',
+        #'OBJECT_PT_context_object',
+        'OBJECT_PT_custom_props',
+        #'OBJECT_PT_delta_transform',
+        #'OBJECT_PT_display',
+        #'OBJECT_PT_display_bounds',
+        #'OBJECT_PT_instancing',
+        #'OBJECT_PT_instancing_size',
+        #'OBJECT_PT_motion_paths',
+        #'OBJECT_PT_motion_paths_display',
+        #'OBJECT_PT_relations',
+        #'OBJECT_PT_transform',
+        #'OBJECT_PT_transform_dimensions',
+        'OBJECT_PT_visibility',
+    ],
+     
     properties_output: [
         'RENDER_PT_dimensions',
         #'RENDER_PT_encoding',
@@ -402,6 +436,21 @@ enabled_panels = {
     
     properties_render: [
         #'RENDER_PT_context',   # XXX unclear which panel this is
+    ],
+    
+    properties_scene: [
+        #'SCENE_PT_audio',
+        #'SCENE_PT_custom_props',
+        #'SCENE_PT_keyframing_settings',
+        #'SCENE_PT_keying_set_paths',
+        #'SCENE_PT_keying_sets',
+        #'SCENE_PT_physics',
+        #'SCENE_PT_rigid_body_cache',
+        #'SCENE_PT_rigid_body_field_weights',
+        #'SCENE_PT_rigid_body_world',
+        #'SCENE_PT_rigid_body_world_settings',
+        #'SCENE_PT_scene',
+        #'SCENE_PT_unit',
     ],
     
     properties_texture: [
@@ -454,8 +503,10 @@ def register():
     for module, panels in enabled_panels.items():
         for panelname in panels:
             panel = getattr(module, panelname)
-            if hasattr(panel, 'COMPAT_ENGINES'):
+            if hasattr(panel, 'COMPAT_ENGINES'):                
                 panel.COMPAT_ENGINES.add('OSPRAY')
+            else:
+                print('No COMPAT_ENGINES attribute on panel %s' % panelname)
     
     
 def unregister():

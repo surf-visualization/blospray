@@ -14,5 +14,8 @@ for propname in dir(bl_ui):
         
         if panelname.find('_PT_') == -1:
             continue
-
-        print('    ', panelname)
+            
+        panel = getattr(mod, panelname)
+            
+        if hasattr(panel, 'COMPAT_ENGINES'):
+            print('    ', panelname)
