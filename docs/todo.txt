@@ -54,6 +54,7 @@ Must haves
 - Interactive preview rendering, including adaptive accumulation
 - Better error handling and recovery
 - Cancel render during export of large scenes (if this is even possible)
+- Reload plugin on update
 
 Very nice to haves ;-)
 - UI buttons to preload/clear the scene on the server, including
@@ -78,6 +79,8 @@ Nice to haves
 - Preview rendering of materials
 - Option to NOT send every sample image when doing final render 
   (saves overhead of transfering images)
+- Provide utility function to create bounding convex hull
+  from vertices
 
 Obscure to haves
 - Handle multiple concurrent renders in Blender

@@ -25,6 +25,7 @@ cmake_minimum_required(VERSION 3.12)
 
 option(PLUGIN_COSMOGRID "Build cosmogrid scene plugin (needs uhdf5 and HDF5)" OFF)
 option(PLUGIN_PLY "Build PLY geometry plugin (needs rply 1.1.4 sources)" OFF)
+option(PLUGIN_ASSIMP "Build Assimp geometry plugin (needs Assimp)" OFF)
 option(PLUGIN_VOLUME_HDF5 "Build PLY geometry plugin (needs uhdf5 and HDF5)" OFF)
 option(ADDRESS_SANITIZER "Compile with GCC's AddressSanitizer" OFF)
 
@@ -76,6 +77,10 @@ if(PLUGIN_COSMOGRID OR PLUGIN_VOLUME_HDF5)
         SET(HDF5LIBS "${HDF5_LIBRARIES}")
     ENDIF()
 endif(PLUGIN_COSMOGRID OR PLUGIN_VOLUME_HDF5)
+
+if(PLUGIN_ASSIMP)
+    FIND_PACKAGE(assimp)
+endif(PLUGIN_ASSIMP)
 
 include_directories("${CMAKE_SOURCE_DIR}/core")		# json.hpp in faker
 include_directories(${OSPRAY_INCLUDE_DIRS})

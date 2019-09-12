@@ -347,7 +347,7 @@ load_ply_file(GenerateFunctionResult &result, PluginState *state)
 
     // Bounding box edges based on vertices
 
-    float min[3], max[3];
+    float min[3] = {1e6, 1e6, 1e6}, max[3] = {-1e6, -1e6, -1e6};
     int i;
 
     i = 0;

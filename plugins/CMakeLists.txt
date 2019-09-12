@@ -73,6 +73,24 @@ if(PLUGIN_PLY)
 
 endif(PLUGIN_PLY)
 
+# geometry_assimp
+
+if(PLUGIN_ASSIMP)
+
+    add_library(geometry_assimp SHARED geometry_assimp.cpp)
+    set_target_properties(geometry_assimp PROPERTIES PREFIX "")   
+    target_link_libraries(geometry_assimp PUBLIC 
+        ${OSPRAY_LIBRARIES}
+        ${ASSIMP_LIBRARIES})
+    target_include_directories(geometry_assimp
+        PUBLIC
+        ${ASSIMP_INCLUDE_DIRS}
+        ${PROTOBUF_INCLUDE_DIRS}
+        ${CMAKE_CURRENT_BINARY_DIR}
+    )
+
+endif(PLUGIN_ASSIMP)
+
 # scene_rbc
 
 add_library(scene_rbc SHARED scene_rbc.cpp)
@@ -153,6 +171,14 @@ if(PLUGIN_PLY)
         DESTINATION bin)
 
 endif(PLUGIN_PLY)
+
+if(PLUGIN_ASSIMP)
+
+    install(TARGETS 
+        geometry_assimp 
+        DESTINATION bin)
+
+endif(PLUGIN_ASSIMP)
 
 if(PLUGIN_VOLUME_HDF5)
 
