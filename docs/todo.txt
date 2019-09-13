@@ -12,6 +12,7 @@ Bugs
   causing a segfault during render
 - https://developer.blender.org/T59089 (get evee render instead of custom one)
 - https://developer.blender.org/T64295 (custom props not updating in UI)
+- https://developer.blender.org/T69808 (custom nodes with draw function segfaults)
 
 Fix/improve/optimize
 - Correctly release the scene after rendering

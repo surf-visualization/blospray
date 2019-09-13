@@ -5,6 +5,25 @@ import bpy
 import nodeitems_utils
 from nodeitems_utils import NodeCategory, NodeItem
 
+"""
+m = o.data
+mat = m.materials[0]
+assert mat.use_nodes 
+node_tree = mat.node_tree
+assert t.type == 'SHADER'
+n = t.nodes[...]
+n.inputs[]
+n.outputs[]
+n.type
+
+i.default_value     # local value is updated when user edits
+i/o.is_linked
+
+
+l = t.links[0]
+
+"""
+
 class OSPRayShaderNodeCategory(NodeCategory):
     @classmethod
     def poll(cls, context):
@@ -85,44 +104,70 @@ class MyCustomNode(bpy.types.Node, MyCustomTree):
         return "Diffuse"
 
 class OSPRayOutputNode(bpy.types.Node):
-    '''Output'''
+    """Output"""
     bl_idname = 'OSPRayOutputNode'
     bl_label = 'Output'
     bl_icon = 'SOUND'
 
     def init(self, context):
-        #self.inputs.new('PovraySocketTexture', "Texture")
-        self.outputs.new('NodeSocketVector', "Diffuse")
+        self.inputs.new('NodeSocketShader', 'Material')
 
+
+class OSPRayOBJMaterial(bpy.types.Node):
+    """OBJMaterial"""
+    bl_idname = 'OSPRayOBJMaterial'
+    bl_label = 'OBJMaterial'
+    bl_icon = 'SOUND'
+    bl_color = (0, 0.7, 0, 1)           # XXX doesn't work?
+
+    def init(self, context):
+        # all inputs, except Tf, can be controled using a texture
+        
+        diffuse = self.inputs.new('NodeSocketColor', 'Diffuse')
+        diffuse.default_value = (0.8, 0.8, 0.8, 1.0)
+        
+        specular = self.inputs.new('NodeSocketColor', 'Specular')    
+        specular.default_value = (0, 0, 0, 1)
+        
+        shininess = self.inputs.new('NodeSocketFloat', 'Shininess') 
+        shininess.default_value = 10
+        
+        opacity = self.inputs.new('NodeSocketFloat', 'Opacity')    
+        opacity.default_value = 1.0
+        
+        # path tracer only
+        transparency_filter_color = self.inputs.new('NodeSocketColor', 'Transparency color (Tf)')    
+        transparency_filter_color.default_value = (0, 0, 0, 1)
+        
+        # texture
+        normal_map = self.inputs.new('NodeSocketColor', 'Normal map')    
+        normal_map.hide_value = True
+        
+        self.outputs.new('NodeSocketShader', 'Material')
+
+    """
     def draw_buttons(self, context, layout):
-
         ob=context.object
         #layout.prop(ob.pov, "object_ior",slider=True)
 
     def draw_buttons_ext(self, context, layout):
-
         ob=context.object
         #layout.prop(ob.pov, "object_ior",slider=True)
 
     def draw_label(self):
-        return "Output"
+        return "OBJMaterial"
+    """
 
-    
 node_classes = (
-    PovraySocketFloat_0_1,    
-    MyCustomSocket, 
-    
-    MyCustomNode, 
     OSPRayOutputNode,
-    
-    MyCustomTree,
+    OSPRayOBJMaterial,
 )
 
 node_categories = [
 
-    OSPRayShaderNodeCategory("SHADEROUTPUT", "OSPRay Output", items=[
+    OSPRayShaderNodeCategory("SHADEROUTPUT", "OSPRay", items=[
         NodeItem("OSPRayOutputNode"),
-        NodeItem('CustomNodeType'),
+        NodeItem('OSPRayOBJMaterial'),
     ]),
 
 ]
@@ -130,7 +175,6 @@ node_categories = [
 
 def register():
     from bpy.utils import register_class
-    print("!")
     for cls in node_classes:
         register_class(cls)
         
