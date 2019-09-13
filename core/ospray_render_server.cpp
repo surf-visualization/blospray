@@ -1041,6 +1041,8 @@ update_geometry_object(const UpdateObject& update)
         ospCommit(group);
         ospRelease(models);
     }
+    else
+        gmodel = geometry_object->gmodel;
 
     glm::mat4   obj2world;
     float       affine_xform[12];
