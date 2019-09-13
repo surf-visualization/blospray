@@ -536,10 +536,9 @@ class Connection:
         elif idname == 'OSPRayGlass':
             update.type = MaterialUpdate.GLASS
             settings = GlassSettings()
-            print(inputs.items())
-            settings.eta = inputs['eta'].default_value   # XXX why not Eta??
-            settings.attenuation_color = list(inputs['Attenuation color'].default_value)[:3]
-            settings.attenuation_distnace = inputs['Attenuation distance'].default_value
+            settings.eta = inputs['Eta'].default_value   # XXX why not Eta??
+            settings.attenuation_color[:] = list(inputs['Attenuation color'].default_value)[:3]
+            settings.attenuation_distance = inputs['Attenuation distance'].default_value
 
         else:
             print('... WARNING: shader of type "%s" not handled!' % shadernode.bl_idname)

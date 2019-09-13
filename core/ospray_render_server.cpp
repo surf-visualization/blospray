@@ -1904,6 +1904,7 @@ handle_update_material(TCPSocket *sock)
     case MaterialUpdate::OBJMATERIAL:
     {
         OBJMaterialSettings settings;
+
         receive_protobuf(sock, settings);
         printf("... OBJMaterial (Kd %.3f,%.3f,%.3f; ...)\n", settings.kd(0), settings.kd(1), settings.kd(2));
 
@@ -1923,6 +1924,8 @@ handle_update_material(TCPSocket *sock)
     case MaterialUpdate::GLASS:
     {
         GlassSettings settings;
+
+        receive_protobuf(sock, settings);
         printf("... Glass\n");
 
         if (material == nullptr)
@@ -1935,6 +1938,9 @@ handle_update_material(TCPSocket *sock)
 
         break;
     }
+
+    default:
+        printf("ERROR: unknown material update type %d!\n", update.type());
 
     }
 
