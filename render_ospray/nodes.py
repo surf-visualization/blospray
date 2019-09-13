@@ -1,3 +1,4 @@
+# ./release/scripts/templates_py/custom_nodes.py
 # render_povray addon
 # https://devtalk.blender.org/t/custom-nodes-not-showing-as-updated-in-interactive-mode/6762/2 (appleseed addon)
 # https://github.com/appleseedhq/blenderseed
@@ -34,20 +35,6 @@ class OSPRayShaderNodeCategory(NodeCategory):
         print(context.space_data.tree_type)
         #return context.scene.render.engine == 'OSPRAY'
         return context.space_data.tree_type == 'ShaderNodeTree'
-
-
-class PovraySocketFloat_0_1(bpy.types.NodeSocket):
-    bl_idname = 'PovraySocketFloat_0_1'
-    bl_label = 'Povray Socket'
-    default_value: bpy.props.FloatProperty(description="Input node Value_0_1",min=0,max=1,default=0)
-    def draw(self, context, layout, node, text):
-        if self.is_linked:
-            layout.label(text)
-        else:
-            layout.prop(self, "default_value", text=text, slider=True)
-
-    def draw_color(self, context, node):
-        return (0.5, 0.7, 0.7, 1)
 
 
 class MyCustomSocket(bpy.types.NodeSocket):
@@ -107,6 +94,62 @@ class MyCustomNode(bpy.types.Node, MyCustomTree):
     def draw_label(self):
         return "Diffuse"
 
+
+class OSPRaySocketFloat_0_1(bpy.types.NodeSocket):
+    """Unit float"""
+
+    bl_idname = 'OSPRaySocketFloat_0_1'
+    bl_label = 'Unit float socket'
+
+    default_value: bpy.props.FloatProperty(min=0, max=1, default=1)
+    
+    def draw(self, context, layout, node, text):
+        if self.is_linked:
+            layout.label(text)
+        else:
+            layout.prop(self, "default_value", text=text, slider=True)
+
+    def draw_color(self, context, node):
+        return (0.65, 0.65, 0.65, 1)
+
+
+class OSPRaySocketFloat_NonNegative(bpy.types.NodeSocket):
+    """Float >= 0"""
+
+    bl_idname = 'OSPRaySocketFloat_NonNegative'
+    bl_label = 'Float >= 0 socket'
+
+    default_value: bpy.props.FloatProperty(min=0, default=1)
+    
+    def draw(self, context, layout, node, text):
+        if self.is_linked:
+            layout.label(text)
+        else:
+            layout.prop(self, "default_value", text=text, slider=True)
+
+    def draw_color(self, context, node):
+        return (0.65, 0.65, 0.65, 1)
+
+
+class OSPRaySocketFloat_IOR(bpy.types.NodeSocket):
+    """Index of refraction"""
+
+    bl_idname = 'OSPRaySocketFloat_IOR'
+    bl_label = 'IOR float'
+
+    default_value: bpy.props.FloatProperty(min=1, max=3, default=1.45)
+    
+    def draw(self, context, layout, node, text):
+        if self.is_linked:
+            layout.label(text)
+        else:
+            layout.prop(self, "default_value", text=text, slider=True)
+            
+    def draw_color(self, context, node):
+        return (0.65, 0.65, 0.65, 1)
+
+
+
 class OSPRayOutputNode(bpy.types.Node):
     """Output"""
     bl_idname = 'OSPRayOutputNode'
@@ -136,7 +179,7 @@ class OSPRayOBJMaterial(bpy.types.Node):
         shininess = self.inputs.new('NodeSocketFloat', 'Shininess') 
         shininess.default_value = 10
         
-        opacity = self.inputs.new('NodeSocketFloat', 'Opacity')    
+        opacity = self.inputs.new('OSPRaySocketFloat_0_1', 'Opacity')  
         opacity.default_value = 1.0
         
         # path tracer only
@@ -174,14 +217,13 @@ class OSPRayGlass(bpy.types.Node):
     def init(self, context):
         # all inputs, except Tf, can be controled using a texture
         
-        eta = self.inputs.new('NodeSocketFloat', 'Eta')
-        #eta.value_property = 'ior'
+        eta = self.inputs.new('OSPRaySocketFloat_IOR', 'Eta')
         eta.default_value = 1.5
         
         attenuation_color = self.inputs.new('NodeSocketColor', 'Attenuation color')    
         attenuation_color.default_value = (1, 1, 1, 1)
         
-        attenuation_distance = self.inputs.new('NodeSocketFloat', 'Attenuation distance') 
+        attenuation_distance = self.inputs.new('OSPRaySocketFloat_NonNegative', 'Attenuation distance') 
         attenuation_distance.default_value = 1
         
         self.outputs.new('NodeSocketShader', 'Material')
@@ -221,10 +263,10 @@ class OSPRayLuminous(bpy.types.Node):
         color = self.inputs.new('NodeSocketColor', 'Color')
         color.default_value = (1, 1, 1, 1)
         
-        intensity = self.inputs.new('NodeSocketFloat', 'Intensity')    
+        intensity = self.inputs.new('OSPRaySocketFloat_NonNegative', 'Intensity')    
         intensity.default_value = 1
         
-        transparency = self.inputs.new('NodeSocketFloat', 'Transparency')    
+        transparency = self.inputs.new('OSPRaySocketFloat_NonNegative', 'Transparency')    
         transparency.default_value = 1
         
         self.outputs.new('NodeSocketShader', 'Material')
@@ -243,22 +285,26 @@ class OSPRayMetallicPaint(bpy.types.Node):
         base_color = self.inputs.new('NodeSocketColor', 'Base color')
         base_color.default_value = (0.8, 0.8, 0.8, 1)
         
-        flake_amount = self.inputs.new('NodeSocketFloat', 'Flake amount')    
+        flake_amount = self.inputs.new('OSPRaySocketFloat_0_1', 'Flake amount')    
         flake_amount.default_value = 0.3
 
         flake_color = self.inputs.new('NodeSocketColor', 'Flake color')
         flake_color.default_value = (0.8, 0.8, 0.8, 1)      # aluminum?
 
-        flake_spread = self.inputs.new('NodeSocketFloat', 'Flake spread')    
+        flake_spread = self.inputs.new('OSPRaySocketFloat_0_1', 'Flake spread')    
         flake_spread.default_value = 0.5
         
-        eta = self.inputs.new('NodeSocketFloat', 'Eta')    
+        eta = self.inputs.new('OSPRaySocketFloat_IOR', 'Eta')    
         eta.default_value = 1.5
         
         self.outputs.new('NodeSocketShader', 'Material')
 
 
 node_classes = (
+    OSPRaySocketFloat_0_1,
+    OSPRaySocketFloat_NonNegative,
+    OSPRaySocketFloat_IOR,
+
     OSPRayOutputNode,
     
     OSPRayGlass,
