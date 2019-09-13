@@ -29,29 +29,6 @@ l = t.links[0]
 
 """
 
-class OSPRayShaderNodeCategory(NodeCategory):
-    @classmethod
-    def poll(cls, context):
-        print(context.space_data.tree_type)
-        #return context.scene.render.engine == 'OSPRAY'
-        return context.space_data.tree_type == 'ShaderNodeTree'
-
-
-class MyCustomSocket(bpy.types.NodeSocket):
-    # Description string
-    '''Custom node socket type'''
-    # Optional identifier string. If not explicitly defined, the python class name is used.
-    bl_idname = 'CustomSocketType'
-    # Label for nice name display
-    bl_label = 'Custom Node Socket'
-    # Socket color
-    bl_color = (1.0, 0.4, 0.216, 0.5)
-
-    def draw(self, context, layout, node, text):
-        layout.label(text=text)
-    
-    def draw_color(self, context, node):
-        return (1, 0, 0, 1)    
 
 class MyCustomTree(bpy.types.NodeTree):
     # Description string
@@ -94,9 +71,18 @@ class MyCustomNode(bpy.types.Node, MyCustomTree):
     def draw_label(self):
         return "Diffuse"
 
+# Node category
+
+class OSPRayShaderNodeCategory(NodeCategory):
+    @classmethod
+    def poll(cls, context):
+        return context.scene.render.engine == 'OSPRAY' \
+                and context.space_data.tree_type == 'ShaderNodeTree'
+
+# Sockets
 
 class OSPRaySocketFloat_0_1(bpy.types.NodeSocket):
-    """Unit float"""
+    """Float in [0,1]"""
 
     bl_idname = 'OSPRaySocketFloat_0_1'
     bl_label = 'Unit float socket'
@@ -148,7 +134,7 @@ class OSPRaySocketFloat_IOR(bpy.types.NodeSocket):
     def draw_color(self, context, node):
         return (0.65, 0.65, 0.65, 1)
 
-
+# Nodes
 
 class OSPRayOutputNode(bpy.types.Node):
     """Output"""
@@ -212,8 +198,6 @@ class OSPRayGlass(bpy.types.Node):
     bl_icon = 'SOUND'
     bl_color = (0, 0.7, 0, 1)           # XXX doesn't work?
 
-    #eta: bpy.props.FloatProperty(description='Index of refraction', min=1, max=3, default=1.5)
-
     def init(self, context):
         # all inputs, except Tf, can be controled using a texture
         
@@ -227,27 +211,6 @@ class OSPRayGlass(bpy.types.Node):
         attenuation_distance.default_value = 1
         
         self.outputs.new('NodeSocketShader', 'Material')
-
-    """
-    def draw(self, context, layout, node, text):
-        if self.is_linked:
-            layout.label(text)
-        else:
-            layout.prop(self, "eta", text=text, slider=True)
-    """
-
-    """
-    def draw_buttons(self, context, layout):
-        ob=context.object
-        #layout.prop(ob.pov, "object_ior",slider=True)
-
-    def draw_buttons_ext(self, context, layout):
-        ob=context.object
-        #layout.prop(ob.pov, "object_ior",slider=True)
-
-    def draw_label(self):
-        return "OBJMaterial"
-    """
 
 
 class OSPRayLuminous(bpy.types.Node):
@@ -301,12 +264,13 @@ class OSPRayMetallicPaint(bpy.types.Node):
 
 
 node_classes = (
+    # Sockets
     OSPRaySocketFloat_0_1,
     OSPRaySocketFloat_NonNegative,
     OSPRaySocketFloat_IOR,
 
+    # Nodes
     OSPRayOutputNode,
-    
     OSPRayGlass,
     OSPRayLuminous,
     OSPRayMetallicPaint,
@@ -332,6 +296,7 @@ def register():
         register_class(cls)
         
     nodeitems_utils.register_node_categories("OSPRAY_NODES", node_categories)
+
 
 def unregister():
     from bpy.utils import unregister_class
