@@ -169,10 +169,13 @@ class OSPRayGlass(bpy.types.Node):
     bl_icon = 'SOUND'
     bl_color = (0, 0.7, 0, 1)           # XXX doesn't work?
 
+    #eta: bpy.props.FloatProperty(description='Index of refraction', min=1, max=3, default=1.5)
+
     def init(self, context):
         # all inputs, except Tf, can be controled using a texture
         
         eta = self.inputs.new('NodeSocketFloat', 'Eta')
+        #eta.value_property = 'ior'
         eta.default_value = 1.5
         
         attenuation_color = self.inputs.new('NodeSocketColor', 'Attenuation color')    
@@ -182,6 +185,14 @@ class OSPRayGlass(bpy.types.Node):
         attenuation_distance.default_value = 1
         
         self.outputs.new('NodeSocketShader', 'Material')
+
+    """
+    def draw(self, context, layout, node, text):
+        if self.is_linked:
+            layout.label(text)
+        else:
+            layout.prop(self, "eta", text=text, slider=True)
+    """
 
     """
     def draw_buttons(self, context, layout):
@@ -198,7 +209,7 @@ class OSPRayGlass(bpy.types.Node):
 
 
 class OSPRayLuminous(bpy.types.Node):
-    """Glass"""
+    """Luminous"""
     bl_idname = 'OSPRayLuminous'
     bl_label = 'Luminous'
     bl_icon = 'SOUND'
@@ -219,12 +230,41 @@ class OSPRayLuminous(bpy.types.Node):
         self.outputs.new('NodeSocketShader', 'Material')
 
 
+class OSPRayMetallicPaint(bpy.types.Node):
+    """Metallic paint"""
+    bl_idname = 'OSPRayMetallicPaint'
+    bl_label = 'MetallicPaint'
+    bl_icon = 'SOUND'
+    bl_color = (0, 0.7, 0, 1)           # XXX doesn't work?
+
+    def init(self, context):
+        # all inputs, except Tf, can be controled using a texture
+        
+        base_color = self.inputs.new('NodeSocketColor', 'Base color')
+        base_color.default_value = (0.8, 0.8, 0.8, 1)
+        
+        flake_amount = self.inputs.new('NodeSocketFloat', 'Flake amount')    
+        flake_amount.default_value = 0.3
+
+        flake_color = self.inputs.new('NodeSocketColor', 'Flake color')
+        flake_color.default_value = (0.8, 0.8, 0.8, 1)      # aluminum?
+
+        flake_spread = self.inputs.new('NodeSocketFloat', 'Flake spread')    
+        flake_spread.default_value = 0.5
+        
+        eta = self.inputs.new('NodeSocketFloat', 'Eta')    
+        eta.default_value = 1.5
+        
+        self.outputs.new('NodeSocketShader', 'Material')
+
 
 node_classes = (
     OSPRayOutputNode,
-    OSPRayOBJMaterial,
+    
     OSPRayGlass,
     OSPRayLuminous,
+    OSPRayMetallicPaint,
+    OSPRayOBJMaterial,
 )
 
 node_categories = [
@@ -234,6 +274,7 @@ node_categories = [
         
         NodeItem('OSPRayGlass'),
         NodeItem('OSPRayLuminous'),
+        NodeItem('OSPRayMetallicPaint'),
         NodeItem('OSPRayOBJMaterial'),
     ]),
 

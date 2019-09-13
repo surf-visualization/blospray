@@ -42,7 +42,7 @@ from .messages_pb2 import (
     RenderResult,
     UpdateObject, UpdatePluginInstance,
     Volume, Slices, Slice,
-    MaterialUpdate, OBJMaterialSettings, GlassSettings, LuminousSettings
+    MaterialUpdate, GlassSettings, LuminousSettings, MetallicPaintSettings, OBJMaterialSettings
 )
 
 # Object to world matrix
@@ -260,13 +260,19 @@ class Connection:
         self.engine.update_stats('', msg)
         print(msg)    
 
-        client_message = ClientMessage()
-        client_message.type = ClientMessage.UPDATE_SCENE
-        send_protobuf(self.sock, client_message)
-
         scene = depsgraph.scene
         render = scene.render
         world = scene.world
+
+        # Make sure this is the first thing we send
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.UPDATE_RENDERER_TYPE
+        client_message.string_value = scene.ospray.renderer
+        send_protobuf(self.sock, client_message)
+
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.UPDATE_SCENE
+        send_protobuf(self.sock, client_message)
 
         scale = render.resolution_percentage / 100.0
         self.framebuffer_width = int(render.resolution_x * scale)
@@ -547,6 +553,15 @@ class Connection:
             settings.intensity = inputs['Intensity'].default_value
             settings.transparency = inputs['Transparency'].default_value
 
+        elif idname == 'OSPRayMetallicPaint':
+            update.type = MaterialUpdate.METALLIC_PAINT
+            settings = MetallicPaintSettings()
+            settings.base_color[:] = inputs['Base color'].default_value[:3]  
+            settings.flake_color[:] = inputs['Flake color'].default_value[:3]  
+            settings.flake_amount = inputs['Flake amount'].default_value
+            settings.flake_spread = inputs['Flake spread'].default_value
+            settings.eta = inputs['Eta'].default_value
+
         else:
             print('... WARNING: shader of type "%s" not handled!' % shadernode.bl_idname)
             return
@@ -638,6 +653,18 @@ class Connection:
             
             if plugin_type == 'geometry':
                 update.type = UpdateObject.GEOMETRY
+
+                # XXX yuck, duplicated from above
+                if len(obj.material_slots) > 0:
+                    if len(obj.material_slots) > 1:
+                        print('WARNING: only exporting a single material slot!')
+                    mslot = obj.material_slots[0]
+                    assert mslot.link == 'DATA'
+                    material = obj.data.materials[0]
+
+                    self.send_updated_material(data, depsgraph, material)
+
+                    update.material_link = material.name
                 
             elif plugin_type == 'scene':
                 update.type = UpdateObject.SCENE   

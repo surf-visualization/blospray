@@ -60,20 +60,37 @@ OSPWorld        world;
 OSPCamera       camera = nullptr;
 OSPFrameBuffer  framebuffer;
 
-typedef std::map<std::string, OSPMaterial>  MaterialMap;
+struct SceneMaterial
+{
+    MaterialUpdate::Type    type;
+    OSPMaterial             material;
+
+    SceneMaterial()
+    {
+        material = nullptr;
+    }
+
+    ~SceneMaterial()
+    {
+        ospRelease(material);
+    }
+};
+
+typedef std::map<std::string, SceneMaterial*>  SceneMaterialMap;
 
 std::map<std::string, OSPRenderer>  renderers;
-MaterialMap                         materials;
-MaterialMap                         scene_materials;
-std::vector<OSPInstance>            scene_instances;
-std::vector<OSPLight>               scene_lights;
+
+std::map<std::string, OSPMaterial>  default_materials;
+SceneMaterialMap            scene_materials;
+std::string                 scene_materials_renderer;
+
+std::vector<OSPInstance>    scene_instances;
+std::vector<OSPLight>       scene_lights;
 
 int             framebuffer_width=0, framebuffer_height=0;
 bool            framebuffer_created = false;
 bool            keep_framebuffer_files = getenv("BLOSPRAY_KEEP_FRAMEBUFFER_FILES") != nullptr;
 bool            dump_client_messages = getenv("BLOSPRAY_DUMP_CLIENT_MESSAGES") != nullptr;
-
-OSPMaterial         default_material;               // XXX hack for now, renderer-type dependent
 
 RenderSettings  render_settings;
 
@@ -476,31 +493,6 @@ scene_data_with_type_exists(const std::string& name, SceneDataType type)
 //
 // Scene elements
 //
-
-void
-prepare_renderers()
-{
-    OSPMaterial m;
-
-    renderers["scivis"] = ospNewRenderer("scivis");
-
-    m = materials["scivis"] = ospNewMaterial("scivis", "OBJMaterial");
-        ospSetVec3f(m, "Kd", 0.8f, 0.8f, 0.8f);
-    ospCommit(m);
-
-    renderers["pathtracer"] = ospNewRenderer("pathtracer");
-
-#if 1
-    m = materials["pathtracer"] = ospNewMaterial("pathtracer", "OBJMaterial");
-        ospSetVec3f(m, "Kd", 0.8f, 0.8f, 0.8f);
-    ospCommit(m);
-#else
-    m = materials["pathtracer"] = ospNewMaterial("pathtracer", "MetallicPaint");
-        ospSetVec3f(m, "baseColor", 0.8f, 0.3f, 0.3f);
-        //ospSetFloat(m, "metallic", 0.5f);
-    ospCommit(m);
-#endif
-}
 
 OSPTransferFunction
 create_transfer_function(const std::string& name, float minval, float maxval)
@@ -964,20 +956,18 @@ update_blender_mesh_object(const UpdateObject& update)
     ospCommit(group);    
     ospRelease(models); 
 
-    // XXX the material is renderer dependent...
-
     const std::string& matname = update.material_link();
 
-    MaterialMap::iterator it = scene_materials.find(matname);
+    SceneMaterialMap::iterator it = scene_materials.find(matname);
     if (it != scene_materials.end())
     {
         printf("... Material '%s'\n", matname.c_str());
-        ospSetObject(gmodel, "material", it->second);
+        ospSetObject(gmodel, "material", it->second->material);
     }
     else
     {
         printf("... WARNING: Material '%s' not found, using default!\n", matname.c_str());
-        ospSetObject(gmodel, "material", default_material);
+        ospSetObject(gmodel, "material", default_materials[current_renderer_type]);
     }
 
     ospCommit(gmodel);
@@ -1045,8 +1035,6 @@ update_geometry_object(const UpdateObject& update)
     if (scene_object == nullptr)
     {
         gmodel = geometry_object->gmodel = ospNewGeometricModel(geometry); 
-            ospSetObject(gmodel, "material", default_material);
-        ospCommit(gmodel);
 
         OSPData models = ospNewData(1, OSP_OBJECT, &gmodel, 0);        
         ospSetData(group, "geometry", models);
@@ -1062,6 +1050,22 @@ update_geometry_object(const UpdateObject& update)
 
     ospSetAffine3fv(instance, "xfm", affine_xform);    
     ospCommit(instance);
+
+    const std::string& matname = update.material_link();
+
+    SceneMaterialMap::iterator it = scene_materials.find(matname);
+    if (it != scene_materials.end())
+    {
+        printf("... Material '%s'\n", matname.c_str()); 
+        ospSetObject(gmodel, "material", it->second->material);
+    }
+    else
+    {
+        printf("... WARNING: Material '%s' not found, using default!\n", matname.c_str());
+        ospSetObject(gmodel, "material", default_materials[current_renderer_type]);
+    }
+    
+    ospCommit(gmodel);
 
     if (scene_object == nullptr)
         scene_objects[object_name] = geometry_object;
@@ -1331,7 +1335,7 @@ update_isosurfaces_object(const UpdateObject& update)
             //ospSetFloat(volumeModel, "samplingRate", 0.5f);
          ospCommit(vmodel);
 
-        ospSetObject(gmodel, "material", default_material);
+        ospSetObject(gmodel, "material", default_materials[current_renderer_type]);
         ospCommit(gmodel);
      }
 
@@ -1887,16 +1891,25 @@ handle_update_material(TCPSocket *sock)
 
     printf("MATERIAL '%s'\n", update.name().c_str());
 
+    SceneMaterial *scene_material = nullptr;
     OSPMaterial material = nullptr;
 
-    // XXX keep track of materials per renderer type
-    MaterialMap::iterator it = scene_materials.find(update.name());
+    SceneMaterialMap::iterator it = scene_materials.find(update.name());
     if (it != scene_materials.end())
     {
-        // XXX Check type hasn't changed
-        printf("... Updating existing material");
-        material = it->second;
-    }       
+        printf("... Updating existing material\n");
+
+        scene_material = it->second;
+        if (scene_material->type != update.type())
+        {
+            printf("... Material type changed\n");
+            delete scene_material;
+            scene_material = nullptr;
+            scene_materials.erase(update.name());
+        }
+        else
+            material = scene_material->material;
+    }
 
     switch (update.type())
     {
@@ -1908,8 +1921,11 @@ handle_update_material(TCPSocket *sock)
         receive_protobuf(sock, settings);
         printf("... OBJMaterial (Kd %.3f,%.3f,%.3f; ...)\n", settings.kd(0), settings.kd(1), settings.kd(2));
 
-        if (material == nullptr)
-            material = ospNewMaterial(current_renderer_type.c_str(), "OBJMaterial");
+        if (scene_material == nullptr)
+        {
+            scene_material = new SceneMaterial;
+            material = scene_material->material = ospNewMaterial(current_renderer_type.c_str(), "OBJMaterial");
+        }
 
         if (settings.kd_size() == 3)
             ospSetVec3f(material, "Kd", settings.kd(0), settings.kd(1), settings.kd(2));
@@ -1928,8 +1944,11 @@ handle_update_material(TCPSocket *sock)
         receive_protobuf(sock, settings);
         printf("... Glass\n");
 
-        if (material == nullptr)
-            material = ospNewMaterial(current_renderer_type.c_str(), "Glass");
+        if (scene_material == nullptr)
+        {
+            scene_material = new SceneMaterial;
+            material = scene_material->material = ospNewMaterial(current_renderer_type.c_str(), "Glass");
+        }
 
         ospSetFloat(material, "eta", settings.eta());
         if (settings.attenuation_color_size() == 3)
@@ -1946,8 +1965,11 @@ handle_update_material(TCPSocket *sock)
         receive_protobuf(sock, settings);
         printf("... Luminous\n");
 
-        if (material == nullptr)
-            material = ospNewMaterial(current_renderer_type.c_str(), "Luminous");
+        if (scene_material == nullptr)
+        {
+            scene_material = new SceneMaterial;
+            material = scene_material->material = ospNewMaterial(current_renderer_type.c_str(), "Glass");
+        }
 
         if (settings.color_size() == 3)
             ospSetVec3f(material, "color", settings.color(0), settings.color(1), settings.color(2));    
@@ -1957,14 +1979,54 @@ handle_update_material(TCPSocket *sock)
         break;
     }
 
+    case MaterialUpdate::METALLIC_PAINT:
+    {
+        MetallicPaintSettings settings;
+
+        receive_protobuf(sock, settings);
+        printf("... MetallicPaint\n");
+
+        if (scene_material == nullptr)
+        {
+            scene_material = new SceneMaterial;
+            material = scene_material->material = ospNewMaterial(current_renderer_type.c_str(), "MetallicPaint");
+        }
+
+        if (settings.base_color_size() == 3)
+            ospSetVec3f(material, "baseColor", settings.base_color(0), settings.base_color(1), settings.base_color(2));    
+        if (settings.flake_color_size() == 3)
+            ospSetVec3f(material, "flakeColor", settings.flake_color(0), settings.flake_color(1), settings.flake_color(2));   
+        ospSetFloat(material, "flakeAmount", settings.flake_amount());    
+        ospSetFloat(material, "flakeSpread", settings.flake_spread());    
+        ospSetFloat(material, "eta", settings.eta());
+
+        break;
+    }
+
     default:
         printf("ERROR: unknown material update type %d!\n", update.type());
 
     }
 
+    scene_material->type = update.type();
+    scene_materials[update.name()] = scene_material;
+
     ospCommit(material);
-    
-    scene_materials[update.name()] = material;
+}
+
+void
+update_renderer_type(const std::string& type)
+{
+    if (type != current_renderer_type)
+    {
+        printf("Updating renderer type to '%s'\n", type.c_str());
+
+        renderer = renderers[type.c_str()];
+
+        scene_materials.clear();
+
+        current_renderer_type = type;
+    }
 }
 
 // XXX currently has big memory leak as we never release the new objects ;-)
@@ -1999,12 +2061,6 @@ receive_scene(TCPSocket *sock)
 
     receive_protobuf(sock, render_settings);
 
-    const std::string& renderer_type = render_settings.renderer();
-
-    // Reuse existing renderer
-    current_renderer_type = renderer_type;
-    renderer = renderers[current_renderer_type.c_str()];
-
     ospSetInt(renderer, "maxDepth", render_settings.max_depth());
     ospSetFloat(renderer, "minContribution", render_settings.min_contribution());
     ospSetBool(renderer, "varianceThreshold", render_settings.variance_threshold());
@@ -2014,7 +2070,7 @@ receive_scene(TCPSocket *sock)
         render_settings.background_color(2),
         render_settings.background_color(3));    
 
-    if (renderer_type == "scivis")
+    if (current_renderer_type == "scivis")
     {
         ospSetInt(renderer, "aoSamples", render_settings.ao_samples());
         ospSetFloat(renderer, "aoRadius", render_settings.ao_radius());
@@ -2065,8 +2121,6 @@ receive_scene(TCPSocket *sock)
     //ospSetInt(renderer, "spp", 1);
 
     ospCommit(renderer);
-
-    default_material = materials[renderer_type.c_str()];
 
     // Done!
 
@@ -2399,6 +2453,10 @@ handle_connection(TCPSocket *sock)
                     sock->close();
                     return true;
 
+                case ClientMessage::UPDATE_RENDERER_TYPE:
+                    update_renderer_type(client_message.string_value());
+                    break;
+
                 case ClientMessage::UPDATE_SCENE:
                     // XXX check res
                     // XXX ignore if rendering
@@ -2522,6 +2580,23 @@ handle_connection(TCPSocket *sock)
     sock->close();
 
     return true;
+}
+
+void
+prepare_renderers()
+{
+    OSPMaterial m;
+
+    renderers["scivis"] = ospNewRenderer("scivis");
+    renderers["pathtracer"] = ospNewRenderer("pathtracer");
+
+    m = default_materials["scivis"] = ospNewMaterial("scivis", "OBJMaterial");
+       ospSetVec3f(m, "Kd", 0.8f, 0.8f, 0.8f);
+    ospCommit(m);
+
+    m = default_materials["pathtracer"] = ospNewMaterial("pathtracer", "OBJMaterial");
+        ospSetVec3f(m, "Kd", 0.8f, 0.8f, 0.8f);
+    ospCommit(m);
 }
 
 // Error/status display
