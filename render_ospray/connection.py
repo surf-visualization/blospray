@@ -42,7 +42,7 @@ from .messages_pb2 import (
     RenderResult,
     UpdateObject, UpdatePluginInstance,
     Volume, Slices, Slice,
-    MaterialUpdate, OBJMaterialSettings
+    MaterialUpdate, OBJMaterialSettings, GlassSettings
 )
 
 # Object to world matrix
@@ -498,8 +498,7 @@ class Connection:
         client_message = ClientMessage()
         client_message.type = ClientMessage.UPDATE_MATERIAL  
 
-        update = MaterialUpdate()
-        update.type = MaterialUpdate.OBJMATERIAL
+        update = MaterialUpdate()        
         update.name = name
 
         tree = material.node_tree
@@ -522,18 +521,29 @@ class Connection:
         if shadernode is None:
             print('... WARNING: no shader node attached to output!')
             return
-
-        if shadernode.bl_idname != 'OSPRayOBJMaterial':
-            print('... WARNING: shader of type "%s" not handled!' % shadernode.bl_idname)
-            return
-
+        
+        idname = shadernode.bl_idname
         inputs = shadernode.inputs
 
-        settings = OBJMaterialSettings()
-        settings.kd[:] = list(inputs['Diffuse'].default_value)[:3]
-        settings.ks[:] = list(inputs['Specular'].default_value)[:3]
-        settings.ns = inputs['Shininess'].default_value
-        settings.d = inputs['Opacity'].default_value
+        if idname == 'OSPRayOBJMaterial':
+            update.type = MaterialUpdate.OBJMATERIAL
+            settings = OBJMaterialSettings()
+            settings.kd[:] = list(inputs['Diffuse'].default_value)[:3]
+            settings.ks[:] = list(inputs['Specular'].default_value)[:3]
+            settings.ns = inputs['Shininess'].default_value
+            settings.d = inputs['Opacity'].default_value
+
+        elif idname == 'OSPRayGlass':
+            update.type = MaterialUpdate.GLASS
+            settings = GlassSettings()
+            print(inputs.items())
+            settings.eta = inputs['eta'].default_value   # XXX why not Eta??
+            settings.attenuation_color = list(inputs['Attenuation color'].default_value)[:3]
+            settings.attenuation_distnace = inputs['Attenuation distance'].default_value
+
+        else:
+            print('... WARNING: shader of type "%s" not handled!' % shadernode.bl_idname)
+            return
 
         # XXX three messages
         send_protobuf(self.sock, client_message)

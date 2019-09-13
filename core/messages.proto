@@ -291,6 +291,7 @@ message MaterialUpdate
     {
         OBJMATERIAL = 0;
         PRINCIPLED = 1;
+        GLASS = 2;
     }
 
     Type    type = 1;
@@ -311,6 +312,13 @@ message OBJMaterialSettings
     //string map_ns;
     //string map_d;
     //string map_bump;
+}
+
+message GlassSettings
+{
+    float           eta = 1;
+    repeated float  attenuation_color = 2;
+    float           attenuation_distance = 3;
 }
 
 // Plugins

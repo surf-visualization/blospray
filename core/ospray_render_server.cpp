@@ -1887,6 +1887,17 @@ handle_update_material(TCPSocket *sock)
 
     printf("MATERIAL '%s'\n", update.name().c_str());
 
+    OSPMaterial material = nullptr;
+
+    // XXX keep track of materials per renderer type
+    MaterialMap::iterator it = scene_materials.find(update.name());
+    if (it != scene_materials.end())
+    {
+        // XXX Check type hasn't changed
+        printf("... Updating existing material");
+        material = it->second;
+    }       
+
     switch (update.type())
     {
 
@@ -1896,35 +1907,39 @@ handle_update_material(TCPSocket *sock)
         receive_protobuf(sock, settings);
         printf("... OBJMaterial (Kd %.3f,%.3f,%.3f; ...)\n", settings.kd(0), settings.kd(1), settings.kd(2));
 
-        OSPMaterial material;
-
-        // XXX keep track of materials per renderer type
-        MaterialMap::iterator it = scene_materials.find(update.name());
-        if (it != scene_materials.end())
-        {
-            // XXX Check type hasn't changed
-            printf("... Updating existing material");
-            material = it->second;
-        }
-        else
-        {
+        if (material == nullptr)
             material = ospNewMaterial(current_renderer_type.c_str(), "OBJMaterial");
-            scene_materials[update.name()] = material;
-        }
-                
+
         if (settings.kd_size() == 3)
             ospSetVec3f(material, "Kd", settings.kd(0), settings.kd(1), settings.kd(2));
         if (settings.ks_size() == 3)
             ospSetVec3f(material, "Ks", settings.ks(0), settings.ks(1), settings.ks(2));
         ospSetFloat(material, "Ns", settings.ns());
-        ospSetFloat(material, "d", settings.d());
-        
-        ospCommit(material);
+        ospSetFloat(material, "d", settings.d());            
+
+        break;
+    }
+
+    case MaterialUpdate::GLASS:
+    {
+        GlassSettings settings;
+        printf("... Glass\n");
+
+        if (material == nullptr)
+            material = ospNewMaterial(current_renderer_type.c_str(), "Glass");
+
+        ospSetFloat(material, "eta", settings.eta());
+        if (settings.attenuation_color_size() == 3)
+            ospSetVec3f(material, "attenuationColor", settings.attenuation_color(0), settings.attenuation_color(1), settings.attenuation_color(2));        
+        ospSetFloat(material, "attenuationDistance", settings.attenuation_distance());
 
         break;
     }
 
     }
+
+    ospCommit(material);
+    scene_materials[update.name()] = material;
 }
 
 // XXX currently has big memory leak as we never release the new objects ;-)

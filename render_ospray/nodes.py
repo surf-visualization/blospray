@@ -162,9 +162,44 @@ class OSPRayOBJMaterial(bpy.types.Node):
         return "OBJMaterial"
     """
 
+class OSPRayGlass(bpy.types.Node):
+    """Glass"""
+    bl_idname = 'OSPRayGlass'
+    bl_label = 'Glass'
+    bl_icon = 'SOUND'
+    bl_color = (0, 0.7, 0, 1)           # XXX doesn't work?
+
+    def init(self, context):
+        # all inputs, except Tf, can be controled using a texture
+        
+        eta = self.inputs.new('NodeSocketFloat', 'Eta')
+        eta.default_value = 1.5
+        
+        attenuation_color = self.inputs.new('NodeSocketColor', 'Attenuation color')    
+        attenuation_color.default_value = (1, 1, 1, 1)
+        
+        attenuation_distance = self.inputs.new('NodeSocketFloat', 'Attenuation distance') 
+        attenuation_distance.default_value = 1
+        
+        self.outputs.new('NodeSocketShader', 'Material')
+
+    """
+    def draw_buttons(self, context, layout):
+        ob=context.object
+        #layout.prop(ob.pov, "object_ior",slider=True)
+
+    def draw_buttons_ext(self, context, layout):
+        ob=context.object
+        #layout.prop(ob.pov, "object_ior",slider=True)
+
+    def draw_label(self):
+        return "OBJMaterial"
+    """
+
 node_classes = (
     OSPRayOutputNode,
     OSPRayOBJMaterial,
+    OSPRayGlass,
 )
 
 node_categories = [
@@ -172,6 +207,7 @@ node_categories = [
     OSPRayShaderNodeCategory("SHADEROUTPUT", "OSPRay", items=[
         NodeItem("OSPRayOutputNode"),
         NodeItem('OSPRayOBJMaterial'),
+        NodeItem('OSPRayGlass'),
     ]),
 
 ]
