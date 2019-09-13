@@ -21,6 +21,8 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+//#define DUMP_PROTOBUF_TRAFFIC
+
 #include <sys/time.h>
 #include <arpa/inet.h>
 #include <iostream>
@@ -150,7 +152,11 @@ receive_protobuf(TCPSocket *sock, T& protobuf)
         return false;
 
     protobuf.ParseFromArray(receive_buffer, message_size);
-    
+
+#if DUMP_PROTOBUF_TRAFFIC    
+    fprintf(stderr, "--- receive_protobuf() ---\n%s\n--------------------------\n", protobuf.DebugString().c_str());
+#endif
+
     return true;
 }
 
@@ -160,6 +166,10 @@ send_protobuf(TCPSocket *sock, T& protobuf)
 {
     std::string message;
     uint32_t message_size;
+
+#if DUMP_PROTOBUF_TRAFFIC
+    fprintf(stderr, "--- send_protobuf() ---\n%s\n-----------------------\n", protobuf.DebugString().c_str());
+#endif
     
     // XXX use SerializeToArray
     protobuf.SerializeToString(&message);

@@ -82,6 +82,8 @@ Nice to haves
   (saves overhead of transfering images)
 - Provide utility function to create bounding convex hull
   from vertices
+- Option to control caching level: nothing, plugin instances, ..., all
+  Or similar controls, e.g. cache plugin instances, cache blender meshes
 
 Obscure to haves
 - Handle multiple concurrent renders in Blender

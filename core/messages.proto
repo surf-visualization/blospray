@@ -36,6 +36,7 @@ message ClientMessage
         UPDATE_BLENDER_MESH = 21;
         UPDATE_PLUGIN_INSTANCE = 22;
         UPDATE_CAMERA = 23;
+        UPDATE_MATERIAL = 24;
 
         DELETE_OBJECT = 30;
         DELETE_BLENDER_MESH = 31;
@@ -145,6 +146,7 @@ message UpdateObject
     
     repeated float  object2world = 10;
     string          data_link = 11;
+    string          material_link = 12;
 }
 
 message Volume
@@ -282,6 +284,34 @@ message LightSettings
     repeated float  edge1 = 26;             // Area/Quad
     repeated float  edge2 = 27;             // Area/Quad
 }   
+
+message MaterialUpdate
+{
+    enum Type
+    {
+        OBJMATERIAL = 0;
+        PRINCIPLED = 1;
+    }
+
+    Type    type = 1;
+    string  name = 2;
+}
+
+message OBJMaterialSettings
+{
+    repeated float  kd = 1;
+    repeated float  ks = 2;
+    float           ns = 3;
+    float           d = 4;
+    repeated float  tf = 5;
+
+    // XXX Pass textures, for e.g. Kd, should have 0-length Kd value in that case
+    //string map_kd;
+    //string map_ks;
+    //string map_ns;
+    //string map_d;
+    //string map_bump;
+}
 
 // Plugins
 

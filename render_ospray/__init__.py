@@ -198,10 +198,12 @@ def register():
     from . import operators
     from . import properties
     from . import ui
+    from . import nodes
     
     properties.register()
     operators.register()
     ui.register()
+    nodes.register()
     
     for cls in classes:
         register_class(cls)
@@ -213,10 +215,12 @@ def unregister():
     from . import properties
     from . import operators
     from . import ui
+    from . import nodes
     
     properties.unregister()
     operators.unregister()
     ui.unregister()
+    nodes.unregister()
     
     for cls in classes:
         unregister_class(cls)

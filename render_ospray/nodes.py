@@ -6,9 +6,13 @@ import nodeitems_utils
 from nodeitems_utils import NodeCategory, NodeItem
 
 """
+o = object
+len(o.material_slots)
+
 m = o.data
 mat = m.materials[0]
 assert mat.use_nodes 
+
 node_tree = mat.node_tree
 assert t.type == 'SHADER'
 n = t.nodes[...]
@@ -171,7 +175,6 @@ node_categories = [
     ]),
 
 ]
-
 
 def register():
     from bpy.utils import register_class

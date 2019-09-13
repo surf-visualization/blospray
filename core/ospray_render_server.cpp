@@ -60,14 +60,18 @@ OSPWorld        world;
 OSPCamera       camera = nullptr;
 OSPFrameBuffer  framebuffer;
 
+typedef std::map<std::string, OSPMaterial>  MaterialMap;
+
 std::map<std::string, OSPRenderer>  renderers;
-std::map<std::string, OSPMaterial>  materials;
+MaterialMap                         materials;
+MaterialMap                         scene_materials;
 std::vector<OSPInstance>            scene_instances;
 std::vector<OSPLight>               scene_lights;
 
 int             framebuffer_width=0, framebuffer_height=0;
 bool            framebuffer_created = false;
 bool            keep_framebuffer_files = getenv("BLOSPRAY_KEEP_FRAMEBUFFER_FILES") != nullptr;
+bool            dump_client_messages = getenv("BLOSPRAY_DUMP_CLIENT_MESSAGES") != nullptr;
 
 OSPMaterial         default_material;               // XXX hack for now, renderer-type dependent
 
@@ -937,9 +941,6 @@ update_blender_mesh_object(const UpdateObject& update)
     {
         mesh_object->data_link = linked_data;
         gmodel = mesh_object->gmodel = ospNewGeometricModel(geometry);
-            // XXX the material is renderer dependent...
-            ospSetObject(gmodel, "material", default_material);
-        ospCommit(gmodel);
     }
     else
     {
@@ -962,6 +963,24 @@ update_blender_mesh_object(const UpdateObject& update)
         ospSetData(group, "geometry", models);
     ospCommit(group);    
     ospRelease(models); 
+
+    // XXX the material is renderer dependent...
+
+    const std::string& matname = update.material_link();
+
+    MaterialMap::iterator it = scene_materials.find(matname);
+    if (it != scene_materials.end())
+    {
+        printf("... Material '%s'\n", matname.c_str());
+        ospSetObject(gmodel, "material", it->second);
+    }
+    else
+    {
+        printf("... WARNING: Material '%s' not found, using default!\n", matname.c_str());
+        ospSetObject(gmodel, "material", default_material);
+    }
+
+    ospCommit(gmodel);
 
     if (scene_object == nullptr)
         scene_objects[object_name] = mesh_object;
@@ -1630,6 +1649,11 @@ handle_get_server_state(TCPSocket *sock)
     j["scene_objects"] = p;
 
     p = {};
+    for (auto& kv: scene_materials)
+        p[kv.first] = (size_t)kv.second;
+    j["scene_materials"] = p;        
+
+    p = {};
     for (auto& kv: plugin_instances)
     {
         const PluginInstance *instance = kv.second;
@@ -1854,7 +1878,54 @@ handle_update_camera(TCPSocket *sock)
     ospCommit(camera);
 }
 
+void
+handle_update_material(TCPSocket *sock)
+{
+    MaterialUpdate update;
 
+    receive_protobuf(sock, update);
+
+    printf("MATERIAL '%s'\n", update.name().c_str());
+
+    switch (update.type())
+    {
+
+    case MaterialUpdate::OBJMATERIAL:
+    {
+        OBJMaterialSettings settings;
+        receive_protobuf(sock, settings);
+        printf("... OBJMaterial (Kd %.3f,%.3f,%.3f; ...)\n", settings.kd(0), settings.kd(1), settings.kd(2));
+
+        OSPMaterial material;
+
+        // XXX keep track of materials per renderer type
+        MaterialMap::iterator it = scene_materials.find(update.name());
+        if (it != scene_materials.end())
+        {
+            // XXX Check type hasn't changed
+            printf("... Updating existing material");
+            material = it->second;
+        }
+        else
+        {
+            material = ospNewMaterial(current_renderer_type.c_str(), "OBJMaterial");
+            scene_materials[update.name()] = material;
+        }
+                
+        if (settings.kd_size() == 3)
+            ospSetVec3f(material, "Kd", settings.kd(0), settings.kd(1), settings.kd(2));
+        if (settings.ks_size() == 3)
+            ospSetVec3f(material, "Ks", settings.ks(0), settings.ks(1), settings.ks(2));
+        ospSetFloat(material, "Ns", settings.ns());
+        ospSetFloat(material, "d", settings.d());
+        
+        ospCommit(material);
+
+        break;
+    }
+
+    }
+}
 
 // XXX currently has big memory leak as we never release the new objects ;-)
 bool
@@ -2259,8 +2330,11 @@ handle_connection(TCPSocket *sock)
                 return false;
             }
 
-            //printf("Got client message of type %s\n", ClientMessage_Type_Name(client_message.type()).c_str());
-            //printf("%s\n", client_message.DebugString().c_str());
+            if (dump_client_messages)
+            {
+                printf("Got client message of type %s\n", ClientMessage_Type_Name(client_message.type()).c_str());
+                printf("%s\n", client_message.DebugString().c_str());
+            }
 
             switch (client_message.type())
             {
@@ -2306,6 +2380,10 @@ handle_connection(TCPSocket *sock)
                 
                 case ClientMessage::UPDATE_CAMERA:
                     handle_update_camera(sock);
+                    break;
+
+                case ClientMessage::UPDATE_MATERIAL:
+                    handle_update_material(sock);
                     break;
 
                 case ClientMessage::GET_SERVER_STATE:

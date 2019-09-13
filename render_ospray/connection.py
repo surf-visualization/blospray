@@ -41,7 +41,8 @@ from .messages_pb2 import (
     ClientMessage, GenerateFunctionResult,
     RenderResult,
     UpdateObject, UpdatePluginInstance,
-    Volume, Slices, Slice
+    Volume, Slices, Slice,
+    MaterialUpdate, OBJMaterialSettings
 )
 
 # Object to world matrix
@@ -361,6 +362,7 @@ class Connection:
         self.send_updated_ambient_light(world.ospray.ambient_color, world.ospray.ambient_intensity)
 
         self.mesh_data_exported = set()
+        self.materials_exported = set()
 
         print('DEPSGRAPH STATS:', depsgraph.debug_stats())
 
@@ -368,8 +370,8 @@ class Connection:
 
             obj = instance.object
 
-            print('DEPSGRAPH object instance "%s", type=%s, is_instance=%d, random_id=%d' % \
-                (obj.name, obj.type, instance.is_instance, instance.random_id))
+            #print('DEPSGRAPH object instance "%s", type=%s, is_instance=%d, random_id=%d' % \
+            #    (obj.name, obj.type, instance.is_instance, instance.random_id))
 
             if obj.type == 'LIGHT':
                 self.send_updated_light(data, depsgraph, obj)
@@ -377,13 +379,8 @@ class Connection:
             elif obj.type != 'MESH':
                 continue
         
-            mesh = obj.data
-
-            # Send mesh data first, so the object sent after can refer to it
-            self.send_updated_mesh_data(data, depsgraph, mesh)            
-                        
             # Send object linking to the mesh data
-            self.send_updated_mesh_object(data, depsgraph, obj, mesh, instance.matrix_world, instance.is_instance, instance.random_id)        
+            self.send_updated_mesh_object(data, depsgraph, obj, obj.data, instance.matrix_world, instance.is_instance, instance.random_id)        
 
     def send_updated_ambient_light(self, color, intensity):
 
@@ -484,13 +481,85 @@ class Connection:
         send_protobuf(self.sock, update)
         send_protobuf(self.sock, light_settings)
 
+    def send_updated_material(self, data, depsgraph, material):
+
+        name = material.name        
+        
+        if name in self.materials_exported:
+            print('Not sending MATERIAL "%s" again' % name)
+            return
+
+        print('Updating MATERIAL "%s"' % name)
+
+        if not material.use_nodes:
+            print('... WARNING: material does not use nodes, not sending!')
+            return
+
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.UPDATE_MATERIAL  
+
+        update = MaterialUpdate()
+        update.type = MaterialUpdate.OBJMATERIAL
+        update.name = name
+
+        tree = material.node_tree
+        assert tree.type == 'SHADER'
+
+        nodes = tree.nodes
+        print('... %d shader nodes in tree' % len(nodes))
+
+        # Get output node
+        # XXX tree.get_output_node() doesn't return anything?
+        output = nodes.get('Output')
+
+        # Find node attached to the output
+        shadernode = None
+        for link in tree.links:
+            if link.to_node == output:
+                shadernode = link.from_node
+                break
+        
+        if shadernode is None:
+            print('... WARNING: no shader node attached to output!')
+            return
+
+        if shadernode.bl_idname != 'OSPRayOBJMaterial':
+            print('... WARNING: shader of type "%s" not handled!' % shadernode.bl_idname)
+            return
+
+        inputs = shadernode.inputs
+
+        settings = OBJMaterialSettings()
+        settings.kd[:] = list(inputs['Diffuse'].default_value)[:3]
+        settings.ks[:] = list(inputs['Specular'].default_value)[:3]
+        settings.ns = inputs['Shininess'].default_value
+        settings.d = inputs['Opacity'].default_value
+
+        # XXX three messages
+        send_protobuf(self.sock, client_message)
+        send_protobuf(self.sock, update)
+        send_protobuf(self.sock, settings)
+
+        self.materials_exported.add(name)
+
 
     def send_updated_mesh_object(self, data, depsgraph, obj, mesh, matrix_world, is_instance, random_id):
 
         # We do a bit of the logic here in determining what a certain
-        # object -> object data combination (including their properties)
+        # mesh object -> mesh data combination (including their properties)
         # means, so the server isn't bothered with this.
 
+        # XXX for now we assume materials are only linked to object data in the blender
+        # scene (and not to objects, even though that is possible).
+        # The exported OSPRay scene *does* have materials linked to objects, though,
+        # as that is the only way to do it. That's also the reason we handle materials
+        # in the object export and not the mesh export. Here we have the detail needed.
+
+        mesh = obj.data
+
+        # Send mesh data first, so the object can refer to it
+        self.send_updated_mesh_data(data, depsgraph, mesh)
+                    
         name = obj.name
         
         s = 'Updating MESH OBJECT "%s"' % name
@@ -517,8 +586,8 @@ class Connection:
             # Treat as regular blender Mesh object            
             update.type = UpdateObject.MESH
                 
-            # Check that this object isn't a child used for slicing, in which case it should
-            # not be sent as normal geometry
+            # Check that this object isn't a child used for slicing, in which case it 
+            # should not be sent as normal geometry
             parent = obj.parent 
             if (parent is not None) and parent.ospray.ospray_override:
                 assert parent.type == 'MESH'
@@ -526,7 +595,21 @@ class Connection:
                 if (parent_mesh.ospray.plugin_type == 'volume') and (parent.ospray.volume_usage == 'slices'):
                     print('Object "%s" is child of slice-enabled parent "%s", not sending' % (obj.name, parent.name))
                     return
-            
+
+            # Update material first (if set)
+
+            if len(obj.material_slots) > 0:
+                if len(obj.material_slots) > 1:
+                    print('WARNING: only exporting a single material slot!')
+                mslot = obj.material_slots[0]
+                assert mslot.link == 'DATA'
+                material = obj.data.materials[0]
+
+                self.send_updated_material(data, depsgraph, material)
+
+                update.material_link = material.name
+
+            # Send object itself            
             send_protobuf(self.sock, client_message)
             send_protobuf(self.sock, update)                    
 
@@ -636,7 +719,7 @@ class Connection:
             self.update_blender_mesh(data, depsgraph, mesh) 
 
         # Remember that we exported this mesh
-        self.mesh_data_exported.add(mesh.name)          
+        self.mesh_data_exported.add(mesh.name)        
 
 
     def update_plugin_instance(self, name, plugin_type, plugin_name, plugin_parameters, custom_properties):
@@ -825,9 +908,8 @@ class Connection:
         # Read back successive framebuffer samples
 
         num_pixels = self.framebuffer_width * self.framebuffer_height
-        bytes_left = num_pixels*4 * 4
-
-        framebuffer = numpy.zeros(bytes_left, dtype=numpy.uint8)
+        # RGBA floats
+        framebuffer = numpy.zeros(num_pixels*4*4, dtype=numpy.uint8)
 
         t0 = time.time()
 
