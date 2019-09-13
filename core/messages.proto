@@ -292,6 +292,7 @@ message MaterialUpdate
         OBJMATERIAL = 0;
         PRINCIPLED = 1;
         GLASS = 2;
+        LUMINOUS = 3;
     }
 
     Type    type = 1;
@@ -319,6 +320,13 @@ message GlassSettings
     float           eta = 1;
     repeated float  attenuation_color = 2;
     float           attenuation_distance = 3;
+}
+
+message LuminousSettings
+{
+    repeated float  color = 1;
+    float           intensity = 2;
+    float           transparency = 3;
 }
 
 // Plugins

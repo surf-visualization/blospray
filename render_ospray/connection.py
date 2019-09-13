@@ -42,7 +42,7 @@ from .messages_pb2 import (
     RenderResult,
     UpdateObject, UpdatePluginInstance,
     Volume, Slices, Slice,
-    MaterialUpdate, OBJMaterialSettings, GlassSettings
+    MaterialUpdate, OBJMaterialSettings, GlassSettings, LuminousSettings
 )
 
 # Object to world matrix
@@ -536,9 +536,16 @@ class Connection:
         elif idname == 'OSPRayGlass':
             update.type = MaterialUpdate.GLASS
             settings = GlassSettings()
-            settings.eta = inputs['Eta'].default_value   # XXX why not Eta??
+            settings.eta = inputs['Eta'].default_value   
             settings.attenuation_color[:] = list(inputs['Attenuation color'].default_value)[:3]
             settings.attenuation_distance = inputs['Attenuation distance'].default_value
+
+        elif idname == 'OSPRayLuminous':
+            update.type = MaterialUpdate.LUMINOUS
+            settings = LuminousSettings()
+            settings.color[:] = inputs['Color'].default_value[:3]  
+            settings.intensity = inputs['Intensity'].default_value
+            settings.transparency = inputs['Transparency'].default_value
 
         else:
             print('... WARNING: shader of type "%s" not handled!' % shadernode.bl_idname)

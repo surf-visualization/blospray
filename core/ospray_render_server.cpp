@@ -1939,12 +1939,31 @@ handle_update_material(TCPSocket *sock)
         break;
     }
 
+    case MaterialUpdate::LUMINOUS:
+    {
+        LuminousSettings settings;
+
+        receive_protobuf(sock, settings);
+        printf("... Luminous\n");
+
+        if (material == nullptr)
+            material = ospNewMaterial(current_renderer_type.c_str(), "Luminous");
+
+        if (settings.color_size() == 3)
+            ospSetVec3f(material, "color", settings.color(0), settings.color(1), settings.color(2));    
+        ospSetFloat(material, "intensity", settings.intensity());    
+        ospSetFloat(material, "transparency", settings.transparency());
+
+        break;
+    }
+
     default:
         printf("ERROR: unknown material update type %d!\n", update.type());
 
     }
 
     ospCommit(material);
+    
     scene_materials[update.name()] = material;
 }
 

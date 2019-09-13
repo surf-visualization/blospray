@@ -196,18 +196,45 @@ class OSPRayGlass(bpy.types.Node):
         return "OBJMaterial"
     """
 
+
+class OSPRayLuminous(bpy.types.Node):
+    """Glass"""
+    bl_idname = 'OSPRayLuminous'
+    bl_label = 'Luminous'
+    bl_icon = 'SOUND'
+    bl_color = (0, 0.7, 0, 1)           # XXX doesn't work?
+
+    def init(self, context):
+        # all inputs, except Tf, can be controled using a texture
+        
+        color = self.inputs.new('NodeSocketColor', 'Color')
+        color.default_value = (1, 1, 1, 1)
+        
+        intensity = self.inputs.new('NodeSocketFloat', 'Intensity')    
+        intensity.default_value = 1
+        
+        transparency = self.inputs.new('NodeSocketFloat', 'Transparency')    
+        transparency.default_value = 1
+        
+        self.outputs.new('NodeSocketShader', 'Material')
+
+
+
 node_classes = (
     OSPRayOutputNode,
     OSPRayOBJMaterial,
     OSPRayGlass,
+    OSPRayLuminous,
 )
 
 node_categories = [
 
     OSPRayShaderNodeCategory("SHADEROUTPUT", "OSPRay", items=[
         NodeItem("OSPRayOutputNode"),
-        NodeItem('OSPRayOBJMaterial'),
+        
         NodeItem('OSPRayGlass'),
+        NodeItem('OSPRayLuminous'),
+        NodeItem('OSPRayOBJMaterial'),
     ]),
 
 ]
