@@ -208,11 +208,27 @@ class Connection:
         if cam_data.type == 'PERSP':
             camera_settings.type = CameraSettings.PERSPECTIVE
 
-            # Get camera FOV (in degrees)
-            hfov = cam_data.angle
-            image_plane_width = 2 * tan(hfov/2)
-            image_plane_height = image_plane_width / self.framebuffer_aspect
-            vfov = 2*atan(image_plane_height/2)
+            hfov = vfov = None
+
+            if cam_data.sensor_fit == 'AUTO':
+                if self.framebuffer_aspect >= 1:
+                    # Horizontal
+                    hfov = cam_data.angle
+                else:
+                    # Vertical
+                    vfov = cam_data.angle
+            elif cam_data.sensor_fit == 'HORIZONTAL':
+                hfov = cam_data.angle
+            else:
+                vfov = cam_data.angle
+
+            # Blender provides FOV in radians
+            # OSPRay needs vertical FOV in degrees
+            if vfov is None:
+                image_plane_width = 2 * tan(hfov/2)
+                image_plane_height = image_plane_width / self.framebuffer_aspect
+                vfov = 2*atan(image_plane_height/2)
+                
             camera_settings.fov_y = degrees(vfov)
 
         elif cam_data.type == 'ORTHO':
