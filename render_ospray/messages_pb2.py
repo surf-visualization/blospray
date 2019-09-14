@@ -20,7 +20,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x0emessages.proto\"\xca\x03\n\rClientMessage\x12!\n\x04type\x18\x01 \x01(\x0e\x32\x13.ClientMessage.Type\x12\x12\n\nuint_value\x18\x14 \x01(\r\x12\x14\n\x0cstring_value\x18( \x01(\t\"\xeb\x02\n\x04Type\x12\t\n\x05HELLO\x10\x00\x12\x07\n\x03\x42YE\x10\x01\x12\x14\n\x10GET_SERVER_STATE\x10\n\x12\x0f\n\x0b\x43LEAR_SCENE\x10\x0b\x12\x10\n\x0cUPDATE_SCENE\x10\x0c\x12\x18\n\x14UPDATE_RENDERER_TYPE\x10\r\x12\x11\n\rUPDATE_OBJECT\x10\x14\x12\x17\n\x13UPDATE_BLENDER_MESH\x10\x15\x12\x1a\n\x16UPDATE_PLUGIN_INSTANCE\x10\x16\x12\x11\n\rUPDATE_CAMERA\x10\x17\x12\x13\n\x0fUPDATE_MATERIAL\x10\x18\x12\x11\n\rDELETE_OBJECT\x10\x1e\x12\x17\n\x13\x44\x45LETE_BLENDER_MESH\x10\x1f\x12\x1a\n\x16\x44\x45LETE_PLUGIN_INSTANCE\x10 \x12\x13\n\x0fSTART_RENDERING\x10(\x12\x14\n\x10\x43\x41NCEL_RENDERING\x10)\x12\x0f\n\x0bQUERY_BOUND\x10P\x12\x08\n\x04QUIT\x10\x63\"/\n\x0bHelloResult\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\"\"\n\x11ServerStateResult\x12\r\n\x05state\x18\x01 \x01(\t\"I\n\x10QueryBoundResult\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\x12\x13\n\x0bresult_size\x18\x03 \x01(\r\"\xb9\x01\n\x0cRenderResult\x12 \n\x04type\x18\x01 \x01(\x0e\x32\x12.RenderResult.Type\x12\x0e\n\x06sample\x18\x02 \x01(\r\x12\x10\n\x08variance\x18\x03 \x01(\x02\x12\x11\n\tfile_name\x18\x04 \x01(\t\x12\x11\n\tfile_size\x18\x05 \x01(\r\x12\x14\n\x0cmemory_usage\x18\x06 \x01(\x02\")\n\x04Type\x12\t\n\x05\x46RAME\x10\x00\x12\x0c\n\x08\x43\x41NCELED\x10\x01\x12\x08\n\x04\x44ONE\x10\x02\"\xc6\x01\n\x14UpdatePluginInstance\x12(\n\x04type\x18\x01 \x01(\x0e\x32\x1a.UpdatePluginInstance.Type\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x13\n\x0bplugin_name\x18\x03 \x01(\t\x12\x19\n\x11plugin_parameters\x18\x04 \x01(\t\x12\x19\n\x11\x63ustom_properties\x18\x05 \x01(\t\"+\n\x04Type\x12\x0c\n\x08GEOMETRY\x10\x00\x12\n\n\x06VOLUME\x10\x01\x12\t\n\x05SCENE\x10\x02\"\xf8\x01\n\x0cUpdateObject\x12 \n\x04type\x18\x01 \x01(\x0e\x32\x12.UpdateObject.Type\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x19\n\x11\x63ustom_properties\x18\x03 \x01(\t\x12\x14\n\x0cobject2world\x18\n \x03(\x02\x12\x11\n\tdata_link\x18\x0b \x01(\t\x12\x15\n\rmaterial_link\x18\x0c \x01(\t\"]\n\x04Type\x12\x08\n\x04MESH\x10\x00\x12\x0c\n\x08GEOMETRY\x10\n\x12\n\n\x06VOLUME\x10\x14\x12\x0f\n\x0bISOSURFACES\x10\x1e\x12\n\n\x06SLICES\x10(\x12\t\n\x05SCENE\x10\x32\x12\t\n\x05LIGHT\x10<\"\x1f\n\x06Volume\x12\x15\n\rsampling_rate\x18\x01 \x01(\x02\"2\n\x05Slice\x12\x13\n\x0blinked_mesh\x18\x01 \x01(\t\x12\x14\n\x0cobject2world\x18\x02 \x03(\x02\" \n\x06Slices\x12\x16\n\x06slices\x18\x01 \x03(\x0b\x32\x06.Slice\"y\n\x08MeshData\x12\r\n\x05\x66lags\x18\x01 \x01(\r\x12\x14\n\x0cnum_vertices\x18\n \x01(\r\x12\x15\n\rnum_triangles\x18\x0b \x01(\r\"1\n\x05\x46lags\x12\x08\n\x04NONE\x10\x00\x12\x0b\n\x07NORMALS\x10\x01\x12\x11\n\rVERTEX_COLORS\x10\x02\"4\n\x13\x46ramebufferSettings\x12\r\n\x05width\x18\x01 \x01(\r\x12\x0e\n\x06height\x18\x02 \x01(\r\"\xd1\x02\n\x0e\x43\x61meraSettings\x12\"\n\x04type\x18\x01 \x01(\x0e\x32\x14.CameraSettings.Type\x12\x13\n\x0bobject_name\x18\x02 \x01(\t\x12\x13\n\x0b\x63\x61mera_name\x18\x03 \x01(\t\x12\x0e\n\x06\x62order\x18\x04 \x03(\x02\x12\x10\n\x08position\x18\n \x03(\x02\x12\x10\n\x08view_dir\x18\x0b \x03(\x02\x12\x0e\n\x06up_dir\x18\x0c \x03(\x02\x12\r\n\x05\x66ov_y\x18\x14 \x01(\x02\x12\x0e\n\x06height\x18\x1e \x01(\x02\x12\x0e\n\x06\x61spect\x18( \x01(\x02\x12\x12\n\nclip_start\x18\x32 \x01(\x02\x12\x1a\n\x12\x64of_focus_distance\x18< \x01(\x02\x12\x14\n\x0c\x64of_aperture\x18= \x01(\x02\"8\n\x04Type\x12\x0f\n\x0bPERSPECTIVE\x10\x00\x12\x10\n\x0cORTHOGRAPHIC\x10\x01\x12\r\n\tPANORAMIC\x10\x02\"\xff\x02\n\x0eRenderSettings\x12\x10\n\x08renderer\x18\x01 \x01(\t\x12\"\n\x04type\x18\x02 \x01(\x0e\x32\x14.RenderSettings.Type\x12\x0f\n\x07samples\x18\x03 \x01(\r\x12\x11\n\tmax_depth\x18\x04 \x01(\r\x12\x18\n\x10min_contribution\x18\x05 \x01(\x02\x12\x1a\n\x12variance_threshold\x18\x06 \x01(\x02\x12\x12\n\nao_samples\x18\x14 \x01(\r\x12\x11\n\tao_radius\x18\x15 \x01(\x02\x12\x14\n\x0c\x61o_intensity\x18\x16 \x01(\x02\x12\x16\n\x0eroulette_depth\x18\x1e \x01(\r\x12\x18\n\x10max_contribution\x18\x1f \x01(\x02\x12\x17\n\x0fgeometry_lights\x18  \x01(\x08\x12\x18\n\x10\x62\x61\x63kground_color\x18\x32 \x03(\x02\x12\x17\n\x0fshadows_enabled\x18P \x01(\x08\"\"\n\x04Type\x12\t\n\x05\x46INAL\x10\x00\x12\x0f\n\x0bINTERACTIVE\x10\x01\"\xfd\x02\n\rLightSettings\x12!\n\x04type\x18\x01 \x01(\x0e\x32\x13.LightSettings.Type\x12\x14\n\x0cobject2world\x18\x02 \x03(\x02\x12\x13\n\x0bobject_name\x18\x03 \x01(\t\x12\x12\n\nlight_name\x18\x04 \x01(\t\x12\r\n\x05\x63olor\x18\n \x03(\x02\x12\x11\n\tintensity\x18\x0b \x01(\x02\x12\x0f\n\x07visible\x18\x0c \x01(\x08\x12\x11\n\tdirection\x18\x14 \x03(\x02\x12\x18\n\x10\x61ngular_diameter\x18\x15 \x01(\x02\x12\x10\n\x08position\x18\x16 \x03(\x02\x12\x0e\n\x06radius\x18\x17 \x01(\x02\x12\x15\n\ropening_angle\x18\x18 \x01(\x02\x12\x16\n\x0epenumbra_angle\x18\x19 \x01(\x02\x12\r\n\x05\x65\x64ge1\x18\x1a \x03(\x02\x12\r\n\x05\x65\x64ge2\x18\x1b \x03(\x02\";\n\x04Type\x12\x0b\n\x07\x41MBIENT\x10\x00\x12\t\n\x05POINT\x10\x01\x12\x07\n\x03SUN\x10\x02\x12\x08\n\x04SPOT\x10\x03\x12\x08\n\x04\x41REA\x10\x04\"\x98\x01\n\x0eMaterialUpdate\x12\"\n\x04type\x18\x01 \x01(\x0e\x32\x14.MaterialUpdate.Type\x12\x0c\n\x04name\x18\x02 \x01(\t\"T\n\x04Type\x12\x0f\n\x0bOBJMATERIAL\x10\x00\x12\x0e\n\nPRINCIPLED\x10\x01\x12\t\n\x05GLASS\x10\x02\x12\x0c\n\x08LUMINOUS\x10\x03\x12\x12\n\x0eMETALLIC_PAINT\x10\x04\"P\n\x13OBJMaterialSettings\x12\n\n\x02kd\x18\x01 \x03(\x02\x12\n\n\x02ks\x18\x02 \x03(\x02\x12\n\n\x02ns\x18\x03 \x01(\x02\x12\t\n\x01\x64\x18\x04 \x01(\x02\x12\n\n\x02tf\x18\x05 \x03(\x02\"U\n\rGlassSettings\x12\x0b\n\x03\x65ta\x18\x01 \x01(\x02\x12\x19\n\x11\x61ttenuation_color\x18\x02 \x03(\x02\x12\x1c\n\x14\x61ttenuation_distance\x18\x03 \x01(\x02\"J\n\x10LuminousSettings\x12\r\n\x05\x63olor\x18\x01 \x03(\x02\x12\x11\n\tintensity\x18\x02 \x01(\x02\x12\x14\n\x0ctransparency\x18\x03 \x01(\x02\"y\n\x15MetallicPaintSettings\x12\x12\n\nbase_color\x18\x01 \x03(\x02\x12\x14\n\x0c\x66lake_amount\x18\x02 \x01(\x02\x12\x13\n\x0b\x66lake_color\x18\x03 \x03(\x02\x12\x14\n\x0c\x66lake_spread\x18\x04 \x01(\x02\x12\x0b\n\x03\x65ta\x18\x05 \x01(\x02\"H\n\x16GenerateFunctionResult\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\x12\x0c\n\x04hash\x18\x03 \x01(\tb\x06proto3')
+  serialized_pb=_b('\n\x0emessages.proto\"\xca\x03\n\rClientMessage\x12!\n\x04type\x18\x01 \x01(\x0e\x32\x13.ClientMessage.Type\x12\x12\n\nuint_value\x18\x14 \x01(\r\x12\x14\n\x0cstring_value\x18( \x01(\t\"\xeb\x02\n\x04Type\x12\t\n\x05HELLO\x10\x00\x12\x07\n\x03\x42YE\x10\x01\x12\x14\n\x10GET_SERVER_STATE\x10\n\x12\x0f\n\x0b\x43LEAR_SCENE\x10\x0b\x12\x10\n\x0cUPDATE_SCENE\x10\x0c\x12\x18\n\x14UPDATE_RENDERER_TYPE\x10\r\x12\x11\n\rUPDATE_OBJECT\x10\x14\x12\x17\n\x13UPDATE_BLENDER_MESH\x10\x15\x12\x1a\n\x16UPDATE_PLUGIN_INSTANCE\x10\x16\x12\x11\n\rUPDATE_CAMERA\x10\x17\x12\x13\n\x0fUPDATE_MATERIAL\x10\x18\x12\x11\n\rDELETE_OBJECT\x10\x1e\x12\x17\n\x13\x44\x45LETE_BLENDER_MESH\x10\x1f\x12\x1a\n\x16\x44\x45LETE_PLUGIN_INSTANCE\x10 \x12\x13\n\x0fSTART_RENDERING\x10(\x12\x14\n\x10\x43\x41NCEL_RENDERING\x10)\x12\x0f\n\x0bQUERY_BOUND\x10P\x12\x08\n\x04QUIT\x10\x63\"/\n\x0bHelloResult\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\"\"\n\x11ServerStateResult\x12\r\n\x05state\x18\x01 \x01(\t\"I\n\x10QueryBoundResult\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\x12\x13\n\x0bresult_size\x18\x03 \x01(\r\"\xb9\x01\n\x0cRenderResult\x12 \n\x04type\x18\x01 \x01(\x0e\x32\x12.RenderResult.Type\x12\x0e\n\x06sample\x18\x02 \x01(\r\x12\x10\n\x08variance\x18\x03 \x01(\x02\x12\x11\n\tfile_name\x18\x04 \x01(\t\x12\x11\n\tfile_size\x18\x05 \x01(\r\x12\x14\n\x0cmemory_usage\x18\x06 \x01(\x02\")\n\x04Type\x12\t\n\x05\x46RAME\x10\x00\x12\x0c\n\x08\x43\x41NCELED\x10\x01\x12\x08\n\x04\x44ONE\x10\x02\"\xc6\x01\n\x14UpdatePluginInstance\x12(\n\x04type\x18\x01 \x01(\x0e\x32\x1a.UpdatePluginInstance.Type\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x13\n\x0bplugin_name\x18\x03 \x01(\t\x12\x19\n\x11plugin_parameters\x18\x04 \x01(\t\x12\x19\n\x11\x63ustom_properties\x18\x05 \x01(\t\"+\n\x04Type\x12\x0c\n\x08GEOMETRY\x10\x00\x12\n\n\x06VOLUME\x10\x01\x12\t\n\x05SCENE\x10\x02\"\xf8\x01\n\x0cUpdateObject\x12 \n\x04type\x18\x01 \x01(\x0e\x32\x12.UpdateObject.Type\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x19\n\x11\x63ustom_properties\x18\x03 \x01(\t\x12\x14\n\x0cobject2world\x18\n \x03(\x02\x12\x11\n\tdata_link\x18\x0b \x01(\t\x12\x15\n\rmaterial_link\x18\x0c \x01(\t\"]\n\x04Type\x12\x08\n\x04MESH\x10\x00\x12\x0c\n\x08GEOMETRY\x10\n\x12\n\n\x06VOLUME\x10\x14\x12\x0f\n\x0bISOSURFACES\x10\x1e\x12\n\n\x06SLICES\x10(\x12\t\n\x05SCENE\x10\x32\x12\t\n\x05LIGHT\x10<\"\x1f\n\x06Volume\x12\x15\n\rsampling_rate\x18\x01 \x01(\x02\"2\n\x05Slice\x12\x13\n\x0blinked_mesh\x18\x01 \x01(\t\x12\x14\n\x0cobject2world\x18\x02 \x03(\x02\" \n\x06Slices\x12\x16\n\x06slices\x18\x01 \x03(\x0b\x32\x06.Slice\"y\n\x08MeshData\x12\r\n\x05\x66lags\x18\x01 \x01(\r\x12\x14\n\x0cnum_vertices\x18\n \x01(\r\x12\x15\n\rnum_triangles\x18\x0b \x01(\r\"1\n\x05\x46lags\x12\x08\n\x04NONE\x10\x00\x12\x0b\n\x07NORMALS\x10\x01\x12\x11\n\rVERTEX_COLORS\x10\x02\"4\n\x13\x46ramebufferSettings\x12\r\n\x05width\x18\x01 \x01(\r\x12\x0e\n\x06height\x18\x02 \x01(\r\"\xd1\x02\n\x0e\x43\x61meraSettings\x12\"\n\x04type\x18\x01 \x01(\x0e\x32\x14.CameraSettings.Type\x12\x13\n\x0bobject_name\x18\x02 \x01(\t\x12\x13\n\x0b\x63\x61mera_name\x18\x03 \x01(\t\x12\x0e\n\x06\x62order\x18\x04 \x03(\x02\x12\x10\n\x08position\x18\n \x03(\x02\x12\x10\n\x08view_dir\x18\x0b \x03(\x02\x12\x0e\n\x06up_dir\x18\x0c \x03(\x02\x12\r\n\x05\x66ov_y\x18\x14 \x01(\x02\x12\x0e\n\x06height\x18\x1e \x01(\x02\x12\x0e\n\x06\x61spect\x18( \x01(\x02\x12\x12\n\nclip_start\x18\x32 \x01(\x02\x12\x1a\n\x12\x64of_focus_distance\x18< \x01(\x02\x12\x14\n\x0c\x64of_aperture\x18= \x01(\x02\"8\n\x04Type\x12\x0f\n\x0bPERSPECTIVE\x10\x00\x12\x10\n\x0cORTHOGRAPHIC\x10\x01\x12\r\n\tPANORAMIC\x10\x02\"\xff\x02\n\x0eRenderSettings\x12\x10\n\x08renderer\x18\x01 \x01(\t\x12\"\n\x04type\x18\x02 \x01(\x0e\x32\x14.RenderSettings.Type\x12\x0f\n\x07samples\x18\x03 \x01(\r\x12\x11\n\tmax_depth\x18\x04 \x01(\r\x12\x18\n\x10min_contribution\x18\x05 \x01(\x02\x12\x1a\n\x12variance_threshold\x18\x06 \x01(\x02\x12\x12\n\nao_samples\x18\x14 \x01(\r\x12\x11\n\tao_radius\x18\x15 \x01(\x02\x12\x14\n\x0c\x61o_intensity\x18\x16 \x01(\x02\x12\x16\n\x0eroulette_depth\x18\x1e \x01(\r\x12\x18\n\x10max_contribution\x18\x1f \x01(\x02\x12\x17\n\x0fgeometry_lights\x18  \x01(\x08\x12\x18\n\x10\x62\x61\x63kground_color\x18\x32 \x03(\x02\x12\x17\n\x0fshadows_enabled\x18P \x01(\x08\"\"\n\x04Type\x12\t\n\x05\x46INAL\x10\x00\x12\x0f\n\x0bINTERACTIVE\x10\x01\"\xfd\x02\n\rLightSettings\x12!\n\x04type\x18\x01 \x01(\x0e\x32\x13.LightSettings.Type\x12\x14\n\x0cobject2world\x18\x02 \x03(\x02\x12\x13\n\x0bobject_name\x18\x03 \x01(\t\x12\x12\n\nlight_name\x18\x04 \x01(\t\x12\r\n\x05\x63olor\x18\n \x03(\x02\x12\x11\n\tintensity\x18\x0b \x01(\x02\x12\x0f\n\x07visible\x18\x0c \x01(\x08\x12\x11\n\tdirection\x18\x14 \x03(\x02\x12\x18\n\x10\x61ngular_diameter\x18\x15 \x01(\x02\x12\x10\n\x08position\x18\x16 \x03(\x02\x12\x0e\n\x06radius\x18\x17 \x01(\x02\x12\x15\n\ropening_angle\x18\x18 \x01(\x02\x12\x16\n\x0epenumbra_angle\x18\x19 \x01(\x02\x12\r\n\x05\x65\x64ge1\x18\x1a \x03(\x02\x12\r\n\x05\x65\x64ge2\x18\x1b \x03(\x02\";\n\x04Type\x12\x0b\n\x07\x41MBIENT\x10\x00\x12\t\n\x05POINT\x10\x01\x12\x07\n\x03SUN\x10\x02\x12\x08\n\x04SPOT\x10\x03\x12\x08\n\x04\x41REA\x10\x04\"\x98\x01\n\x0eMaterialUpdate\x12\"\n\x04type\x18\x01 \x01(\x0e\x32\x14.MaterialUpdate.Type\x12\x0c\n\x04name\x18\x02 \x01(\t\"T\n\x04Type\x12\x0f\n\x0bOBJMATERIAL\x10\x00\x12\x0e\n\nPRINCIPLED\x10\x01\x12\t\n\x05GLASS\x10\x02\x12\x0c\n\x08LUMINOUS\x10\x03\x12\x12\n\x0eMETALLIC_PAINT\x10\x04\"P\n\x13OBJMaterialSettings\x12\n\n\x02kd\x18\x01 \x03(\x02\x12\n\n\x02ks\x18\x02 \x03(\x02\x12\n\n\x02ns\x18\x03 \x01(\x02\x12\t\n\x01\x64\x18\x04 \x01(\x02\x12\n\n\x02tf\x18\x05 \x03(\x02\"\xb9\x04\n\x12PrincipledSettings\x12\x12\n\nbase_color\x18\x01 \x03(\x02\x12\x12\n\nedge_color\x18\x02 \x03(\x02\x12\x10\n\x08metallic\x18\x03 \x01(\x02\x12\x0f\n\x07\x64iffuse\x18\x04 \x01(\x02\x12\x10\n\x08specular\x18\x05 \x01(\x02\x12\x0b\n\x03ior\x18\x06 \x01(\x02\x12\x14\n\x0ctransmission\x18\x07 \x01(\x02\x12\x1a\n\x12transmission_color\x18\x08 \x03(\x02\x12\x1a\n\x12transmission_depth\x18\t \x01(\x02\x12\x11\n\troughness\x18\n \x01(\x02\x12\x12\n\nanisotropy\x18\x0b \x01(\x02\x12\x10\n\x08rotation\x18\x0c \x01(\x02\x12\x0e\n\x06normal\x18\r \x01(\x02\x12\x13\n\x0b\x62\x61se_normal\x18\x0e \x01(\x02\x12\x0c\n\x04thin\x18\x0f \x01(\x08\x12\x11\n\tthickness\x18\x10 \x01(\x02\x12\x11\n\tbacklight\x18\x11 \x01(\x02\x12\x0c\n\x04\x63oat\x18\x12 \x01(\x02\x12\x10\n\x08\x63oat_ior\x18\x13 \x01(\x02\x12\x12\n\ncoat_color\x18\x14 \x03(\x02\x12\x16\n\x0e\x63oat_thickness\x18\x15 \x01(\x02\x12\x16\n\x0e\x63oat_roughness\x18\x16 \x01(\x02\x12\x13\n\x0b\x63oat_normal\x18\x17 \x01(\x02\x12\r\n\x05sheen\x18\x18 \x01(\x02\x12\x13\n\x0bsheen_color\x18\x19 \x03(\x02\x12\x12\n\nsheen_tint\x18\x1a \x01(\x02\x12\x17\n\x0fsheen_roughness\x18\x1b \x01(\x02\x12\x0f\n\x07opacity\x18\x1c \x01(\x02\"U\n\rGlassSettings\x12\x0b\n\x03\x65ta\x18\x01 \x01(\x02\x12\x19\n\x11\x61ttenuation_color\x18\x02 \x03(\x02\x12\x1c\n\x14\x61ttenuation_distance\x18\x03 \x01(\x02\"J\n\x10LuminousSettings\x12\r\n\x05\x63olor\x18\x01 \x03(\x02\x12\x11\n\tintensity\x18\x02 \x01(\x02\x12\x14\n\x0ctransparency\x18\x03 \x01(\x02\"y\n\x15MetallicPaintSettings\x12\x12\n\nbase_color\x18\x01 \x03(\x02\x12\x14\n\x0c\x66lake_amount\x18\x02 \x01(\x02\x12\x13\n\x0b\x66lake_color\x18\x03 \x03(\x02\x12\x14\n\x0c\x66lake_spread\x18\x04 \x01(\x02\x12\x0b\n\x03\x65ta\x18\x05 \x01(\x02\"H\n\x16GenerateFunctionResult\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\x12\x0c\n\x04hash\x18\x03 \x01(\tb\x06proto3')
 )
 
 
@@ -1353,6 +1353,226 @@ _OBJMATERIALSETTINGS = _descriptor.Descriptor(
 )
 
 
+_PRINCIPLEDSETTINGS = _descriptor.Descriptor(
+  name='PrincipledSettings',
+  full_name='PrincipledSettings',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='base_color', full_name='PrincipledSettings.base_color', index=0,
+      number=1, type=2, cpp_type=6, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='edge_color', full_name='PrincipledSettings.edge_color', index=1,
+      number=2, type=2, cpp_type=6, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='metallic', full_name='PrincipledSettings.metallic', index=2,
+      number=3, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='diffuse', full_name='PrincipledSettings.diffuse', index=3,
+      number=4, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='specular', full_name='PrincipledSettings.specular', index=4,
+      number=5, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='ior', full_name='PrincipledSettings.ior', index=5,
+      number=6, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='transmission', full_name='PrincipledSettings.transmission', index=6,
+      number=7, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='transmission_color', full_name='PrincipledSettings.transmission_color', index=7,
+      number=8, type=2, cpp_type=6, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='transmission_depth', full_name='PrincipledSettings.transmission_depth', index=8,
+      number=9, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='roughness', full_name='PrincipledSettings.roughness', index=9,
+      number=10, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='anisotropy', full_name='PrincipledSettings.anisotropy', index=10,
+      number=11, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='rotation', full_name='PrincipledSettings.rotation', index=11,
+      number=12, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='normal', full_name='PrincipledSettings.normal', index=12,
+      number=13, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='base_normal', full_name='PrincipledSettings.base_normal', index=13,
+      number=14, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='thin', full_name='PrincipledSettings.thin', index=14,
+      number=15, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='thickness', full_name='PrincipledSettings.thickness', index=15,
+      number=16, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='backlight', full_name='PrincipledSettings.backlight', index=16,
+      number=17, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='coat', full_name='PrincipledSettings.coat', index=17,
+      number=18, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='coat_ior', full_name='PrincipledSettings.coat_ior', index=18,
+      number=19, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='coat_color', full_name='PrincipledSettings.coat_color', index=19,
+      number=20, type=2, cpp_type=6, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='coat_thickness', full_name='PrincipledSettings.coat_thickness', index=20,
+      number=21, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='coat_roughness', full_name='PrincipledSettings.coat_roughness', index=21,
+      number=22, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='coat_normal', full_name='PrincipledSettings.coat_normal', index=22,
+      number=23, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='sheen', full_name='PrincipledSettings.sheen', index=23,
+      number=24, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='sheen_color', full_name='PrincipledSettings.sheen_color', index=24,
+      number=25, type=2, cpp_type=6, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='sheen_tint', full_name='PrincipledSettings.sheen_tint', index=25,
+      number=26, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='sheen_roughness', full_name='PrincipledSettings.sheen_roughness', index=26,
+      number=27, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='opacity', full_name='PrincipledSettings.opacity', index=27,
+      number=28, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=2923,
+  serialized_end=3492,
+)
+
+
 _GLASSSETTINGS = _descriptor.Descriptor(
   name='GlassSettings',
   full_name='GlassSettings',
@@ -1393,8 +1613,8 @@ _GLASSSETTINGS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2922,
-  serialized_end=3007,
+  serialized_start=3494,
+  serialized_end=3579,
 )
 
 
@@ -1438,8 +1658,8 @@ _LUMINOUSSETTINGS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3009,
-  serialized_end=3083,
+  serialized_start=3581,
+  serialized_end=3655,
 )
 
 
@@ -1497,8 +1717,8 @@ _METALLICPAINTSETTINGS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3085,
-  serialized_end=3206,
+  serialized_start=3657,
+  serialized_end=3778,
 )
 
 
@@ -1542,8 +1762,8 @@ _GENERATEFUNCTIONRESULT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3208,
-  serialized_end=3280,
+  serialized_start=3780,
+  serialized_end=3852,
 )
 
 _CLIENTMESSAGE.fields_by_name['type'].enum_type = _CLIENTMESSAGE_TYPE
@@ -1581,6 +1801,7 @@ DESCRIPTOR.message_types_by_name['RenderSettings'] = _RENDERSETTINGS
 DESCRIPTOR.message_types_by_name['LightSettings'] = _LIGHTSETTINGS
 DESCRIPTOR.message_types_by_name['MaterialUpdate'] = _MATERIALUPDATE
 DESCRIPTOR.message_types_by_name['OBJMaterialSettings'] = _OBJMATERIALSETTINGS
+DESCRIPTOR.message_types_by_name['PrincipledSettings'] = _PRINCIPLEDSETTINGS
 DESCRIPTOR.message_types_by_name['GlassSettings'] = _GLASSSETTINGS
 DESCRIPTOR.message_types_by_name['LuminousSettings'] = _LUMINOUSSETTINGS
 DESCRIPTOR.message_types_by_name['MetallicPaintSettings'] = _METALLICPAINTSETTINGS
@@ -1705,6 +1926,13 @@ OBJMaterialSettings = _reflection.GeneratedProtocolMessageType('OBJMaterialSetti
   # @@protoc_insertion_point(class_scope:OBJMaterialSettings)
   ))
 _sym_db.RegisterMessage(OBJMaterialSettings)
+
+PrincipledSettings = _reflection.GeneratedProtocolMessageType('PrincipledSettings', (_message.Message,), dict(
+  DESCRIPTOR = _PRINCIPLEDSETTINGS,
+  __module__ = 'messages_pb2'
+  # @@protoc_insertion_point(class_scope:PrincipledSettings)
+  ))
+_sym_db.RegisterMessage(PrincipledSettings)
 
 GlassSettings = _reflection.GeneratedProtocolMessageType('GlassSettings', (_message.Message,), dict(
   DESCRIPTOR = _GLASSSETTINGS,

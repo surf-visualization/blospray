@@ -317,6 +317,38 @@ message OBJMaterialSettings
     //string map_bump;
 }
 
+message PrincipledSettings
+{
+    repeated float base_color = 1;
+    repeated float edge_color = 2;
+    float metallic = 3;
+    float diffuse = 4;
+    float specular = 5;
+    float ior = 6;
+    float transmission = 7;
+    repeated float transmission_color = 8;
+    float transmission_depth = 9;
+    float roughness = 10;
+    float anisotropy = 11;
+    float rotation = 12;
+    float normal = 13;
+    float base_normal = 14;
+    bool thin = 15;
+    float thickness = 16;
+    float backlight = 17;
+    float coat = 18;
+    float coat_ior = 19;
+    repeated float coat_color = 20;
+    float coat_thickness = 21;
+    float coat_roughness = 22;
+    float coat_normal = 23;
+    float sheen = 24;
+    repeated float sheen_color = 25;
+    float sheen_tint = 26;
+    float sheen_roughness = 27;
+    float opacity = 28;
+}
+
 message GlassSettings
 {
     float           eta = 1;

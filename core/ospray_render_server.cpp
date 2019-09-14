@@ -2005,6 +2005,55 @@ handle_update_material(TCPSocket *sock)
         break;
     }
 
+    case MaterialUpdate::PRINCIPLED:
+    {
+        PrincipledSettings settings;
+
+        receive_protobuf(sock, settings);
+        printf("... Principled\n");
+
+        if (scene_material == nullptr)
+        {
+            scene_material = new SceneMaterial;
+            material = scene_material->material = ospNewMaterial(current_renderer_type.c_str(), "Principled");
+        }
+
+        if (settings.base_color_size() == 3)
+            ospSetVec3f(material, "baseColor", settings.base_color(0), settings.base_color(1), settings.base_color(2));    
+        if (settings.edge_color_size() == 3)
+            ospSetVec3f(material, "edgeColor", settings.edge_color(0), settings.edge_color(1), settings.edge_color(2)); 
+        ospSetFloat(material, "metallic", settings.metallic());    
+        ospSetFloat(material, "diffuse", settings.diffuse());    
+        ospSetFloat(material, "specular", settings.specular());
+        ospSetFloat(material, "ior", settings.ior());
+        ospSetFloat(material, "transmission", settings.transmission());
+        if (settings.transmission_color_size() == 3)
+            ospSetVec3f(material, "transmissionColor", settings.transmission_color(0), settings.transmission_color(1), settings.transmission_color(2)); 
+        ospSetFloat(material, "transmissionDepth", settings.transmission_depth());
+        ospSetFloat(material, "roughness", settings.roughness());
+        ospSetFloat(material, "anisotropy", settings.anisotropy());
+        ospSetFloat(material, "rotation", settings.rotation());
+        ospSetFloat(material, "baseNormal", settings.base_normal());
+        ospSetBool(material, "thin", settings.thin());
+        ospSetFloat(material, "thickness", settings.thickness());
+        ospSetFloat(material, "backlight", settings.backlight());
+        ospSetFloat(material, "coat", settings.coat());
+        ospSetFloat(material, "coatIor", settings.coat_ior());
+        if (settings.coat_color_size() == 3)
+            ospSetVec3f(material, "coatColor", settings.coat_color(0), settings.coat_color(1), settings.coat_color(2)); 
+        ospSetFloat(material, "coatThickness", settings.coat_thickness());
+        ospSetFloat(material, "coatRoughness", settings.coat_roughness());
+        ospSetFloat(material, "coatNormal", settings.coat_normal());
+        ospSetFloat(material, "sheen", settings.sheen());
+        if (settings.sheen_color_size() == 3)
+            ospSetVec3f(material, "sheenColor", settings.sheen_color(0), settings.sheen_color(1), settings.sheen_color(2)); 
+        ospSetFloat(material, "sheenTint", settings.sheen_tint());
+        ospSetFloat(material, "sheenRoughness", settings.sheen_roughness());
+        ospSetFloat(material, "opacity", settings.opacity());
+
+        break;
+    }
+
     default:
         printf("ERROR: unknown material update type %d!\n", update.type());
 

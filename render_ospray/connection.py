@@ -42,7 +42,7 @@ from .messages_pb2 import (
     RenderResult,
     UpdateObject, UpdatePluginInstance,
     Volume, Slices, Slice,
-    MaterialUpdate, GlassSettings, LuminousSettings, MetallicPaintSettings, OBJMaterialSettings
+    MaterialUpdate, GlassSettings, LuminousSettings, MetallicPaintSettings, OBJMaterialSettings, PrincipledSettings
 )
 
 # Object to world matrix
@@ -561,6 +561,38 @@ class Connection:
             settings.flake_amount = inputs['Flake amount'].default_value
             settings.flake_spread = inputs['Flake spread'].default_value
             settings.eta = inputs['Eta'].default_value
+
+        elif idname == 'OSPRayPrincipled':
+            update.type = MaterialUpdate.PRINCIPLED
+            settings = PrincipledSettings()
+            settings.base_color[:] = inputs['Base color'].default_value[:3]  
+            settings.edge_color[:] = inputs['Edge color'].default_value[:3]  
+            settings.metallic = inputs['Metallic'].default_value
+            settings.diffuse = inputs['Diffuse'].default_value
+            settings.specular = inputs['Specular'].default_value
+            settings.ior = inputs['IOR'].default_value
+            settings.transmission = inputs['Transmission'].default_value
+            settings.transmission_color[:] = inputs['Transmission color'].default_value[:3]
+            settings.transmission_depth = inputs['Transmission depth'].default_value
+            settings.roughness = inputs['Roughness'].default_value
+            settings.anisotropy = inputs['Anisotropy'].default_value
+            settings.rotation = inputs['Rotation'].default_value
+            settings.normal = inputs['Normal'].default_value
+            settings.base_normal = inputs['Base normal'].default_value
+            settings.thin = inputs['Thin'].default_value
+            settings.thickness = inputs['Thickness'].default_value
+            settings.backlight = inputs['Backlight'].default_value
+            settings.coat = inputs['Coat'].default_value
+            settings.coat_ior = inputs['Coat IOR'].default_value
+            settings.coat_color[:] = inputs['Coat color'].default_value[:3]
+            settings.coat_thickness = inputs['Coat thickness'].default_value
+            settings.coat_roughness = inputs['Coat roughness'].default_value
+            settings.coat_normal = inputs['Coat normal'].default_value
+            settings.sheen = inputs['Sheen'].default_value
+            settings.sheen_color[:] = inputs['Sheen color'].default_value[:3]
+            settings.sheen_tint = inputs['Sheen tint'].default_value
+            settings.sheen_roughness = inputs['Sheen roughness'].default_value
+            settings.opacity = inputs['Opacity'].default_value
 
         else:
             print('... WARNING: shader of type "%s" not handled!' % shadernode.bl_idname)
