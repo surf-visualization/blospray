@@ -106,9 +106,10 @@ create_geometry(GenerateFunctionResult &result, PluginState *state)
     
     state->geometry = create_plane(0.0f, 0.0f, 0.0f, size_x, size_y);    
     
-    state->bound = BoundingMesh::bbox_edges(
+    state->bound = BoundingMesh::bbox(
         -0.5f*size_x, -0.5f*size_y, -1e-3f,
-        0.5f*size_x, 0.5f*size_y, 1e-3f);
+        0.5f*size_x, 0.5f*size_y, 1e-3f,
+        true);
 }
 
 static PluginParameters 

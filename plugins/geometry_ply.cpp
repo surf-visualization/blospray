@@ -360,9 +360,10 @@ load_ply_file(GenerateFunctionResult &result, PluginState *state)
         i += 3;
     }
 
-    state->bound = BoundingMesh::bbox_edges(
+    state->bound = BoundingMesh::bbox(
         min[0], min[1], min[2], 
-        max[0], max[1], max[2]
+        max[0], max[1], max[2],
+        true
     );
 }
 

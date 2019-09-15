@@ -1,13 +1,24 @@
 #include "bounding_mesh.h"
+#include "config.h"
+
+#ifdef VTK_QC_BOUND
+#include <vtkPolyData.h>
+#include <vtkQuadricClustering.h>
+#include <vtkSmartPointer.h>
+#include <vtkTriangleFilter.h>
+#endif
 
 BoundingMesh*
-BoundingMesh::bbox_edges(float xmin, float ymin, float zmin, float xmax, float ymax, float zmax)
+BoundingMesh::bbox(float xmin, float ymin, float zmin, float xmax, float ymax, float zmax, bool edges_only)
 {        
     BoundingMesh *bm = new BoundingMesh;
     
-    std::vector<float> &vertices = bm->vertices;
-    std::vector<uint32_t> &edges = bm->edges;
-    
+    std::vector<float>      &vertices = bm->vertices;
+    std::vector<uint32_t>   &edges = bm->edges;
+    std::vector<uint32_t>   &faces = bm->faces;
+    std::vector<uint32_t>   &loop_start = bm->loop_start;
+    std::vector<uint32_t>   &loop_total = bm->loop_total;
+
     vertices.push_back(xmin);    vertices.push_back(ymin);    vertices.push_back(zmin);
     vertices.push_back(xmax);    vertices.push_back(ymin);    vertices.push_back(zmin);
     vertices.push_back(xmax);    vertices.push_back(ymax);    vertices.push_back(zmin);
@@ -18,58 +29,142 @@ BoundingMesh::bbox_edges(float xmin, float ymin, float zmin, float xmax, float y
     vertices.push_back(xmax);    vertices.push_back(ymax);    vertices.push_back(zmax);
     vertices.push_back(xmin);    vertices.push_back(ymax);    vertices.push_back(zmax);
     
-    edges.push_back(0);     edges.push_back(1);
-    edges.push_back(1);     edges.push_back(2);
-    edges.push_back(2);     edges.push_back(3);
-    edges.push_back(3);     edges.push_back(0);
+    if (edges_only)
+    {    
+        edges.push_back(0);     edges.push_back(1);
+        edges.push_back(1);     edges.push_back(2);
+        edges.push_back(2);     edges.push_back(3);
+        edges.push_back(3);     edges.push_back(0);
 
-    edges.push_back(4);     edges.push_back(5);
-    edges.push_back(5);     edges.push_back(6);
-    edges.push_back(6);     edges.push_back(7);
-    edges.push_back(7);     edges.push_back(4);
-    
-    edges.push_back(0);     edges.push_back(4);
-    edges.push_back(1);     edges.push_back(5);
-    edges.push_back(2);     edges.push_back(6);
-    edges.push_back(3);     edges.push_back(7);
+        edges.push_back(4);     edges.push_back(5);
+        edges.push_back(5);     edges.push_back(6);
+        edges.push_back(6);     edges.push_back(7);
+        edges.push_back(7);     edges.push_back(4);
+        
+        edges.push_back(0);     edges.push_back(4);
+        edges.push_back(1);     edges.push_back(5);
+        edges.push_back(2);     edges.push_back(6);
+        edges.push_back(3);     edges.push_back(7);
+    }
+    else
+    {
+        faces.push_back(0); faces.push_back(1); faces.push_back(5); faces.push_back(4);
+        faces.push_back(1); faces.push_back(2); faces.push_back(6); faces.push_back(5);
+        faces.push_back(5); faces.push_back(6); faces.push_back(7); faces.push_back(4);
+        faces.push_back(2); faces.push_back(6); faces.push_back(7); faces.push_back(3);
+        faces.push_back(3); faces.push_back(7); faces.push_back(4); faces.push_back(0);
+        faces.push_back(0); faces.push_back(1); faces.push_back(2); faces.push_back(3);
+        
+        for (int i = 0; i < 6; i++)
+        {
+            loop_start.push_back(i*4);
+            loop_total.push_back(4);
+        } 
+    }
     
     return bm;
 }    
 
+// https://github.com/sp4cerat/Fast-Quadric-Mesh-Simplification
+// https://lorensen.github.io/VTKExamples/site/Cxx/Meshes/QuadricDecimation/
+// https://vtk.org/doc/nightly/html/classvtkQuadricClustering.html
+
 BoundingMesh*
-BoundingMesh::bbox_mesh(float xmin, float ymin, float zmin, float xmax, float ymax, float zmax)
+BoundingMesh::simplify_qc(const float *vertices, int num_vertices, const uint32_t *triangles, int num_triangles, int divisions)
 {
+#ifdef VTK_QC_BOUND
+    vtkSmartPointer<vtkPolyData> polydata = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
+    vtkSmartPointer<vtkCellArray> polys = vtkSmartPointer<vtkCellArray>::New();
+    vtkIdType triangle[3];
+
+    for (int i = 0; i < num_vertices; i++)  
+        points->InsertNextPoint(vertices[3*i], vertices[3*i+1], vertices[3*i+2]);
+
+    for (int i = 0; i < num_triangles; i++)
+    {
+        triangle[0] = triangles[3*i+0];
+        triangle[1] = triangles[3*i+1];
+        triangle[2] = triangles[3*i+2];
+        polys->InsertNextCell(3, triangle);
+    }
+
+    polydata->SetPoints(points);
+    polydata->SetPolys(polys);
+
+    vtkSmartPointer<vtkQuadricClustering> decimate = vtkSmartPointer<vtkQuadricClustering>::New();
+    decimate->SetInputData(polydata);
+    decimate->SetNumberOfDivisions(divisions, divisions, divisions);
+    decimate->AutoAdjustNumberOfDivisionsOn();
+    //decimate->UseFeatureEdgesOn();
+
+    vtkSmartPointer<vtkTriangleFilter> trifilter = vtkSmartPointer<vtkTriangleFilter>::New();
+    trifilter->SetInputConnection(decimate->GetOutputPort());
+    trifilter->Update();
+
+    vtkSmartPointer<vtkPolyData> decimated = vtkSmartPointer<vtkPolyData>::New();
+    decimated->ShallowCopy(trifilter->GetOutput());
+    printf("decimated: %d pts, %d polys\n", decimated->GetNumberOfPoints(), decimated->GetNumberOfPolys());
+
+    points = decimated->GetPoints();
+    polys = decimated->GetPolys();
+
     BoundingMesh *bm = new BoundingMesh;
     
-    std::vector<float>      &vertices = bm->vertices;
+    std::vector<float>      &bm_vertices = bm->vertices;
+    //std::vector<uint32_t>   &edges = bm->edges;
     std::vector<uint32_t>   &faces = bm->faces;
     std::vector<uint32_t>   &loop_start = bm->loop_start;
     std::vector<uint32_t>   &loop_total = bm->loop_total;
-    
-    vertices.push_back(xmin);    vertices.push_back(ymin);    vertices.push_back(zmin);
-    vertices.push_back(xmax);    vertices.push_back(ymin);    vertices.push_back(zmin);
-    vertices.push_back(xmax);    vertices.push_back(ymax);    vertices.push_back(zmin);
-    vertices.push_back(xmin);    vertices.push_back(ymax);    vertices.push_back(zmin);
-    
-    vertices.push_back(xmin);    vertices.push_back(ymin);    vertices.push_back(zmax);
-    vertices.push_back(xmax);    vertices.push_back(ymin);    vertices.push_back(zmax);
-    vertices.push_back(xmax);    vertices.push_back(ymax);    vertices.push_back(zmax);
-    vertices.push_back(xmin);    vertices.push_back(ymax);    vertices.push_back(zmax);
-    
-    faces.push_back(0); faces.push_back(1); faces.push_back(5); faces.push_back(4);
-    faces.push_back(1); faces.push_back(2); faces.push_back(6); faces.push_back(5);
-    faces.push_back(5); faces.push_back(6); faces.push_back(7); faces.push_back(4);
-    faces.push_back(2); faces.push_back(6); faces.push_back(7); faces.push_back(3);
-    faces.push_back(3); faces.push_back(7); faces.push_back(4); faces.push_back(0);
-    faces.push_back(0); faces.push_back(1); faces.push_back(2); faces.push_back(3);
-    
-    for (int i = 0; i < 6; i++)
+
+    for (int i = 0; i < points->GetNumberOfPoints(); i++)
     {
-        loop_start.push_back(i*4);
-        loop_total.push_back(4);
+        const double *p = points->GetPoint(i);
+        bm_vertices.push_back(p[0]);
+        bm_vertices.push_back(p[1]);
+        bm_vertices.push_back(p[2]);
     }
-    
+
+    vtkIdType npts, *pts; 
+    int i = 0;
+    polys->InitTraversal();
+    while (polys->GetNextCell(npts, pts))
+    {
+        assert(npts == 3);
+
+        faces.push_back(pts[0]);
+        faces.push_back(pts[1]);
+        faces.push_back(pts[2]);
+
+        loop_start.push_back(i);
+        loop_total.push_back(3);
+
+        i += 3;
+    }
+ 
     return bm;
+#else
+    // VTK not available, return regular AABB
+    float   min[3] = {1e6, 1e6, 1e6}, max[3] = {-1e6, -1e6, -1e6};
+    float   x, y, z;
+
+    for (int i = 0; i < nv; i++)
+    {
+        x = vertices[3*i+0];
+        y = vertices[3*i+1];
+        z = vertices[3*i+2];
+
+        min[0] = std::min(min[0], x);
+        min[1] = std::min(min[1], y);
+        min[2] = std::min(min[2], z);
+
+        max[0] = std::max(max[0], x);
+        max[1] = std::max(max[1], y);
+        max[2] = std::max(max[2], z);
+    }
+
+    return BoundingMesh::bbox(min[0], min[1], min[2], max[0], max[1], max[2], edges_only);
+#endif
 }
 
 BoundingMesh::BoundingMesh() 

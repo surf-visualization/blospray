@@ -234,7 +234,7 @@ generate(GenerateFunctionResult &result, PluginState *state)
     instances.push_back(std::make_pair(group, glm::mat4(1.0f)));
     // XXX hmm, can't release group here?    
 
-    state->bound = BoundingMesh::bbox_edges(0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f);
+    state->bound = BoundingMesh::bbox(0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, true);
 }
 
 

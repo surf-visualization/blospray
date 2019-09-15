@@ -61,7 +61,7 @@ generate(GenerateFunctionResult &result, PluginState *state)
     state->volume = volume;
     state->volume_data_range[0] = voxelRange.x;
     state->volume_data_range[1] = voxelRange.y;
-    state->bound = BoundingMesh::bbox_mesh(
+    state->bound = BoundingMesh::bbox(
         bounds.lower.x, bounds.lower.y, bounds.lower.z,
         bounds.upper.x, bounds.upper.y, bounds.upper.z
     );

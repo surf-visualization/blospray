@@ -138,9 +138,10 @@ generate(GenerateFunctionResult &result, PluginState *state)
     state->volume = volume;
     state->volume_data_range[0] = minval;
     state->volume_data_range[1] = maxval;
-    state->bound = BoundingMesh::bbox_edges(
+    state->bound = BoundingMesh::bbox(
         origin[0], origin[1], origin[2],
-        origin[0]+spacing[0]*dims[0], origin[1]+spacing[1]*dims[1], origin[2]+spacing[2]*dims[2]
+        origin[0]+spacing[0]*dims[0], origin[1]+spacing[1]*dims[1], origin[2]+spacing[2]*dims[2],
+        true
     ); 
 }
 

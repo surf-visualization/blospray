@@ -6,13 +6,14 @@
 
 // A plugin can return a bounding mesh, to be used as proxy object
 // in the blender scene. The mesh geometry is defined in the same way
-// as in Blender: vertices, edges and polygons.
+// as in Blender: vertices, edges and faces.
 
 struct BoundingMesh
 {
-    // Convenience methods for constructing an axis-aligned bounding box
-    static BoundingMesh *bbox_edges(float xmin, float ymin, float zmin, float xmax, float ymax, float zmax);
-    static BoundingMesh *bbox_mesh(float xmin, float ymin, float zmin, float xmax, float ymax, float zmax);
+    // Convenience method for constructing an axis-aligned bounding box
+    static BoundingMesh *bbox(float xmin, float ymin, float zmin, float xmax, float ymax, float zmax, bool edges_only=false);
+    // Or a simplified  (requires VTK)
+    static BoundingMesh *simplify_qc(const float *vertices, int nv, const uint32_t *triangles, int nt, int divisions);
     
     // Deserialize
     static BoundingMesh *deserialize(const uint8_t *buffer, uint32_t size);

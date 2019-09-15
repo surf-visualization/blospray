@@ -138,13 +138,15 @@ load_file(GenerateFunctionResult &result, PluginState *state)
     float       min[3] = {1e6, 1e6, 1e6}, max[3] = {-1e6, -1e6, -1e6};
     float       x, y, z;
 
+    std::vector<float> vertices;
+    std::vector<uint32_t> triangles;
+
     // Triangle mesh
     OSPGeometry geometry = ospNewGeometry("triangles");
     {
         printf("... %d vertices\n", nvertices);
 
         // Vertices
-        std::vector<float> vertices;
         auto& mv = mesh->mVertices;
 
         for (int i = 0; i < nvertices; i++)
@@ -177,7 +179,6 @@ load_file(GenerateFunctionResult &result, PluginState *state)
         printf("... %d triangles\n",  mesh->mNumFaces);
 
         // Triangles
-        std::vector<uint32_t> triangles;
         auto& ff = mesh->mFaces;
 
         for (int i = 0; i < mesh->mNumFaces; i++)
@@ -286,18 +287,18 @@ load_file(GenerateFunctionResult &result, PluginState *state)
 
     state->geometry = geometry;
 
-    // Bounding box edges based on vertices
-
-    state->bound = BoundingMesh::bbox_edges(
-        min[0], min[1], min[2], 
-        max[0], max[1], max[2]
-    );
+    state->bound = BoundingMesh::simplify_qc(
+        vertices.data(), vertices.size()/3,
+        triangles.data(), triangles.size()/3, 
+        10
+        );
 }
 
 static PluginParameters 
 parameters = {
     
-    {"file",          PARAM_STRING,    1, FLAG_GEOMETRY, "Geometry file to load"},
+    {"file",          PARAM_STRING,     1, FLAG_GEOMETRY, "Geometry file to load"},
+    //{"divisions",     PARAM_INT,        1, FLAG_GEOMETRY, "Divisions (for QC simplification)"},
         
     PARAMETERS_DONE         // Sentinel (signals end of list)
 };

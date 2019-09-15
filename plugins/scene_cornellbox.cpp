@@ -62,7 +62,7 @@ generate(GenerateFunctionResult &result, PluginState *state)
     ospCommit(light);
     state->lights.push_back(light);
    
-    state->bound = BoundingMesh::bbox_mesh(
+    state->bound = BoundingMesh::bbox(
         -1.0f, -1.0f, -1.0f,
         1.0f, 1.0f, 1.0f
     );

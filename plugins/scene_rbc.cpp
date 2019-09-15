@@ -400,7 +400,7 @@ generate(GenerateFunctionResult &result, PluginState *state)
     
     printf("Data loaded...\n");
     
-    state->bound = BoundingMesh::bbox_mesh(
+    state->bound = BoundingMesh::bbox(
         0.0f, 0.0f, 0.0f, 
         2000.0f, 1000.0f, 1000.0f
     );

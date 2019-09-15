@@ -20,22 +20,26 @@
 # https://stackoverflow.com/a/45843676/9296788 has a nice overview of 
 # setting up a cmake project
 
-cmake_policy(SET CMP0048 NEW)   # Project version
-
-project(blospray
-    VERSION 0.2
-    DESCRIPTION "Blender external rendering engine using Intel OSPRay")
-
 # Might be able to lower this, but e.g.
 # 3.9 does not have a cmake module to find protobuf
 cmake_minimum_required(VERSION 3.12)
+
+cmake_policy(SET CMP0048 NEW)   # Project version
+
+set(BLOSPRAY_VERSION_MAJOR 0)
+set(BLOSPRAY_VERSION_MINOR 2)
+
+project(blospray
+    VERSION "${BLOSPRAY_VERSION_MAJOR}.${BLOSPRAY_VERSION_MINOR}"
+    DESCRIPTION "Blender external rendering engine using Intel OSPRay")
+
 
 option(PLUGIN_COSMOGRID "Build cosmogrid scene plugin (needs uhdf5 and HDF5)" OFF)
 option(PLUGIN_PLY "Build PLY geometry plugin (needs rply 1.1.4 sources)" OFF)
 option(PLUGIN_ASSIMP "Build Assimp geometry plugin (needs Assimp)" OFF)
 option(PLUGIN_VOLUME_HDF5 "Build PLY geometry plugin (needs uhdf5 and HDF5)" OFF)
 option(ADDRESS_SANITIZER "Compile with GCC's AddressSanitizer" OFF)
-option(QHULL_CONVEX_BOUND "Add support to generate a convex hull bound using Qhull" OFF)
+option(VTK_QC_BOUND "Add support to generate a simplified bound using VTK" OFF)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmakemodules")
 include(FindOpenImageIO)
@@ -93,17 +97,35 @@ if(PLUGIN_ASSIMP)
     FIND_PACKAGE(assimp)
 endif(PLUGIN_ASSIMP)
 
-if(QHULL_CONVEX_BOUND)
-    FIND_PACKAGE(Qhull)
-    if(NOT Qhull_FOUND)
-        message (FATAL_ERROR "Cannot find Qhull")
+if(VTK_QC_BOUND)
+    # https://lorensen.github.io/VTKExamples/site/Cxx/Meshes/QuadricClustering/
+    FIND_PACKAGE(VTK
+        COMPONENTS
+        vtkCommonCore
+        vtkCommonDataModel
+        vtkFiltersCore
+        )
+
+    if(NOT VTK_FOUND)
+        message (FATAL_ERROR "Cannot find VTK: ${VTK_NOT_FOUND_MESSAGE}")
     endif()
-endif(QHULL_CONVEX_BOUND)
+
+    message (STATUS "VTK_VERSION: ${VTK_VERSION}")
+endif(VTK_QC_BOUND)
 
 include_directories("${CMAKE_SOURCE_DIR}/core")		# json.hpp in faker
 include_directories(${OSPRAY_INCLUDE_DIRS})
 include_directories(${Boost_INCLUDE_DIR})
 include_directories(${GLM_INCLUDE_DIRS})
+
+# Config file
+
+configure_file (
+  "${PROJECT_SOURCE_DIR}/config.h.in"
+  "${PROJECT_BINARY_DIR}/config.h"
+  )
+
+include_directories("${PROJECT_BINARY_DIR}")
 
 # Library
 add_subdirectory(core)
