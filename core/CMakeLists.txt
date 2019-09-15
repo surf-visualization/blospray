@@ -42,24 +42,29 @@ add_custom_command(
         "Generating C++ and Python protobuf sources"
     VERBATIM)
 
-add_executable(ospray_render_server 
-    ospray_render_server.cpp 
+add_library(libblospray
+    SHARED
+    bounding_mesh.cpp
     image.cpp
-    ${PROTO_CPP_CPP}
-    ${PROTO_CPP_H})
-    
-set_target_properties(ospray_render_server
+    ${PROTO_CPP_CPP})
+
+set_target_properties(libblospray
     PROPERTIES
-    INSTALL_RPATH "\\\$ORIGIN")
+    OUTPUT_NAME blospray
+    VERSION ${PROJECT_VERSION}
+    SOVERSION 1
+    PUBLIC_HEADER plugin.h
+    INSTALL_RPATH "\\\$ORIGIN"
+    )
     
-target_include_directories(ospray_render_server
+target_include_directories(libblospray
     PUBLIC
     ${PROTOBUF_INCLUDE_DIRS}
     ${CMAKE_CURRENT_BINARY_DIR}
     ${CMAKE_BINARY_DIR}
 )
 
-target_link_libraries(ospray_render_server
+target_link_libraries(libblospray
     PUBLIC
     dl
     Threads::Threads
@@ -73,7 +78,7 @@ target_link_libraries(ospray_render_server
 # Installation (including setting rpath)
 
 install(TARGETS 
-    ospray_render_server 
+    libblospray 
     DESTINATION bin)
 
 #install(FILES

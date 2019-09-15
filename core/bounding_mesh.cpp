@@ -1,3 +1,5 @@
+#include "bounding_mesh.h"
+
 BoundingMesh*
 BoundingMesh::bbox_edges(float xmin, float ymin, float zmin, float xmax, float ymax, float zmax)
 {        
