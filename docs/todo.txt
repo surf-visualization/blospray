@@ -26,8 +26,6 @@ Fix/improve/optimize
   For area lights the intensity value in ospray is per unit area, so scaling the
   light larger leads to more light in the scene. This is different from cycles,
   where changing the size keeps the scene lighting the same.
-- Allow parenting a plane mesh to a volume to set slice planes, similar
-  for the upcoming clip feature
 - Improve the caching of scene elements, e.g. by having the the client get
   a list of elements from the server including hashes to figure out what
   data to send/update. Also check use of exported_meshes in connection.py
@@ -47,10 +45,10 @@ Tests/examples:
 - xmas missing data in repo?
 
 Must haves
+- Make materials work on slices and isosurfaces, plus geometry plugins
 - Light UI panel
 - Volume UI panel
 - Camera UI panel
-- More render settings in the UI
 - TF editor in Blender
 - Interactive preview rendering, including adaptive accumulation
 - Better error handling and recovery
@@ -65,7 +63,6 @@ Very nice to haves ;-)
 
 Nice to haves
 - Start/stop server during rendering automatically
-- UI button to get stats from server on currently loaded scene
 - Handle text objects
 - Reduce overhead in server -> client communication. E.g. render
   of angel.blend in 3840x2160 @ 4 spp takes 40.972s on the server,
@@ -80,10 +77,11 @@ Nice to haves
 - Preview rendering of materials
 - Option to NOT send every sample image when doing final render 
   (saves overhead of transfering images)
-- Provide utility function to create bounding convex hull
-  from vertices
 - Option to control caching level: nothing, plugin instances, ..., all
   Or similar controls, e.g. cache plugin instances, cache blender meshes
+- Check use of depsgraph_update_post_handler()
+  https://wiki.blender.org/wiki/Reference/Release_Notes/2.81/Python_API
+  for automatically updating extent mesh during render
 
 Obscure to haves
 - Handle multiple concurrent renders in Blender
@@ -105,11 +103,10 @@ Test
 
 
 Look into
-- How to leverage blender's node system
 - OSPRay's extension modules and scenegraph, mostly w.r.t. model loading.
   Plus look at overlap in functionality with our own plugins. It seems
   ospray plugins need an ispc component, which makes them less attractive
   to use for end users (yet another tool/syntax to learn).
 - ospray 2.0 async rendering support
-- ospray 2.0 model clipping
+- ospray 2.0 model clipping (if it arrives)
 - ospray_sg
