@@ -148,7 +148,7 @@ BoundingMesh::simplify_qc(const float *vertices, int num_vertices, const uint32_
     float   min[3] = {1e6, 1e6, 1e6}, max[3] = {-1e6, -1e6, -1e6};
     float   x, y, z;
 
-    for (int i = 0; i < nv; i++)
+    for (int i = 0; i < num_vertices; i++)
     {
         x = vertices[3*i+0];
         y = vertices[3*i+1];
@@ -163,7 +163,7 @@ BoundingMesh::simplify_qc(const float *vertices, int num_vertices, const uint32_
         max[2] = std::max(max[2], z);
     }
 
-    return BoundingMesh::bbox(min[0], min[1], min[2], max[0], max[1], max[2], edges_only);
+    return BoundingMesh::bbox(min[0], min[1], min[2], max[0], max[1], max[2], true);
 #endif
 }
 
