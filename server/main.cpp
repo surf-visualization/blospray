@@ -1812,12 +1812,8 @@ handle_update_object(TCPSocket *sock)
 }
 
 void
-handle_update_camera(TCPSocket *sock)
+update_camera(CameraSettings& camera_settings)
 {
-    CameraSettings camera_settings;
-
-    receive_protobuf(sock, camera_settings);
-
     printf("CAMERA '%s' (camera)\n", camera_settings.object_name().c_str());
     printf("--> '%s' (camera data)\n", camera_settings.camera_name().c_str());
 
@@ -2457,6 +2453,8 @@ handle_connection(TCPSocket *sock)
     RenderResult        render_result;
     RenderResult::Type  rr_type;
 
+    CameraSettings      camera_settings;
+
     std::thread         render_thread;
     bool                rendering = false;
 
@@ -2528,7 +2526,7 @@ handle_connection(TCPSocket *sock)
                     break;
                 
                 case ClientMessage::UPDATE_CAMERA:
-                    handle_update_camera(sock);
+                    update_camera(camera_settings);
                     break;
 
                 case ClientMessage::UPDATE_MATERIAL:
