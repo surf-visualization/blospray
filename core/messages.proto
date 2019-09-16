@@ -290,15 +290,59 @@ message MaterialUpdate
 {
     enum Type
     {
-        OBJMATERIAL = 0;
-        PRINCIPLED = 1;
-        GLASS = 2;
-        LUMINOUS = 3;
-        METALLIC_PAINT = 4;
+        CAR_PAINT = 0;
+        GLASS = 1;
+        LUMINOUS = 2;
+        METALLIC_PAINT = 3;
+        OBJMATERIAL = 4;
+        PRINCIPLED = 5;
     }
 
     Type    type = 1;
     string  name = 2;
+}
+
+message CarPaintSettings
+{
+    repeated float  base_color = 1;
+    float           roughness = 2;
+    float           normal = 3;
+    float           flake_density = 4;
+    float           flake_scale = 5;
+    float           flake_spread = 6;
+    float           flake_jitter = 7;
+    float           flake_roughness = 8;
+    float           coat = 9;
+    float           coat_ior = 10;
+    repeated float  coat_color = 11;
+    float           coat_thickness = 12;
+    float           coat_roughness = 13;
+    float           coat_normal = 14;
+    repeated float  flipflop_color = 15;
+    float           flipflop_falloff = 16;
+}
+
+message GlassSettings
+{
+    float           eta = 1;
+    repeated float  attenuation_color = 2;
+    float           attenuation_distance = 3;
+}
+
+message LuminousSettings
+{
+    repeated float  color = 1;
+    float           intensity = 2;
+    float           transparency = 3;
+}
+
+message MetallicPaintSettings
+{
+    repeated float  base_color = 1;     // map_base_color
+    float           flake_amount = 2;
+    repeated float  flake_color = 3;
+    float           flake_spread = 4;
+    float           eta = 5;
 }
 
 message OBJMaterialSettings
@@ -347,29 +391,6 @@ message PrincipledSettings
     float sheen_tint = 26;
     float sheen_roughness = 27;
     float opacity = 28;
-}
-
-message GlassSettings
-{
-    float           eta = 1;
-    repeated float  attenuation_color = 2;
-    float           attenuation_distance = 3;
-}
-
-message LuminousSettings
-{
-    repeated float  color = 1;
-    float           intensity = 2;
-    float           transparency = 3;
-}
-
-message MetallicPaintSettings
-{
-    repeated float  base_color = 1;     // map_base_color
-    float           flake_amount = 2;
-    repeated float  flake_color = 3;
-    float           flake_spread = 4;
-    float           eta = 5;
 }
 
 // Plugins

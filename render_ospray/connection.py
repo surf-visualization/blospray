@@ -42,7 +42,8 @@ from .messages_pb2 import (
     RenderResult,
     UpdateObject, UpdatePluginInstance,
     Volume, Slices, Slice,
-    MaterialUpdate, GlassSettings, LuminousSettings, MetallicPaintSettings, OBJMaterialSettings, PrincipledSettings
+    MaterialUpdate, 
+    CarPaintSettings, GlassSettings, LuminousSettings, MetallicPaintSettings, OBJMaterialSettings, PrincipledSettings
 )
 
 # Object to world matrix
@@ -547,13 +548,25 @@ class Connection:
         idname = shadernode.bl_idname
         inputs = shadernode.inputs
 
-        if idname == 'OSPRayOBJMaterial':
-            update.type = MaterialUpdate.OBJMATERIAL
-            settings = OBJMaterialSettings()
-            settings.kd[:] = list(inputs['Diffuse'].default_value)[:3]
-            settings.ks[:] = list(inputs['Specular'].default_value)[:3]
-            settings.ns = inputs['Shininess'].default_value
-            settings.d = inputs['Opacity'].default_value
+        if idname == 'OSPRayCarPaint':
+            update.type = MaterialUpdate.CAR_PAINT
+            settings = CarPaintSettings()
+            settings.base_color[:] = inputs['Base color'].default_value[:3]  
+            settings.roughness = inputs['Roughness'].default_value
+            settings.normal = inputs['Normal'].default_value
+            settings.flake_density = inputs['Flake density'].default_value
+            settings.flake_scale = inputs['Flake scale'].default_value            
+            settings.flake_spread = inputs['Flake spread'].default_value
+            settings.flake_jitter = inputs['Flake jitter'].default_value
+            settings.flake_roughness = inputs['Flake roughness'].default_value
+            settings.coat = inputs['Coat'].default_value
+            settings.coat_ior = inputs['Coat IOR'].default_value
+            settings.coat_color[:] = inputs['Coat color'].default_value[:3]
+            settings.coat_thickness = inputs['Coat thickness'].default_value
+            settings.coat_roughness = inputs['Coat roughness'].default_value
+            settings.coat_normal = inputs['Coat normal'].default_value
+            settings.flipflop_color[:] = inputs['Flipflop color'].default_value[:3]
+            settings.flipflop_falloff = inputs['Flipflop falloff'].default_value
 
         elif idname == 'OSPRayGlass':
             update.type = MaterialUpdate.GLASS
@@ -577,6 +590,14 @@ class Connection:
             settings.flake_amount = inputs['Flake amount'].default_value
             settings.flake_spread = inputs['Flake spread'].default_value
             settings.eta = inputs['Eta'].default_value
+
+        elif idname == 'OSPRayOBJMaterial':
+            update.type = MaterialUpdate.OBJMATERIAL
+            settings = OBJMaterialSettings()
+            settings.kd[:] = list(inputs['Diffuse'].default_value)[:3]
+            settings.ks[:] = list(inputs['Specular'].default_value)[:3]
+            settings.ns = inputs['Shininess'].default_value
+            settings.d = inputs['Opacity'].default_value
 
         elif idname == 'OSPRayPrincipled':
             update.type = MaterialUpdate.PRINCIPLED

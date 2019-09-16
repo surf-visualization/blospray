@@ -164,50 +164,66 @@ class OSPRayOutputNode(bpy.types.Node):
         self.inputs.new('NodeSocketShader', 'Material')
 
 
-class OSPRayOBJMaterial(bpy.types.Node):
-    """OBJMaterial"""
-    bl_idname = 'OSPRayOBJMaterial'
-    bl_label = 'OBJMaterial'
+class OSPRayCarPaint(bpy.types.Node):
+    """Car paint material"""
+    bl_idname = 'OSPRayCarPaint'
+    bl_label = 'Car paint'
     bl_icon = 'SOUND'
     bl_color = (0, 0.7, 0, 1)           # XXX doesn't work?
 
     def init(self, context):
-        # all inputs, except Tf, can be controled using a texture
+        # all inputs can be controlled using a texture
         
-        diffuse = self.inputs.new('NodeSocketColor', 'Diffuse')
-        diffuse.default_value = (0.8, 0.8, 0.8, 1.0)
-        
-        specular = self.inputs.new('NodeSocketColor', 'Specular')    
-        specular.default_value = (0, 0, 0, 1)
-        
-        shininess = self.inputs.new('NodeSocketFloat', 'Shininess') 
-        shininess.default_value = 10
-        
-        opacity = self.inputs.new('OSPRaySocketFloat_0_1', 'Opacity')  
-        opacity.default_value = 1.0
-        
-        # path tracer only
-        transparency_filter_color = self.inputs.new('NodeSocketColor', 'Transparency color (Tf)')    
-        transparency_filter_color.default_value = (0, 0, 0, 1)
-        
-        # texture
-        normal_map = self.inputs.new('NodeSocketColor', 'Normal map')    
-        normal_map.hide_value = True
+        base_color = self.inputs.new('NodeSocketColor', 'Base color')
+        base_color.default_value = (0.8, 0.8, 0.8, 1)
+
+        roughness = self.inputs.new('OSPRaySocketFloat_0_1', 'Roughness')    
+        roughness.default_value = 0
+
+        normal = self.inputs.new('OSPRaySocketFloat_NonNegative', 'Normal')    
+        normal.default_value = 1
+
+        flake_density = self.inputs.new('OSPRaySocketFloat_0_1', 'Flake density')    
+        flake_density.default_value = 0
+
+        flake_scale = self.inputs.new('OSPRaySocketFloat_NonNegative', 'Flake scale')
+        flake_scale.default_value = 100
+
+        flake_spread = self.inputs.new('OSPRaySocketFloat_0_1', 'Flake spread')    
+        flake_spread.default_value = 0.3
+
+        flake_jitter = self.inputs.new('OSPRaySocketFloat_0_1', 'Flake jitter')    
+        flake_jitter.default_value = 0.75
+
+        flake_roughness = self.inputs.new('OSPRaySocketFloat_0_1', 'Flake roughness')    
+        flake_roughness.default_value = 0.3
+
+        coat = self.inputs.new('OSPRaySocketFloat_0_1', 'Coat')    
+        coat.default_value = 0
+
+        coat_ior = self.inputs.new('OSPRaySocketFloat_IOR', 'Coat IOR')    
+        coat_ior.default_value = 1.5
+
+        coat_color = self.inputs.new('NodeSocketColor', 'Coat color')    
+        coat_color.default_value = (1, 1, 1, 1)
+
+        coat_thickness = self.inputs.new('OSPRaySocketFloat_NonNegative', 'Coat thickness')    
+        coat_thickness.default_value = 1
+
+        coat_rougness = self.inputs.new('OSPRaySocketFloat_0_1', 'Coat roughness')    
+        coat_rougness.default_value = 0
+
+        coat_normal = self.inputs.new('OSPRaySocketFloat_NonNegative', 'Coat normal')    
+        coat_normal.default_value = 1
+
+        flipflop_color = self.inputs.new('NodeSocketColor', 'Flipflop color')    
+        flipflop_color.default_value = (1, 1, 1, 1)        
+
+        flipflop_falloff = self.inputs.new('OSPRaySocketFloat_0_1', 'Flipflop falloff')    
+        flipflop_falloff.default_value = 1
         
         self.outputs.new('NodeSocketShader', 'Material')
 
-    """
-    def draw_buttons(self, context, layout):
-        ob=context.object
-        #layout.prop(ob.pov, "object_ior",slider=True)
-
-    def draw_buttons_ext(self, context, layout):
-        ob=context.object
-        #layout.prop(ob.pov, "object_ior",slider=True)
-
-    def draw_label(self):
-        return "OBJMaterial"
-    """
 
 class OSPRayGlass(bpy.types.Node):
     """Glass"""
@@ -217,7 +233,7 @@ class OSPRayGlass(bpy.types.Node):
     bl_color = (0, 0.7, 0, 1)           # XXX doesn't work?
 
     def init(self, context):
-        # all inputs, except Tf, can be controled using a texture
+        # all inputs, except Tf, can be controlled using a texture
         
         eta = self.inputs.new('OSPRaySocketFloat_IOR', 'Eta')
         eta.default_value = 1.5
@@ -280,6 +296,51 @@ class OSPRayMetallicPaint(bpy.types.Node):
         
         self.outputs.new('NodeSocketShader', 'Material')
 
+
+class OSPRayOBJMaterial(bpy.types.Node):
+    """OBJMaterial"""
+    bl_idname = 'OSPRayOBJMaterial'
+    bl_label = 'OBJMaterial'
+    bl_icon = 'SOUND'
+    bl_color = (0, 0.7, 0, 1)           # XXX doesn't work?
+
+    def init(self, context):
+        # all inputs, except Tf, can be controled using a texture
+        
+        diffuse = self.inputs.new('NodeSocketColor', 'Diffuse')
+        diffuse.default_value = (0.8, 0.8, 0.8, 1.0)
+        
+        specular = self.inputs.new('NodeSocketColor', 'Specular')    
+        specular.default_value = (0, 0, 0, 1)
+        
+        shininess = self.inputs.new('NodeSocketFloat', 'Shininess') 
+        shininess.default_value = 10
+        
+        opacity = self.inputs.new('OSPRaySocketFloat_0_1', 'Opacity')  
+        opacity.default_value = 1.0
+        
+        # path tracer only
+        transparency_filter_color = self.inputs.new('NodeSocketColor', 'Transparency color (Tf)')    
+        transparency_filter_color.default_value = (0, 0, 0, 1)
+        
+        # texture
+        normal_map = self.inputs.new('NodeSocketColor', 'Normal map')    
+        normal_map.hide_value = True
+        
+        self.outputs.new('NodeSocketShader', 'Material')
+
+    """
+    def draw_buttons(self, context, layout):
+        ob=context.object
+        #layout.prop(ob.pov, "object_ior",slider=True)
+
+    def draw_buttons_ext(self, context, layout):
+        ob=context.object
+        #layout.prop(ob.pov, "object_ior",slider=True)
+
+    def draw_label(self):
+        return "OBJMaterial"
+    """
 
 
 class OSPRayPrincipled(bpy.types.Node):
@@ -386,8 +447,11 @@ node_classes = (
     OSPRaySocketFloat_NonNegative,
     OSPRaySocketFloat_IOR,
 
-    # Nodes
+    # General nodes
     OSPRayOutputNode,
+
+    # Shader nodes
+    OSPRayCarPaint,
     OSPRayGlass,
     OSPRayLuminous,
     OSPRayMetallicPaint,
@@ -400,6 +464,7 @@ node_categories = [
     OSPRayShaderNodeCategory("SHADEROUTPUT", "OSPRay", items=[
         NodeItem("OSPRayOutputNode"),
         
+        NodeItem('OSPRayCarPaint'),
         NodeItem('OSPRayGlass'),
         NodeItem('OSPRayLuminous'),
         NodeItem('OSPRayMetallicPaint'),

@@ -1912,27 +1912,40 @@ handle_update_material(TCPSocket *sock)
     switch (update.type())
     {
 
-    case MaterialUpdate::OBJMATERIAL:
+    case MaterialUpdate::CAR_PAINT:
     {
-        OBJMaterialSettings settings;
+        CarPaintSettings settings;
 
         receive_protobuf(sock, settings);
-        printf("... OBJMaterial (Kd %.3f,%.3f,%.3f; ...)\n", settings.kd(0), settings.kd(1), settings.kd(2));
+        printf("... Car paint\n");
 
         if (scene_material == nullptr)
         {
             scene_material = new SceneMaterial;
-            material = scene_material->material = ospNewMaterial(current_renderer_type.c_str(), "OBJMaterial");
+            material = scene_material->material = ospNewMaterial(current_renderer_type.c_str(), "CarPaint");
         }
 
-        if (settings.kd_size() == 3)
-            ospSetVec3f(material, "Kd", settings.kd(0), settings.kd(1), settings.kd(2));
-        if (settings.ks_size() == 3)
-            ospSetVec3f(material, "Ks", settings.ks(0), settings.ks(1), settings.ks(2));
-        ospSetFloat(material, "Ns", settings.ns());
-        ospSetFloat(material, "d", settings.d());            
+        if (settings.base_color_size() == 3)
+            ospSetVec3f(material, "baseColor", settings.base_color(0), settings.base_color(1), settings.base_color(2));    
+        ospSetFloat(material, "roughness", settings.roughness());
+        ospSetFloat(material, "normal", settings.normal());
+        ospSetFloat(material, "flakeDensity", settings.flake_density());    
+        ospSetFloat(material, "flakeScale", settings.flake_scale());    
+        ospSetFloat(material, "flakeSpread", settings.flake_spread());    
+        ospSetFloat(material, "flakeJitter", settings.flake_jitter());    
+        ospSetFloat(material, "flakeRoughness", settings.flake_roughness());
+        ospSetFloat(material, "coat", settings.coat());
+        ospSetFloat(material, "coatIor", settings.coat_ior());
+        if (settings.coat_color_size() == 3)
+            ospSetVec3f(material, "coatColor", settings.coat_color(0), settings.coat_color(1), settings.coat_color(2)); 
+        ospSetFloat(material, "coatThickness", settings.coat_thickness());
+        ospSetFloat(material, "coatRoughness", settings.coat_roughness());
+        ospSetFloat(material, "coatNormal", settings.coat_normal());
+        if (settings.flipflop_color_size() == 3)
+            ospSetVec3f(material, "flipflopColor", settings.flipflop_color(0), settings.flipflop_color(1), settings.flipflop_color(2)); 
+        ospSetFloat(material, "flipflopFalloff", settings.flipflop_falloff());
 
-        break;
+        break;        
     }
 
     case MaterialUpdate::GLASS:
@@ -2001,6 +2014,29 @@ handle_update_material(TCPSocket *sock)
         break;
     }
 
+    case MaterialUpdate::OBJMATERIAL:
+    {
+        OBJMaterialSettings settings;
+
+        receive_protobuf(sock, settings);
+        printf("... OBJMaterial (Kd %.3f,%.3f,%.3f; ...)\n", settings.kd(0), settings.kd(1), settings.kd(2));
+
+        if (scene_material == nullptr)
+        {
+            scene_material = new SceneMaterial;
+            material = scene_material->material = ospNewMaterial(current_renderer_type.c_str(), "OBJMaterial");
+        }
+
+        if (settings.kd_size() == 3)
+            ospSetVec3f(material, "Kd", settings.kd(0), settings.kd(1), settings.kd(2));
+        if (settings.ks_size() == 3)
+            ospSetVec3f(material, "Ks", settings.ks(0), settings.ks(1), settings.ks(2));
+        ospSetFloat(material, "Ns", settings.ns());
+        ospSetFloat(material, "d", settings.d());            
+
+        break;
+    }
+
     case MaterialUpdate::PRINCIPLED:
     {
         PrincipledSettings settings;
@@ -2029,6 +2065,7 @@ handle_update_material(TCPSocket *sock)
         ospSetFloat(material, "roughness", settings.roughness());
         ospSetFloat(material, "anisotropy", settings.anisotropy());
         ospSetFloat(material, "rotation", settings.rotation());
+        ospSetFloat(material, "normal", settings.normal());
         ospSetFloat(material, "baseNormal", settings.base_normal());
         ospSetBool(material, "thin", settings.thin());
         ospSetFloat(material, "thickness", settings.thickness());
