@@ -2526,6 +2526,11 @@ handle_connection(TCPSocket *sock)
                     break;
                 
                 case ClientMessage::UPDATE_CAMERA:
+                    if (!receive_protobuf(sock, camera_settings))
+                    {
+                        sock->close();
+                        return false;
+                    }
                     update_camera(camera_settings);
                     break;
 
