@@ -59,6 +59,7 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         num_objects = 0
         num_instances = 0
         count_by_type = {}
+        count_by_instanced_object = {}
                 
         for instance in depsgraph.object_instances:
             
@@ -76,6 +77,11 @@ class CustomRenderEngine(bpy.types.RenderEngine):
             num_objects += 1
             if instance.is_instance:
                 num_instances += 1
+                instanced_object_name = instance.instance_object.name
+                if instanced_object_name not in count_by_instanced_object:
+                    count_by_instanced_object[instanced_object_name] = 1
+                else:
+                    count_by_instanced_object[instanced_object_name] += 1
                 
         scene = depsgraph.scene
         scale = scene.render.resolution_percentage / 100.0
@@ -93,11 +99,16 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         print()
         print('%d object instances in depsgraph' % num_objects)
         print('%d are instances' % num_instances)
+        print('%d objects were instanced' % len(count_by_instanced_object))
         print()
         print('Count by type:')
         for k in sorted(count_by_type.keys()):
             print('%8d | %-14s ' % (count_by_type[k], k))
         print()
+        print('Count by instanced object:')
+        for n in sorted(count_by_instanced_object):
+            print('%8d | %-32s ' % (count_by_instanced_object[n], n))
+        print()            
 
     # For viewport renders, this method gets called once at the start and
     # whenever the scene or 3D viewport changes. This method is where data
