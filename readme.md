@@ -133,7 +133,9 @@ Plus, the client-server setup also has some advantages:
 Of course, this client-server setup does introduce some overhead, in terms of 
 network latency and data (de)serialization. But in practice this overhead is 
 small compared to actual render times. Caching of data on the server 
-between renders helps reducing the overhead even further.
+between renders helps reducing the overhead even further. However, for scenes with
+thousands of objects, or where objects are instanced in large numbers the
+network overhead will become noticeable (and sometimes even prohibitive).
 
 Note that the render server currently doesn't support loading multiple different 
 Blender scenes or serving different users at the same time. And there is also 
