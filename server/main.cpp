@@ -205,7 +205,7 @@ ensure_plugin_is_loaded(GenerateFunctionResult &result, PluginDefinition &defini
             result.set_success(false);
             result.set_message("Failed to open plugin");
 
-            fprintf(stderr, "dlopen() error: %s\n", dlerror());
+            fprintf(stderr, "Failed to open plugin:\ndlopen() error: %s\n", dlerror());
             return false;
         }
 
@@ -220,7 +220,7 @@ ensure_plugin_is_loaded(GenerateFunctionResult &result, PluginDefinition &defini
             result.set_success(false);
             result.set_message("Failed to get initialization function from plugin!");
 
-            fprintf(stderr, "dlsym() error: %s\n", dlerror());
+            fprintf(stderr, "Failed to get initialization function from plugin:\ndlsym() error: %s\n", dlerror());
 
             dlclose(plugin);
 

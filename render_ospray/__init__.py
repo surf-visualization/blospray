@@ -55,6 +55,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
     bl_use_preview = False                  # Availability of material preview renders
     #bl_use_shading_nodes = True            # No longer available in 2.8, see 095df1ac217f3e43667f94ab189a67175bcd7af5
     bl_use_shading_nodes_custom = False     # If True will hide cycles shading nodes
+    #bl_use_eevee_viewport = True
     
     def __init__(self):
         print('>>> OsprayRenderEngine.__init__()')

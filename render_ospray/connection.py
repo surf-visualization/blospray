@@ -701,9 +701,14 @@ class Connection:
             if len(obj.material_slots) > 0:
                 if len(obj.material_slots) > 1:
                     print('WARNING: only exporting a single material slot!')
+
                 mslot = obj.material_slots[0]
-                assert mslot.link == 'DATA'
-                material = obj.data.materials[0]
+
+                if mslot.link == 'DATA':
+                    material = obj.data.materials[0]
+                else:
+                    # Material linked to object
+                    material = mslot.material
 
                 self.send_updated_material(data, depsgraph, material)
 
