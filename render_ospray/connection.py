@@ -758,7 +758,8 @@ class Connection:
 
                 elif volume_usage == 'slices':
                     update.type = UpdateObject.SLICES
-                    #  Process child objects for slices
+
+                    #  Process child objects to use as slices
                     ss = []
                     # Apparently the depsgraph leaves out the parenting? So get
                     # that information from the original object
@@ -787,7 +788,7 @@ class Connection:
                         self.update_blender_mesh(data, depsgraph, childobj.data, childobj.matrix_local)
 
                         slice = Slice()
-                        slice.linked_mesh = childobj.data.name
+                        slice.linked_mesh_data = childobj.data.name
                         # Note: this is the parent's object-to-world transform
                         slice.object2world[:] = matrix2list(obj.matrix_world)
                         ss.append(slice)                            

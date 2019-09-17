@@ -15,7 +15,7 @@ enum SceneObjectType
     SOT_MESH,           // Blender mesh    -> rename to SOT_TRIANGLE_MESH
     SOT_GEOMETRY,       // OSPRay geometry
     SOT_VOLUME,
-    SOT_SLICES,
+    SOT_SLICE,
     SOT_ISOSURFACES,
     SOT_SCENE,
     SOT_LIGHT           // In OSPRay these are actually stored on the renderer, not in the scene    // XXX not used?
@@ -130,6 +130,37 @@ struct SceneObjectIsosurfaces : SceneObject
 		type = SOT_ISOSURFACES;
 		vmodel = nullptr;
 		isosurfaces_geometry = ospNewGeometry("isosurfaces"); 
+		gmodel = ospNewGeometricModel(isosurfaces_geometry);
+		group = ospNewGroup();
+		OSPData data = ospNewData(1, OSP_OBJECT, &gmodel, 0);
+	        ospSetObject(group, "geometry", data);
+	    ospCommit(group);
+		instance = ospNewInstance(group);
+	}           
+
+	virtual ~SceneObjectIsosurfaces()
+	{
+		if (vmodel)
+			ospRelease(vmodel);
+		ospRelease(instance);
+	}
+};
+
+
+struct SceneObjectSlice : SceneObject
+{
+	OSPVolumetricModel vmodel;
+	OSPGeometry isosurfaces_geometry;
+	OSPGeometricModel gmodel;
+	OSPGroup group;
+	OSPInstance instance;
+	// XXX TF and material
+
+	SceneObjectSlice(): SceneObject()
+	{
+		type = SOT_SLICE;
+		vmodel = nullptr;
+		isosurfaces_geometry = ospNewGeometry("slices"); 
 		gmodel = ospNewGeometricModel(isosurfaces_geometry);
 		group = ospNewGroup();
 		OSPData data = ospNewData(1, OSP_OBJECT, &gmodel, 0);

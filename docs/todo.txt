@@ -38,6 +38,16 @@ Fix/improve/optimize
   Btw, an OSPRenderer has an 'spp' parameter, meaning we could probably
   render all samples in one go and with less overhead due to not having
   to send each sample framebuffer from server to blender
+- A blender object by default associates the material to the object data
+  and not the object itself. This actually matches the GeometricModel in
+  OSPRay, which is a combination of geometry and material(s). We currently
+  link the material to a scene object during export and not to scene data.
+  For instacing large numbers of objects (e.g. particle system) this introduces
+  quite a bit of overhead, as we don't reuse the gmodel for instancing but 
+  create a new one for each object. Volumes would need to be treated separately,
+  as there the material needs to be attached to the object in Blender, as
+  the mesh data only controls the underlying volumetric data to use and
+  not the iso/slices/volume representation (which is set by the object)
 
 Tests/examples:
 - Check "volume" prop in some of the tests, isn't needed anymore is it?

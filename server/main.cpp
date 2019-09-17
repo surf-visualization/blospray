@@ -1391,15 +1391,19 @@ update_isosurfaces_object(const UpdateObject& update)
     return true;
 }
 
+// A slices object is just regular geometry that gets colored 
+// using a volume texture
+// XXX parenting can be animated using a Childof object constraint
+// XXX a text field in a node can't be animated
 bool
-add_slices_object(const UpdateObject& update, const Slices& slices)
+add_slices_objects(const UpdateObject& update, const Slices& slices)
 {
     const std::string& linked_data = update.data_link();
 
     printf("OBJECT '%s' (slices)\n", update.name().c_str());
-    printf("--> '%s'\n", linked_data.c_str());     
+    printf("--> '%s'\n", linked_data.c_str());    
 
-     if (!scene_data_with_type_exists(linked_data, SDT_PLUGIN))
+    if (!scene_data_with_type_exists(linked_data, SDT_PLUGIN))
         return false;
 
     PluginInstance* plugin_instance = plugin_instances[linked_data];
@@ -1419,10 +1423,39 @@ add_slices_object(const UpdateObject& update, const Slices& slices)
     const json &custom_properties = json::parse(s_custom_properties);
     printf("... custom properties:\n");
     printf("%s\n", custom_properties.dump(4).c_str());
-    
+
+    SceneObject         *scene_object;
+    SceneObjectSlice    *slice_object;
+    OSPInstance         instance;
+    OSPGroup            group;
+    OSPGeometry         isosurfaces_geometry;
+    OSPVolumetricModel  vmodel;
+    OSPGeometricModel   gmodel;
+
+    // Each slice becomes a separate scene object of type SOT_SLICE
     for (int i = 0; i < slices.slices_size(); i++)
     {
         const Slice& slice = slices.slices(i);
+
+        const std::string& mesh_name = slice.linked_mesh_data();
+
+        scene_object = find_scene_object(object_name, SOT_SLICE);
+
+        if (scene_object != nullptr)
+            slices_object = dynamic_cast<SceneObjectSlice*>(scene_object);
+        else
+            slices_object = new SceneObjectSlices;
+
+        instance = slices_object->instance;
+        assert(instance != nullptr);
+        group = isosurfaces_object->group;
+        assert(group != nullptr); 
+        vmodel = isosurfaces_object->vmodel;
+        gmodel = isosurfaces_object->gmodel;
+        assert(gmodel != nullptr);
+        isosurfaces_geometry = isosurfaces_object->isosurfaces_geometry;
+        assert(isosurfaces_geometry != nullptr);
+
 
         // Get linked geometry
 
@@ -1790,7 +1823,7 @@ handle_update_object(TCPSocket *sock)
         Slices slices;
         if (!receive_protobuf(sock, slices))
             return false;
-        add_slices_object(update, slices);
+        add_slices_objects(update, slices);
         }
         break;
 

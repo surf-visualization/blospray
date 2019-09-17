@@ -163,6 +163,18 @@ class OSPRayOutputNode(bpy.types.Node):
     def init(self, context):
         self.inputs.new('NodeSocketShader', 'Material')
 
+class OSPRayVolumeTexture(bpy.types.Node):
+    """Volumetric texture"""
+    bl_idname = 'OSPRayVolumeTexture'
+    bl_label = 'Volume texture'
+    bl_icon = 'SOUND'
+
+    def init(self, context):
+        self.inputs.new('NodeSocketString', 'Volume data')
+        self.outputs.new('NodeSocketColor', 'Color')
+
+# Materials
+
 
 class OSPRayCarPaint(bpy.types.Node):
     """Car paint material"""
@@ -450,13 +462,16 @@ node_classes = (
     # General nodes
     OSPRayOutputNode,
 
-    # Shader nodes
+    # Material nodes
     OSPRayCarPaint,
     OSPRayGlass,
     OSPRayLuminous,
     OSPRayMetallicPaint,
     OSPRayOBJMaterial,
     OSPRayPrincipled,
+
+    # Texture nodes
+    OSPRayVolumeTexture,
 )
 
 node_categories = [
@@ -470,6 +485,8 @@ node_categories = [
         NodeItem('OSPRayMetallicPaint'),
         NodeItem('OSPRayOBJMaterial'),
         NodeItem('OSPRayPrincipled'),
+        
+        NodeItem('OSPRayVolumeTexture'),
     ]),
 
 ]
