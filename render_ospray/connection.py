@@ -764,7 +764,9 @@ class Connection:
                     # Apparently the depsgraph leaves out the parenting? So get
                     # that information from the original object
                     # XXX need to ignore slice object itself in export, but not its mesh data
-                    children = depsgraph.scene.objects[obj.name].children
+                    children = obj.original.children
+                    assert children == depsgraph.scene.objects[obj.name].children
+                    
                     print('Object "%s" has %d CHILDREN' % (obj.name, len(children)))
 
                     # XXX volumetric texture and geometric model share the same coordinate space.
