@@ -434,6 +434,8 @@ enabled_panels = {
         #'RENDER_PT_stereoscopy
     ],
     
+    # XXX particles
+    
     properties_render: [
         #'RENDER_PT_context',   # XXX unclear which panel this is
     ],

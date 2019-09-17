@@ -52,6 +52,8 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         
         self.render_count += 1
         
+        #depsgraph.debug_relations_graphviz('depsgraph-%d.dot' % self.render_count)
+        
         print('-' * 40)
         log('render #%d' % self.render_count)
         print('-' * 40)
@@ -65,8 +67,11 @@ class CustomRenderEngine(bpy.types.RenderEngine):
             
             obj = instance.object
             
-            #print('DEPSGRAPH object instance "%s", type=%s, is_instance=%d, random_id=%d' % \
-            #    (obj.name, obj.type, instance.is_instance, instance.random_id))
+            if instance.is_instance:
+                print('DEPSGRAPH object "%s", type=%s (instanced), random_id=%d, instance_object="%s"' % \
+                    (obj.name, obj.type, instance.random_id, instance.instance_object.name))
+            else:
+                print('DEPSGRAPH object "%s", type=%s (not instanced)' % (obj.name, obj.type))
             
             type = obj.type
             if obj.type not in count_by_type:
@@ -82,6 +87,13 @@ class CustomRenderEngine(bpy.types.RenderEngine):
                     count_by_instanced_object[instanced_object_name] = 1
                 else:
                     count_by_instanced_object[instanced_object_name] += 1
+                    
+            if type == 'MESH':
+                mesh = obj.data
+                print('[%s] MESH %d vertices, %s polygons' % (obj.name, len(mesh.vertices), len(mesh.polygons)))
+                original_object = instance.instance_object
+                original_mesh = instance
+                print
                 
         scene = depsgraph.scene
         scale = scene.render.resolution_percentage / 100.0

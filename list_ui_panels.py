@@ -18,4 +18,4 @@ for propname in dir(bl_ui):
         panel = getattr(mod, panelname)
             
         if hasattr(panel, 'COMPAT_ENGINES'):
-            print('    ', panelname)
+            print('    %s (%s)' % (panelname, panel.COMPAT_ENGINES))
