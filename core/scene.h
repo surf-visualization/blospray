@@ -169,7 +169,7 @@ struct SceneObjectSlice : SceneObject
 		instance = ospNewInstance(group);
 	}           
 
-	virtual ~SceneObjectIsosurfaces()
+	virtual ~SceneObjectSlice()
 	{
 		if (vmodel)
 			ospRelease(vmodel);

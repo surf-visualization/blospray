@@ -1227,21 +1227,13 @@ update_volume_object(const UpdateObject& update, const Volume& volume_settings)
         OSPTransferFunction tf = create_transfer_function("cool2warm", state->volume_data_range[0], state->volume_data_range[1]);
         ospSetObject(vmodel, "transferFunction", tf);
         ospRelease(tf);
-
-        if (current_renderer_type == "pathtracer")
-        {
-            OSPMaterial volumetricMaterial = ospNewMaterial(current_renderer_type.c_str(), "VolumetricMaterial");
-                ospSetFloat(volumetricMaterial, "meanCosine", 0.f);
-                ospSetVec3f(volumetricMaterial, "albedo", 1.f, 1.f, 1.f);
-            ospCommit(volumetricMaterial);
-
-            ospSetObject(vmodel, "material", volumetricMaterial);
-            ospRelease(volumetricMaterial);
-        }
     }
 
     // XXX not sure these are handled correctly, and working in API2
     ospSetFloat(vmodel,  "samplingRate", volume_settings.sampling_rate());
+    //ospSetFloat(vmodel,  "densityScale", volume_settings.density_scale());  // TODO
+    //ospSetFloat(vmodel,  "maxDensity", volume_settings.max_density());  // TODO
+    //ospSetFloat(vmodel,  "anisotropy", volume_settings.anisotropy());  // TODO    
 
     ospCommit(vmodel);
 
@@ -1424,6 +1416,10 @@ add_slices_objects(const UpdateObject& update, const Slices& slices)
     printf("... custom properties:\n");
     printf("%s\n", custom_properties.dump(4).c_str());
 
+    return true;
+
+#if 0
+
     SceneObject         *scene_object;
     SceneObjectSlice    *slice_object;
     OSPInstance         instance;
@@ -1564,7 +1560,8 @@ add_slices_objects(const UpdateObject& update, const Slices& slices)
         ospRelease(slice_geometry);
 #endif        
     }
-    
+
+#endif
     return true;
 }
 
