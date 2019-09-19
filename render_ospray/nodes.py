@@ -1,6 +1,7 @@
 # ./release/scripts/templates_py/custom_nodes.py
 # render_povray addon
 # https://devtalk.blender.org/t/custom-nodes-not-showing-as-updated-in-interactive-mode/6762/2 (appleseed addon)
+# https://blenderartists.org/t/custom-cycles-nodes-with-python/670539/3
 # https://github.com/appleseedhq/blenderseed
 import bpy
 import nodeitems_utils
