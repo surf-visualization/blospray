@@ -3,7 +3,10 @@
 # https://devtalk.blender.org/t/custom-nodes-not-showing-as-updated-in-interactive-mode/6762/2 (appleseed addon)
 # https://blenderartists.org/t/custom-cycles-nodes-with-python/670539/3
 # https://github.com/appleseedhq/blenderseed
+# https://blenderartists.org/t/bpy-color-ramp/545236/9
 import bpy
+from bpy.props import EnumProperty
+
 import nodeitems_utils
 from nodeitems_utils import NodeCategory, NodeItem
 
@@ -153,6 +156,45 @@ class OSPRaySocketFloat_IOR(bpy.types.NodeSocket):
     def draw_color(self, context, node):
         return (0.65, 0.65, 0.65, 1)
 
+
+def volume_data_callback(dummy, context):
+
+    items = []
+
+    for ob in context.scene.objects:
+        if ob.type != 'MESH':
+            continue 
+        mesh = ob.data
+        ospray = mesh.ospray
+        if ospray.plugin_enabled and ospray.plugin_type == 'volume':
+            items.append((mesh.name, mesh.name, ''))
+
+    return items
+
+# https://blender.stackexchange.com/a/10919/46067
+# XXX how to only show the enum dropdown and not the input socket?
+class OSPRaySocketVolumeData(bpy.types.NodeSocket):
+    """Volume data"""
+
+    bl_idname = 'OSPRaySocketVolumeData'
+    bl_label = 'Volume data'
+
+    volume_data: EnumProperty(
+            name='Volume data',
+            description='Volume data to use',
+            items=volume_data_callback
+            )
+    
+    def draw(self, context, layout, node, text):
+        if self.is_linked:
+            layout.label(text)
+        else:
+            layout.prop(self, 'volume_data')
+            
+    def draw_color(self, context, node):
+        return (0.65, 0.65, 0.65, 1)
+
+
 # Nodes
 
 class OSPRayOutputNode(bpy.types.Node):
@@ -171,7 +213,14 @@ class OSPRayVolumeTexture(bpy.types.Node):
     bl_icon = 'SOUND'
 
     def init(self, context):
-        self.inputs.new('NodeSocketString', 'Volume data')
+        # Get volume data implicitly from parent object
+        #self.inputs.new('OSPRaySocketVolumeData', 'Volume data')
+
+        sampling_rate = self.inputs.new('OSPRaySocketFloat_NonNegative', 'Sampling rate')
+        sampling_rate.default = 1
+
+        self.inputs.new('NodeSocketColor', 'Transfer function')
+        
         self.outputs.new('NodeSocketColor', 'Color')
 
 # Materials
@@ -333,7 +382,7 @@ class OSPRayOBJMaterial(bpy.types.Node):
         opacity.default_value = 1.0
         
         # path tracer only
-        transparency_filter_color = self.inputs.new('NodeSocketColor', 'Transparency color (Tf)')    
+        transparency_filter_color = self.inputs.new('NodeSocketColor', 'Transparency color')    
         transparency_filter_color.default_value = (0, 0, 0, 1)
         
         # texture
@@ -459,6 +508,7 @@ node_classes = (
     OSPRaySocketFloat_0_2,
     OSPRaySocketFloat_NonNegative,
     OSPRaySocketFloat_IOR,
+    OSPRaySocketVolumeData,
 
     # General nodes
     OSPRayOutputNode,

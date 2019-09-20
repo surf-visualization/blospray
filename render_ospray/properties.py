@@ -230,10 +230,9 @@ class RenderOspraySettingsObject(PropertyGroup):
         )
     
     volume_usage: EnumProperty(
-        name='Volume usage',
+        name='Render mode',
         description='How to use the linked data (which is assumed to have a volume plugin)',
         items=[ ('volume', 'Volume', 'Render as regular volume'),
-                ('slices', 'Slices', 'Render slices through the volume'),
                 ('isosurfaces', 'Isosurfaces', 'Render isosurfaces derived from the volume'),
                ]
         )   

@@ -1,6 +1,7 @@
 OSPRAY things/bugs
 - Volume rendering currently is buggy work when applying a transform
-  to the volumetricmodel
+  to the volumetricmodel with the scivis renderer
+- No samplingRate setting on the pathtracer renderer for a volume?
 - The background alpha seems to be ignored (or always 0) when using the path
   tracer renderer. See https://github.com/ospray/ospray/issues/347
 - Camera clipping start doesn't match cycles render, nor OpenGL scene view.
