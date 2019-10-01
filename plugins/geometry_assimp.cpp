@@ -170,7 +170,7 @@ load_file(GenerateFunctionResult &result, PluginState *state)
 
         OSPData data = ospNewData(nvertices, OSP_VEC3F, vertices.data());
         ospCommit(data);
-        ospSetData(geometry, "vertex.position", data);
+        ospSetObject(geometry, "vertex.position", data);
         //ospRelease(data);
     }
 
@@ -190,7 +190,7 @@ load_file(GenerateFunctionResult &result, PluginState *state)
 
         OSPData data = ospNewData(triangles.size(), OSP_UINT, triangles.data());
         ospCommit(data);
-        ospSetData(geometry, "index", data);
+        ospSetObject(geometry, "index", data);
         //ospRelease(data);
     }
     else
@@ -213,7 +213,7 @@ load_file(GenerateFunctionResult &result, PluginState *state)
 
         OSPData data = ospNewData(nvertices, OSP_VEC4F, colors.data());
         ospCommit(data);
-        ospSetData(geometry, "vertex.color", data);
+        ospSetObject(geometry, "vertex.color", data);
     }
 
     if (mesh->HasNormals())
@@ -232,7 +232,7 @@ load_file(GenerateFunctionResult &result, PluginState *state)
 
         OSPData data = ospNewData(nvertices, OSP_VEC3F, normals.data());
         ospCommit(data);
-        ospSetData(geometry, "vertex.normal", data);
+        ospSetObject(geometry, "vertex.normal", data);
     }
 
     if (mesh->HasTextureCoords(0))
@@ -251,7 +251,7 @@ load_file(GenerateFunctionResult &result, PluginState *state)
 
         OSPData data = ospNewData(nvertices, OSP_VEC3F, texcoords.data());
         ospCommit(data);
-        ospSetData(geometry, "vertex.texcoord", data); 
+        ospSetObject(geometry, "vertex.texcoord", data); 
     }
     
     ospCommit(geometry);
@@ -265,19 +265,19 @@ load_file(GenerateFunctionResult &result, PluginState *state)
 
             OSPData data = ospNewData(nvertices, OSP_VEC3F, vertices.data());
             ospCommit(data);
-            ospSetData(geometry, "vertex.position", data);
+            ospSetObject(geometry, "vertex.position", data);
 
             //data = ospNewData(num_vertices, OSP_VEC4F, colors);
             //ospCommit(data);
-            //ospSetData(mesh, "vertex.color", data);
+            //ospSetObject(mesh, "vertex.color", data);
 
             data = ospNewData(faces.size(), OSP_UINT, faces.data());
             ospCommit(data);
-            ospSetData(geometry, "index", data);
+            ospSetObject(geometry, "index", data);
 
             data = ospNewData(face_lengths.size(), OSP_UINT, face_lengths.data());
             ospCommit(data);
-            ospSetData(geometry, "face", data);
+            ospSetObject(geometry, "face", data);
 
         ospCommit(geometry);
     }

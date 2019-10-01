@@ -91,6 +91,7 @@ int             framebuffer_width=0, framebuffer_height=0;
 bool            framebuffer_created = false;
 bool            keep_framebuffer_files = getenv("BLOSPRAY_KEEP_FRAMEBUFFER_FILES") != nullptr;
 bool            dump_client_messages = getenv("BLOSPRAY_DUMP_CLIENT_MESSAGES") != nullptr;
+bool            abort_on_ospray_error = getenv("BLOSPRAY_ABORT_ON_OSPRAY_ERROR") != nullptr;
 
 RenderSettings  render_settings;
 
@@ -523,11 +524,11 @@ create_transfer_function(const std::string& name, float minval, float maxval)
         	ospSetVec2f(tf, "valueRange", minval, maxval);
 
         	OSPData color_data = ospNewData(cool2warm_entries, OSP_VEC3F, tf_colors);
-        	ospSetData(tf, "color", color_data);        	
+        	ospSetObject(tf, "color", color_data);        	
 
         	// XXX color and opacity can be decoupled?
         	OSPData opacity_data = ospNewData(cool2warm_entries, OSP_FLOAT, tf_opacities);
-        	ospSetData(tf, "opacity", opacity_data);        	
+        	ospSetObject(tf, "opacity", opacity_data);        	
 
     	ospCommit(tf);
         ospRelease(color_data);
@@ -856,25 +857,25 @@ handle_update_blender_mesh_data(TCPSocket *sock, const std::string& name)
     // Set up geometry
 
     data = ospNewData(nv, OSP_VEC3F, &vertex_buffer[0]);    
-    ospSetData(geometry, "vertex.position", data);
+    ospSetObject(geometry, "vertex.position", data);
     ospRelease(data);
 
     if (flags & MeshData::NORMALS)
     {
         data = ospNewData(nv, OSP_VEC3F, &normal_buffer[0]);        
-        ospSetData(geometry, "vertex.normal", data);
+        ospSetObject(geometry, "vertex.normal", data);
         ospRelease(data);
     }
 
     if (flags & MeshData::VERTEX_COLORS)
     {
         data = ospNewData(nv, OSP_VEC4F, &vertex_color_buffer[0]);        
-        ospSetData(geometry, "vertex.color", data);
+        ospSetObject(geometry, "vertex.color", data);
         ospRelease(data);
     }
 
-    data = ospNewData(nt, OSP_VEC3I, &triangle_buffer[0]);    
-    ospSetData(geometry, "index", data);
+    data = ospNewData(nt, OSP_VEC3UI, &triangle_buffer[0]);    
+    ospSetObject(geometry, "index", data);
     ospRelease(data);
 
     ospCommit(geometry);
@@ -947,12 +948,12 @@ update_blender_mesh_object(const UpdateObject& update)
 
     object2world_from_protobuf(obj2world, update);
     affine3fv_from_mat4(affine_xform, obj2world);
-    ospSetAffine3fv(instance, "xfm", affine_xform);
+    ospSetParam(instance, "xfm", OSP_AFFINE3F, affine_xform);
 
     ospCommit(instance);    
 
     OSPData models = ospNewData(1, OSP_OBJECT, &gmodel, 0);
-        ospSetData(group, "geometry", models);
+        ospSetObject(group, "geometry", models);
     ospCommit(group);    
     ospRelease(models); 
 
@@ -1037,7 +1038,7 @@ update_geometry_object(const UpdateObject& update)
         gmodel = geometry_object->gmodel = ospNewGeometricModel(geometry); 
 
         OSPData models = ospNewData(1, OSP_OBJECT, &gmodel, 0);        
-        ospSetData(group, "geometry", models);
+        ospSetObject(group, "geometry", models);
         ospCommit(group);
         ospRelease(models);
     }
@@ -1050,7 +1051,7 @@ update_geometry_object(const UpdateObject& update)
     object2world_from_protobuf(obj2world, update);
     affine3fv_from_mat4(affine_xform, obj2world);
 
-    ospSetAffine3fv(instance, "xfm", affine_xform);    
+    ospSetParam(instance, "xfm", OSP_AFFINE3F, affine_xform);    
     ospCommit(instance);
 
     const std::string& matname = update.material_link();
@@ -1139,7 +1140,7 @@ update_scene_object(const UpdateObject& update)
         affine3fv_from_mat4(affine_xform, obj2world * instance_xform);
 
         OSPInstance instance = ospNewInstance(group);
-            ospSetAffine3fv(instance, "xfm", affine_xform);
+            ospSetParam(instance, "xfm", OSP_AFFINE3F, affine_xform);
         ospCommit(instance);
 
         scene_object_scene->instances.push_back(instance);
@@ -1247,7 +1248,7 @@ update_volume_object(const UpdateObject& update, const Volume& volume_settings)
     object2world_from_protobuf(obj2world, update);
     affine3fv_from_mat4(affine_xform, obj2world);
 
-    ospSetAffine3fv(instance, "xfm", affine_xform);
+    ospSetParam(instance, "xfm", OSP_AFFINE3F, affine_xform);
     ospCommit(instance);
 
     if (scene_object == nullptr)
@@ -1361,7 +1362,7 @@ update_isosurfaces_object(const UpdateObject& update)
     ospSetObject(isosurfaces_geometry, "volume", vmodel);       		// XXX structured vol example indicates this needs to be the volume model??
     ospRelease(volume);
 
-    ospSetData(isosurfaces_geometry, "isovalue", isovalues_data);
+    ospSetObject(isosurfaces_geometry, "isovalue", isovalues_data);
     ospRelease(isovalues_data);
 
     ospCommit(isosurfaces_geometry);
@@ -1372,7 +1373,7 @@ update_isosurfaces_object(const UpdateObject& update)
     object2world_from_protobuf(obj2world, update);
     affine3fv_from_mat4(affine_xform, obj2world);
 
-    ospSetAffine3fv(instance, "xfm", affine_xform);
+    ospSetParam(instance, "xfm", OSP_AFFINE3F, affine_xform);
     ospCommit(instance);
 
     if (scene_object == nullptr)
@@ -1550,7 +1551,7 @@ add_slices_objects(const UpdateObject& update, const Slices& slices)
         OSPGeometry slice_geometry = ospNewGeometry("slices");
             ospSetObject(slice_geometry, "volume", volumeModel);         // XXX volume model, not volume
             //ospRelease(volumeModel);
-            ospSetData(slice_geometry, "plane", planeData);
+            ospSetObject(slice_geometry, "plane", planeData);
             ospRelease(planeData);
         ospCommit(slice_geometry);
             
@@ -1889,9 +1890,9 @@ update_camera(CameraSettings& camera_settings)
     ospSetFloat(camera, "aspect", camera_settings.aspect());        // XXX panoramic only
     ospSetFloat(camera, "nearClip", camera_settings.clip_start());
 
-    ospSetVec3fv(camera, "position", cam_pos);
-    ospSetVec3fv(camera, "direction", cam_viewdir);
-    ospSetVec3fv(camera, "up",  cam_updir);
+    ospSetParam(camera, "position", OSP_VEC3F, cam_pos);
+    ospSetParam(camera, "direction", OSP_VEC3F, cam_viewdir);
+    ospSetParam(camera, "up",  OSP_VEC3F, cam_updir);
 
     if (camera_settings.dof_focus_distance() > 0.0f)
     {
@@ -2219,10 +2220,10 @@ receive_scene(TCPSocket *sock)
 
         OSPData data = ospNewData(1, OSP_VEC4F, texel);
 
-        OSPTexture backplate = ospNewTexture("texture2D");    
-            ospSetVec2i(backplate, "size", 1, 1);
-            ospSetInt(backplate, "type", OSP_TEXTURE_RGBA32F);
-            ospSetData(backplate, "data", data);
+        OSPTexture backplate = ospNewTexture("texture2d");    
+            ospSetInt(backplate, "format", OSP_TEXTURE_RGBA32F);
+            ospSetVec2i(backplate, "size", 1, 1);            
+            ospSetObject(backplate, "data", data);
         ospCommit(backplate);            
         ospRelease(data);
 
@@ -2339,7 +2340,8 @@ render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
         estimated variance can be used by the application as a quality indicator and
         thus to decide whether to stop or to continue progressive rendering.
         */
-        variance = ospRenderFrame(framebuffer, renderer, camera, world);
+        // XXX use new future-based call
+        variance = ospRenderFrameBlocking(framebuffer, renderer, camera, world);
 
         gettimeofday(&t2, NULL);
         printf("frame in %.3f seconds (variance %.3f)\n", time_diff(t1, t2), variance);
@@ -2466,14 +2468,13 @@ prepare_scene()
     world = ospNewWorld();
         // Check https://github.com/ospray/ospray/issues/277. Is bool setting fixed in 2.0?
         //ospSetBool(world, "compactMode", true);
-        ospSetData(world, "instance", instances);
+        ospSetObject(world, "instance", instances);
     ospCommit(world);
     //ospRelease(instances);
     
     printf("Adding %d light(s) to the scene\n", scene_lights.size());
     OSPData light_data = ospNewData(scene_lights.size(), OSP_OBJECT, &scene_lights[0], 0);
-    ospSetData(renderer, "light", light_data);
-    ospCommit(renderer);
+    ospSetObject(world, "light", light_data);
     //ospRelease(light_data);
 
     return true;
@@ -2728,6 +2729,9 @@ ospray_error(OSPError e, const char *error)
     printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
     printf("OSPRAY ERROR: %s\n", error);
     printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+
+    if (abort_on_ospray_error)
+        abort();
 }
 
 void

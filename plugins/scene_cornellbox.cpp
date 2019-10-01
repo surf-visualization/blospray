@@ -43,7 +43,7 @@ generate(GenerateFunctionResult &result, PluginState *state)
 
     OSPGroup group = ospNewGroup();
         OSPData models = ospNewData(1, OSP_OBJECT, &(boxes.model), 0);
-        ospSetData(group, "geometry", models);
+        ospSetObject(group, "geometry", models);
         ospRelease(models);
     ospCommit(group);
     ospRelease(boxes.geometry);

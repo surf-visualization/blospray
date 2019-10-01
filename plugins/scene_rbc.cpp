@@ -83,15 +83,15 @@ load_cell_models(const char *renderer_type)
   
       OSPData data = ospNewData(num_vertices, OSP_VEC3F, vertices);    
       ospCommit(data);
-      ospSetData(mesh, "vertex.position", data);
+      ospSetObject(mesh, "vertex.position", data);
 
       data = ospNewData(num_vertices, OSP_VEC4F, colors);
       ospCommit(data);
-      ospSetData(mesh, "vertex.color", data);
+      ospSetObject(mesh, "vertex.color", data);
 
       data = ospNewData(num_triangles, OSP_VEC3I, triangles);            
       ospCommit(data);
-      ospSetData(mesh, "index", data);
+      ospSetObject(mesh, "index", data);
             
     ospCommit(mesh);
 
@@ -151,15 +151,15 @@ load_cell_models(const char *renderer_type)
   
       data = ospNewData(num_vertices, OSP_VEC3F, vertices);    
       ospCommit(data);
-      ospSetData(mesh, "vertex.position", data);
+      ospSetObject(mesh, "vertex.position", data);
 
       data = ospNewData(num_vertices, OSP_VEC4F, colors);
       ospCommit(data);
-      ospSetData(mesh, "vertex.color", data);
+      ospSetObject(mesh, "vertex.color", data);
 
       data = ospNewData(num_triangles, OSP_VEC3I, triangles);            
       ospCommit(data);
-      ospSetData(mesh, "index", data);
+      ospSetObject(mesh, "index", data);
     
     ospCommit(mesh);
     
@@ -183,13 +183,13 @@ load_cell_models(const char *renderer_type)
     
     rbc_group = ospNewGroup();
         OSPData models = ospNewData(1, OSP_OBJECT, &mesh_model_rbc, 0);
-        ospSetData(rbc_group, "geometry", models);
+        ospSetObject(rbc_group, "geometry", models);
         ospRelease(models);
     ospCommit(rbc_group);
 
     plt_group = ospNewGroup();
         models = ospNewData(1, OSP_OBJECT, &mesh_model_plt, 0);
-        ospSetData(plt_group, "geometry", models);
+        ospSetObject(plt_group, "geometry", models);
         ospRelease(models);
     ospCommit(plt_group);
 

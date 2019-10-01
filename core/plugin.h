@@ -23,6 +23,7 @@
 
 #include <vector>
 #include <ospray/ospray.h>
+#include <ospray/ospray_util.h>
 #include <glm/matrix.hpp>
 
 #include "messages.pb.h"        

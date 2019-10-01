@@ -128,8 +128,8 @@ generate(GenerateFunctionResult &result, PluginState *state)
         ospSetInt(volume, "voxelType", dataType);
         ospSetVec3i(volume, "dimensions", dims[0], dims[1], dims[2]);
     
-        ospSetVec3fv(volume, "gridOrigin", origin);
-        ospSetVec3fv(volume, "gridSpacing", spacing);
+        ospSetParam(volume, "gridOrigin", OSP_VEC3F, origin);
+        ospSetParam(volume, "gridSpacing", OSP_VEC3F, spacing);
 
         ospSetVec2f(volume, "voxelRange", minval, maxval);    
 

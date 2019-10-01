@@ -120,7 +120,7 @@ load_points(const char *renderer_type, const char *fname, int max_points, float 
     OSPGeometry spheres = ospNewGeometry("spheres");
     
       OSPData data = ospNewData(num_points, OSP_VEC3F, positions);
-      ospSetData(spheres, "sphere", data);
+      ospSetObject(spheres, "sphere", data);
       ospSetInt(spheres, "bytes_per_sphere", 3*sizeof(float));
       ospSetFloat(spheres, "radius", sphere_radius);
 
@@ -227,7 +227,7 @@ generate(GenerateFunctionResult &result, PluginState *state)
     
     OSPGroup group = ospNewGroup();
         OSPData models = ospNewData(1, OSP_OBJECT, &model, 0);
-        ospSetData(group, "geometry", models);  // XXX setdata after all?
+        ospSetObject(group, "geometry", models);  // XXX setdata after all?
         ospRelease(models);
     ospCommit(group);
     
