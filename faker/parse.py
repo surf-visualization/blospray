@@ -289,7 +289,7 @@ try:
             source_obj = addr2object[source_addr]
             dest_obj = addr2object[dest_addr]
             
-            if source_obj.fields['type'] in REFERENCE_DATA_TYPES:
+            if source_obj.fields['type'] in REFERENCE_DATA_TYPES and hasattr(source_obj, 'items'):
                 for idx, otheraddr in enumerate(source_obj.items):
                     reference_counts[otheraddr] += 1
                     otherobj = addr2object[otheraddr]
