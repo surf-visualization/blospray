@@ -84,7 +84,7 @@ create_plane(float cx, float cy, float cz, float sx, float sy)
         ospCommit(data);
         ospSetObject(mesh, "vertex.color", data);
 
-        data = ospNewData(num_triangles, OSP_VEC3I, triangles);            
+        data = ospNewData(num_triangles, OSP_VEC3UI, triangles);            
         ospCommit(data);
         ospSetObject(mesh, "index", data);
 

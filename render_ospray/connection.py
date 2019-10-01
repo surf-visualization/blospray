@@ -592,6 +592,7 @@ class Connection:
             settings.eta = inputs['Eta'].default_value
 
         elif idname == 'OSPRayOBJMaterial':
+            # XXX Check Kd + Ks + Tf = 1.36853, should be <= 1
             update.type = MaterialUpdate.OBJMATERIAL
             settings = OBJMaterialSettings()
             settings.kd[:] = list(inputs['Diffuse'].default_value)[:3]

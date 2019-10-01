@@ -89,7 +89,7 @@ load_cell_models(const char *renderer_type)
       ospCommit(data);
       ospSetObject(mesh, "vertex.color", data);
 
-      data = ospNewData(num_triangles, OSP_VEC3I, triangles);            
+      data = ospNewData(num_triangles, OSP_VEC3UI, triangles);            
       ospCommit(data);
       ospSetObject(mesh, "index", data);
             
@@ -157,7 +157,7 @@ load_cell_models(const char *renderer_type)
       ospCommit(data);
       ospSetObject(mesh, "vertex.color", data);
 
-      data = ospNewData(num_triangles, OSP_VEC3I, triangles);            
+      data = ospNewData(num_triangles, OSP_VEC3UI, triangles);            
       ospCommit(data);
       ospSetObject(mesh, "index", data);
     
@@ -256,7 +256,7 @@ add_ground_plane()
       ospCommit(data);
       ospSetData(mesh2, "vertex.color", data);
 
-      data = ospNewData(num_triangles, OSP_INT3, triangles);            
+      data = ospNewData(num_triangles, OSP_VEC3UI, triangles);            
       ospCommit(data);
       ospSetData(mesh2, "index", data);
 

@@ -523,11 +523,11 @@ create_transfer_function(const std::string& name, float minval, float maxval)
 
         	ospSetVec2f(tf, "valueRange", minval, maxval);
 
-        	OSPData color_data = ospNewData(cool2warm_entries, OSP_VEC3F, tf_colors);
+        	OSPData color_data = ospNewData(cool2warm_entries, OSP_VEC3F, tf_colors, 0);
         	ospSetObject(tf, "color", color_data);        	
 
         	// XXX color and opacity can be decoupled?
-        	OSPData opacity_data = ospNewData(cool2warm_entries, OSP_FLOAT, tf_opacities);
+        	OSPData opacity_data = ospNewData(cool2warm_entries, OSP_FLOAT, tf_opacities, 0);
         	ospSetObject(tf, "opacity", opacity_data);        	
 
     	ospCommit(tf);
@@ -856,25 +856,25 @@ handle_update_blender_mesh_data(TCPSocket *sock, const std::string& name)
 
     // Set up geometry
 
-    data = ospNewData(nv, OSP_VEC3F, &vertex_buffer[0]);    
+    data = ospNewData(nv, OSP_VEC3F, &vertex_buffer[0], 0);    
     ospSetObject(geometry, "vertex.position", data);
     ospRelease(data);
 
     if (flags & MeshData::NORMALS)
     {
-        data = ospNewData(nv, OSP_VEC3F, &normal_buffer[0]);        
+        data = ospNewData(nv, OSP_VEC3F, &normal_buffer[0], 0);        
         ospSetObject(geometry, "vertex.normal", data);
         ospRelease(data);
     }
 
     if (flags & MeshData::VERTEX_COLORS)
     {
-        data = ospNewData(nv, OSP_VEC4F, &vertex_color_buffer[0]);        
+        data = ospNewData(nv, OSP_VEC4F, &vertex_color_buffer[0], 0);        
         ospSetObject(geometry, "vertex.color", data);
         ospRelease(data);
     }
 
-    data = ospNewData(nt, OSP_VEC3UI, &triangle_buffer[0]);    
+    data = ospNewData(nt, OSP_VEC3UI, &triangle_buffer[0], 0);    
     ospSetObject(geometry, "index", data);
     ospRelease(data);
 
@@ -952,7 +952,7 @@ update_blender_mesh_object(const UpdateObject& update)
 
     ospCommit(instance);    
 
-    OSPData models = ospNewData(1, OSP_OBJECT, &gmodel, 0);
+    OSPData models = ospNewData(1, OSP_GEOMETRIC_MODEL, &gmodel, 0);
         ospSetObject(group, "geometry", models);
     ospCommit(group);    
     ospRelease(models); 
@@ -1037,7 +1037,7 @@ update_geometry_object(const UpdateObject& update)
     {
         gmodel = geometry_object->gmodel = ospNewGeometricModel(geometry); 
 
-        OSPData models = ospNewData(1, OSP_OBJECT, &gmodel, 0);        
+        OSPData models = ospNewData(1, OSP_GEOMETRIC_MODEL, &gmodel, 0);        
         ospSetObject(group, "geometry", models);
         ospCommit(group);
         ospRelease(models);
@@ -1356,7 +1356,7 @@ update_isosurfaces_object(const UpdateObject& update)
         printf("... isovalue #%d: %.3f\n", i, isovalues[i]);
     }
 
-    OSPData isovalues_data = ospNewData(n, OSP_FLOAT, isovalues);    
+    OSPData isovalues_data = ospNewData(n, OSP_FLOAT, isovalues, 0);    
     delete [] isovalues;
 
     ospSetObject(isosurfaces_geometry, "volume", vmodel);       		// XXX structured vol example indicates this needs to be the volume model??
@@ -1510,7 +1510,7 @@ add_slices_objects(const UpdateObject& update, const Slices& slices)
         ospRelease(material);
 
         OSPGroup group = ospNewGroup();
-            OSPData data = ospNewData(1, OSP_OBJECT, &geometric_model, 0);
+            OSPData data = ospNewData(1, OSP_GEOMETRIC_MODEL, &geometric_model, 0);
             ospSetObject(group, "geometry", data);                  // SetObject or SetData?
             //ospRelease(model);
         ospCommit(group);
@@ -1539,7 +1539,7 @@ add_slices_objects(const UpdateObject& update, const Slices& slices)
 
         printf("... plane[%d]: %.3f, %3f, %.3f, %.3f\n", i, plane[0], plane[1], plane[2], plane[3]);
 
-        OSPData planeData = ospNewData(1, OSP_VEC4F, plane);        
+        OSPData planeData = ospNewData(1, OSP_VEC4F, plane, 0);        
 
             // XXX hacked temp volume module
         auto volumeModel = ospNewVolumetricModel(volume);
@@ -1672,6 +1672,7 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
     return true;
 }
 
+// XXX add world/object bounds
 bool 
 handle_get_server_state(TCPSocket *sock)
 {    
@@ -2165,6 +2166,8 @@ receive_scene(TCPSocket *sock)
 
         printf("Initializing framebuffer of %dx%d pixels\n", framebuffer_width, framebuffer_height);
 
+        // OSP_FB_SRGBA   : 8 bit sRGB gamma encoded color components, and linear alpha
+        // OSP_FB_RGBA32F : 32 bit float components red, green, blue, alpha
         framebuffer = ospNewFrameBuffer(framebuffer_width, framebuffer_height, OSP_FB_RGBA32F, OSP_FB_COLOR | /*OSP_FB_DEPTH |*/ OSP_FB_ACCUM | OSP_FB_VARIANCE);
         // XXX is this call needed here?
         ospResetAccumulation(framebuffer);
@@ -2218,8 +2221,9 @@ receive_scene(TCPSocket *sock)
             0.0f, 1.0f, 0.0f, 1.0f
         };
 
-        OSPData data = ospNewData(1, OSP_VEC4F, texel);
+        OSPData data = ospNewData(1, OSP_VEC4F, texel, 0);
 
+/*
         OSPTexture backplate = ospNewTexture("texture2d");    
             ospSetInt(backplate, "format", OSP_TEXTURE_RGBA32F);
             ospSetVec2i(backplate, "size", 1, 1);            
@@ -2229,7 +2233,7 @@ receive_scene(TCPSocket *sock)
 
         //ospSetObject(renderer, "backplate", backplate);
         ospCommit(renderer);    
-        ospRelease(backplate);
+        ospRelease(backplate);*/
     }
 
     //ospSetBool(renderer, "shadowsEnabled", render_settings.shadows_enabled());        // XXX removed in 2.0?
@@ -2462,20 +2466,21 @@ bool
 prepare_scene()
 {
     printf("Setting up world with %d instance(s)\n", scene_instances.size());
-    OSPData instances = ospNewData(scene_instances.size(), OSP_OBJECT, &scene_instances[0], 0);
+    OSPData instances = ospNewData(scene_instances.size(), OSP_INSTANCE, &scene_instances[0], 0);
 
     // XXX might not have to recreate world, only update instances
     world = ospNewWorld();
         // Check https://github.com/ospray/ospray/issues/277. Is bool setting fixed in 2.0?
         //ospSetBool(world, "compactMode", true);
-        ospSetObject(world, "instance", instances);
-    ospCommit(world);
+        ospSetObject(world, "instance", instances);    
     //ospRelease(instances);
     
-    printf("Adding %d light(s) to the scene\n", scene_lights.size());
-    OSPData light_data = ospNewData(scene_lights.size(), OSP_OBJECT, &scene_lights[0], 0);
+    printf("Adding %d light(s) to the world\n", scene_lights.size());
+    OSPData light_data = ospNewData(scene_lights.size(), OSP_LIGHT, &scene_lights[0], 0);
     ospSetObject(world, "light", light_data);
     //ospRelease(light_data);
+
+    ospCommit(world);
 
     return true;
 }
@@ -2753,7 +2758,12 @@ main(int argc, const char **argv)
 
     // Initialize OSPRay.
     // OSPRay parses (and removes) its commandline parameters, e.g. "--osp:debug"
-    ospInit(&argc, argv);
+    OSPError init_error = ospInit(&argc, argv);
+    if (init_error != OSP_NO_ERROR)
+    {
+        printf("Error initializing OSPRay: %d\n", init_error);
+        exit(-1);
+    }
 
     ospDeviceSetErrorFunc(ospGetCurrentDevice(), ospray_error);
     ospDeviceSetStatusFunc(ospGetCurrentDevice(), ospray_status);

@@ -13,16 +13,27 @@
 using json = nlohmann::json;
 
 static FILE *log_file = NULL;
+
 // 0 = no, 1 = short arrays, 2 = all
 static int dump_arrays = getenv("FAKER_DUMP_ARRAYS") ? atol(getenv("FAKER_DUMP_ARRAYS")) : 0;
+static bool abort_on_ospray_error = getenv("FAKER_ABORT_ON_OSPRAY_ERROR") != nullptr;
 
 typedef std::map<std::string, void*>    PointerMap;
 
 static PointerMap           library_pointers;
 static bool                 enum_mapping_initialized=false;
 
+typedef OSPError            (*ospInit_ptr)          (int *argc, const char **argv);
+typedef OSPDevice           (*ospNewDevice_ptr)     (const char *type);
+typedef void                (*ospDeviceSetErrorFunc_ptr) (OSPDevice, OSPErrorFunc);
+
+typedef OSPData             (*ospNewSharedData_ptr) (const void *sharedData, OSPDataType type, uint32_t numItems1, int64_t byteStride1,  uint32_t numItems2, int64_t byteStride2, uint32_t numItems3, int64_t byteStride3);
+typedef OSPData             (*ospNewData_ptr)       (OSPDataType type, uint32_t numItems1, uint32_t numItems2, uint32_t numItems3);
+typedef OSPData             (*_Z10ospNewDatam11OSPDataTypePKvj_ptr) (size_t numItems, OSPDataType, const void *source, uint32_t dataCreationFlags);
+typedef void                (*ospCopyData_ptr)      (const OSPData source, OSPData destination, uint32_t destinationIndex1, uint32_t destinationIndex2, uint32_t destinationIndex3);
+typedef void                (*ospCopyData1D_ptr)    (const OSPData source, OSPData destination, uint32_t destinationIndex);
+
 typedef OSPCamera           (*ospNewCamera_ptr)     (const char *type);
-typedef OSPData             (*ospNewData_ptr)       (size_t numItems, OSPDataType, const void *source, uint32_t dataCreationFlags);
 typedef OSPDevice           (*ospNewDevice_ptr)     (const char *type);
 typedef OSPFrameBuffer      (*ospNewFrameBuffer_ptr)(int x, int y, OSPFrameBufferFormat format, uint32_t frameBufferChannels);
 typedef OSPGeometricModel   (*ospNewGeometricModel_ptr) (OSPGeometry geometry);
@@ -41,11 +52,11 @@ typedef OSPWorld            (*ospNewWorld_ptr)      ();
 typedef void                (*ospCommit_ptr)        (OSPObject obj);
 typedef void                (*ospRelease_ptr)       (OSPObject obj);
 
-typedef void                (*ospSetData_ptr)       (OSPObject obj, const char *id, OSPData data);
 typedef void                (*ospSetBool_ptr)       (OSPObject obj, const char *id, int x);
 typedef void                (*ospSetFloat_ptr)      (OSPObject obj, const char *id, float x);
 typedef void                (*ospSetInt_ptr)        (OSPObject obj, const char *id, int x);
-typedef void                (*ospSetObject_ptr)     (OSPObject obj, const char *id, OSPObject other);
+//typedef void                (*ospSetObject_ptr)     (OSPObject obj, const char *id, OSPObject other);
+typedef void                (*ospSetParam_ptr)      (OSPObject obj, const char *id, OSPDataType type, const void *mem);
 typedef void                (*ospSetString_ptr)     (OSPObject obj, const char *id, const char *s);
 typedef void                (*ospSetVoidPtr_ptr)    (OSPObject obj, const char *id, void *v);
 
@@ -67,7 +78,9 @@ typedef void                (*ospSetVec4iv_ptr)     (OSPObject obj, const char *
 typedef void                (*ospSetLinear3fv_ptr)  (OSPObject obj, const char *id, const float *v);
 typedef void                (*ospSetAffine3fv_ptr)  (OSPObject obj, const char *id, const float *v);
 
-typedef float               (*ospRenderFrame_ptr)   (OSPFrameBuffer framebuffer, OSPRenderer renderer, OSPCamera camera, OSPWorld world);
+typedef OSPFuture           (*ospRenderFrame_ptr)   (OSPFrameBuffer framebuffer, OSPRenderer renderer, OSPCamera camera, OSPWorld world);
+typedef float               (*ospRenderFrameBlocking_ptr) (OSPFrameBuffer framebuffer, OSPRenderer renderer, OSPCamera camera, OSPWorld world);
+
 
 static double 
 timestamp()
@@ -108,26 +121,30 @@ init_enum_mapping()
 
     json ospdatatype_names;
     json ospframebufferformat_names;
+    json osptextureformat_names;
 
     ospdatatype_names["OSP_DEVICE"] = OSP_DEVICE;
     ospdatatype_names["OSP_VOID_PTR"] = OSP_VOID_PTR;
+    ospdatatype_names["OSP_BOOL"] = OSP_BOOL;
     ospdatatype_names["OSP_OBJECT"] = OSP_OBJECT;
     ospdatatype_names["OSP_CAMERA"] = OSP_CAMERA;
     ospdatatype_names["OSP_DATA"] = OSP_DATA;
     ospdatatype_names["OSP_FRAMEBUFFER"] = OSP_FRAMEBUFFER;
-    ospdatatype_names["OSP_GEOMETRY"] = OSP_GEOMETRY;
+    ospdatatype_names["OSP_FUTURE"] = OSP_FUTURE;    
     ospdatatype_names["OSP_GEOMETRIC_MODEL"] = OSP_GEOMETRIC_MODEL;
+    ospdatatype_names["OSP_GEOMETRY"] = OSP_GEOMETRY;
+    ospdatatype_names["OSP_GROUP"] = OSP_GROUP;
+    ospdatatype_names["OSP_IMAGE_OPERATION"] = OSP_IMAGE_OPERATION;  
+    ospdatatype_names["OSP_INSTANCE"] = OSP_INSTANCE; 
     ospdatatype_names["OSP_LIGHT"] = OSP_LIGHT;
     ospdatatype_names["OSP_MATERIAL"] = OSP_MATERIAL;
     ospdatatype_names["OSP_RENDERER"] = OSP_RENDERER;
     ospdatatype_names["OSP_TEXTURE"] = OSP_TEXTURE;
     ospdatatype_names["OSP_TRANSFER_FUNCTION"] = OSP_TRANSFER_FUNCTION;
     ospdatatype_names["OSP_VOLUME"] = OSP_VOLUME;
-    ospdatatype_names["OSP_VOLUMETRIC_MODEL"] = OSP_VOLUMETRIC_MODEL;
-    ospdatatype_names["OSP_INSTANCE"] = OSP_INSTANCE;
+    ospdatatype_names["OSP_VOLUMETRIC_MODEL"] = OSP_VOLUMETRIC_MODEL;    
     ospdatatype_names["OSP_WORLD"] = OSP_WORLD;
-    ospdatatype_names["OSP_IMAGE_OP"] = OSP_IMAGE_OP;   
-    
+        
     ospdatatype_names["OSP_STRING"] = OSP_STRING;
     ospdatatype_names["OSP_CHAR"] = OSP_CHAR;
     ospdatatype_names["OSP_UCHAR"] = OSP_UCHAR;
@@ -178,8 +195,23 @@ init_enum_mapping()
     ospframebufferformat_names["OSP_FB_SRGBA"] = OSP_FB_SRGBA;
     ospframebufferformat_names["OSP_FB_RGBA32F"] = OSP_FB_RGBA32F;
 
+    osptextureformat_names["OSP_TEXTURE_RGBA8"] = OSP_TEXTURE_RGBA8;
+    osptextureformat_names["OSP_TEXTURE_SRGBA"] = OSP_TEXTURE_SRGBA;
+    osptextureformat_names["OSP_TEXTURE_RGBA32F"] = OSP_TEXTURE_RGBA32F;
+    osptextureformat_names["OSP_TEXTURE_RGB8"] = OSP_TEXTURE_RGB8;
+    osptextureformat_names["OSP_TEXTURE_SRGB"] = OSP_TEXTURE_SRGB;
+    osptextureformat_names["OSP_TEXTURE_RGB32F"] = OSP_TEXTURE_RGB32F;
+    osptextureformat_names["OSP_TEXTURE_R8"] = OSP_TEXTURE_R8;
+    osptextureformat_names["OSP_TEXTURE_R32F"] = OSP_TEXTURE_R32F;
+    osptextureformat_names["OSP_TEXTURE_L8"] = OSP_TEXTURE_L8;
+    osptextureformat_names["OSP_TEXTURE_RA8"] = OSP_TEXTURE_RA8;
+    osptextureformat_names["OSP_TEXTURE_LA8"] = OSP_TEXTURE_LA8;
+    osptextureformat_names["OSP_TEXTURE_FORMAT_INVALID"] = OSP_TEXTURE_FORMAT_INVALID;
+
     j["result"] = {
-        {"OSPDataType", ospdatatype_names}, {"OSPFrameBufferFormat", ospframebufferformat_names}
+        {"OSPDataType", ospdatatype_names}, 
+        {"OSPFrameBufferFormat", ospframebufferformat_names},
+        {"OSPTextureFormat", osptextureformat_names}
     };
     log_json(j);
     
@@ -203,6 +235,84 @@ find_or_load_call(const char *callname)
     library_pointers[callname] = ptr;
     
     return ptr;
+}
+
+static void
+ospray_error(OSPError e, const char *error)
+{
+    printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+    printf("(FAKER) OSPRAY ERROR: %s\n", error);
+    printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+
+    if (abort_on_ospray_error)
+        abort();
+}
+
+// 
+// Intercepted functions
+//
+
+OSPError
+ospInit(int *argc, const char **argv)
+{
+    ospInit_ptr libcall = GET_PTR(ospInit);
+
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospInit";
+    j["arguments"] = {
+        {"argc", *argc},
+        {"argv", (size_t)argv},     // XXX
+    };
+
+    OSPError res = libcall(argc, argv);    
+    
+    j["result"] = (size_t)res;
+    log_json(j);
+
+    ospDeviceSetErrorFunc_ptr libcall2 = GET_PTR(ospDeviceSetErrorFunc);
+    libcall2(ospGetCurrentDevice(), ospray_error);   
+    
+    return res;
+}
+
+OSPDevice
+ospNewDevice(const char *type)
+{
+    ospNewDevice_ptr libcall = GET_PTR(ospNewDevice);
+
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospNewDevice";
+    j["arguments"] = {
+        {"type", type},
+    };
+
+    OSPDevice res = libcall(type);
+    
+    j["result"] = (size_t)res;
+    log_json(j);
+
+    ospDeviceSetErrorFunc_ptr libcall2 = GET_PTR(ospDeviceSetErrorFunc);
+    libcall2(res, ospray_error);   
+    
+    return res;    
+}
+
+void 
+ospDeviceSetErrorFunc(OSPDevice device, OSPErrorFunc error_func)
+{        
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospDeviceSetErrorFunc";
+    j["arguments"] = {
+        {"device", (size_t)device},
+        {"error_func", (size_t)error_func},
+    };
+
+    // Do nothing, as we set our own error function instead in ospInit
+
+    log_json(j);
 }
     
 #define NEW_FUNCTION_1(TYPE) \
@@ -232,8 +342,140 @@ NEW_FUNCTION_1(Texture)
 NEW_FUNCTION_1(TransferFunction)
 NEW_FUNCTION_1(Volume)
 
+static void
+get_source_array_contents(json& j, unsigned long numItems, OSPDataType type, const void *source)
+{
+    int v;                
+    int n = numItems;
+
+    if (dump_arrays == 1)
+        n = std::min(n, 30);
+
+    switch (type)
+    {
+    case OSP_FLOAT:
+    case OSP_VEC2F:
+    case OSP_VEC3F:
+    case OSP_VEC4F:
+    {
+        std::vector<float> float_values;
+
+        v = type - OSP_FLOAT + 1;
+        const float *ptr = (float*)source;
+
+        for (size_t i = 0; i < n; i++)
+            for (int c = 0; c < v; c++)
+                float_values.push_back(ptr[v*i+c]);
+
+        j["source"] = float_values;
+    }
+        break;
+    
+    case OSP_UINT:
+    case OSP_VEC2UI:
+    case OSP_VEC3UI:
+    case OSP_VEC4UI:
+    {
+        std::vector<uint32_t> uint_values;            
+        v = type - OSP_UINT + 1;
+        const uint32_t *ptr = (uint32_t*)source;
+
+        for (size_t i = 0; i < n; i++)
+            for (int c = 0; c < v; c++)
+                uint_values.push_back(ptr[v*i+c]);
+
+        j["source"] = uint_values;
+    }
+
+        break;
+
+    case OSP_INT:
+    case OSP_VEC2I:
+    case OSP_VEC3I:
+    case OSP_VEC4I:
+    {
+        std::vector<int32_t> int_values;            
+        v = type - OSP_INT + 1;
+        const int32_t *ptr = (int32_t*)source;
+
+        for (size_t i = 0; i < n; i++)
+            for (int c = 0; c < v; c++)
+                int_values.push_back(ptr[v*i+c]);
+
+        j["source"] = int_values;
+    }
+
+        break;            
+
+    case OSP_CAMERA:    
+    case OSP_GEOMETRY:
+    case OSP_GEOMETRIC_MODEL:
+    case OSP_GROUP:
+    case OSP_INSTANCE:
+    case OSP_LIGHT:
+    case OSP_MATERIAL:
+    case OSP_OBJECT:
+    case OSP_TEXTURE:
+    case OSP_VOLUME:
+    case OSP_VOLUMETRIC_MODEL:
+    {
+        std::vector<size_t> pointer_values;
+        OSPObject *objects = (OSPObject*)source;
+
+        for (size_t i = 0; i < n; i++)
+            pointer_values.push_back((size_t)(objects[i]));                
+
+        j["source"] = pointer_values;            
+    }
+
+        break;       
+
+    // OSP_BOX1/2/3F
+
+    default:
+        printf("get_source_array_contents(): data type %d not handled\n", type);
+
+    } // switch    
+}
+
 OSPData
-ospNewData(size_t numItems, OSPDataType type, const void *source, uint32_t dataCreationFlags)
+ospNewSharedData(const void *sharedData, OSPDataType type, uint32_t numItems1, int64_t byteStride1, 
+    uint32_t numItems2, int64_t byteStride2, uint32_t numItems3, int64_t byteStride3)
+{
+    init_enum_mapping();
+    ospNewSharedData_ptr libcall = GET_PTR(ospNewSharedData);
+
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospNewSharedData";
+    j["arguments"] = {
+        {"sharedData", (size_t)sharedData},
+        {"type", type},
+        {"numItems1", numItems1},
+        {"byteStride1", byteStride1},
+        {"numItems2", numItems2},
+        {"byteStride2", byteStride2},
+        {"numItems3", numItems3},
+        {"byteStride3", byteStride3},
+    };
+
+    OSPData res = libcall(sharedData, type, numItems1, byteStride1, numItems2, byteStride2, numItems3, byteStride3);    
+
+    if (dump_arrays > 0)
+    {
+        // XXX other dimensions
+        get_source_array_contents(j, numItems1, type, sharedData);    
+    }
+    
+    j["result"] = (size_t)res;
+    log_json(j);
+    
+    return res;
+}
+
+
+OSPData
+ospNewData(OSPDataType type, uint32_t numItems1, uint32_t numItems2, uint32_t numItems3)
 {
     init_enum_mapping();
     ospNewData_ptr libcall = GET_PTR(ospNewData);
@@ -242,6 +484,31 @@ ospNewData(size_t numItems, OSPDataType type, const void *source, uint32_t dataC
     j["timestamp"] = timestamp();
     j["call"] = "ospNewData";
     j["arguments"] = {
+        {"type", type},
+        {"numItems1", numItems1},
+        {"numItems2", numItems2},
+        {"numItems3", numItems3},
+    };
+
+    OSPData res = libcall(type, numItems1, numItems2, numItems3);    
+    
+    j["result"] = (size_t)res;
+    log_json(j);
+    
+    return res;
+}
+
+// ospNewData(unsigned long, OSPDataType, void const*, unsigned int)
+extern "C" OSPData
+_Z10ospNewDatam11OSPDataTypePKvj(unsigned long numItems, OSPDataType type, const void *source, unsigned int dataCreationFlags)
+{
+    init_enum_mapping();
+    _Z10ospNewDatam11OSPDataTypePKvj_ptr libcall = GET_PTR(_Z10ospNewDatam11OSPDataTypePKvj);
+
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "_Z10ospNewDatam11OSPDataTypePKvj";
+    j["arguments"] = {
         {"numItems", numItems}, {"type", (int)type}, {"source", (size_t)source}, {"dataCreationFlags", dataCreationFlags}
         // XXX source contents
     };
@@ -249,91 +516,52 @@ ospNewData(size_t numItems, OSPDataType type, const void *source, uint32_t dataC
     OSPData res = libcall(numItems, type, source, dataCreationFlags);
 
     if (dump_arrays > 0)
-    {
-        int v;                
-        int n = numItems;
-        if (dump_arrays == 1)
-            n = std::min(n, 30);
-
-        switch (type)
-        {
-        case OSP_FLOAT:
-        case OSP_VEC2F:
-        case OSP_VEC3F:
-        case OSP_VEC4F:
-        {
-            std::vector<float> float_values;
-
-            v = type - OSP_FLOAT + 1;
-            const float *ptr = (float*)source;
-
-            for (size_t i = 0; i < n; i++)
-                for (int c = 0; c < v; c++)
-                    float_values.push_back(ptr[v*i+c]);
-
-            j["source"] = float_values;
-        }
-            break;
-        
-        case OSP_UINT:
-        case OSP_VEC2UI:
-        case OSP_VEC3UI:
-        case OSP_VEC4UI:
-        {
-            std::vector<uint32_t> uint_values;            
-            v = type - OSP_UINT + 1;
-            const uint32_t *ptr = (uint32_t*)source;
-
-            for (size_t i = 0; i < n; i++)
-                for (int c = 0; c < v; c++)
-                    uint_values.push_back(ptr[v*i+c]);
-
-            j["source"] = uint_values;
-        }
-
-            break;
-
-        case OSP_INT:
-        case OSP_VEC2I:
-        case OSP_VEC3I:
-        case OSP_VEC4I:
-        {
-            std::vector<int32_t> int_values;            
-            v = type - OSP_INT + 1;
-            const int32_t *ptr = (int32_t*)source;
-
-            for (size_t i = 0; i < n; i++)
-                for (int c = 0; c < v; c++)
-                    int_values.push_back(ptr[v*i+c]);
-
-            j["source"] = int_values;
-        }
-
-            break;            
-
-        case OSP_OBJECT:
-        {
-            std::vector<size_t> pointer_values;
-
-            for (size_t i = 0; i < n; i++)
-            {
-                OSPObject obj = ((OSPObject*)source)[i];
-                pointer_values.push_back((size_t)obj);                
-            }
-
-            j["source"] = pointer_values;            
-        }
-
-            break;        
-
-        } // switch
-    }
+        get_source_array_contents(j, numItems, type, source);        
 
     j["result"] = (size_t)res;
     log_json(j);
     
-    return res;
+    return res;    
 }
+
+void
+ospCopyData(const OSPData source, OSPData destination, uint32_t destinationIndex1, uint32_t destinationIndex2, uint32_t destinationIndex3)
+{
+    ospCopyData_ptr libcall = GET_PTR(ospCopyData);
+
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospCopyData";
+    j["arguments"] = {
+        {"source", (size_t)source}, 
+        {"destination", (size_t)destination}, 
+        {"destinationIndex1", destinationIndex1},
+        {"destinationIndex2", destinationIndex2},
+        {"destinationIndex3", destinationIndex3},
+    };
+
+    libcall(source, destination, destinationIndex1, destinationIndex2, destinationIndex3);
+
+    log_json(j); 
+}
+
+void
+ospCopyData1D(const OSPData source, OSPData destination, uint32_t destinationIndex)
+{
+    ospCopyData1D_ptr libcall = GET_PTR(ospCopyData1D);
+
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospCopyData1D";
+    j["arguments"] = {
+        {"source", (size_t)source}, {"destination", (size_t)destination}, {"destinationIndex", destinationIndex}
+    };
+
+    libcall(source, destination, destinationIndex);
+
+    log_json(j);
+}
+
 
 OSPFrameBuffer 
 ospNewFrameBuffer(int x, int y, OSPFrameBufferFormat format, uint32_t frameBufferChannels)
@@ -508,23 +736,7 @@ ospRelease(OSPObject obj)
     log_json(j);
 }
 
-void 
-ospSetData(OSPObject obj, const char *id, OSPData data)
-{
-    ospSetData_ptr libcall = GET_PTR(ospSetData);
-
-    json j;
-    j["timestamp"] = timestamp();
-    j["call"] = "ospSetData";
-    j["arguments"] = {
-        {"obj", (size_t)obj}, {"id", id}, {"data", (size_t)data}
-    };
-    
-    libcall(obj, id, data);
-    
-    log_json(j);
-}
-
+/*
 void 
 ospSetObject(OSPObject obj, const char *id, OSPObject other)
 {
@@ -541,6 +753,91 @@ ospSetObject(OSPObject obj, const char *id, OSPObject other)
 
     log_json(j);
 }
+*/
+
+void 
+ospSetParam(OSPObject obj, const char *id, OSPDataType type, const void *mem)
+{
+    init_enum_mapping();
+    ospSetParam_ptr libcall = GET_PTR(ospSetParam);
+
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospSetParam";
+    json &a = j["arguments"] = {
+        {"obj", (size_t)obj}, {"id", id}, {"type", type}
+    };
+
+    int *i;
+    float *f;
+
+    switch (type)
+    {
+    case OSP_BOOL:
+        a["mem"] = *((int*)mem);
+        break;
+
+    case OSP_INT:
+        a["mem"] = *((int*)mem);
+        break;
+    case OSP_VEC2I:
+        i = (int*)mem;
+        a["mem"] = { i[0], i[1] };
+        break;
+    case OSP_VEC3I:
+        i = (int*)mem;
+        a["mem"] = { i[0], i[1], i[2] };
+        break;
+
+    case OSP_FLOAT:
+        a["mem"] = *((float*)mem);
+        break;
+    case OSP_VEC2F:
+        f = (float*)mem;
+        a["mem"] = { f[0], f[1] };
+        break;
+    case OSP_VEC3F:
+        f = (float*)mem;
+        a["mem"] = { f[0], f[1], f[2] };
+        break;
+
+    case OSP_BOX2F:
+        f = (float*)mem;
+        a["mem"] = { f[0], f[1], f[2], f[3] };
+        break;
+    case OSP_BOX3F:
+        f = (float*)mem;
+        a["mem"] = { f[0], f[1], f[2], f[3], f[4], f[5] };
+        break;
+
+    case OSP_AFFINE3F:
+        f = (float*)mem;
+        a["mem"] = { { f[0], f[1], f[2] }, { f[3], f[4], f[5] }, { f[6], f[7], f[8]}, { f[9], f[10], f[11] } };
+        break;
+
+    case OSP_CAMERA:    
+    case OSP_GEOMETRY:
+    case OSP_GEOMETRIC_MODEL:
+    case OSP_GROUP:
+    case OSP_INSTANCE:
+    case OSP_LIGHT:
+    case OSP_MATERIAL:
+    case OSP_OBJECT:
+    case OSP_TEXTURE:
+    case OSP_VOLUME:
+    case OSP_VOLUMETRIC_MODEL:
+        a["mem"] = (size_t)(*(OSPObject*)mem);
+        break;
+
+    default:
+        printf("ospSetParam(): unhandled type %d\n", type);
+    }    
+    
+    libcall(obj, id, type, mem);
+
+    log_json(j);
+}
+
 
 void 
 ospSetBool(OSPObject obj, const char *id, int x)
@@ -610,6 +907,7 @@ ospSetLinear3fv(OSPObject obj, const char *id, const float *v)
     log_json(j);
 }
 
+/*
 void 
 ospSetAffine3fv(OSPObject obj, const char *id, const float *v)
 {
@@ -626,6 +924,7 @@ ospSetAffine3fv(OSPObject obj, const char *id, const float *v)
 
     log_json(j);
 }
+*/
 
 void 
 ospSetString(OSPObject obj, const char *id, const char *s)
@@ -870,8 +1169,7 @@ ospSetVec4iv(OSPObject obj, const char *id, const int *xyzw)
     log_json(j);
 }
 
-
-float 
+OSPFuture 
 ospRenderFrame(OSPFrameBuffer framebuffer, OSPRenderer renderer, OSPCamera camera, OSPWorld world)
 {
     ospRenderFrame_ptr libcall = GET_PTR(ospRenderFrame);
@@ -879,6 +1177,27 @@ ospRenderFrame(OSPFrameBuffer framebuffer, OSPRenderer renderer, OSPCamera camer
     json j;
     j["timestamp"] = timestamp();
     j["call"] = "ospRenderFrame";
+    j["arguments"] = {
+        {"framebuffer", (size_t)framebuffer}, {"renderer", (size_t)renderer}, {"camera", (size_t)camera}, {"world", (size_t)world}
+    };
+
+    OSPFuture res = libcall(framebuffer, renderer, camera, world);
+
+    j["result"] = (size_t)res;
+    log_json(j);
+
+    return res;
+}
+
+
+float 
+ospRenderFrameBlocking(OSPFrameBuffer framebuffer, OSPRenderer renderer, OSPCamera camera, OSPWorld world)
+{
+    ospRenderFrameBlocking_ptr libcall = GET_PTR(ospRenderFrameBlocking);
+
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospRenderFrameBlocking";
     j["arguments"] = {
         {"framebuffer", (size_t)framebuffer}, {"renderer", (size_t)renderer}, {"camera", (size_t)camera}, {"world", (size_t)world}
     };
@@ -912,4 +1231,7 @@ ospRenderFrame(OSPFrameBuffer framebuffer, OSPRenderer renderer, OSPCamera camer
   OSPRAY_INTERFACE void ospSetBox4i(OSPObject, const char *id, int lower_x, int lower_y, int lower_z, int lower_w, int upper_x, int upper_y, int upper_z, int upper_w);
   OSPRAY_INTERFACE void ospSetBox4iv(OSPObject, const char *id, const int *lower_xyzw_upper_xyzw);
 */
+
+
+
 

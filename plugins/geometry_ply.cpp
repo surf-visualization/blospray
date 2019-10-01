@@ -311,7 +311,8 @@ load_ply_file(GenerateFunctionResult &result, PluginState *state)
             //ospCommit(data);
             //ospSetObject(mesh, "vertex.color", data);
 
-            data = ospNewData(faces.size(), OSP_UINT, faces.data());
+            // XXX check /3
+            data = ospNewData(faces.size()/3, OSP_VEC3UI, faces.data());
             ospCommit(data);
             ospSetObject(geometry, "index", data);
 
@@ -332,7 +333,8 @@ load_ply_file(GenerateFunctionResult &result, PluginState *state)
             //ospCommit(data);
             //ospSetData(mesh, "vertex.color", data);
 
-            data = ospNewData(faces.size(), OSP_UINT, faces.data());
+            // XXX check /3
+            data = ospNewData(faces.size()/3, OSP_VEC3UI, faces.data());
             ospCommit(data);
             ospSetObject(geometry, "index", data);
 

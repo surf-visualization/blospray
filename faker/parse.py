@@ -31,7 +31,6 @@ OBJECT_ARGUMENTS = {
     'ospNewVolumetricModel': ['volume'],
     'ospCommit': ['obj'],
     'ospRelease': ['obj'],
-    'ospSetData': ['obj', 'data'],
     'ospSetObject': ['obj', 'other'],
     'ospSetBool': ['obj'],
     'ospSetFloat': ['obj'],
@@ -131,6 +130,11 @@ def decref(objaddr):
     while len(left_to_decref) > 0:
 
         objaddr = left_to_decref.pop()
+        
+        if objaddr not in reference_counts:
+            print('decref(): unknown address %d!' % objaddr)
+            continue
+        
         c = reference_counts[objaddr] - 1
         assert c >= 0
         if c == 0:
@@ -151,6 +155,20 @@ def decref(objaddr):
         else:
             reference_counts[objaddr] = c
 
+
+REFERENCE_DATA_TYPES = [
+    'OSP_CAMERA',    
+    'OSP_GEOMETRY',
+    'OSP_GEOMETRIC_MODEL', 
+    'OSP_GROUP',    
+    'OSP_INSTANCE',
+    'OSP_LIGHT', 
+    'OSP_MATERIAL',     
+    'OSP_OBJECT', 
+    'OSP_TEXTURE', 
+    'OSP_VOLUME', 
+    'OSP_VOLUMETRIC_MODEL'
+]
 
 try:
 
@@ -186,43 +204,105 @@ try:
             if call == 'ospNewMaterial':
                 obj.set_property('<materialType>', args['materialType'], False)
                 obj.set_property('<rendererType>', args['rendererType'], False)
-            elif call == 'ospNewData':
+                
+            elif call == '_Z10ospNewDatam11OSPDataTypePKvj':
+                # ospNewData(unsigned long, OSPDataType, void const*, unsigned int)
                 data_type = args['type']
                 data_type_name = ospdatatype2name[data_type]
-                obj.set_property('numItems', args['numItems'], False)
                 obj.set_property('type', data_type_name, False)
-                if data_type_name == 'OSP_OBJECT' and 'source' in e:                
-                    for idx, otheraddr in enumerate(e['source']):
+                obj.set_property('numItems', args['numItems'], False)                                
+                if data_type_name in REFERENCE_DATA_TYPES and 'source' in e:         
+                    obj.items = e['source'][:]
+                    for idx, otheraddr in enumerate(e['source']):                        
                         reference_counts[otheraddr] += 1
                         otherobj = addr2object[otheraddr]
                         obj.add_edge('[%d]' % idx, otherobj, False)
                         obj.add_reference(otherobj)
+                        
+            elif call == 'ospNewData':
+                data_type = args['type']
+                data_type_name = ospdatatype2name[data_type]
+                obj.set_property('type', data_type_name, False)
+                obj.set_property('numItems1', args['numItems1'], False)
+                obj.items = [None]*args['numItems1']
+                if args['numItems2'] > 1:
+                    obj.set_property('numItems2', args['numItems2'], False)
+                if args['numItems3'] > 1:
+                    obj.set_property('numItems3', args['numItems3'], False)
+                    
+            elif call == 'ospNewSharedData':
+                data_addr = args['sharedData']
+                data_type = args['type']
+                data_type_name = ospdatatype2name[data_type]
+                obj.set_property('type', data_type_name, False)
+                obj.set_property('numItems1', args['numItems1'], False)
+                if args['numItems2'] > 1:
+                    obj.set_property('numItems2', args['numItems2'], False)
+                if args['numItems3'] > 1:
+                    obj.set_property('numItems3', args['numItems3'], False)
+                if args['byteStride1'] > 0:
+                    obj.set_property('byteStride1', args['byteStride1'], False)
+                if args['byteStride2'] > 0:
+                    obj.set_property('byteStride2', args['byteStride2'], False)
+                if args['byteStride3'] > 0:
+                    obj.set_property('byteStride3', args['byteStride3'], False)
+                    
+                if data_type_name in REFERENCE_DATA_TYPES and 'source' in e:  
+                    obj.items = e['source'][:]
+                    for idx, otheraddr in enumerate(e['source']):
+                        reference_counts[otheraddr] += 1
+                        otherobj = addr2object[otheraddr]
+                        obj.add_edge('[%d]' % idx, otherobj, False)
+                        obj.add_reference(otherobj)     
+                    
             elif call == 'ospNewFrameBuffer':            
                 obj.set_property('format', ospframebufferformat2name[args['format']], False)
+                
             elif call in ['ospNewCamera', 'ospNewGeometry', 'ospNewLight', 'ospNewRenderer', 'ospNewTexture', 'ospNewTransferFunction', 'ospNewVolume']:            
                 obj.set_property('<type>', args['type'], False)
+                
             elif call == 'ospNewGeometricModel':   
                 geomobj = addr2object[args['geometry']]
                 obj.add_edge('geometry', geomobj, False)
-                obj.add_reference(geomobj)
+                obj.add_reference(geomobj)                
                 reference_counts[args['geometry']] += 1
+                
             elif call == 'ospNewVolumetricModel':
                 volobj = addr2object[args['volume']]
                 obj.add_edge('volume', volobj, False)
                 obj.add_reference(volobj)
                 reference_counts[args['volume']] += 1
+                
             elif call == 'ospNewInstance':
                 groupobj = addr2object[args['group']]
                 obj.add_edge('instance', groupobj, False)
                 obj.add_reference(groupobj)
                 reference_counts[args['group']] += 1
 
+        elif call == 'ospCopyData':                    
+            
+            dest_addr = args['destination']
+            source_addr = args['source']
+            dest_idx1 = args['destinationIndex1']
+            assert dest_idx1 == 0
+            
+            source_obj = addr2object[source_addr]
+            dest_obj = addr2object[dest_addr]
+            
+            if source_obj.fields['type'] in REFERENCE_DATA_TYPES:
+                for idx, otheraddr in enumerate(source_obj.items):
+                    reference_counts[otheraddr] += 1
+                    otherobj = addr2object[otheraddr]
+                    dest_obj.add_edge('[%d]' % idx, otherobj, False)
+                    dest_obj.add_reference(otherobj)     
+        
         elif call == 'ospRelease':
             objaddr = args['obj']
             if objaddr == 0:
                 print('WARNING: ospRelease(0)')
             decref(objaddr)   
             
+        # XXX ospRenderFrameBlocking
         elif call == 'ospRenderFrame':
 
             renderframe_call_count += 1
@@ -246,12 +326,23 @@ try:
             
             obj = addr2object[args['obj']]
             
-            if call == 'ospSetData':
-                dataaddr = args['data']
-                dataobj = addr2object[dataaddr]
-                obj.add_edge(args['id'], dataobj)
-                obj.add_reference(dataobj)
-                reference_counts[dataaddr] += 1
+            if call == 'ospSetParam':
+                data_type = args['type']
+                data_type_name = ospdatatype2name[data_type]                                
+                if data_type_name in REFERENCE_DATA_TYPES:
+                    otheraddr = args['mem']
+                    if otheraddr in addr2object:      
+                        otherobj = addr2object[otheraddr]
+                        obj.add_edge(args['id'], otherobj)
+                        obj.add_reference(otherobj)                
+                        reference_counts[otheraddr] += 1            
+                    else:
+                        print('ospSetParam(): unknown mem %d' % otheraddr)
+                else:
+                    # XXX handle if mem not found
+                    if 'mem' in args:
+                        obj.set_property(args['id'], args['mem'])
+                
             elif call == 'ospSetObject':
                 otheraddr = args['other']
                 otherobj = addr2object[otheraddr]
@@ -262,7 +353,7 @@ try:
                 obj.set_property(args['id'], args['x'])
             
 except KeyError as e:
-    print(repr(e))
+    raise
 
 g = open('dump.dot', 'wt')
 g.write('digraph {\n')

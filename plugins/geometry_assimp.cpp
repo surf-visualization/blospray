@@ -83,7 +83,7 @@ create_plane(float cx, float cy, float cz, float sx, float sy)
         ospCommit(data);
         //ospSetData(mesh, "vertex.color", data);
 
-        data = ospNewData(num_triangles, OSP_VEC3I, triangles);            
+        data = ospNewData(num_triangles, OSP_VEC3UI, triangles);            
         ospCommit(data);
         ospSetData(mesh, "index", data);
 
@@ -188,7 +188,8 @@ load_file(GenerateFunctionResult &result, PluginState *state)
             triangles.push_back(ff[i].mIndices[2]);
         }
 
-        OSPData data = ospNewData(triangles.size(), OSP_UINT, triangles.data());
+        // XXX check /3
+        OSPData data = ospNewData(triangles.size()/3, OSP_VEC3UI, triangles.data());
         ospCommit(data);
         ospSetObject(geometry, "index", data);
         //ospRelease(data);
@@ -271,7 +272,8 @@ load_file(GenerateFunctionResult &result, PluginState *state)
             //ospCommit(data);
             //ospSetObject(mesh, "vertex.color", data);
 
-            data = ospNewData(faces.size(), OSP_UINT, faces.data());
+            // XXX check /3
+            data = ospNewData(faces.size()/3, OSP_VEC3UI, faces.data());
             ospCommit(data);
             ospSetObject(geometry, "index", data);
 
