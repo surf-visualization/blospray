@@ -301,7 +301,8 @@ try:
             objaddr = args['obj']
             if objaddr == 0:
                 print('WARNING: ospRelease(0)')
-            decref(objaddr)   
+            else:
+                decref(objaddr)   
             
         elif call in ['ospRenderFrame', 'ospRenderFrameBlocking']:
 
