@@ -968,12 +968,12 @@ update_blender_mesh_object(const UpdateObject& update)
     if (it != scene_materials.end())
     {
         printf("... Material '%s'\n", matname.c_str());
-        ospSetObject(gmodel, "material", it->second->material);
+        ospSetObjectAsData(gmodel, "material", OSP_MATERIAL, it->second->material);
     }
     else
     {
         printf("... WARNING: Material '%s' not found, using default!\n", matname.c_str());
-        ospSetObject(gmodel, "material", default_materials[current_renderer_type]);
+        ospSetObjectAsData(gmodel, "material", OSP_MATERIAL, default_materials[current_renderer_type]);
     }
 
     /*
@@ -1049,10 +1049,8 @@ update_geometry_object(const UpdateObject& update)
     {
         gmodel = geometry_object->gmodel = ospNewGeometricModel(geometry); 
 
-        OSPData models = ospNewData(1, OSP_GEOMETRIC_MODEL, &gmodel, 0);        
-        ospSetObject(group, "geometry", models);
+        ospSetObjectAsData(group, "geometry", OSP_GEOMETRIC_MODEL, gmodel);
         ospCommit(group);
-        ospRelease(models);
     }
     else
         gmodel = geometry_object->gmodel;
@@ -1072,12 +1070,12 @@ update_geometry_object(const UpdateObject& update)
     if (it != scene_materials.end())
     {
         printf("... Material '%s'\n", matname.c_str()); 
-        ospSetObject(gmodel, "material", it->second->material);
+        ospSetObjectAsData(gmodel, "material", OSP_MATERIAL, it->second->material);
     }
     else
     {
         printf("... WARNING: Material '%s' not found, using default!\n", matname.c_str());
-        ospSetObject(gmodel, "material", default_materials[current_renderer_type]);
+        ospSetObjectAsData(gmodel, "material", OSP_MATERIAL, default_materials[current_renderer_type]);
     }
     
     ospCommit(gmodel);
@@ -1250,8 +1248,7 @@ update_volume_object(const UpdateObject& update, const Volume& volume_settings)
 
     ospCommit(vmodel);
 
-    OSPData data = ospNewData(1, OSP_OBJECT, &vmodel, 0);
-        ospSetObject(group, "volume", data);                        // XXX why ospSetObject?
+    ospSetObjectAsData(group, "volume", OSP_VOLUMETRIC_MODEL, vmodel);
     ospCommit(group);
 
     glm::mat4   obj2world;
@@ -1342,7 +1339,7 @@ update_isosurfaces_object(const UpdateObject& update)
             //ospSetFloat(volumeModel, "samplingRate", 0.5f);
          ospCommit(vmodel);
 
-        ospSetObject(gmodel, "material", default_materials[current_renderer_type]);
+        ospSetObjectAsData(gmodel, "material", OSP_MATERIAL, default_materials[current_renderer_type]);
         ospCommit(gmodel);
      }
 
@@ -1517,13 +1514,12 @@ add_slices_objects(const UpdateObject& update, const Slices& slices)
         ospRelease(volume_texture);        
 
         OSPGeometricModel geometric_model = ospNewGeometricModel(geometry);
-            ospSetObject(geometric_model, "material", material);
+            ospSetObjectAsData(geometric_model, "material", OSP_MATERIAL, material);
         ospCommit(geometric_model);
         ospRelease(material);
 
         OSPGroup group = ospNewGroup();
-            OSPData data = ospNewData(1, OSP_GEOMETRIC_MODEL, &geometric_model, 0);
-            ospSetObject(group, "geometry", data);                  // SetObject or SetData?
+            ospSetObjectAsData(group, "geometry", OSP_GEOMETRIC_MODEL, geometric_model); 
             //ospRelease(model);
         ospCommit(group);
      
@@ -1568,7 +1564,7 @@ add_slices_objects(const UpdateObject& update, const Slices& slices)
         ospCommit(slice_geometry);
             
         OSPGeometricModel model = ospNewGeometricModel(slice_geometry);
-            ospSetObject(model, "material", default_material);
+            ospSetObjectAsData(model, "material", OSP_MATERIAL, default_material);
         ospCommit(model);
         ospRelease(slice_geometry);
 #endif        
