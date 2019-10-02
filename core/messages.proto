@@ -255,8 +255,6 @@ message RenderSettings
     bool            geometry_lights = 32;
     
     repeated float  background_color = 50;   // RGBA
-    
-    bool            shadows_enabled = 80;    // XXX no longer in API2?
 }
 
 message LightSettings

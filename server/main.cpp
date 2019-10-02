@@ -2150,7 +2150,6 @@ update_renderer_type(const std::string& type)
     }
 }
 
-// XXX currently has big memory leak as we never release the new objects ;-)
 bool
 receive_scene(TCPSocket *sock)
 {
@@ -2241,7 +2240,6 @@ receive_scene(TCPSocket *sock)
         ospRelease(backplate);*/
     }
 
-    //ospSetBool(renderer, "shadowsEnabled", render_settings.shadows_enabled());        // XXX removed in 2.0?
     //ospSetInt(renderer, "spp", 1);
 
     ospCommit(renderer);

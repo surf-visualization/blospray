@@ -364,7 +364,6 @@ class Connection:
             render_settings.roulette_depth = scene.ospray.roulette_depth
             render_settings.max_contribution = scene.ospray.max_contribution
             render_settings.geometry_lights = scene.ospray.geometry_lights
-        #render_settings.shadows_enabled = scene.ospray.shadows_enabled     # XXX removed in 2.0?
 
         #
         # Send scene
@@ -398,12 +397,10 @@ class Connection:
 
             if obj.type == 'LIGHT':
                 self.send_updated_light(data, depsgraph, obj)
-                continue
-            elif obj.type != 'MESH':
-                continue
-        
-            # Send object linking to the mesh data
-            self.send_updated_mesh_object(data, depsgraph, obj, obj.data, instance.matrix_world, instance.is_instance, instance.random_id)        
+            elif obj.type == 'MESH':                                        
+                self.send_updated_mesh_object(data, depsgraph, obj, obj.data, instance.matrix_world, instance.is_instance, instance.random_id)        
+            elif obj.type not in ['CAMERA']:
+                print('Warning: not exporting object of type "%s"' % obj.type)
 
     def send_updated_ambient_light(self, color, intensity):
 
