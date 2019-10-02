@@ -6,10 +6,15 @@ server -> client
 [User presses F12]
 <- UPDATE_....
     scene objects
-    camera
+<- UPDATE_CAMERA
+    camera settings
+    render border
+<- UPDATE_FRAMEBUFFER
+    resolution
+    format
 <- ClientMessage START_RENDERING
     type=FINAL
-    resolution
+    image resolution
     number of samples S
 -> RenderResult FRAME (times S)
     32-bit floating point
@@ -24,11 +29,15 @@ server -> client
 
 [User switches to interactive rendering]
 <- UPDATE_....
-    scene objects
-    camera
+    scene objects    
+<- UPDATE_CAMERA
+    camera settings
+    render border
+<- UPDATE_FRAMEBUFFER
+    resolution                      # For interactive render this is independent of the user-chosen image resolution        
+    format
 <- ClientMessage START_RENDERING
     type=INTERACTIVE
-    viewport resolution
     initial resolution factor
     number of samples S
 -> RenderResult FRAME (times S)
@@ -37,8 +46,10 @@ server -> client
     
 [scene/camera updated]
 <- UPDATE_...
-# Server stops rendering automatically after receiving first UPDATE_ message
-# when interactive rendering is active. Client needs to restart rendering itself
+# Server stops rendering automatically after receiving first UPDATE_... message
+# when interactive rendering is active. Client needs to restart rendering itself,
+# as the server can't tell when all updates have been sent.
+# UPDATE_... messages are not allowed when final rendering is in progress.
 <- ClientMessage START_RENDERING
     viewport resolution
     initial resolution factor

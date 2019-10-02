@@ -35,16 +35,20 @@ sys.path.insert(0, os.path.split(__file__)[0])
 from .common import PROTOCOL_VERSION, send_protobuf, receive_protobuf
 from .messages_pb2 import (
     HelloResult,
-    CameraSettings, FramebufferSettings,
-    LightSettings, RenderSettings,
-    MeshData,
-    ClientMessage, GenerateFunctionResult,
-    RenderResult,
+    ClientMessage,
+    CameraSettings, LightSettings, RenderSettings,
     UpdateObject, UpdatePluginInstance,
+    MeshData,
+    GenerateFunctionResult, RenderResult,    
     Volume, Slices, Slice,
     MaterialUpdate, 
     CarPaintSettings, GlassSettings, LuminousSettings, MetallicPaintSettings, OBJMaterialSettings, PrincipledSettings
 )
+
+OSP_FB_NONE = 0 
+OSP_FB_RGBA8 = 1    # one dword per pixel: rgb+alpha, each one byte
+OSP_FB_SRGBA = 2    # one dword per pixel: rgb (in sRGB space) + alpha, each one byte
+OSP_FB_RGBA32F = 3  # one float4 per pixel: rgb+alpha, each one float
 
 # Object to world matrix
 #
@@ -190,6 +194,18 @@ class Connection:
                 
         return properties, plugin_parameters
         
+    def send_clear_scene(self, sock):
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.CLEAR_SCENE
+        send_protobuf(self.sock, client_message)        
+
+    def send_updated_framebuffer_settings(self, sock, width, height, format):
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.UPDATE_FRAMEBUFFER
+        client_message.uint_value = format
+        client_message.uint_value2 = width
+        client_message.uint_value3 = height
+        send_protobuf(self.sock, client_message)
 
     def send_updated_camera(self, sock, cam_obj, border=None):
         
@@ -270,6 +286,18 @@ class Connection:
 
         send_protobuf(self.sock, client_message)
         send_protobuf(self.sock, camera_settings)
+
+    def send_updated_renderer_type(self, sock, type):
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.UPDATE_RENDERER_TYPE
+        client_message.string_value = type
+        send_protobuf(self.sock, client_message)
+
+    def send_updated_render_settings(self, sock, render_settings):
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.UPDATE_RENDER_SETTINGS
+        send_protobuf(self.sock, client_message)
+        send_protobuf(self.sock, render_settings)                
         
     def export_scene(self, data, depsgraph):
 
@@ -281,15 +309,36 @@ class Connection:
         render = scene.render
         world = scene.world
 
-        # Make sure this is the first thing we send
-        client_message = ClientMessage()
-        client_message.type = ClientMessage.UPDATE_RENDERER_TYPE
-        client_message.string_value = scene.ospray.renderer
-        send_protobuf(self.sock, client_message)
+        # Make sure this is the first thing we send, other
+        # things can depend on it (e.g. created materials)
+        self.send_updated_renderer_type(self.sock, scene.ospray.renderer)
 
-        client_message = ClientMessage()
-        client_message.type = ClientMessage.UPDATE_SCENE
-        send_protobuf(self.sock, client_message)
+        # Clear scene
+
+        self.send_clear_scene(self.sock)
+
+        # Render settings    
+       
+        render_settings = RenderSettings()
+        render_settings.renderer = scene.ospray.renderer
+        render_settings.type = RenderSettings.FINAL
+        render_settings.background_color[:] = world.ospray.background_color
+        self.render_samples = render_settings.samples = scene.ospray.samples
+        render_settings.max_depth = scene.ospray.max_depth
+        render_settings.min_contribution = scene.ospray.min_contribution
+        render_settings.variance_threshold = scene.ospray.variance_threshold
+        if scene.ospray.renderer == 'scivis':
+            render_settings.ao_samples = scene.ospray.ao_samples
+            render_settings.ao_radius = scene.ospray.ao_radius
+            render_settings.ao_intensity = scene.ospray.ao_intensity
+        elif scene.ospray.renderer == 'pathtracer':
+            render_settings.roulette_depth = scene.ospray.roulette_depth
+            render_settings.max_contribution = scene.ospray.max_contribution
+            render_settings.geometry_lights = scene.ospray.geometry_lights
+
+        self.send_updated_render_settings(self.sock, render_settings)
+
+        # Framebuffer
 
         scale = render.resolution_percentage / 100.0
         self.framebuffer_width = int(render.resolution_x * scale)
@@ -300,10 +349,7 @@ class Connection:
             (render.resolution_x, render.resolution_y, render.resolution_percentage,
             self.framebuffer_width, self.framebuffer_height, self.framebuffer_aspect))
 
-        # Image
-
         border = None
-        framebuffer_settings = FramebufferSettings()
 
         if render.use_border:
             # Blender: X to the right, Y up, i.e. (0,0) is lower-left, same
@@ -338,38 +384,8 @@ class Connection:
             #self.framebuffer_aspect = self.framebuffer_width / self.framebuffer_height
 
             print('Framebuffer for border render: %d x %d' % (self.framebuffer_width, self.framebuffer_height))
-
-        framebuffer_settings.width = self.framebuffer_width
-        framebuffer_settings.height = self.framebuffer_height
-
-        # Render settings
-
-        render_settings = RenderSettings()
-        render_settings.renderer = scene.ospray.renderer
-        render_settings.type = RenderSettings.FINAL
-        render_settings.background_color[:] = world.ospray.background_color
-        self.render_samples = render_settings.samples = scene.ospray.samples
-        render_settings.max_depth = scene.ospray.max_depth
-        render_settings.min_contribution = scene.ospray.min_contribution
-        render_settings.variance_threshold = scene.ospray.variance_threshold
-        if scene.ospray.renderer == 'scivis':
-            render_settings.ao_samples = scene.ospray.ao_samples
-            render_settings.ao_radius = scene.ospray.ao_radius
-            render_settings.ao_intensity = scene.ospray.ao_intensity
-        elif scene.ospray.renderer == 'pathtracer':
-            render_settings.roulette_depth = scene.ospray.roulette_depth
-            render_settings.max_contribution = scene.ospray.max_contribution
-            render_settings.geometry_lights = scene.ospray.geometry_lights
-
-        #
-        # Send scene
-        #
-
-        # Image settings
-        send_protobuf(self.sock, framebuffer_settings)
-
-        # Render settings
-        send_protobuf(self.sock, render_settings)
+        
+        self.send_updated_framebuffer_settings(self.sock, self.framebuffer_width, self.framebuffer_height, OSP_FB_RGBA32F)
 
         # Camera settings
         self.send_updated_camera(self.sock, scene.camera, border)        
@@ -1029,6 +1045,8 @@ class Connection:
 
         result = self.engine.begin_result(0, 0, self.framebuffer_width, self.framebuffer_height)
         # Only Combined and Depth seem to be available
+        # https://docs.blender.org/manual/en/latest/render/layers/passes.html
+        # Combined = lighting only        
         layer = result.layers[0].passes["Combined"]
 
         FBFILE = '/dev/shm/blosprayfb.exr'

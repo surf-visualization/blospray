@@ -30,9 +30,10 @@ message ClientMessage
         GET_SERVER_STATE = 10;
         
         CLEAR_SCENE = 11;
-        UPDATE_SCENE = 12; 
+        
+        UPDATE_RENDER_SETTINGS = 12; 
         UPDATE_RENDERER_TYPE = 13;
-
+        UPDATE_FRAMEBUFFER = 14;
         UPDATE_OBJECT = 20;
         UPDATE_BLENDER_MESH = 21;
         UPDATE_PLUGIN_INSTANCE = 22;
@@ -57,6 +58,7 @@ message ClientMessage
 
     uint32  uint_value = 20;
     uint32  uint_value2 = 21;
+    uint32  uint_value3 = 22;
 
     //float   float_value = 30;
 
@@ -67,12 +69,16 @@ message ClientMessage
         uint_value = protocol version
     QUERY_BOUND: 
         string_value = object name
-    UPDATE_RENDERER_TYPE:
-        string_value = "scivis" | "pathtracer"
     START_RENDERING:
         string_value = "final" | "interactive" | "preview"
         uint_value = number of samples
         uint_value2 = initial resolution factor, e.g. 16 or 4
+    UPDATE_RENDERER_TYPE:
+        string_value = "scivis" | "pathtracer"
+    UPDATE_FRAMEBUFFER:
+        uint_value = format (OSPFrameBufferFormat)
+        uint_value2 = width
+        uint_value3 = height
     */
 
     // XXX fold different types of submessages in here?
@@ -206,12 +212,6 @@ message MeshData
 }
 
 // Settings
-
-message FramebufferSettings
-{
-    uint32          width = 1;
-    uint32          height = 2;    
-}
 
 message CameraSettings
 {

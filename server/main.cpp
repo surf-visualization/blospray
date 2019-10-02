@@ -90,13 +90,15 @@ std::vector<OSPLight>       scene_lights;
 OSPData                     scene_instances_data = nullptr;
 OSPData                     scene_lights_data = nullptr;
 
-int             framebuffer_width=0, framebuffer_height=0;
-bool            framebuffer_created = false;
+int                         framebuffer_width=0, framebuffer_height=0;
+OSPFrameBufferFormat        framebuffer_format;
+bool                        framebuffer_created = false;
+
+int             render_samples=1;
+
 bool            keep_framebuffer_files = getenv("BLOSPRAY_KEEP_FRAMEBUFFER_FILES") != nullptr;
 bool            dump_client_messages = getenv("BLOSPRAY_DUMP_CLIENT_MESSAGES") != nullptr;
 bool            abort_on_ospray_error = getenv("BLOSPRAY_ABORT_ON_OSPRAY_ERROR") != nullptr;
-
-RenderSettings  render_settings;
 
 // Geometry buffers used during network receive
 
@@ -1849,6 +1851,32 @@ handle_update_object(TCPSocket *sock)
 }
 
 void
+update_framebuffer(OSPFrameBufferFormat format, uint32_t width, uint32_t height)
+{
+    printf("FRAMEBUFFER %d x %d (format %d)\n", width, height, format);
+
+    if (framebuffer_width != width || framebuffer_height != height || framebuffer_format != format)
+    {
+        // Reallocate framebuffer as its resolution/format changed
+        if (framebuffer_created)
+            ospRelease(framebuffer);
+
+        framebuffer_width = width;
+        framebuffer_height = height;
+
+        printf("Initializing framebuffer of %dx%d pixels\n", framebuffer_width, framebuffer_height);
+
+        // OSP_FB_SRGBA   : 8 bit sRGB gamma encoded color components, and linear alpha
+        // OSP_FB_RGBA32F : 32 bit float components red, green, blue, alpha
+        framebuffer = ospNewFrameBuffer(framebuffer_width, framebuffer_height, format, OSP_FB_COLOR | /*OSP_FB_DEPTH |*/ OSP_FB_ACCUM | OSP_FB_VARIANCE);
+        // XXX is this call needed here?
+        ospResetAccumulation(framebuffer);
+
+        framebuffer_created = true;
+    }
+}
+
+void
 update_camera(CameraSettings& camera_settings)
 {
     printf("CAMERA '%s' (camera)\n", camera_settings.object_name().c_str());
@@ -2138,56 +2166,33 @@ handle_update_material(TCPSocket *sock)
 void
 update_renderer_type(const std::string& type)
 {
-    if (type != current_renderer_type)
-    {
-        printf("Updating renderer type to '%s'\n", type.c_str());
+    if (type == current_renderer_type)
+        return;
 
-        renderer = renderers[type.c_str()];
+    printf("Updating renderer type to '%s'\n", type.c_str());
 
-        scene_materials.clear();
+    renderer = renderers[type.c_str()];
 
-        current_renderer_type = type;
-    }
+    scene_materials.clear();
+    // XXX any more?
+
+    current_renderer_type = type;
 }
 
 bool
-receive_scene(TCPSocket *sock)
+update_render_settings(const RenderSettings& render_settings)
 {
-    // Image settings
+    printf("Applying render settings\n");
 
-    FramebufferSettings framebuffer_settings;
-
-    receive_protobuf(sock, framebuffer_settings);
-
-    if (framebuffer_width != framebuffer_settings.width() || framebuffer_height != framebuffer_settings.height())
-    {
-        // Reallocate framebuffer as its resolution changed
-        if (framebuffer_created)
-            ospRelease(framebuffer);
-
-        framebuffer_width = framebuffer_settings.width() ;
-        framebuffer_height = framebuffer_settings.height();
-
-        printf("Initializing framebuffer of %dx%d pixels\n", framebuffer_width, framebuffer_height);
-
-        // OSP_FB_SRGBA   : 8 bit sRGB gamma encoded color components, and linear alpha
-        // OSP_FB_RGBA32F : 32 bit float components red, green, blue, alpha
-        framebuffer = ospNewFrameBuffer(framebuffer_width, framebuffer_height, OSP_FB_RGBA32F, OSP_FB_COLOR | /*OSP_FB_DEPTH |*/ OSP_FB_ACCUM | OSP_FB_VARIANCE);
-        // XXX is this call needed here?
-        ospResetAccumulation(framebuffer);
-
-        framebuffer_created = true;
-    }
-
-    // Render settings
-
-    receive_protobuf(sock, render_settings);
+    render_samples = render_settings.samples();
+    //ospSetInt(renderer, "spp", 1);
 
     ospSetInt(renderer, "maxDepth", render_settings.max_depth());
     ospSetFloat(renderer, "minContribution", render_settings.min_contribution());
     ospSetFloat(renderer, "varianceThreshold", render_settings.variance_threshold());
 
-    printf("Background color %f, %f, %f, %f\n", render_settings.background_color(0),
+    printf("Background color %f, %f, %f, %f\n", 
+        render_settings.background_color(0),
         render_settings.background_color(1),
         render_settings.background_color(2),
         render_settings.background_color(3));    
@@ -2239,8 +2244,6 @@ receive_scene(TCPSocket *sock)
         ospCommit(renderer);    
         ospRelease(backplate);*/
     }
-
-    //ospSetInt(renderer, "spp", 1);
 
     ospCommit(renderer);
 
@@ -2331,11 +2334,11 @@ render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
     //ospFrameBufferClear(framebuffer, OSP_FB_COLOR | OSP_FB_ACCUM);
     ospResetAccumulation(framebuffer);
 
-    num_samples = render_settings.samples();
+    printf("Rendering %d samples\n", render_samples);
 
-    for (int i = 1; i <= num_samples; i++)
+    for (int i = 1; i <= render_samples; i++)
     {
-        printf("Rendering sample %d/%d ... ", i, num_samples);
+        printf("Rendering sample %d/%d ... ", i, render_samples);
         fflush(stdout);
 
         gettimeofday(&t1, NULL);
@@ -2541,6 +2544,7 @@ handle_connection(TCPSocket *sock)
     RenderResult::Type  rr_type;
 
     CameraSettings      camera_settings;
+    RenderSettings      render_settings;
 
     std::thread         render_thread;
     bool                rendering = false;
@@ -2593,11 +2597,17 @@ handle_connection(TCPSocket *sock)
                     update_renderer_type(client_message.string_value());
                     break;
 
-                case ClientMessage::UPDATE_SCENE:
-                    // XXX check res
-                    // XXX ignore if rendering
+                case ClientMessage::CLEAR_SCENE:
                     clear_scene();
-                    receive_scene(sock);
+                    break;
+
+                case ClientMessage::UPDATE_RENDER_SETTINGS:     
+                    if (!receive_protobuf(sock, render_settings))
+                    {
+                        sock->close();
+                        return false;
+                    }
+                    update_render_settings(render_settings);
                     break;
 
                 case ClientMessage::UPDATE_PLUGIN_INSTANCE:
@@ -2612,6 +2622,11 @@ handle_connection(TCPSocket *sock)
                     handle_update_object(sock);
                     break;
                 
+                case ClientMessage::UPDATE_FRAMEBUFFER:
+                    update_framebuffer((OSPFrameBufferFormat)(client_message.uint_value()), 
+                        client_message.uint_value2(), client_message.uint_value3());
+                    break;
+
                 case ClientMessage::UPDATE_CAMERA:
                     if (!receive_protobuf(sock, camera_settings))
                     {
