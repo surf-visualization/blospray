@@ -87,6 +87,9 @@ std::string                 scene_materials_renderer;
 std::vector<OSPInstance>    scene_instances;
 std::vector<OSPLight>       scene_lights;
 
+OSPData                     scene_instances_data = nullptr;
+OSPData                     scene_lights_data = nullptr;
+
 int             framebuffer_width=0, framebuffer_height=0;
 bool            framebuffer_created = false;
 bool            keep_framebuffer_files = getenv("BLOSPRAY_KEEP_FRAMEBUFFER_FILES") != nullptr;
@@ -1571,8 +1574,6 @@ add_slices_objects(const UpdateObject& update, const Slices& slices)
     return true;
 }
 
-// XXX at some point lights will become regular scene objects in ospray 2.0,
-// for now treat them separately
 bool
 update_light_object(const UpdateObject& update, const LightSettings& light_settings)
 {
@@ -1580,7 +1581,7 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
     const std::string& linked_data = light_settings.light_name();    
 
     printf("OBJECT '%s' (light)\n", object_name.c_str());
-    printf("--> '%s' (blender light data)\n", linked_data.c_str());    // XXX not set for ambient
+    //printf("--> '%s' (blender light data)\n", linked_data.c_str());    // XXX not set for ambient
 
     SceneObject *scene_object;
     SceneObjectLight *light_object = nullptr;
@@ -1635,6 +1636,7 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
         light_object->data_link = light_settings.light_name();
 
         scene_objects[object_name] = light_object;
+        scene_lights.push_back(light);
     }
 
     if (light_settings.type() == LightSettings::SPOT)
@@ -1670,9 +1672,7 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
     if (light_settings.type() == LightSettings::POINT || light_settings.type() == LightSettings::SPOT)
         ospSetFloat(light, "radius", light_settings.radius());
 
-    ospCommit(light);
-
-    scene_lights.push_back(light);
+    ospCommit(light);    
 
     return true;
 }
@@ -2452,14 +2452,13 @@ clear_scene()
 {
     printf("Clearing scene (OSPRay elements only)\n");
 
-    for (OSPInstance& i : scene_instances)
-        ospRelease(i);
-
-    for (OSPLight& l : scene_lights)
-        ospRelease(l);
+    ospRelease(scene_instances_data);
+    ospRelease(scene_lights_data);    
 
     scene_instances.clear();
     scene_lights.clear();
+
+    scene_instances_data = scene_lights_data = nullptr;
 
     if (world != nullptr)
         ospRelease(world);
@@ -2470,20 +2469,28 @@ clear_scene()
 bool
 prepare_scene()
 {
-    printf("Setting up world with %d instance(s)\n", scene_instances.size());
-    OSPData instances = ospNewData(scene_instances.size(), OSP_INSTANCE, &scene_instances[0], 0);
-
     // XXX might not have to recreate world, only update instances
     world = ospNewWorld();
-        // Check https://github.com/ospray/ospray/issues/277. Is bool setting fixed in 2.0?
-        //ospSetBool(world, "compactMode", true);
-        ospSetObject(world, "instance", instances);    
-    //ospRelease(instances);
+    // Check https://github.com/ospray/ospray/issues/277. Is bool setting fixed in 2.0?
+    //ospSetBool(world, "compactMode", true);
+
+    printf("Setting up world with %d instance(s)\n", scene_instances.size());
+    if (scene_instances.size() > 0)
+    {
+        ospRelease(scene_instances_data);    
+        scene_instances_data = ospNewSharedData(&scene_instances[0], OSP_INSTANCE, scene_instances.size());
+        ospSetObject(world, "instance", scene_instances_data);    
+        ospRetain(scene_instances_data);
+    }
     
     printf("Adding %d light(s) to the world\n", scene_lights.size());
-    OSPData light_data = ospNewData(scene_lights.size(), OSP_LIGHT, &scene_lights[0], 0);
-    ospSetObject(world, "light", light_data);
-    //ospRelease(light_data);
+    if (scene_lights.size() > 0)
+    {
+        ospRelease(scene_lights_data);
+        scene_lights_data = ospNewSharedData(&scene_lights[0], OSP_LIGHT, scene_lights.size());
+        ospSetObject(world, "light", scene_lights_data);
+        ospRetain(scene_lights_data);
+    }
 
     ospCommit(world);
 
