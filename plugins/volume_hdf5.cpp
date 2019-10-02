@@ -117,9 +117,9 @@ generate(GenerateFunctionResult &result, PluginState *state)
 
     OSPDataType dataType = OSP_FLOAT;
 
-    OSPVolume volume = ospNewVolume("shared_structured_volume");
+    OSPVolume volume = ospNewVolume("structured_volume");
     
-        OSPData voxelData = ospNewData(n, dataType, grid_field_values);//, OSP_DATA_SHARED_BUFFER);   
+        OSPData voxelData = ospNewData(n, dataType, grid_field_values, 0);//, OSP_DATA_SHARED_BUFFER);   
         ospCommit(voxelData);
     
         ospSetObject(volume, "voxelData", voxelData);

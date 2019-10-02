@@ -25,6 +25,7 @@ for opt, value in options:
 
 f = open(args[0], 'rt')
 
+# XXX unused
 OBJECT_ARGUMENTS = {
     'ospNewGeometricModel': ['geometry'],
     'ospNewInstance': ['group'],
@@ -82,7 +83,7 @@ class Object:
         self.fields = {}
         self.edges = {}
         self.dirty = False
-
+        
         self.references = []
         
     def set_property(self, field, value, dirty=True):
@@ -302,14 +303,13 @@ try:
                 print('WARNING: ospRelease(0)')
             decref(objaddr)   
             
-        # XXX ospRenderFrameBlocking
-        elif call == 'ospRenderFrame':
+        elif call in ['ospRenderFrame', 'ospRenderFrameBlocking']:
 
             renderframe_call_count += 1
 
             if renderframe_call_count == stop_at_renderframe:
 
-                obj = Object('<ospRenderFrame>', 0)  
+                obj = Object('<%s>' % call, 0)  
                 addr2object[0] = obj    # XXX 0
                       
                 for name in ['renderer', 'world', 'camera', 'framebuffer']:
@@ -342,7 +342,11 @@ try:
                     # XXX handle if mem not found
                     if 'mem' in args:
                         obj.set_property(args['id'], args['mem'])
+            
+            else:
+                raise ValueError(call)
                 
+            """
             elif call == 'ospSetObject':
                 otheraddr = args['other']
                 otherobj = addr2object[otheraddr]
@@ -351,6 +355,7 @@ try:
                 reference_counts[otheraddr] += 1
             elif call in ['ospSetBool', 'ospSetString', 'ospSetFloat', 'ospSetInt']:
                 obj.set_property(args['id'], args['x'])
+            """
             
 except KeyError as e:
     raise

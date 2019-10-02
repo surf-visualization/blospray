@@ -951,11 +951,9 @@ update_blender_mesh_object(const UpdateObject& update)
     ospSetParam(instance, "xfm", OSP_AFFINE3F, affine_xform);
 
     ospCommit(instance);    
-
-    OSPData models = ospNewData(1, OSP_GEOMETRIC_MODEL, &gmodel, 0);
-        ospSetObject(group, "geometry", models);
+    
+    ospSetObjectAsData(group, "geometry", OSP_GEOMETRIC_MODEL, gmodel);
     ospCommit(group);    
-    ospRelease(models); 
 
     const std::string& matname = update.material_link();
 
@@ -970,6 +968,13 @@ update_blender_mesh_object(const UpdateObject& update)
         printf("... WARNING: Material '%s' not found, using default!\n", matname.c_str());
         ospSetObject(gmodel, "material", default_materials[current_renderer_type]);
     }
+
+    /*
+    float cols[] = { 1, 0, 0, 1 };
+    OSPData colors = ospNewData(1, OSP_VEC4F, &cols[0], 0);        
+    ospSetObject(gmodel, "color", colors);
+    ospRelease(colors);
+    */
 
     ospCommit(gmodel);
 
@@ -2181,7 +2186,7 @@ receive_scene(TCPSocket *sock)
 
     ospSetInt(renderer, "maxDepth", render_settings.max_depth());
     ospSetFloat(renderer, "minContribution", render_settings.min_contribution());
-    ospSetBool(renderer, "varianceThreshold", render_settings.variance_threshold());
+    ospSetFloat(renderer, "varianceThreshold", render_settings.variance_threshold());
 
     printf("Background color %f, %f, %f, %f\n", render_settings.background_color(0),
         render_settings.background_color(1),

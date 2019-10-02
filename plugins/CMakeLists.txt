@@ -114,6 +114,17 @@ target_include_directories(scene_cornellbox
     ${CMAKE_CURRENT_BINARY_DIR}
 )
 
+# scene_boxes
+
+add_library(scene_boxes SHARED scene_boxes.cpp)
+set_target_properties(scene_boxes PROPERTIES PREFIX "")   
+target_link_libraries(scene_boxes PUBLIC ${OSPRAY_LIBRARIES} ospray::ospray_testing)
+target_include_directories(scene_boxes
+    PUBLIC
+    ${PROTOBUF_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_BINARY_DIR}
+)
+
 
 if(PLUGIN_COSMOGRID)
 
@@ -152,6 +163,7 @@ install(TARGETS
     volume_testing
     geometry_plane
     scene_rbc
+    scene_boxes
     scene_cornellbox
     DESTINATION bin)
     

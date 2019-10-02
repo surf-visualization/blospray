@@ -36,7 +36,7 @@ load_as_structured(float *bbox, GenerateFunctionResult &result,
 {
     fprintf(stderr, "WARNING: volume loaded as structured, OSPRay currently doesn't support object-to-world transformation on it\n");
     
-    OSPVolume volume = ospNewVolume("shared_structured_volume");
+    OSPVolume volume = ospNewVolume("structured_volume");
     
     OSPData voxelData = ospNewData(dims[0]*dims[1]*dims[2], dataType, grid_field_values, OSP_DATA_SHARED_BUFFER);   
     ospCommit(voxelData);
@@ -404,9 +404,9 @@ create_volume(float *bbox,
         spacing[2] = s[2];
     }
     
-    OSPVolume volume = ospNewVolume("shared_structured_volume");
+    OSPVolume volume = ospNewVolume("structured_volume");
     
-        OSPData voxelData = ospNewData(dims[0]*dims[1]*dims[2], dataType, grid_field_values);//, OSP_DATA_SHARED_BUFFER);   
+        OSPData voxelData = ospNewData(dims[0]*dims[1]*dims[2], dataType, grid_field_values, 0);//, OSP_DATA_SHARED_BUFFER);   
         ospCommit(voxelData);
     
         ospSetObject(volume, "voxelData", voxelData);

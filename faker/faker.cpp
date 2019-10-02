@@ -55,7 +55,7 @@ typedef void                (*ospRelease_ptr)       (OSPObject obj);
 typedef void                (*ospSetBool_ptr)       (OSPObject obj, const char *id, int x);
 typedef void                (*ospSetFloat_ptr)      (OSPObject obj, const char *id, float x);
 typedef void                (*ospSetInt_ptr)        (OSPObject obj, const char *id, int x);
-//typedef void                (*ospSetObject_ptr)     (OSPObject obj, const char *id, OSPObject other);
+typedef void                (*ospSetObject_ptr)     (OSPObject obj, const char *id, OSPObject other);
 typedef void                (*ospSetParam_ptr)      (OSPObject obj, const char *id, OSPDataType type, const void *mem);
 typedef void                (*ospSetString_ptr)     (OSPObject obj, const char *id, const char *s);
 typedef void                (*ospSetVoidPtr_ptr)    (OSPObject obj, const char *id, void *v);
@@ -252,6 +252,7 @@ ospray_error(OSPError e, const char *error)
 // Intercepted functions
 //
 
+extern "C"
 OSPError
 ospInit(int *argc, const char **argv)
 {
@@ -261,9 +262,13 @@ ospInit(int *argc, const char **argv)
     j["timestamp"] = timestamp();
     j["call"] = "ospInit";
     j["arguments"] = {
-        {"argc", *argc},
-        {"argv", (size_t)argv},     // XXX
+        {"argc", *argc},        
     };
+
+    json args;
+    for (int i = 0; i < *argc; i++)
+        args[i] = argv[i];
+    j["arguments"]["argv"] = args;
 
     OSPError res = libcall(argc, argv);    
     
@@ -276,6 +281,7 @@ ospInit(int *argc, const char **argv)
     return res;
 }
 
+extern "C"
 OSPDevice
 ospNewDevice(const char *type)
 {
@@ -299,6 +305,7 @@ ospNewDevice(const char *type)
     return res;    
 }
 
+extern "C"
 void 
 ospDeviceSetErrorFunc(OSPDevice device, OSPErrorFunc error_func)
 {        
@@ -316,6 +323,7 @@ ospDeviceSetErrorFunc(OSPDevice device, OSPErrorFunc error_func)
 }
     
 #define NEW_FUNCTION_1(TYPE) \
+    extern "C" \
     OSP ## TYPE \
     ospNew ## TYPE(const char *type) \
     { \
@@ -438,6 +446,7 @@ get_source_array_contents(json& j, unsigned long numItems, OSPDataType type, con
     } // switch    
 }
 
+extern "C"
 OSPData
 ospNewSharedData(const void *sharedData, OSPDataType type, uint32_t numItems1, int64_t byteStride1, 
     uint32_t numItems2, int64_t byteStride2, uint32_t numItems3, int64_t byteStride3)
@@ -473,7 +482,7 @@ ospNewSharedData(const void *sharedData, OSPDataType type, uint32_t numItems1, i
     return res;
 }
 
-
+extern "C"
 OSPData
 ospNewData(OSPDataType type, uint32_t numItems1, uint32_t numItems2, uint32_t numItems3)
 {
@@ -524,6 +533,7 @@ _Z10ospNewDatam11OSPDataTypePKvj(unsigned long numItems, OSPDataType type, const
     return res;    
 }
 
+extern "C"
 void
 ospCopyData(const OSPData source, OSPData destination, uint32_t destinationIndex1, uint32_t destinationIndex2, uint32_t destinationIndex3)
 {
@@ -545,6 +555,7 @@ ospCopyData(const OSPData source, OSPData destination, uint32_t destinationIndex
     log_json(j); 
 }
 
+extern "C"
 void
 ospCopyData1D(const OSPData source, OSPData destination, uint32_t destinationIndex)
 {
@@ -562,7 +573,7 @@ ospCopyData1D(const OSPData source, OSPData destination, uint32_t destinationInd
     log_json(j);
 }
 
-
+extern "C"
 OSPFrameBuffer 
 ospNewFrameBuffer(int x, int y, OSPFrameBufferFormat format, uint32_t frameBufferChannels)
 {
@@ -584,6 +595,7 @@ ospNewFrameBuffer(int x, int y, OSPFrameBufferFormat format, uint32_t frameBuffe
     return res;
 }
 
+extern "C"
 OSPGeometricModel 
 ospNewGeometricModel(OSPGeometry geometry)
 {
@@ -604,6 +616,7 @@ ospNewGeometricModel(OSPGeometry geometry)
     return res;
 }
 
+extern "C"
 OSPGroup 
 ospNewGroup()
 {
@@ -622,6 +635,7 @@ ospNewGroup()
     return res;
 }
 
+extern "C"
 OSPInstance 
 ospNewInstance(OSPGroup group)
 {
@@ -642,7 +656,7 @@ ospNewInstance(OSPGroup group)
     return res;    
 }
 
-
+extern "C"
 OSPMaterial
 ospNewMaterial(const char *rendererType, const char *materialType)
 {
@@ -663,6 +677,7 @@ ospNewMaterial(const char *rendererType, const char *materialType)
     return res;
 }
 
+extern "C"
 OSPVolumetricModel 
 ospNewVolumetricModel(OSPVolume volume)
 {
@@ -683,7 +698,7 @@ ospNewVolumetricModel(OSPVolume volume)
     return res;
 }
 
-
+extern "C"
 OSPWorld 
 ospNewWorld()
 {
@@ -702,6 +717,7 @@ ospNewWorld()
     return res;
 }
 
+extern "C"
 void
 ospCommit(OSPObject obj)
 {
@@ -719,6 +735,7 @@ ospCommit(OSPObject obj)
     libcall(obj);  
 }
 
+extern "C"
 void
 ospRelease(OSPObject obj)
 {
@@ -736,7 +753,8 @@ ospRelease(OSPObject obj)
     log_json(j);
 }
 
-/*
+#if 0
+extern "C"
 void 
 ospSetObject(OSPObject obj, const char *id, OSPObject other)
 {
@@ -753,8 +771,9 @@ ospSetObject(OSPObject obj, const char *id, OSPObject other)
 
     log_json(j);
 }
-*/
+#endif
 
+extern "C"
 void 
 ospSetParam(OSPObject obj, const char *id, OSPDataType type, const void *mem)
 {
@@ -787,6 +806,10 @@ ospSetParam(OSPObject obj, const char *id, OSPDataType type, const void *mem)
     case OSP_VEC3I:
         i = (int*)mem;
         a["mem"] = { i[0], i[1], i[2] };
+        break;
+
+    case OSP_DOUBLE:
+        a["mem"] = *((double*)mem);
         break;
 
     case OSP_FLOAT:
@@ -838,7 +861,8 @@ ospSetParam(OSPObject obj, const char *id, OSPDataType type, const void *mem)
     log_json(j);
 }
 
-
+#if 0
+extern "C"
 void 
 ospSetBool(OSPObject obj, const char *id, int x)
 {
@@ -856,6 +880,7 @@ ospSetBool(OSPObject obj, const char *id, int x)
     log_json(j);
 }
 
+extern "C"
 void 
 ospSetFloat(OSPObject obj, const char *id, float x)
 {
@@ -873,6 +898,7 @@ ospSetFloat(OSPObject obj, const char *id, float x)
     log_json(j);
 }
 
+extern "C"
 void 
 ospSetInt(OSPObject obj, const char *id, int x)
 {
@@ -889,7 +915,10 @@ ospSetInt(OSPObject obj, const char *id, int x)
 
     log_json(j);
 }
+#endif
 
+/*
+extern "C"
 void 
 ospSetLinear3fv(OSPObject obj, const char *id, const float *v)
 {
@@ -906,8 +935,10 @@ ospSetLinear3fv(OSPObject obj, const char *id, const float *v)
 
     log_json(j);
 }
+*/
 
 /*
+extern "C"
 void 
 ospSetAffine3fv(OSPObject obj, const char *id, const float *v)
 {
@@ -926,6 +957,8 @@ ospSetAffine3fv(OSPObject obj, const char *id, const float *v)
 }
 */
 
+#if 0
+extern "C"
 void 
 ospSetString(OSPObject obj, const char *id, const char *s)
 {
@@ -942,7 +975,10 @@ ospSetString(OSPObject obj, const char *id, const char *s)
 
     log_json(j);
 }
+#endif
 
+/*
+extern "C"
 void
 ospSetVoidPtr(OSPObject obj, const char *id, void *v)
 {
@@ -961,6 +997,7 @@ ospSetVoidPtr(OSPObject obj, const char *id, void *v)
 }
 
 // Vec2
+extern "C"
 void 
 ospSetVec2f(OSPObject obj, const char *id, float x, float y)
 {
@@ -978,6 +1015,7 @@ ospSetVec2f(OSPObject obj, const char *id, float x, float y)
     log_json(j);
 }
 
+extern "C"
 void 
 ospSetVec2fv(OSPObject obj, const char *id, const float *xy)
 {
@@ -995,6 +1033,7 @@ ospSetVec2fv(OSPObject obj, const char *id, const float *xy)
     log_json(j);
 }
 
+extern "C"
 void 
 ospSetVec2i(OSPObject obj, const char *id, int x, int y)
 {
@@ -1012,6 +1051,7 @@ ospSetVec2i(OSPObject obj, const char *id, int x, int y)
     log_json(j);
 }
 
+extern "C"
 void 
 ospSetVec2iv(OSPObject obj, const char *id, const int *xy)
 {
@@ -1031,6 +1071,7 @@ ospSetVec2iv(OSPObject obj, const char *id, const int *xy)
 
 
 // Vec3
+extern "C"
 void 
 ospSetVec3f(OSPObject obj, const char *id, float x, float y, float z)
 {
@@ -1048,6 +1089,7 @@ ospSetVec3f(OSPObject obj, const char *id, float x, float y, float z)
     log_json(j);
 }
 
+extern "C"
 void 
 ospSetVec3fv(OSPObject obj, const char *id, const float *xyz)
 {
@@ -1065,6 +1107,7 @@ ospSetVec3fv(OSPObject obj, const char *id, const float *xyz)
     log_json(j);
 }
 
+extern "C"
 void 
 ospSetVec3i(OSPObject obj, const char *id, int x, int y, int z)
 {
@@ -1082,6 +1125,7 @@ ospSetVec3i(OSPObject obj, const char *id, int x, int y, int z)
     log_json(j);
 }
 
+extern "C"
 void 
 ospSetVec3iv(OSPObject obj, const char *id, const int *xyz)
 {
@@ -1101,6 +1145,7 @@ ospSetVec3iv(OSPObject obj, const char *id, const int *xyz)
 
 
 // Vec4
+extern "C"
 void 
 ospSetVec4f(OSPObject obj, const char *id, float x, float y, float z, float w)
 {
@@ -1118,6 +1163,7 @@ ospSetVec4f(OSPObject obj, const char *id, float x, float y, float z, float w)
     log_json(j);
 }
 
+extern "C"
 void 
 ospSetVec4fv(OSPObject obj, const char *id, const float *xyzw)
 {
@@ -1135,6 +1181,7 @@ ospSetVec4fv(OSPObject obj, const char *id, const float *xyzw)
     log_json(j);
 }
 
+extern "C"
 void 
 ospSetVec4i(OSPObject obj, const char *id, int x, int y, int z, int w)
 {
@@ -1152,6 +1199,7 @@ ospSetVec4i(OSPObject obj, const char *id, int x, int y, int z, int w)
     log_json(j);
 }
 
+extern "C"
 void 
 ospSetVec4iv(OSPObject obj, const char *id, const int *xyzw)
 {
@@ -1168,7 +1216,9 @@ ospSetVec4iv(OSPObject obj, const char *id, const int *xyzw)
 
     log_json(j);
 }
+*/
 
+extern "C"
 OSPFuture 
 ospRenderFrame(OSPFrameBuffer framebuffer, OSPRenderer renderer, OSPCamera camera, OSPWorld world)
 {
@@ -1189,7 +1239,7 @@ ospRenderFrame(OSPFrameBuffer framebuffer, OSPRenderer renderer, OSPCamera camer
     return res;
 }
 
-
+extern "C"
 float 
 ospRenderFrameBlocking(OSPFrameBuffer framebuffer, OSPRenderer renderer, OSPCamera camera, OSPWorld world)
 {

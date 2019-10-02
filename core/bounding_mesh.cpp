@@ -65,6 +65,30 @@ BoundingMesh::bbox(float xmin, float ymin, float zmin, float xmax, float ymax, f
     return bm;
 }    
 
+BoundingMesh*
+BoundingMesh::bbox_from_group(OSPGroup group, bool edges_only)
+{
+    OSPBounds bbox = ospGetBounds(group);
+   
+    return BoundingMesh::bbox(
+        bbox.lower[0], bbox.lower[1], bbox.lower[2],
+        bbox.upper[0], bbox.upper[1], bbox.upper[2],
+        edges_only
+    );
+}
+
+BoundingMesh*
+BoundingMesh::bbox_from_instance(OSPInstance instance, bool edges_only)
+{
+    OSPBounds bbox = ospGetBounds(instance);
+   
+    return BoundingMesh::bbox(
+        bbox.lower[0], bbox.lower[1], bbox.lower[2],
+        bbox.upper[0], bbox.upper[1], bbox.upper[2],
+        edges_only
+    );
+}
+
 // https://github.com/sp4cerat/Fast-Quadric-Mesh-Simplification
 // https://lorensen.github.io/VTKExamples/site/Cxx/Meshes/QuadricDecimation/
 // https://vtk.org/doc/nightly/html/classvtkQuadricClustering.html
