@@ -306,17 +306,12 @@ class Connection:
         framebuffer_settings = FramebufferSettings()
 
         if render.use_border:
-            # XXX nice, in ospray the render region is set on the *camera*,
-            # while in blender it is a *render* setting, but we pass it as
-            # an *image* setting :)
-
             # Blender: X to the right, Y up, i.e. (0,0) is lower-left, same
             # as ospray. BUT: ospray always fills up the complete framebuffer
             # with the specified image region, so we don't have a direct
             # equivalent of only rendering a sub-region of the full
-            # framebuffer as in blender :-/
-            # We need to set the framebuffer resolution to the cropped region
-            # as well.
+            # framebuffer as in blender. We need to adjust the framebuffer 
+            # resolution to the cropped region, plus set the ROI on the camera.
 
             min_x = render.border_min_x
             min_y = render.border_min_y
@@ -339,8 +334,9 @@ class Connection:
             self.framebuffer_width = right - left + 1
             self.framebuffer_height = top - bottom + 1
             # XXX we don't update the fb aspect when border render is active as the camera
-            # settings need to full fb aspect
+            # settings need the full fb aspect
             #self.framebuffer_aspect = self.framebuffer_width / self.framebuffer_height
+
             print('Framebuffer for border render: %d x %d' % (self.framebuffer_width, self.framebuffer_height))
 
         framebuffer_settings.width = self.framebuffer_width
@@ -1087,8 +1083,10 @@ class Connection:
                     self._read_framebuffer_to_file(FBFILE, render_result.file_size)
                     #print('[%6.3f] _read_framebuffer_to_file end' % (time.time()-t0))
 
-                    # Sigh, this needs an image file format. I.e. reading in a raw framebuffer
-                    # of floats isn't possible, hence the OpenEXR file
+                    # This needs an image file format. I.e. reading in a raw framebuffer
+                    # of floats isn't possible, hence the OpenEXR file. This isn't as
+                    # bad as it looks as we can include several layers in the OpenEXR file
+                    # and they get picked up automatically.
                     # XXX result.load_from_file(...), instead of result.layers[0].load_from_file(...), would work as well?
                     result.layers[0].load_from_file(FBFILE)
 

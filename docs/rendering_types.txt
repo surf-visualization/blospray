@@ -1,3 +1,8 @@
+server <- client
+server -> client
+
+---------------------------------------------------------------------
+
 [User presses F12]
 <- UPDATE_....
     scene objects
@@ -7,6 +12,7 @@
     resolution
     number of samples S
 -> RenderResult FRAME (times S)
+    32-bit floating point
 -> RenderResult DONE
 
 [User cancels rendering]
@@ -26,19 +32,22 @@
     initial resolution factor
     number of samples S
 -> RenderResult FRAME (times S)
+    8-bit SRGBA or 32-bit floating point?
 -> RenderResult DONE
     
 [scene/camera updated]
 <- UPDATE_...
-# Should server stop rendering after UPDATE_ messages?
-# So client restarts rendering manually
+# Server stops rendering automatically after receiving first UPDATE_ message
+# when interactive rendering is active. Client needs to restart rendering itself
 <- ClientMessage START_RENDERING
     viewport resolution
+    initial resolution factor
     max. number of samples S
 -> RenderResult FRAME (times S)
 -> RenderResult DONE
     
 [viewport changed]
+<- UPDATE camera
 <- ClientMessage START_RENDERING
     viewport resolution
     max. number of samples S
@@ -46,4 +55,6 @@
 -> RenderResult DONE
     
 [User switches out of interactive rendering]
-<- ClientMessage STOP_RENDERING             // same as CANCEL_RENDERING?
+<- ClientMessage CANCEL_RENDERING
+-> RenderResult FRAME [zero or more]
+-> RenderResult CANCELED

@@ -2322,6 +2322,7 @@ render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
     size_t  framebuffer_file_size;
     char fname[1024];
     float variance;
+    int num_samples;
 
     gettimeofday(&t0, NULL);
 
@@ -2330,9 +2331,11 @@ render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
     //ospFrameBufferClear(framebuffer, OSP_FB_COLOR | OSP_FB_ACCUM);
     ospResetAccumulation(framebuffer);
 
-    for (int i = 1; i <= render_settings.samples(); i++)
+    num_samples = render_settings.samples();
+
+    for (int i = 1; i <= num_samples; i++)
     {
-        printf("Rendering sample %d ... ", i);
+        printf("Rendering sample %d/%d ... ", i, num_samples);
         fflush(stdout);
 
         gettimeofday(&t1, NULL);
@@ -2347,7 +2350,7 @@ render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
         estimated variance can be used by the application as a quality indicator and
         thus to decide whether to stop or to continue progressive rendering.
         */
-        // XXX use new future-based call
+        // XXX use new future-based call?
         variance = ospRenderFrameBlocking(framebuffer, renderer, camera, world);
 
         gettimeofday(&t2, NULL);
@@ -2388,8 +2391,9 @@ render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
         render_result_queue.push(rs);
     }
 
+    // Final frame
     RenderResult rs;
-    rs.set_type(RenderResult::DONE);
+    rs.set_type(RenderResult::DONE);    
     rs.set_variance(variance);
     rs.set_memory_usage(memory_usage());
     render_result_queue.push(rs);
@@ -2633,8 +2637,9 @@ handle_connection(TCPSocket *sock)
 
                     if (rendering)
                     {
-                        // Ignore
-                        break;
+                        // Ignore                        
+                        printf("Received ClientMessage::START_RENDERING, but we're already rendering!\n");                        
+                        break;                        
                     }
 
                     //render_input_queue.clear();
