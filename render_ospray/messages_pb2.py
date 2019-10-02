@@ -20,7 +20,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x0emessages.proto\"\x96\x04\n\rClientMessage\x12!\n\x04type\x18\x01 \x01(\x0e\x32\x13.ClientMessage.Type\x12\x12\n\nuint_value\x18\x14 \x01(\r\x12\x13\n\x0buint_value2\x18\x15 \x01(\r\x12\x13\n\x0buint_value3\x18\x16 \x01(\r\x12\x14\n\x0cstring_value\x18( \x01(\t\"\x8d\x03\n\x04Type\x12\t\n\x05HELLO\x10\x00\x12\x07\n\x03\x42YE\x10\x01\x12\x14\n\x10GET_SERVER_STATE\x10\n\x12\x0f\n\x0b\x43LEAR_SCENE\x10\x0b\x12\x1a\n\x16UPDATE_RENDER_SETTINGS\x10\x0c\x12\x18\n\x14UPDATE_RENDERER_TYPE\x10\r\x12\x16\n\x12UPDATE_FRAMEBUFFER\x10\x0e\x12\x11\n\rUPDATE_OBJECT\x10\x14\x12\x17\n\x13UPDATE_BLENDER_MESH\x10\x15\x12\x1a\n\x16UPDATE_PLUGIN_INSTANCE\x10\x16\x12\x11\n\rUPDATE_CAMERA\x10\x17\x12\x13\n\x0fUPDATE_MATERIAL\x10\x18\x12\x11\n\rDELETE_OBJECT\x10\x1e\x12\x17\n\x13\x44\x45LETE_BLENDER_MESH\x10\x1f\x12\x1a\n\x16\x44\x45LETE_PLUGIN_INSTANCE\x10 \x12\x13\n\x0fSTART_RENDERING\x10(\x12\x14\n\x10\x43\x41NCEL_RENDERING\x10)\x12\x0f\n\x0bQUERY_BOUND\x10P\x12\x08\n\x04QUIT\x10\x63\"/\n\x0bHelloResult\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\"\"\n\x11ServerStateResult\x12\r\n\x05state\x18\x01 \x01(\t\"I\n\x10QueryBoundResult\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\x12\x13\n\x0bresult_size\x18\x03 \x01(\r\"\xb9\x01\n\x0cRenderResult\x12 \n\x04type\x18\x01 \x01(\x0e\x32\x12.RenderResult.Type\x12\x0e\n\x06sample\x18\x02 \x01(\r\x12\x10\n\x08variance\x18\x03 \x01(\x02\x12\x11\n\tfile_name\x18\x04 \x01(\t\x12\x11\n\tfile_size\x18\x05 \x01(\r\x12\x14\n\x0cmemory_usage\x18\x06 \x01(\x02\")\n\x04Type\x12\t\n\x05\x46RAME\x10\x00\x12\x0c\n\x08\x43\x41NCELED\x10\x01\x12\x08\n\x04\x44ONE\x10\x02\"\xc6\x01\n\x14UpdatePluginInstance\x12(\n\x04type\x18\x01 \x01(\x0e\x32\x1a.UpdatePluginInstance.Type\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x13\n\x0bplugin_name\x18\x03 \x01(\t\x12\x19\n\x11plugin_parameters\x18\x04 \x01(\t\x12\x19\n\x11\x63ustom_properties\x18\x05 \x01(\t\"+\n\x04Type\x12\x0c\n\x08GEOMETRY\x10\x00\x12\n\n\x06VOLUME\x10\x01\x12\t\n\x05SCENE\x10\x02\"\xf8\x01\n\x0cUpdateObject\x12 \n\x04type\x18\x01 \x01(\x0e\x32\x12.UpdateObject.Type\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x19\n\x11\x63ustom_properties\x18\x03 \x01(\t\x12\x14\n\x0cobject2world\x18\n \x03(\x02\x12\x11\n\tdata_link\x18\x0b \x01(\t\x12\x15\n\rmaterial_link\x18\x0c \x01(\t\"]\n\x04Type\x12\x08\n\x04MESH\x10\x00\x12\x0c\n\x08GEOMETRY\x10\n\x12\n\n\x06VOLUME\x10\x14\x12\x0f\n\x0bISOSURFACES\x10\x1e\x12\n\n\x06SLICES\x10(\x12\t\n\x05SCENE\x10\x32\x12\t\n\x05LIGHT\x10<\"\x1f\n\x06Volume\x12\x15\n\rsampling_rate\x18\x01 \x01(\x02\"7\n\x05Slice\x12\x14\n\x0cobject2world\x18\x01 \x03(\x02\x12\x18\n\x10linked_mesh_data\x18\x02 \x01(\t\" \n\x06Slices\x12\x16\n\x06slices\x18\x01 \x03(\x0b\x32\x06.Slice\"y\n\x08MeshData\x12\r\n\x05\x66lags\x18\x01 \x01(\r\x12\x14\n\x0cnum_vertices\x18\n \x01(\r\x12\x15\n\rnum_triangles\x18\x0b \x01(\r\"1\n\x05\x46lags\x12\x08\n\x04NONE\x10\x00\x12\x0b\n\x07NORMALS\x10\x01\x12\x11\n\rVERTEX_COLORS\x10\x02\"\xd1\x02\n\x0e\x43\x61meraSettings\x12\"\n\x04type\x18\x01 \x01(\x0e\x32\x14.CameraSettings.Type\x12\x13\n\x0bobject_name\x18\x02 \x01(\t\x12\x13\n\x0b\x63\x61mera_name\x18\x03 \x01(\t\x12\x0e\n\x06\x62order\x18\x04 \x03(\x02\x12\x10\n\x08position\x18\n \x03(\x02\x12\x10\n\x08view_dir\x18\x0b \x03(\x02\x12\x0e\n\x06up_dir\x18\x0c \x03(\x02\x12\r\n\x05\x66ov_y\x18\x14 \x01(\x02\x12\x0e\n\x06height\x18\x1e \x01(\x02\x12\x0e\n\x06\x61spect\x18( \x01(\x02\x12\x12\n\nclip_start\x18\x32 \x01(\x02\x12\x1a\n\x12\x64of_focus_distance\x18< \x01(\x02\x12\x14\n\x0c\x64of_aperture\x18= \x01(\x02\"8\n\x04Type\x12\x0f\n\x0bPERSPECTIVE\x10\x00\x12\x10\n\x0cORTHOGRAPHIC\x10\x01\x12\r\n\tPANORAMIC\x10\x02\"\xe6\x02\n\x0eRenderSettings\x12\x10\n\x08renderer\x18\x01 \x01(\t\x12\"\n\x04type\x18\x02 \x01(\x0e\x32\x14.RenderSettings.Type\x12\x0f\n\x07samples\x18\x03 \x01(\r\x12\x11\n\tmax_depth\x18\x04 \x01(\r\x12\x18\n\x10min_contribution\x18\x05 \x01(\x02\x12\x1a\n\x12variance_threshold\x18\x06 \x01(\x02\x12\x12\n\nao_samples\x18\x14 \x01(\r\x12\x11\n\tao_radius\x18\x15 \x01(\x02\x12\x14\n\x0c\x61o_intensity\x18\x16 \x01(\x02\x12\x16\n\x0eroulette_depth\x18\x1e \x01(\r\x12\x18\n\x10max_contribution\x18\x1f \x01(\x02\x12\x17\n\x0fgeometry_lights\x18  \x01(\x08\x12\x18\n\x10\x62\x61\x63kground_color\x18\x32 \x03(\x02\"\"\n\x04Type\x12\t\n\x05\x46INAL\x10\x00\x12\x0f\n\x0bINTERACTIVE\x10\x01\"\xfd\x02\n\rLightSettings\x12!\n\x04type\x18\x01 \x01(\x0e\x32\x13.LightSettings.Type\x12\x14\n\x0cobject2world\x18\x02 \x03(\x02\x12\x13\n\x0bobject_name\x18\x03 \x01(\t\x12\x12\n\nlight_name\x18\x04 \x01(\t\x12\r\n\x05\x63olor\x18\n \x03(\x02\x12\x11\n\tintensity\x18\x0b \x01(\x02\x12\x0f\n\x07visible\x18\x0c \x01(\x08\x12\x11\n\tdirection\x18\x14 \x03(\x02\x12\x18\n\x10\x61ngular_diameter\x18\x15 \x01(\x02\x12\x10\n\x08position\x18\x16 \x03(\x02\x12\x0e\n\x06radius\x18\x17 \x01(\x02\x12\x15\n\ropening_angle\x18\x18 \x01(\x02\x12\x16\n\x0epenumbra_angle\x18\x19 \x01(\x02\x12\r\n\x05\x65\x64ge1\x18\x1a \x03(\x02\x12\r\n\x05\x65\x64ge2\x18\x1b \x03(\x02\";\n\x04Type\x12\x0b\n\x07\x41MBIENT\x10\x00\x12\t\n\x05POINT\x10\x01\x12\x07\n\x03SUN\x10\x02\x12\x08\n\x04SPOT\x10\x03\x12\x08\n\x04\x41REA\x10\x04\"\xa7\x01\n\x0eMaterialUpdate\x12\"\n\x04type\x18\x01 \x01(\x0e\x32\x14.MaterialUpdate.Type\x12\x0c\n\x04name\x18\x02 \x01(\t\"c\n\x04Type\x12\r\n\tCAR_PAINT\x10\x00\x12\t\n\x05GLASS\x10\x01\x12\x0c\n\x08LUMINOUS\x10\x02\x12\x12\n\x0eMETALLIC_PAINT\x10\x03\x12\x0f\n\x0bOBJMATERIAL\x10\x04\x12\x0e\n\nPRINCIPLED\x10\x05\"\xe5\x02\n\x10\x43\x61rPaintSettings\x12\x12\n\nbase_color\x18\x01 \x03(\x02\x12\x11\n\troughness\x18\x02 \x01(\x02\x12\x0e\n\x06normal\x18\x03 \x01(\x02\x12\x15\n\rflake_density\x18\x04 \x01(\x02\x12\x13\n\x0b\x66lake_scale\x18\x05 \x01(\x02\x12\x14\n\x0c\x66lake_spread\x18\x06 \x01(\x02\x12\x14\n\x0c\x66lake_jitter\x18\x07 \x01(\x02\x12\x17\n\x0f\x66lake_roughness\x18\x08 \x01(\x02\x12\x0c\n\x04\x63oat\x18\t \x01(\x02\x12\x10\n\x08\x63oat_ior\x18\n \x01(\x02\x12\x12\n\ncoat_color\x18\x0b \x03(\x02\x12\x16\n\x0e\x63oat_thickness\x18\x0c \x01(\x02\x12\x16\n\x0e\x63oat_roughness\x18\r \x01(\x02\x12\x13\n\x0b\x63oat_normal\x18\x0e \x01(\x02\x12\x16\n\x0e\x66lipflop_color\x18\x0f \x03(\x02\x12\x18\n\x10\x66lipflop_falloff\x18\x10 \x01(\x02\"U\n\rGlassSettings\x12\x0b\n\x03\x65ta\x18\x01 \x01(\x02\x12\x19\n\x11\x61ttenuation_color\x18\x02 \x03(\x02\x12\x1c\n\x14\x61ttenuation_distance\x18\x03 \x01(\x02\"J\n\x10LuminousSettings\x12\r\n\x05\x63olor\x18\x01 \x03(\x02\x12\x11\n\tintensity\x18\x02 \x01(\x02\x12\x14\n\x0ctransparency\x18\x03 \x01(\x02\"y\n\x15MetallicPaintSettings\x12\x12\n\nbase_color\x18\x01 \x03(\x02\x12\x14\n\x0c\x66lake_amount\x18\x02 \x01(\x02\x12\x13\n\x0b\x66lake_color\x18\x03 \x03(\x02\x12\x14\n\x0c\x66lake_spread\x18\x04 \x01(\x02\x12\x0b\n\x03\x65ta\x18\x05 \x01(\x02\"P\n\x13OBJMaterialSettings\x12\n\n\x02kd\x18\x01 \x03(\x02\x12\n\n\x02ks\x18\x02 \x03(\x02\x12\n\n\x02ns\x18\x03 \x01(\x02\x12\t\n\x01\x64\x18\x04 \x01(\x02\x12\n\n\x02tf\x18\x05 \x03(\x02\"\xb9\x04\n\x12PrincipledSettings\x12\x12\n\nbase_color\x18\x01 \x03(\x02\x12\x12\n\nedge_color\x18\x02 \x03(\x02\x12\x10\n\x08metallic\x18\x03 \x01(\x02\x12\x0f\n\x07\x64iffuse\x18\x04 \x01(\x02\x12\x10\n\x08specular\x18\x05 \x01(\x02\x12\x0b\n\x03ior\x18\x06 \x01(\x02\x12\x14\n\x0ctransmission\x18\x07 \x01(\x02\x12\x1a\n\x12transmission_color\x18\x08 \x03(\x02\x12\x1a\n\x12transmission_depth\x18\t \x01(\x02\x12\x11\n\troughness\x18\n \x01(\x02\x12\x12\n\nanisotropy\x18\x0b \x01(\x02\x12\x10\n\x08rotation\x18\x0c \x01(\x02\x12\x0e\n\x06normal\x18\r \x01(\x02\x12\x13\n\x0b\x62\x61se_normal\x18\x0e \x01(\x02\x12\x0c\n\x04thin\x18\x0f \x01(\x08\x12\x11\n\tthickness\x18\x10 \x01(\x02\x12\x11\n\tbacklight\x18\x11 \x01(\x02\x12\x0c\n\x04\x63oat\x18\x12 \x01(\x02\x12\x10\n\x08\x63oat_ior\x18\x13 \x01(\x02\x12\x12\n\ncoat_color\x18\x14 \x03(\x02\x12\x16\n\x0e\x63oat_thickness\x18\x15 \x01(\x02\x12\x16\n\x0e\x63oat_roughness\x18\x16 \x01(\x02\x12\x13\n\x0b\x63oat_normal\x18\x17 \x01(\x02\x12\r\n\x05sheen\x18\x18 \x01(\x02\x12\x13\n\x0bsheen_color\x18\x19 \x03(\x02\x12\x12\n\nsheen_tint\x18\x1a \x01(\x02\x12\x17\n\x0fsheen_roughness\x18\x1b \x01(\x02\x12\x0f\n\x07opacity\x18\x1c \x01(\x02\"H\n\x16GenerateFunctionResult\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\x12\x0c\n\x04hash\x18\x03 \x01(\tb\x06proto3')
+  serialized_pb=_b('\n\x0emessages.proto\"\xb1\x04\n\rClientMessage\x12!\n\x04type\x18\x01 \x01(\x0e\x32\x13.ClientMessage.Type\x12\x12\n\nuint_value\x18\x14 \x01(\r\x12\x13\n\x0buint_value2\x18\x15 \x01(\r\x12\x13\n\x0buint_value3\x18\x16 \x01(\r\x12\x14\n\x0cstring_value\x18( \x01(\t\"\xa8\x03\n\x04Type\x12\t\n\x05HELLO\x10\x00\x12\x07\n\x03\x42YE\x10\x01\x12\x0f\n\x0b\x43LEAR_SCENE\x10\x0b\x12\x18\n\x14UPDATE_RENDERER_TYPE\x10\x14\x12\x19\n\x15UPDATE_WORLD_SETTINGS\x10\x15\x12\x1a\n\x16UPDATE_RENDER_SETTINGS\x10\x16\x12\x16\n\x12UPDATE_FRAMEBUFFER\x10\x17\x12\x17\n\x13UPDATE_BLENDER_MESH\x10\x18\x12\x1a\n\x16UPDATE_PLUGIN_INSTANCE\x10\x19\x12\x11\n\rUPDATE_CAMERA\x10\x1a\x12\x13\n\x0fUPDATE_MATERIAL\x10\x1b\x12\x11\n\rUPDATE_OBJECT\x10\x1c\x12\x11\n\rDELETE_OBJECT\x10\x1e\x12\x17\n\x13\x44\x45LETE_BLENDER_MESH\x10\x1f\x12\x1a\n\x16\x44\x45LETE_PLUGIN_INSTANCE\x10 \x12\x13\n\x0fSTART_RENDERING\x10(\x12\x14\n\x10\x43\x41NCEL_RENDERING\x10)\x12\x14\n\x10GET_SERVER_STATE\x10\x32\x12\x0f\n\x0bQUERY_BOUND\x10\x33\x12\x08\n\x04QUIT\x10\x63\"/\n\x0bHelloResult\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\"\"\n\x11ServerStateResult\x12\r\n\x05state\x18\x01 \x01(\t\"I\n\x10QueryBoundResult\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\x12\x13\n\x0bresult_size\x18\x03 \x01(\r\"\xb9\x01\n\x0cRenderResult\x12 \n\x04type\x18\x01 \x01(\x0e\x32\x12.RenderResult.Type\x12\x0e\n\x06sample\x18\x02 \x01(\r\x12\x10\n\x08variance\x18\x03 \x01(\x02\x12\x11\n\tfile_name\x18\x04 \x01(\t\x12\x11\n\tfile_size\x18\x05 \x01(\r\x12\x14\n\x0cmemory_usage\x18\x06 \x01(\x02\")\n\x04Type\x12\t\n\x05\x46RAME\x10\x00\x12\x0c\n\x08\x43\x41NCELED\x10\x01\x12\x08\n\x04\x44ONE\x10\x02\"\xc6\x01\n\x14UpdatePluginInstance\x12(\n\x04type\x18\x01 \x01(\x0e\x32\x1a.UpdatePluginInstance.Type\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x13\n\x0bplugin_name\x18\x03 \x01(\t\x12\x19\n\x11plugin_parameters\x18\x04 \x01(\t\x12\x19\n\x11\x63ustom_properties\x18\x05 \x01(\t\"+\n\x04Type\x12\x0c\n\x08GEOMETRY\x10\x00\x12\n\n\x06VOLUME\x10\x01\x12\t\n\x05SCENE\x10\x02\"\xf8\x01\n\x0cUpdateObject\x12 \n\x04type\x18\x01 \x01(\x0e\x32\x12.UpdateObject.Type\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x19\n\x11\x63ustom_properties\x18\x03 \x01(\t\x12\x14\n\x0cobject2world\x18\n \x03(\x02\x12\x11\n\tdata_link\x18\x0b \x01(\t\x12\x15\n\rmaterial_link\x18\x0c \x01(\t\"]\n\x04Type\x12\x08\n\x04MESH\x10\x00\x12\x0c\n\x08GEOMETRY\x10\n\x12\n\n\x06VOLUME\x10\x14\x12\x0f\n\x0bISOSURFACES\x10\x1e\x12\n\n\x06SLICES\x10(\x12\t\n\x05SCENE\x10\x32\x12\t\n\x05LIGHT\x10<\"\x1f\n\x06Volume\x12\x15\n\rsampling_rate\x18\x01 \x01(\x02\"7\n\x05Slice\x12\x14\n\x0cobject2world\x18\x01 \x03(\x02\x12\x18\n\x10linked_mesh_data\x18\x02 \x01(\t\" \n\x06Slices\x12\x16\n\x06slices\x18\x01 \x03(\x0b\x32\x06.Slice\"y\n\x08MeshData\x12\r\n\x05\x66lags\x18\x01 \x01(\r\x12\x14\n\x0cnum_vertices\x18\n \x01(\r\x12\x15\n\rnum_triangles\x18\x0b \x01(\r\"1\n\x05\x46lags\x12\x08\n\x04NONE\x10\x00\x12\x0b\n\x07NORMALS\x10\x01\x12\x11\n\rVERTEX_COLORS\x10\x02\"[\n\rWorldSettings\x12\x15\n\rambient_color\x18\x01 \x03(\x02\x12\x19\n\x11\x61mbient_intensity\x18\x02 \x01(\x02\x12\x18\n\x10\x62\x61\x63kground_color\x18\n \x03(\x02\"\xd1\x02\n\x0e\x43\x61meraSettings\x12\"\n\x04type\x18\x01 \x01(\x0e\x32\x14.CameraSettings.Type\x12\x13\n\x0bobject_name\x18\x02 \x01(\t\x12\x13\n\x0b\x63\x61mera_name\x18\x03 \x01(\t\x12\x0e\n\x06\x62order\x18\x04 \x03(\x02\x12\x10\n\x08position\x18\n \x03(\x02\x12\x10\n\x08view_dir\x18\x0b \x03(\x02\x12\x0e\n\x06up_dir\x18\x0c \x03(\x02\x12\r\n\x05\x66ov_y\x18\x14 \x01(\x02\x12\x0e\n\x06height\x18\x1e \x01(\x02\x12\x0e\n\x06\x61spect\x18( \x01(\x02\x12\x12\n\nclip_start\x18\x32 \x01(\x02\x12\x1a\n\x12\x64of_focus_distance\x18< \x01(\x02\x12\x14\n\x0c\x64of_aperture\x18= \x01(\x02\"8\n\x04Type\x12\x0f\n\x0bPERSPECTIVE\x10\x00\x12\x10\n\x0cORTHOGRAPHIC\x10\x01\x12\r\n\tPANORAMIC\x10\x02\"\xcc\x02\n\x0eRenderSettings\x12\x10\n\x08renderer\x18\x01 \x01(\t\x12\"\n\x04type\x18\x02 \x01(\x0e\x32\x14.RenderSettings.Type\x12\x0f\n\x07samples\x18\x03 \x01(\r\x12\x11\n\tmax_depth\x18\x04 \x01(\r\x12\x18\n\x10min_contribution\x18\x05 \x01(\x02\x12\x1a\n\x12variance_threshold\x18\x06 \x01(\x02\x12\x12\n\nao_samples\x18\x14 \x01(\r\x12\x11\n\tao_radius\x18\x15 \x01(\x02\x12\x14\n\x0c\x61o_intensity\x18\x16 \x01(\x02\x12\x16\n\x0eroulette_depth\x18\x1e \x01(\r\x12\x18\n\x10max_contribution\x18\x1f \x01(\x02\x12\x17\n\x0fgeometry_lights\x18  \x01(\x08\"\"\n\x04Type\x12\t\n\x05\x46INAL\x10\x00\x12\x0f\n\x0bINTERACTIVE\x10\x01\"\xfd\x02\n\rLightSettings\x12!\n\x04type\x18\x01 \x01(\x0e\x32\x13.LightSettings.Type\x12\x14\n\x0cobject2world\x18\x02 \x03(\x02\x12\x13\n\x0bobject_name\x18\x03 \x01(\t\x12\x12\n\nlight_name\x18\x04 \x01(\t\x12\r\n\x05\x63olor\x18\n \x03(\x02\x12\x11\n\tintensity\x18\x0b \x01(\x02\x12\x0f\n\x07visible\x18\x0c \x01(\x08\x12\x11\n\tdirection\x18\x14 \x03(\x02\x12\x18\n\x10\x61ngular_diameter\x18\x15 \x01(\x02\x12\x10\n\x08position\x18\x16 \x03(\x02\x12\x0e\n\x06radius\x18\x17 \x01(\x02\x12\x15\n\ropening_angle\x18\x18 \x01(\x02\x12\x16\n\x0epenumbra_angle\x18\x19 \x01(\x02\x12\r\n\x05\x65\x64ge1\x18\x1a \x03(\x02\x12\r\n\x05\x65\x64ge2\x18\x1b \x03(\x02\";\n\x04Type\x12\x0b\n\x07\x41MBIENT\x10\x00\x12\t\n\x05POINT\x10\x01\x12\x07\n\x03SUN\x10\x02\x12\x08\n\x04SPOT\x10\x03\x12\x08\n\x04\x41REA\x10\x04\"\xa7\x01\n\x0eMaterialUpdate\x12\"\n\x04type\x18\x01 \x01(\x0e\x32\x14.MaterialUpdate.Type\x12\x0c\n\x04name\x18\x02 \x01(\t\"c\n\x04Type\x12\r\n\tCAR_PAINT\x10\x00\x12\t\n\x05GLASS\x10\x01\x12\x0c\n\x08LUMINOUS\x10\x02\x12\x12\n\x0eMETALLIC_PAINT\x10\x03\x12\x0f\n\x0bOBJMATERIAL\x10\x04\x12\x0e\n\nPRINCIPLED\x10\x05\"\xe5\x02\n\x10\x43\x61rPaintSettings\x12\x12\n\nbase_color\x18\x01 \x03(\x02\x12\x11\n\troughness\x18\x02 \x01(\x02\x12\x0e\n\x06normal\x18\x03 \x01(\x02\x12\x15\n\rflake_density\x18\x04 \x01(\x02\x12\x13\n\x0b\x66lake_scale\x18\x05 \x01(\x02\x12\x14\n\x0c\x66lake_spread\x18\x06 \x01(\x02\x12\x14\n\x0c\x66lake_jitter\x18\x07 \x01(\x02\x12\x17\n\x0f\x66lake_roughness\x18\x08 \x01(\x02\x12\x0c\n\x04\x63oat\x18\t \x01(\x02\x12\x10\n\x08\x63oat_ior\x18\n \x01(\x02\x12\x12\n\ncoat_color\x18\x0b \x03(\x02\x12\x16\n\x0e\x63oat_thickness\x18\x0c \x01(\x02\x12\x16\n\x0e\x63oat_roughness\x18\r \x01(\x02\x12\x13\n\x0b\x63oat_normal\x18\x0e \x01(\x02\x12\x16\n\x0e\x66lipflop_color\x18\x0f \x03(\x02\x12\x18\n\x10\x66lipflop_falloff\x18\x10 \x01(\x02\"U\n\rGlassSettings\x12\x0b\n\x03\x65ta\x18\x01 \x01(\x02\x12\x19\n\x11\x61ttenuation_color\x18\x02 \x03(\x02\x12\x1c\n\x14\x61ttenuation_distance\x18\x03 \x01(\x02\"J\n\x10LuminousSettings\x12\r\n\x05\x63olor\x18\x01 \x03(\x02\x12\x11\n\tintensity\x18\x02 \x01(\x02\x12\x14\n\x0ctransparency\x18\x03 \x01(\x02\"y\n\x15MetallicPaintSettings\x12\x12\n\nbase_color\x18\x01 \x03(\x02\x12\x14\n\x0c\x66lake_amount\x18\x02 \x01(\x02\x12\x13\n\x0b\x66lake_color\x18\x03 \x03(\x02\x12\x14\n\x0c\x66lake_spread\x18\x04 \x01(\x02\x12\x0b\n\x03\x65ta\x18\x05 \x01(\x02\"P\n\x13OBJMaterialSettings\x12\n\n\x02kd\x18\x01 \x03(\x02\x12\n\n\x02ks\x18\x02 \x03(\x02\x12\n\n\x02ns\x18\x03 \x01(\x02\x12\t\n\x01\x64\x18\x04 \x01(\x02\x12\n\n\x02tf\x18\x05 \x03(\x02\"\xb9\x04\n\x12PrincipledSettings\x12\x12\n\nbase_color\x18\x01 \x03(\x02\x12\x12\n\nedge_color\x18\x02 \x03(\x02\x12\x10\n\x08metallic\x18\x03 \x01(\x02\x12\x0f\n\x07\x64iffuse\x18\x04 \x01(\x02\x12\x10\n\x08specular\x18\x05 \x01(\x02\x12\x0b\n\x03ior\x18\x06 \x01(\x02\x12\x14\n\x0ctransmission\x18\x07 \x01(\x02\x12\x1a\n\x12transmission_color\x18\x08 \x03(\x02\x12\x1a\n\x12transmission_depth\x18\t \x01(\x02\x12\x11\n\troughness\x18\n \x01(\x02\x12\x12\n\nanisotropy\x18\x0b \x01(\x02\x12\x10\n\x08rotation\x18\x0c \x01(\x02\x12\x0e\n\x06normal\x18\r \x01(\x02\x12\x13\n\x0b\x62\x61se_normal\x18\x0e \x01(\x02\x12\x0c\n\x04thin\x18\x0f \x01(\x08\x12\x11\n\tthickness\x18\x10 \x01(\x02\x12\x11\n\tbacklight\x18\x11 \x01(\x02\x12\x0c\n\x04\x63oat\x18\x12 \x01(\x02\x12\x10\n\x08\x63oat_ior\x18\x13 \x01(\x02\x12\x12\n\ncoat_color\x18\x14 \x03(\x02\x12\x16\n\x0e\x63oat_thickness\x18\x15 \x01(\x02\x12\x16\n\x0e\x63oat_roughness\x18\x16 \x01(\x02\x12\x13\n\x0b\x63oat_normal\x18\x17 \x01(\x02\x12\r\n\x05sheen\x18\x18 \x01(\x02\x12\x13\n\x0bsheen_color\x18\x19 \x03(\x02\x12\x12\n\nsheen_tint\x18\x1a \x01(\x02\x12\x17\n\x0fsheen_roughness\x18\x1b \x01(\x02\x12\x0f\n\x07opacity\x18\x1c \x01(\x02\"H\n\x16GenerateFunctionResult\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\x12\x0c\n\x04hash\x18\x03 \x01(\tb\x06proto3')
 )
 
 
@@ -40,43 +40,43 @@ _CLIENTMESSAGE_TYPE = _descriptor.EnumDescriptor(
       serialized_options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='GET_SERVER_STATE', index=2, number=10,
+      name='CLEAR_SCENE', index=2, number=11,
       serialized_options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='CLEAR_SCENE', index=3, number=11,
+      name='UPDATE_RENDERER_TYPE', index=3, number=20,
       serialized_options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='UPDATE_RENDER_SETTINGS', index=4, number=12,
+      name='UPDATE_WORLD_SETTINGS', index=4, number=21,
       serialized_options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='UPDATE_RENDERER_TYPE', index=5, number=13,
+      name='UPDATE_RENDER_SETTINGS', index=5, number=22,
       serialized_options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='UPDATE_FRAMEBUFFER', index=6, number=14,
+      name='UPDATE_FRAMEBUFFER', index=6, number=23,
       serialized_options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='UPDATE_OBJECT', index=7, number=20,
+      name='UPDATE_BLENDER_MESH', index=7, number=24,
       serialized_options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='UPDATE_BLENDER_MESH', index=8, number=21,
+      name='UPDATE_PLUGIN_INSTANCE', index=8, number=25,
       serialized_options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='UPDATE_PLUGIN_INSTANCE', index=9, number=22,
+      name='UPDATE_CAMERA', index=9, number=26,
       serialized_options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='UPDATE_CAMERA', index=10, number=23,
+      name='UPDATE_MATERIAL', index=10, number=27,
       serialized_options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='UPDATE_MATERIAL', index=11, number=24,
+      name='UPDATE_OBJECT', index=11, number=28,
       serialized_options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
@@ -100,18 +100,22 @@ _CLIENTMESSAGE_TYPE = _descriptor.EnumDescriptor(
       serialized_options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='QUERY_BOUND', index=17, number=80,
+      name='GET_SERVER_STATE', index=17, number=50,
       serialized_options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='QUIT', index=18, number=99,
+      name='QUERY_BOUND', index=18, number=51,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='QUIT', index=19, number=99,
       serialized_options=None,
       type=None),
   ],
   containing_type=None,
   serialized_options=None,
   serialized_start=156,
-  serialized_end=553,
+  serialized_end=580,
 )
 _sym_db.RegisterEnumDescriptor(_CLIENTMESSAGE_TYPE)
 
@@ -136,8 +140,8 @@ _RENDERRESULT_TYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=860,
-  serialized_end=901,
+  serialized_start=887,
+  serialized_end=928,
 )
 _sym_db.RegisterEnumDescriptor(_RENDERRESULT_TYPE)
 
@@ -162,8 +166,8 @@ _UPDATEPLUGININSTANCE_TYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=1059,
-  serialized_end=1102,
+  serialized_start=1086,
+  serialized_end=1129,
 )
 _sym_db.RegisterEnumDescriptor(_UPDATEPLUGININSTANCE_TYPE)
 
@@ -204,8 +208,8 @@ _UPDATEOBJECT_TYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=1260,
-  serialized_end=1353,
+  serialized_start=1287,
+  serialized_end=1380,
 )
 _sym_db.RegisterEnumDescriptor(_UPDATEOBJECT_TYPE)
 
@@ -230,8 +234,8 @@ _MESHDATA_FLAGS = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=1551,
-  serialized_end=1600,
+  serialized_start=1578,
+  serialized_end=1627,
 )
 _sym_db.RegisterEnumDescriptor(_MESHDATA_FLAGS)
 
@@ -256,8 +260,8 @@ _CAMERASETTINGS_TYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=1884,
-  serialized_end=1940,
+  serialized_start=2004,
+  serialized_end=2060,
 )
 _sym_db.RegisterEnumDescriptor(_CAMERASETTINGS_TYPE)
 
@@ -278,8 +282,8 @@ _RENDERSETTINGS_TYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=2267,
-  serialized_end=2301,
+  serialized_start=2361,
+  serialized_end=2395,
 )
 _sym_db.RegisterEnumDescriptor(_RENDERSETTINGS_TYPE)
 
@@ -312,8 +316,8 @@ _LIGHTSETTINGS_TYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=2626,
-  serialized_end=2685,
+  serialized_start=2720,
+  serialized_end=2779,
 )
 _sym_db.RegisterEnumDescriptor(_LIGHTSETTINGS_TYPE)
 
@@ -350,8 +354,8 @@ _MATERIALUPDATE_TYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=2756,
-  serialized_end=2855,
+  serialized_start=2850,
+  serialized_end=2949,
 )
 _sym_db.RegisterEnumDescriptor(_MATERIALUPDATE_TYPE)
 
@@ -412,7 +416,7 @@ _CLIENTMESSAGE = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=19,
-  serialized_end=553,
+  serialized_end=580,
 )
 
 
@@ -449,8 +453,8 @@ _HELLORESULT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=555,
-  serialized_end=602,
+  serialized_start=582,
+  serialized_end=629,
 )
 
 
@@ -480,8 +484,8 @@ _SERVERSTATERESULT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=604,
-  serialized_end=638,
+  serialized_start=631,
+  serialized_end=665,
 )
 
 
@@ -525,8 +529,8 @@ _QUERYBOUNDRESULT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=640,
-  serialized_end=713,
+  serialized_start=667,
+  serialized_end=740,
 )
 
 
@@ -592,8 +596,8 @@ _RENDERRESULT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=716,
-  serialized_end=901,
+  serialized_start=743,
+  serialized_end=928,
 )
 
 
@@ -652,8 +656,8 @@ _UPDATEPLUGININSTANCE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=904,
-  serialized_end=1102,
+  serialized_start=931,
+  serialized_end=1129,
 )
 
 
@@ -719,8 +723,8 @@ _UPDATEOBJECT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1105,
-  serialized_end=1353,
+  serialized_start=1132,
+  serialized_end=1380,
 )
 
 
@@ -750,8 +754,8 @@ _VOLUME = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1355,
-  serialized_end=1386,
+  serialized_start=1382,
+  serialized_end=1413,
 )
 
 
@@ -788,8 +792,8 @@ _SLICE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1388,
-  serialized_end=1443,
+  serialized_start=1415,
+  serialized_end=1470,
 )
 
 
@@ -819,8 +823,8 @@ _SLICES = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1445,
-  serialized_end=1477,
+  serialized_start=1472,
+  serialized_end=1504,
 )
 
 
@@ -865,8 +869,53 @@ _MESHDATA = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1479,
-  serialized_end=1600,
+  serialized_start=1506,
+  serialized_end=1627,
+)
+
+
+_WORLDSETTINGS = _descriptor.Descriptor(
+  name='WorldSettings',
+  full_name='WorldSettings',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='ambient_color', full_name='WorldSettings.ambient_color', index=0,
+      number=1, type=2, cpp_type=6, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='ambient_intensity', full_name='WorldSettings.ambient_intensity', index=1,
+      number=2, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='background_color', full_name='WorldSettings.background_color', index=2,
+      number=10, type=2, cpp_type=6, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=1629,
+  serialized_end=1720,
 )
 
 
@@ -981,8 +1030,8 @@ _CAMERASETTINGS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1603,
-  serialized_end=1940,
+  serialized_start=1723,
+  serialized_end=2060,
 )
 
 
@@ -1077,13 +1126,6 @@ _RENDERSETTINGS = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='background_color', full_name='RenderSettings.background_color', index=12,
-      number=50, type=2, cpp_type=6, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -1097,8 +1139,8 @@ _RENDERSETTINGS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1943,
-  serialized_end=2301,
+  serialized_start=2063,
+  serialized_end=2395,
 )
 
 
@@ -1227,8 +1269,8 @@ _LIGHTSETTINGS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2304,
-  serialized_end=2685,
+  serialized_start=2398,
+  serialized_end=2779,
 )
 
 
@@ -1266,8 +1308,8 @@ _MATERIALUPDATE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2688,
-  serialized_end=2855,
+  serialized_start=2782,
+  serialized_end=2949,
 )
 
 
@@ -1402,8 +1444,8 @@ _CARPAINTSETTINGS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2858,
-  serialized_end=3215,
+  serialized_start=2952,
+  serialized_end=3309,
 )
 
 
@@ -1447,8 +1489,8 @@ _GLASSSETTINGS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3217,
-  serialized_end=3302,
+  serialized_start=3311,
+  serialized_end=3396,
 )
 
 
@@ -1492,8 +1534,8 @@ _LUMINOUSSETTINGS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3304,
-  serialized_end=3378,
+  serialized_start=3398,
+  serialized_end=3472,
 )
 
 
@@ -1551,8 +1593,8 @@ _METALLICPAINTSETTINGS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3380,
-  serialized_end=3501,
+  serialized_start=3474,
+  serialized_end=3595,
 )
 
 
@@ -1610,8 +1652,8 @@ _OBJMATERIALSETTINGS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3503,
-  serialized_end=3583,
+  serialized_start=3597,
+  serialized_end=3677,
 )
 
 
@@ -1830,8 +1872,8 @@ _PRINCIPLEDSETTINGS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3586,
-  serialized_end=4155,
+  serialized_start=3680,
+  serialized_end=4249,
 )
 
 
@@ -1875,8 +1917,8 @@ _GENERATEFUNCTIONRESULT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=4157,
-  serialized_end=4229,
+  serialized_start=4251,
+  serialized_end=4323,
 )
 
 _CLIENTMESSAGE.fields_by_name['type'].enum_type = _CLIENTMESSAGE_TYPE
@@ -1908,6 +1950,7 @@ DESCRIPTOR.message_types_by_name['Volume'] = _VOLUME
 DESCRIPTOR.message_types_by_name['Slice'] = _SLICE
 DESCRIPTOR.message_types_by_name['Slices'] = _SLICES
 DESCRIPTOR.message_types_by_name['MeshData'] = _MESHDATA
+DESCRIPTOR.message_types_by_name['WorldSettings'] = _WORLDSETTINGS
 DESCRIPTOR.message_types_by_name['CameraSettings'] = _CAMERASETTINGS
 DESCRIPTOR.message_types_by_name['RenderSettings'] = _RENDERSETTINGS
 DESCRIPTOR.message_types_by_name['LightSettings'] = _LIGHTSETTINGS
@@ -1997,6 +2040,13 @@ MeshData = _reflection.GeneratedProtocolMessageType('MeshData', (_message.Messag
   # @@protoc_insertion_point(class_scope:MeshData)
   ))
 _sym_db.RegisterMessage(MeshData)
+
+WorldSettings = _reflection.GeneratedProtocolMessageType('WorldSettings', (_message.Message,), dict(
+  DESCRIPTOR = _WORLDSETTINGS,
+  __module__ = 'messages_pb2'
+  # @@protoc_insertion_point(class_scope:WorldSettings)
+  ))
+_sym_db.RegisterMessage(WorldSettings)
 
 CameraSettings = _reflection.GeneratedProtocolMessageType('CameraSettings', (_message.Message,), dict(
   DESCRIPTOR = _CAMERASETTINGS,

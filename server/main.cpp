@@ -85,6 +85,8 @@ SceneMaterialMap            scene_materials;
 std::string                 scene_materials_renderer;
 
 std::vector<OSPInstance>    scene_instances;
+
+OSPLight                    ambient_light;
 std::vector<OSPLight>       scene_lights;
 
 OSPData                     scene_instances_data = nullptr;
@@ -1614,9 +1616,9 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
         light_object = new SceneObjectLight;
         switch (light_type)
         {
-        case LightSettings::AMBIENT:
+        /*case LightSettings::AMBIENT:
             light = ospNewLight("ambient");
-            break; 
+            break;*/
         case LightSettings::POINT:
             light = ospNewLight("sphere");
             break; 
@@ -2191,23 +2193,11 @@ update_render_settings(const RenderSettings& render_settings)
     ospSetFloat(renderer, "minContribution", render_settings.min_contribution());
     ospSetFloat(renderer, "varianceThreshold", render_settings.variance_threshold());
 
-    printf("Background color %f, %f, %f, %f\n", 
-        render_settings.background_color(0),
-        render_settings.background_color(1),
-        render_settings.background_color(2),
-        render_settings.background_color(3));    
-
     if (current_renderer_type == "scivis")
     {
         ospSetInt(renderer, "aoSamples", render_settings.ao_samples());
         ospSetFloat(renderer, "aoRadius", render_settings.ao_radius());
         ospSetFloat(renderer, "aoIntensity", render_settings.ao_intensity());
-
-        ospSetVec4f(renderer, "bgColor",
-            render_settings.background_color(0),
-            render_settings.background_color(1),
-            render_settings.background_color(2),
-            render_settings.background_color(3));
     }
     else
     {
@@ -2216,6 +2206,47 @@ update_render_settings(const RenderSettings& render_settings)
         ospSetInt(renderer, "rouletteDepth", render_settings.roulette_depth());
         ospSetFloat(renderer, "maxContribution", render_settings.max_contribution());
         ospSetBool(renderer, "geometryLights", render_settings.geometry_lights());
+    }
+
+    ospCommit(renderer);
+
+    // Done!
+
+    return true;
+}
+
+bool
+update_world_settings(const WorldSettings& world_settings)
+{    
+    printf("Updating world settings\n");
+
+    printf("... ambient color %.3f, %.3f, %.3f; intensity %.3f\n", 
+        world_settings.ambient_color(0), 
+        world_settings.ambient_color(1), 
+        world_settings.ambient_color(2), 
+        world_settings.ambient_intensity());
+
+    ospSetVec3f(ambient_light, "color", world_settings.ambient_color(0), world_settings.ambient_color(1), world_settings.ambient_color(2));
+    ospSetFloat(ambient_light, "intensity", world_settings.ambient_intensity());
+    ospCommit(ambient_light);
+
+    printf("... background color %f, %f, %f, %f\n", 
+        world_settings.background_color(0),
+        world_settings.background_color(1),
+        world_settings.background_color(2),
+        world_settings.background_color(3));    
+
+    if (current_renderer_type == "scivis")
+    {
+        ospSetVec4f(renderer, "bgColor",
+            world_settings.background_color(0),
+            world_settings.background_color(1),
+            world_settings.background_color(2),
+            world_settings.background_color(3));
+    }
+    else
+    {
+        // Pathtracer
 
         // Work around unsupported bgColor
         // https://github.com/ospray/ospray/issues/347
@@ -2223,10 +2254,10 @@ update_render_settings(const RenderSettings& render_settings)
         // XXX appears to be broken? The backplate color *is* used, but only in areas where
         // there is non-zero alpha, i.e. something is hit.
         float texel[4] = { 
-            /*render_settings.background_color(0),
-            render_settings.background_color(1),
-            render_settings.background_color(2),
-            render_settings.background_color(3)*/
+            /*world_settings.background_color(0),
+            world_settings.background_color(1),
+            world_settings.background_color(2),
+            world_settings.background_color(3)*/
             0.0f, 1.0f, 0.0f, 1.0f
         };
 
@@ -2247,10 +2278,9 @@ update_render_settings(const RenderSettings& render_settings)
 
     ospCommit(renderer);
 
-    // Done!
-
     return true;
 }
+
 
 // Send result
 
@@ -2357,7 +2387,7 @@ render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
         variance = ospRenderFrameBlocking(framebuffer, renderer, camera, world);
 
         gettimeofday(&t2, NULL);
-        printf("frame in %.3f seconds (variance %.3f)\n", time_diff(t1, t2), variance);
+        printf("%.3f seconds (variance %.3f)\n", time_diff(t1, t2), variance);
         
         // Check for cancel before writing framebuffer to file
         if (render_input_queue.size() > 0)
@@ -2461,9 +2491,11 @@ clear_scene()
     ospRelease(scene_lights_data);    
 
     scene_instances.clear();
-    scene_lights.clear();
+    scene_instances_data = nullptr;
 
-    scene_instances_data = scene_lights_data = nullptr;
+    scene_lights.clear();
+    scene_lights.push_back(ambient_light);
+    scene_lights_data = nullptr;
 
     if (world != nullptr)
         ospRelease(world);
@@ -2545,6 +2577,7 @@ handle_connection(TCPSocket *sock)
 
     CameraSettings      camera_settings;
     RenderSettings      render_settings;
+    WorldSettings       world_settings;
 
     std::thread         render_thread;
     bool                rendering = false;
@@ -2589,6 +2622,7 @@ handle_connection(TCPSocket *sock)
 
                 case ClientMessage::QUIT:
                     // XXX if we were still rendering, handle the chaos
+                    // XXX exit server
                     printf("Got QUIT message\n");
                     sock->close();
                     return true;
@@ -2608,6 +2642,15 @@ handle_connection(TCPSocket *sock)
                         return false;
                     }
                     update_render_settings(render_settings);
+                    break;
+
+                case ClientMessage::UPDATE_WORLD_SETTINGS:
+                    if (!receive_protobuf(sock, world_settings))
+                    {
+                        sock->close();
+                        return false;
+                    }
+                    update_world_settings(world_settings);
                     break;
 
                 case ClientMessage::UPDATE_PLUGIN_INSTANCE:
@@ -2754,6 +2797,9 @@ prepare_renderers()
     m = default_materials["pathtracer"] = ospNewMaterial("pathtracer", "OBJMaterial");
         ospSetVec3f(m, "Kd", 0.8f, 0.8f, 0.8f);
     ospCommit(m);
+
+    // XXX move somewhere else
+    ambient_light = ospNewLight("ambient");
 }
 
 // Error/status display

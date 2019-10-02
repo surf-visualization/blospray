@@ -285,8 +285,8 @@ class OSPRAY_WORLD_PT_lighting(Panel):
 
     @classmethod
     def poll(cls, context):
-        rd = context.scene.render
-        return rd.engine in cls.COMPAT_ENGINES
+        render = context.scene.render
+        return render.engine in cls.COMPAT_ENGINES
 
     def draw(self, context):
         layout = self.layout

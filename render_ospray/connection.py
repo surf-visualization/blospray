@@ -36,7 +36,7 @@ from .common import PROTOCOL_VERSION, send_protobuf, receive_protobuf
 from .messages_pb2 import (
     HelloResult,
     ClientMessage,
-    CameraSettings, LightSettings, RenderSettings,
+    WorldSettings, CameraSettings, LightSettings, RenderSettings,
     UpdateObject, UpdatePluginInstance,
     MeshData,
     GenerateFunctionResult, RenderResult,    
@@ -297,8 +297,21 @@ class Connection:
         client_message = ClientMessage()
         client_message.type = ClientMessage.UPDATE_RENDER_SETTINGS
         send_protobuf(self.sock, client_message)
-        send_protobuf(self.sock, render_settings)                
+        send_protobuf(self.sock, render_settings) 
+
+    def send_updated_world_settings(self, background_color, ambient_color, ambient_intensity):
+
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.UPDATE_WORLD_SETTINGS
+
+        world_settings = WorldSettings()        
+        world_settings.ambient_color[:] = ambient_color
+        world_settings.ambient_intensity = ambient_intensity
+        world_settings.background_color[:] = background_color
         
+        send_protobuf(self.sock, client_message)
+        send_protobuf(self.sock, world_settings)
+
     def export_scene(self, data, depsgraph):
 
         msg = 'Exporting scene'
@@ -321,8 +334,7 @@ class Connection:
        
         render_settings = RenderSettings()
         render_settings.renderer = scene.ospray.renderer
-        render_settings.type = RenderSettings.FINAL
-        render_settings.background_color[:] = world.ospray.background_color
+        render_settings.type = RenderSettings.FINAL        
         self.render_samples = render_settings.samples = scene.ospray.samples
         render_settings.max_depth = scene.ospray.max_depth
         render_settings.min_contribution = scene.ospray.min_contribution
@@ -388,12 +400,13 @@ class Connection:
         self.send_updated_framebuffer_settings(self.sock, self.framebuffer_width, self.framebuffer_height, OSP_FB_RGBA32F)
 
         # Camera settings
-        self.send_updated_camera(self.sock, scene.camera, border)        
+        self.send_updated_camera(self.sock, scene.camera, border)  
+
+        # World settings      
+        self.send_updated_world_settings(world.ospray.background_color, 
+            world.ospray.ambient_color, world.ospray.ambient_intensity)
 
         # Scene objects
-
-        # XXX turn into render setting
-        self.send_updated_ambient_light(world.ospray.ambient_color, world.ospray.ambient_intensity)
 
         self.mesh_data_exported = set()
         self.materials_exported = set()
@@ -413,28 +426,6 @@ class Connection:
                 self.send_updated_mesh_object(data, depsgraph, obj, obj.data, instance.matrix_world, instance.is_instance, instance.random_id)        
             elif obj.type not in ['CAMERA']:
                 print('Warning: not exporting object of type "%s"' % obj.type)
-
-    def send_updated_ambient_light(self, color, intensity):
-
-        light_settings = LightSettings()
-        light_settings.type = LightSettings.AMBIENT
-        light_settings.object_name = '<ambient>'
-
-        light_settings.color[:] = color
-        light_settings.intensity = intensity
-
-        client_message = ClientMessage()
-        client_message.type = ClientMessage.UPDATE_OBJECT  
-
-        update = UpdateObject()
-        update.type = UpdateObject.LIGHT
-        update.name = '<ambient>'
-        
-        # XXX using three messages :-/
-        send_protobuf(self.sock, client_message)
-        send_protobuf(self.sock, update)
-        send_protobuf(self.sock, light_settings)
-
 
     def send_updated_light(self, data, depsgraph, obj):
 

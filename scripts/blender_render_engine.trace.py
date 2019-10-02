@@ -272,6 +272,7 @@ def get_panels():
     exclude_panels = {
         'VIEWLAYER_PT_filter',
         'VIEWLAYER_PT_layer_passes',
+        'WORLD_PT_context_world',
     }
 
     panels = []

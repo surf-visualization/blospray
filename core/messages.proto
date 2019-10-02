@@ -25,20 +25,19 @@ message ClientMessage
 {
     enum Type {
         HELLO = 0;                      
-        BYE = 1;
-        
-        GET_SERVER_STATE = 10;
+        BYE = 1;            
         
         CLEAR_SCENE = 11;
-        
-        UPDATE_RENDER_SETTINGS = 12; 
-        UPDATE_RENDERER_TYPE = 13;
-        UPDATE_FRAMEBUFFER = 14;
-        UPDATE_OBJECT = 20;
-        UPDATE_BLENDER_MESH = 21;
-        UPDATE_PLUGIN_INSTANCE = 22;
-        UPDATE_CAMERA = 23;
-        UPDATE_MATERIAL = 24;
+
+        UPDATE_RENDERER_TYPE = 20;
+        UPDATE_WORLD_SETTINGS = 21;
+        UPDATE_RENDER_SETTINGS = 22;         
+        UPDATE_FRAMEBUFFER = 23;        
+        UPDATE_BLENDER_MESH = 24;
+        UPDATE_PLUGIN_INSTANCE = 25;
+        UPDATE_CAMERA = 26;
+        UPDATE_MATERIAL = 27;
+        UPDATE_OBJECT = 28;
 
         DELETE_OBJECT = 30;
         DELETE_BLENDER_MESH = 31;
@@ -47,9 +46,10 @@ message ClientMessage
         START_RENDERING = 40;
         CANCEL_RENDERING = 41;
         
-        QUERY_BOUND = 80;
+        GET_SERVER_STATE = 50;
+        QUERY_BOUND = 51;
         
-        QUIT = 99;
+        QUIT = 99;                      // Make server quit
     }
     
     Type    type = 1;
@@ -213,6 +213,15 @@ message MeshData
 
 // Settings
 
+message WorldSettings
+{
+    repeated float  ambient_color = 1;
+    float           ambient_intensity = 2;
+
+    // XXX might want to move these back to render settings at some point
+    repeated float  background_color = 10;   // RGBA
+}
+
 message CameraSettings
 {
     enum Type {
@@ -271,9 +280,7 @@ message RenderSettings
     // Pathtracer renderer only
     uint32          roulette_depth = 30;
     float           max_contribution = 31;
-    bool            geometry_lights = 32;
-    
-    repeated float  background_color = 50;   // RGBA
+    bool            geometry_lights = 32;    
 }
 
 message LightSettings
