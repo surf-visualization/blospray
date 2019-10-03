@@ -119,7 +119,9 @@ message RenderResult
     string  file_name = 4;          // Only used for server-internal purposes
     uint32  file_size = 5;
 
+    // In megabytes
     float   memory_usage = 6;       // XXX is usage of whole server, not of render result
+    float   peak_memory_usage = 7;  // XXX is usage of whole server, not of render result
 }
 
 // Scene

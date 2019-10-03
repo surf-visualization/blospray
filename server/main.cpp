@@ -2348,6 +2348,7 @@ render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
     char fname[1024];
     float variance;
     int num_samples;
+    float mem_usage, peak_memory_usage=0.0f;
 
     gettimeofday(&t0, NULL);
 
@@ -2404,6 +2405,9 @@ render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
         framebuffer_file_size = write_framebuffer_exr(fname);
         // XXX check result value
 
+        mem_usage = memory_usage();
+        peak_memory_usage = std::max(mem_usage, peak_memory_usage);
+
         // Signal a new frame is available
         RenderResult rs;
         rs.set_type(RenderResult::FRAME);
@@ -2411,16 +2415,21 @@ render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
         rs.set_variance(variance);
         rs.set_file_name(fname);
         rs.set_file_size(framebuffer_file_size);
-        rs.set_memory_usage(memory_usage());
+        rs.set_memory_usage(mem_usage);
+        rs.set_peak_memory_usage(peak_memory_usage);
 
         render_result_queue.push(rs);
     }
+
+    mem_usage = memory_usage();
+    peak_memory_usage = std::max(mem_usage, peak_memory_usage);
 
     // Final frame
     RenderResult rs;
     rs.set_type(RenderResult::DONE);    
     rs.set_variance(variance);
-    rs.set_memory_usage(memory_usage());
+    rs.set_memory_usage(mem_usage);
+    rs.set_peak_memory_usage(peak_memory_usage);
     render_result_queue.push(rs);
 
     gettimeofday(&t2, NULL);

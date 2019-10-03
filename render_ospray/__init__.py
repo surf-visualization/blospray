@@ -123,8 +123,12 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         
         try:
             self.connection.render(depsgraph)
-            self.connection.close()
+            self.connection.close()        
         except:
+            exc_type, exc_value, exc_traceback = sys.exc_info()            
+            lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+            print('ERROR: Exception while rendering scene on server:')
+            print(''.join(lines))
             self.report({'ERROR'}, 'Exception while rendering scene on server: %s' % sys.exc_info()[0])
 
     # If the two view_... methods are defined the interactive rendered

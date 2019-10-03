@@ -845,7 +845,7 @@ class Connection:
 
     def update_plugin_instance(self, name, plugin_type, plugin_name, plugin_parameters, custom_properties):
         
-        self.engine.update_stats('', 'Updating plugin instance %s (plugin type %s)' % (name, plugin_type))
+        self.engine.update_stats('', 'Updating plugin instance %s (type: %s)' % (name, plugin_type))
         
         type2enum = dict(
             geometry = UpdatePluginInstance.GEOMETRY,
@@ -1110,10 +1110,10 @@ class Connection:
 
                     sample += 1
 
-                    # XXX perhaps use update_memory_stats()
-
+                    # XXX update_memory_stats doesn't seem to do much?
+                    self.engine.update_memory_stats(memory_used=render_result.memory_usage, memory_peak=render_result.peak_memory_usage)
                     self.engine.update_stats(
-                        'Server %.1f MB' % render_result.memory_usage,
+                        'Server %.1fM (peak %.1fM)' % (render_result.memory_usage, render_result.peak_memory_usage),
                         'Variance %.3f | Rendering sample %d/%d' % (render_result.variance, sample, self.render_samples))
 
                 elif render_result.type == RenderResult.CANCELED:

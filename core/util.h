@@ -249,27 +249,37 @@ get_sha1(const std::string& p_arg)
     return std::string(buf);
 }
 
-// Linux only
+// Linux only atm
 float
 memory_usage()
 {
+#ifdef linux
     // Based on https://stackoverflow.com/a/12675172/9296788
-    int tSize = 0, resident = 0, share = 0;
-    std::ifstream buffer("/proc/self/statm");
-    buffer >> tSize >> resident >> share;
-    buffer.close();
-    
-    float page_size_mb = 1.0f * sysconf(_SC_PAGE_SIZE) / (1024*1024); 
-    float rss = resident * page_size_mb;
     /*
-    cout << "RSS - " << rss << " kB\n";
+    Provides information about memory usage, measured in pages.  The columns are:
+    size     (1) total program size
+             (same as VmSize in /proc/[pid]/status)
+    resident (2) resident set size
+             (same as VmRSS in /proc/[pid]/status)
+    shared   (3) number of resident shared pages (i.e., backed by a file)
+             (same as RssFile+RssShmem in /proc/[pid]/status)
+    text     (4) text (code)
+    lib      (5) library (unused since Linux 2.6; always 0)
+    data     (6) data + stack
+    dt       (7) dirty pages (unused since Linux 2.6; always 0)
+    */    
+    uint64_t total = 0, resident = 0, share = 0;
+    std::ifstream buffer("/proc/self/statm", std::ifstream::in);
+    buffer >> total >> resident >> share;
+    buffer.close();
 
-    double shared_mem = share * page_size_kb;
-    cout << "Shared Memory - " << shared_mem << " kB\n";
-
-    cout << "Private Memory - " << rss - shared_mem << "kB\n";*/
+    float page_size_mb = 1.0f * sysconf(_SC_PAGE_SIZE) / (1000*1000); 
+    float rss = resident * page_size_mb;
     
     return rss;
+#else
+    return 0;    
+#endif
 }
 
 #endif
