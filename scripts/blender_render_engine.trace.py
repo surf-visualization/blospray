@@ -92,6 +92,8 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         log('view_update #%d' % self.update_count)
         print('-' * 40)
         
+        print('object_instances: %d objects' % len(depsgraph.object_instances))
+        
         region = context.region
         view3d = context.space_data
         scene = depsgraph.scene

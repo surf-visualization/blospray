@@ -66,6 +66,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         print('>>> OsprayRenderEngine.__init__()')
         super(OsprayRenderEngine, self).__init__()
 
+        self.first_view_update = True
         self.scene_data = None
         self.draw_data = None        
     
@@ -133,6 +134,25 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
 
     # If the two view_... methods are defined the interactive rendered
     # mode becomes available
+
+    def _print_depsgraph_updates(self, depsgraph):
+        print('--- DEPSGRAPH UPDATES '+'-'*50)
+
+        types = ['ACTION', 'ARMATURE', 'BRUSH', 'CAMERA', 'CACHEFILE', 'CURVE', 'FONT', 'GREASEPENCIL', 'COLLECTION', 'IMAGE', 'KEY', 'LIGHT', 'LIBRARY', 'LINESTYLE', 'LATTICE', 'MASK', 'MATERIAL', 'META', 'MESH', 'MOVIECLIP', 'NODETREE', 'OBJECT', 'PAINTCURVE', 'PALETTE', 'PARTICLE', 'LIGHT_PROBE', 'SCENE', 'SOUND', 'SPEAKER', 'TEXT', 'TEXTURE', 'WINDOWMANAGER', 'WORLD', 'WORKSPACE']
+        for t in types:
+            if depsgraph.id_type_updated(t):
+                print("Type %s updated" % t)
+
+        print()
+        
+        for update in depsgraph.updates:
+            print('Datablock "%s" updated (%s)' % (update.id.name, type(update.id)))
+            if update.is_updated_geometry:
+                print('-- geometry was updated')
+            if update.is_updated_transform:
+                print('-- transform was updated')
+                
+        print('-'*50)
         
     # For viewport renders, this method gets called once at the start and
     # whenever the scene or 3D viewport changes. This method is where data
@@ -141,7 +161,19 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
     def view_update(self, context, depsgraph):
         """Update on data changes for viewport render"""
         print('>>> OsprayRenderEngine.view_update()')
-        
+
+        if self.first_view_update:
+            # The initial call will not include any updates, so we need to send the whole scene.            
+            self.first_view_update = False
+
+            print('Sending initial scene: %d datablocks' % len(depsgraph.object_instances))
+
+            for datablock in depsgraph.object_instances:
+                print(datablock, datablock.show_self)
+        else:
+            # Apply updates to scene
+            self._print_depsgraph_updates(depsgraph)
+
         region = context.region
         view3d = context.space_data
         scene = depsgraph.scene
@@ -149,43 +181,22 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         # Get viewport dimensions
         dimensions = region.width, region.height
 
-        if not self.scene_data:
-            # First time initialization
-            self.scene_data = []
-            first_time = True
-
-            # Loop over all datablocks used in the scene.
-            for datablock in depsgraph.ids:
-                pass
-        else:
-            first_time = False
-
-            # Test which datablocks changed
-            for update in depsgraph.updates:
-                print("Datablock updated: ", update.id.name)
-
-            # Test if any material was added, removed or changed.
-            if depsgraph.id_type_updated('MATERIAL'):
-                print("Materials updated")
-
-        # Loop over all object instances in the scene.
-        if first_time or depsgraph.id_type_updated('OBJECT'):
-            for instance in depsgraph.object_instances:
-                pass
-
     # For viewport renders, this method is called whenever Blender redraws
     # the 3D viewport. The renderer is expected to quickly draw the render
     # with OpenGL, and not perform other expensive work.
     # Blender will draw overlays for selection and editing on top of the
-    # rendered image automatically.
+    # rendered image automatically.    
     def view_draw(self, context, depsgraph):
         """
         Draw viewport render
 
-        Note: some scene changes in blender do not cause a view_update(),
-        but only a view_draw()        
+        Note: some changes in blender do not cause a view_update(),
+        but only a view_draw():
+        - Resizing the 3D editor 
         """
         print('>>> OsprayRenderEngine.view_draw()')
+
+        assert len(depsgraph.updates) == 0
 
         region = context.region
         scene = depsgraph.scene
