@@ -119,12 +119,12 @@ load_points(const char *renderer_type, const char *fname, int max_points, float 
     
     OSPGeometry spheres = ospNewGeometry("spheres");
     
-      OSPData data = ospNewData(num_points, OSP_VEC3F, positions);
-      ospSetObject(spheres, "sphere", data);
-      ospSetInt(spheres, "bytes_per_sphere", 3*sizeof(float));
+      OSPData data = ospNewData(num_points, OSP_VEC3F, positions, 0);
+      ospSetObject(spheres, "sphere.position", data);
+      //ospSetInt(spheres, "bytes_per_sphere", 3*sizeof(float));
       ospSetFloat(spheres, "radius", sphere_radius);
 
-      //data = ospNewData(num_vertices, OSP_VEC4F, colors);
+      //data = ospNewData(num_vertices, OSP_VEC4F, colors, 0);
       //ospCommit(data);
       //ospSetData(mesh, "vertex.color", data);
       

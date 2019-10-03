@@ -1635,8 +1635,7 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
         light_object->light_type = light_type;
         light_object->data_link = light_settings.light_name();
 
-        scene_objects[object_name] = light_object;
-        scene_lights.push_back(light);
+        scene_objects[object_name] = light_object;        
     }
 
     if (light_settings.type() == LightSettings::SPOT)
@@ -1672,7 +1671,9 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
     if (light_settings.type() == LightSettings::POINT || light_settings.type() == LightSettings::SPOT)
         ospSetFloat(light, "radius", light_settings.radius());
 
-    ospCommit(light);    
+    ospCommit(light);  
+
+    scene_lights.push_back(light);  
 
     return true;
 }
