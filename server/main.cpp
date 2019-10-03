@@ -2248,19 +2248,15 @@ update_world_settings(const WorldSettings& world_settings)
         // Work around unsupported bgColor
         // https://github.com/ospray/ospray/issues/347
 
-        // XXX appears to be broken? The backplate color *is* used, but only in areas where
-        // there is non-zero alpha, i.e. something is hit.
         float texel[4] = { 
-            /*world_settings.background_color(0),
+            world_settings.background_color(0),
             world_settings.background_color(1),
             world_settings.background_color(2),
-            world_settings.background_color(3)*/
-            0.0f, 1.0f, 0.0f, 1.0f
+            world_settings.background_color(3)
         };
 
         OSPData data = ospNewData(1, OSP_VEC4F, texel, 0);
 
-/*
         OSPTexture backplate = ospNewTexture("texture2d");    
             ospSetInt(backplate, "format", OSP_TEXTURE_RGBA32F);
             ospSetVec2i(backplate, "size", 1, 1);            
@@ -2268,9 +2264,8 @@ update_world_settings(const WorldSettings& world_settings)
         ospCommit(backplate);            
         ospRelease(data);
 
-        //ospSetObject(renderer, "backplate", backplate);
-        ospCommit(renderer);    
-        ospRelease(backplate);*/
+        ospSetObject(renderer, "backplate", backplate);
+        ospRelease(backplate);
     }
 
     ospCommit(renderer);
@@ -2361,11 +2356,11 @@ render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
     //ospFrameBufferClear(framebuffer, OSP_FB_COLOR | OSP_FB_ACCUM);
     ospResetAccumulation(framebuffer);
 
-    printf("Rendering %d samples\n", render_samples);
+    printf("Rendering %d samples:\n", render_samples);
 
     for (int i = 1; i <= render_samples; i++)
     {
-        printf("Rendering sample %d/%d ... ", i, render_samples);
+        printf("[%d/%d] ", i, render_samples);
         fflush(stdout);
 
         gettimeofday(&t1, NULL);
