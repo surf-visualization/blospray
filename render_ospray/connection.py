@@ -1103,18 +1103,16 @@ class Connection:
                     os.unlink(FBFILE)
 
                     self.engine.update_result(result)
-
-                    #print('[%6.3f] update_result() done' % (time.time()-t0))
-
                     self.engine.update_progress(sample/self.render_samples)
-
-                    sample += 1
-
-                    # XXX update_memory_stats doesn't seem to do much?
                     self.engine.update_memory_stats(memory_used=render_result.memory_usage, memory_peak=render_result.peak_memory_usage)
+
+                    #print('[%6.3f] update_result() done' % (time.time()-t0))                
+                    
+                    sample += 1
+                    
                     self.engine.update_stats(
                         'Server %.1fM (peak %.1fM)' % (render_result.memory_usage, render_result.peak_memory_usage),
-                        'Variance %.3f | Rendering sample %d/%d' % (render_result.variance, sample, self.render_samples))
+                        'Variance %.3f | Rendering sample %d/%d' % (render_result.variance, sample, self.render_samples))                
 
                 elif render_result.type == RenderResult.CANCELED:
                     print('Rendering CANCELED!')
