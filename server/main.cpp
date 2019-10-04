@@ -96,7 +96,20 @@ int                         framebuffer_width=0, framebuffer_height=0;
 OSPFrameBufferFormat        framebuffer_format;
 bool                        framebuffer_created = false;
 
-int             render_samples=1;
+enum RenderMode
+{
+    RM_IDLE,
+    RM_FINAL,
+    RM_INTERACTIVE
+};
+
+std::thread     render_thread;
+RenderMode      render_mode = RM_IDLE;
+
+BlockingQueue<ClientMessage> render_input_queue;
+BlockingQueue<RenderResult>  render_result_queue;
+
+int             render_samples = 1;
 
 bool            keep_framebuffer_files = getenv("BLOSPRAY_KEEP_FRAMEBUFFER_FILES") != nullptr;
 bool            dump_client_messages = getenv("BLOSPRAY_DUMP_CLIENT_MESSAGES") != nullptr;
@@ -2183,7 +2196,6 @@ update_render_settings(const RenderSettings& render_settings)
 {
     printf("Applying render settings\n");
 
-    render_samples = render_settings.samples();
     //ospSetInt(renderer, "spp", 1);
 
     ospSetInt(renderer, "maxDepth", render_settings.max_depth());
@@ -2353,7 +2365,7 @@ render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
     gettimeofday(&t0, NULL);
 
     // Clear framebuffer
-    // XXX no 2.0 equivalent?
+    // XXX no 2.0 equivalent? Hmm, there *is* osp::cpp::FrameBuffer::clear()
     //ospFrameBufferClear(framebuffer, OSP_FB_COLOR | OSP_FB_ACCUM);
     ospResetAccumulation(framebuffer);
 
@@ -2563,25 +2575,180 @@ handle_hello(TCPSocket *sock, const ClientMessage& client_message)
 
     return res;
 }
+
+
+// Returns false on socket errors
+bool
+handle_client_message(TCPSocket *sock, const ClientMessage& client_message, bool& connection_done)
+{
+    connection_done = false;
+
+    switch (client_message.type())
+    {
+        case ClientMessage::HELLO:
+            if (!handle_hello(sock, client_message))
+            {
+                sock->close();
+                return false;
+            }
+
+            break;
+
+        case ClientMessage::BYE:
+            // XXX if we were still rendering, handle the chaos
+            printf("Got BYE message\n");
+            sock->close();
+            connection_done = true;
+            return true;
+
+        case ClientMessage::QUIT:
+            // XXX if we were still rendering, handle the chaos
+            // XXX exit server
+            printf("Got QUIT message\n");
+            connection_done = true;
+            sock->close();
+            return true;
+
+        case ClientMessage::UPDATE_RENDERER_TYPE:
+            update_renderer_type(client_message.string_value());
+            break;
+
+        case ClientMessage::CLEAR_SCENE:
+            clear_scene();
+            break;
+
+        case ClientMessage::UPDATE_RENDER_SETTINGS:  
+        {
+            RenderSettings render_settings;   
+
+            if (!receive_protobuf(sock, render_settings))
+            {
+                sock->close();
+                connection_done = true;
+                return false;
+            }
+
+            update_render_settings(render_settings);
+
+            break;
+        }
+
+        case ClientMessage::UPDATE_WORLD_SETTINGS:
+        {
+            WorldSettings world_settings;
+
+            if (!receive_protobuf(sock, world_settings))
+            {
+                sock->close();
+                connection_done = true;
+                return false;
+            }
+
+            update_world_settings(world_settings);
+
+            break;
+        }
+
+        case ClientMessage::UPDATE_PLUGIN_INSTANCE:
+            handle_update_plugin_instance(sock);
+            break;
+
+        case ClientMessage::UPDATE_BLENDER_MESH:
+            handle_update_blender_mesh_data(sock, client_message.string_value());
+            break;
+
+        case ClientMessage::UPDATE_OBJECT:
+            handle_update_object(sock);
+            break;
+        
+        case ClientMessage::UPDATE_FRAMEBUFFER:
+            update_framebuffer((OSPFrameBufferFormat)(client_message.uint_value()), 
+                client_message.uint_value2(), client_message.uint_value3());
+            break;
+
+        case ClientMessage::UPDATE_CAMERA:
+        {
+            CameraSettings      camera_settings;
+            
+            if (!receive_protobuf(sock, camera_settings))
+            {
+                sock->close();
+                connection_done = true;
+                return false;
+            }
+
+            update_camera(camera_settings);    
+
+            break;
+        }
+
+        case ClientMessage::UPDATE_MATERIAL:
+            handle_update_material(sock);
+            break;
+
+        case ClientMessage::GET_SERVER_STATE:
+            handle_get_server_state(sock);
+            break;
+
+        case ClientMessage::QUERY_BOUND:
+            handle_query_bound(sock, client_message.string_value());
+            break;
+
+        case ClientMessage::START_RENDERING:
+
+            if (render_mode != RM_IDLE)
+            {
+                // Ignore                        
+                printf("Received ClientMessage::START_RENDERING, but we're already rendering!\n");                        
+                break;                        
+            }
+
+            //render_input_queue.clear();
+            //render_result_queue.clear();        // XXX handle any remaining results
+
+            // Set up world and scene objects
+            prepare_scene();
+
+            render_samples = client_message.uint_value();                    
+
+            // Start render thread
+            render_thread = std::thread(&render_thread_func, std::ref(render_input_queue), std::ref(render_result_queue));
+
+            render_mode = RM_FINAL;
+
+            break;
+
+        case ClientMessage::CANCEL_RENDERING:
+
+            printf("Got request to CANCEL rendering\n");
+
+            if (render_mode == RM_IDLE)
+            {
+                printf("Ignoring CANCEL as we're not rendering\n");
+                break;
+            }
+
+            render_input_queue.push(client_message);
+
+            break;
+
+        default:
+            printf("WARNING: unhandled client message %d!\n", client_message.type());
+    }
+
+    return true;
+}
    
 // Connection handling
 
 bool
 handle_connection(TCPSocket *sock)
 {
-    BlockingQueue<ClientMessage> render_input_queue;
-    BlockingQueue<RenderResult> render_result_queue;
-
     ClientMessage       client_message;
+    bool                connection_done;
+
     RenderResult        render_result;
     RenderResult::Type  rr_type;
-
-    CameraSettings      camera_settings;
-    RenderSettings      render_settings;
-    WorldSettings       world_settings;
-
-    std::thread         render_thread;
-    bool                rendering = false;
 
     while (true)
     {
@@ -2604,135 +2771,19 @@ handle_connection(TCPSocket *sock)
                 printf("%s\n", client_message.DebugString().c_str());
             }
 
-            switch (client_message.type())
+            if (!handle_client_message(sock, client_message, connection_done))
             {
-                case ClientMessage::HELLO:
-                    if (!handle_hello(sock, client_message))
-                    {
-                        sock->close();
-                        return false;
-                    }
-
-                    break;
-
-                case ClientMessage::BYE:
-                    // XXX if we were still rendering, handle the chaos
-                    printf("Got BYE message\n");
-                    sock->close();
-                    return true;
-
-                case ClientMessage::QUIT:
-                    // XXX if we were still rendering, handle the chaos
-                    // XXX exit server
-                    printf("Got QUIT message\n");
-                    sock->close();
-                    return true;
-
-                case ClientMessage::UPDATE_RENDERER_TYPE:
-                    update_renderer_type(client_message.string_value());
-                    break;
-
-                case ClientMessage::CLEAR_SCENE:
-                    clear_scene();
-                    break;
-
-                case ClientMessage::UPDATE_RENDER_SETTINGS:     
-                    if (!receive_protobuf(sock, render_settings))
-                    {
-                        sock->close();
-                        return false;
-                    }
-                    update_render_settings(render_settings);
-                    break;
-
-                case ClientMessage::UPDATE_WORLD_SETTINGS:
-                    if (!receive_protobuf(sock, world_settings))
-                    {
-                        sock->close();
-                        return false;
-                    }
-                    update_world_settings(world_settings);
-                    break;
-
-                case ClientMessage::UPDATE_PLUGIN_INSTANCE:
-                    handle_update_plugin_instance(sock);
-                    break;
-
-                case ClientMessage::UPDATE_BLENDER_MESH:
-                    handle_update_blender_mesh_data(sock, client_message.string_value());
-                    break;
-
-                case ClientMessage::UPDATE_OBJECT:
-                    handle_update_object(sock);
-                    break;
-                
-                case ClientMessage::UPDATE_FRAMEBUFFER:
-                    update_framebuffer((OSPFrameBufferFormat)(client_message.uint_value()), 
-                        client_message.uint_value2(), client_message.uint_value3());
-                    break;
-
-                case ClientMessage::UPDATE_CAMERA:
-                    if (!receive_protobuf(sock, camera_settings))
-                    {
-                        sock->close();
-                        return false;
-                    }
-                    update_camera(camera_settings);
-                    break;
-
-                case ClientMessage::UPDATE_MATERIAL:
-                    handle_update_material(sock);
-                    break;
-
-                case ClientMessage::GET_SERVER_STATE:
-                    handle_get_server_state(sock);
-                    break;
-
-                case ClientMessage::QUERY_BOUND:
-                    handle_query_bound(sock, client_message.string_value());
-                    break;
-
-                case ClientMessage::START_RENDERING:
-
-                    if (rendering)
-                    {
-                        // Ignore                        
-                        printf("Received ClientMessage::START_RENDERING, but we're already rendering!\n");                        
-                        break;                        
-                    }
-
-                    //render_input_queue.clear();
-                    //render_result_queue.clear();        // XXX handle any remaining results
-
-                    // Setup world and scene objects
-                    prepare_scene();
-
-                    // Start render thread
-                    render_thread = std::thread(&render_thread_func, std::ref(render_input_queue), std::ref(render_result_queue));
-
-                    rendering = true;
-
-                    break;
-
-                case ClientMessage::CANCEL_RENDERING:
-
-                    printf("Got request to CANCEL rendering\n");
-
-                    if (!rendering)
-                        break;
-
-                    render_input_queue.push(client_message);
-
-                    break;
-
-                default:
-                    printf("WARNING: unhandled client message %d!\n", client_message.type());
+                printf("Failed to handle client message, goodbye!\n");
+                return false;
             }
+
+            if (connection_done)    // XXX yuck
+                return true;
         }
 
         // Check for new render results
 
-        if (rendering && render_result_queue.size() > 0)
+        if (render_mode != RM_IDLE && render_result_queue.size() > 0)
         {
             render_result = render_result_queue.pop();
 
@@ -2756,21 +2807,25 @@ handle_connection(TCPSocket *sock)
                     break;
 
                 case RenderResult::CANCELED:
+                    
+                    // Thread should have finished by now
+                    render_thread.join();                
+
+                    render_mode = RM_IDLE;
+
                     printf("Rendering canceled!\n");
 
-                    // Thread should have finished by now
-                    render_thread.join();
-
-                    rendering = false;
                     break;
 
-                case RenderResult::DONE:
-                    printf("Rendering done!\n");
+                case RenderResult::DONE:                    
 
                     // Thread should have finished by now
                     render_thread.join();
 
-                    rendering = false;
+                    render_mode = RM_IDLE;
+
+                    printf("Rendering done!\n");
+
                     break;
             }
         }
@@ -2862,7 +2917,7 @@ main(int argc, const char **argv)
 
     while (true)
     {
-        //printf("Waiting for new connection...\n");
+        printf("Waiting for new connection...\n");
 
         sock = listen_sock->accept();
 

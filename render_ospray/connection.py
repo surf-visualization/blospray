@@ -143,12 +143,10 @@ class Connection:
 
         self.send_updated_renderer_type(scene.ospray.renderer)
 
-        # Render settings    
+        # Render settings
        
         render_settings = RenderSettings()
         render_settings.renderer = scene.ospray.renderer
-        render_settings.type = RenderSettings.FINAL        
-        self.render_samples = render_settings.samples = scene.ospray.samples
         render_settings.max_depth = scene.ospray.max_depth
         render_settings.min_contribution = scene.ospray.min_contribution
         render_settings.variance_threshold = scene.ospray.variance_threshold
@@ -999,8 +997,12 @@ class Connection:
 
         # Signal server to start rendering
 
+        scene = depsgraph.scene
+    
         client_message = ClientMessage()
         client_message.type = ClientMessage.START_RENDERING
+        client_message.string_value = "final"
+        self.render_samples = client_message.uint_value = scene.ospray.samples
         send_protobuf(self.sock, client_message)
 
         # Read back successive framebuffer samples

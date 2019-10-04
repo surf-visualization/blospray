@@ -177,7 +177,33 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
                 print('ERROR(view_update): Failed to connect to server')                
                 return 
 
-            # Send whole scene: all object_instances (which only lists visible objects)                        
+            scene = depsgraph.scene
+            render = scene.render
+            world = scene.world        
+
+            # Renderer type
+            self.send_updated_renderer_type(scene.ospray.renderer)
+
+            # Render settings
+            render_settings = RenderSettings()
+            render_settings.renderer = scene.ospray.renderer
+            render_settings.type = RenderSettings.INTERACTIVE        
+            render_settings.samples = scene.ospray.samples
+            render_settings.max_depth = scene.ospray.max_depth
+            render_settings.min_contribution = scene.ospray.min_contribution
+            render_settings.variance_threshold = scene.ospray.variance_threshold
+            if scene.ospray.renderer == 'scivis':
+                render_settings.ao_samples = scene.ospray.ao_samples
+                render_settings.ao_radius = scene.ospray.ao_radius
+                render_settings.ao_intensity = scene.ospray.ao_intensity
+            elif scene.ospray.renderer == 'pathtracer':
+                render_settings.roulette_depth = scene.ospray.roulette_depth
+                render_settings.max_contribution = scene.ospray.max_contribution
+                render_settings.geometry_lights = scene.ospray.geometry_lights
+
+            self.send_updated_render_settings(render_settings)  
+
+            # Send complete (visible) scene
             try:
                 print('Sending initial scene')
                 self.connection.update(None, depsgraph)
@@ -190,19 +216,11 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
                 return 
 
             self.first_view_update = False
+
         else:
             #  Update scene on server
             self._print_depsgraph_updates(depsgraph)
             # XXX
-
-        """
-        region = context.region
-        view3d = context.space_data
-        scene = depsgraph.scene
-
-        # Get viewport dimensions
-        dimensions = region.width, region.height
-        """
 
     # For viewport renders, this method is called whenever Blender redraws
     # the 3D viewport. The renderer is expected to quickly draw the render
@@ -221,24 +239,44 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
 
         assert len(depsgraph.updates) == 0
 
-        region = context.region
         scene = depsgraph.scene
+
+        # We only know the viewport resolution for certain here
+
+        region = context.region
+        view3d = context.space_data
 
         # Get viewport dimensions
         dimensions = region.width, region.height
 
-        # Bind shader that converts from scene linear to display space,
-        bgl.glEnable(bgl.GL_BLEND)
-        bgl.glBlendFunc(bgl.GL_ONE, bgl.GL_ONE_MINUS_SRC_ALPHA);
-        self.bind_display_space_shader(scene)
+        self.connection.send_updated_framebuffer_settings(region.width, region.height, OSP_FB_RGBA32F)
 
-        if not self.draw_data or self.draw_data.dimensions != dimensions:
-            self.draw_data = CustomDrawData(dimensions)
+        # Get camera, HOW?
 
-        self.draw_data.draw()
+        # Start rendering
 
-        self.unbind_display_space_shader()
-        bgl.glDisable(bgl.GL_BLEND)
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.START_RENDERING
+        client_message.string_value = "interactive"
+        self.render_samples = client_message.uint_value = scene.ospray.samples
+        send_protobuf(self.sock, client_message)
+
+        # Check for incoming render results
+
+        if False:
+
+            # Bind shader that converts from scene linear to display space,
+            bgl.glEnable(bgl.GL_BLEND)
+            bgl.glBlendFunc(bgl.GL_ONE, bgl.GL_ONE_MINUS_SRC_ALPHA);
+            self.bind_display_space_shader(scene)
+
+            if not self.draw_data or self.draw_data.dimensions != dimensions:
+                self.draw_data = CustomDrawData(dimensions)
+
+            self.draw_data.draw()
+
+            self.unbind_display_space_shader()
+            bgl.glDisable(bgl.GL_BLEND)
         
     # Nodes
     

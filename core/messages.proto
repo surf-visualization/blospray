@@ -259,17 +259,9 @@ message CameraSettings
 
 message RenderSettings
 {
-    enum Type {
-        FINAL = 0;
-        INTERACTIVE = 1;
-        //PREVIEW = 2;
-    }
-
     string          renderer = 1;
-    Type            type = 2;
 
     // All renderers
-    uint32          samples = 3;
     uint32          max_depth = 4;
     float           min_contribution = 5;
     float           variance_threshold = 6;
