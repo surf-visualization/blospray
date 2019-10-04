@@ -240,6 +240,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         assert len(depsgraph.updates) == 0
 
         scene = depsgraph.scene
+        ospray = scene.ospray
 
         # We only know the viewport resolution for certain here
 
@@ -258,7 +259,8 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         client_message = ClientMessage()
         client_message.type = ClientMessage.START_RENDERING
         client_message.string_value = "interactive"
-        client_message.uint_value = scene.ospray.samples
+        client_message.uint_value = ospray.samples
+        client_message.uint_value2 = ospray.reduction_factor
         send_protobuf(self.sock, client_message)
 
         # Check for incoming render results

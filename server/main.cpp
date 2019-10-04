@@ -94,6 +94,7 @@ OSPData                     scene_lights_data = nullptr;
 
 int                         framebuffer_width=0, framebuffer_height=0;
 OSPFrameBufferFormat        framebuffer_format;
+int                         framebuffer_reduction_factor;
 bool                        framebuffer_created = false;
 
 enum RenderMode
@@ -173,6 +174,8 @@ SceneObjectMap      scene_objects;
 SceneDataTypeMap    scene_data_types;
 PluginInstanceMap   plugin_instances;
 BlenderMeshMap      blender_meshes;
+
+void start_rendering(const ClientMessage& client_message);
 
 // Plugin handling
 
@@ -2476,48 +2479,6 @@ handle_hello(TCPSocket *sock, const ClientMessage& client_message)
     return res;
 }
 
-void
-start_rendering(const ClientMessage& client_message)
-{
-    if (render_mode != RM_IDLE)
-    {        
-        printf("Received START_RENDERING message, but we're already rendering, ignoring!\n");                        
-        return;                        
-    }
-
-    gettimeofday(&rendering_start_time, NULL);    
-
-    render_samples = client_message.uint_value();  
-    current_sample = 1;
-
-    auto& mode = client_message.string_value();
-    if (mode == "final")
-    {
-        render_mode = RM_FINAL;
-    }
-    else if (mode == "interactive")
-    {
-        render_mode = RM_INTERACTIVE;
-    }
-
-    cancel_rendering = false;
-    
-    printf("Rendering %d samples:\n", render_samples);
-    printf("[%d/%d] ", 1, render_samples);
-    fflush(stdout);
-
-    // Set up world and scene objects
-    prepare_scene();
-
-    // Clear framebuffer
-    // XXX no 2.0 equivalent? Hmm, there *is* osp::cpp::FrameBuffer::clear()
-    //ospFrameBufferClear(framebuffer, OSP_FB_COLOR | OSP_FB_ACCUM);
-    ospResetAccumulation(framebuffer);
-
-    gettimeofday(&frame_start_time, NULL);
-    render_future = ospRenderFrame(framebuffer, renderer, camera, world);
-}
-
 // Returns false on socket errors
 bool
 handle_client_message(TCPSocket *sock, const ClientMessage& client_message, bool& connection_done)
@@ -2655,6 +2616,50 @@ handle_client_message(TCPSocket *sock, const ClientMessage& client_message, bool
     }
 
     return true;
+}
+
+void
+start_rendering(const ClientMessage& client_message)
+{
+    if (render_mode != RM_IDLE)
+    {        
+        printf("Received START_RENDERING message, but we're already rendering, ignoring!\n");                        
+        return;                        
+    }
+
+    gettimeofday(&rendering_start_time, NULL);    
+
+    render_samples = client_message.uint_value();  
+    current_sample = 1;
+
+    auto& mode = client_message.string_value();
+    if (mode == "final")
+    {
+        render_mode = RM_FINAL;
+        framebuffer_reduction_factor = 1;
+    }
+    else if (mode == "interactive")
+    {
+        render_mode = RM_INTERACTIVE;
+        framebuffer_reduction_factor = client_message.uint_value2();
+    }
+
+    cancel_rendering = false;
+    
+    printf("Rendering %d samples:\n", render_samples);
+    printf("[%d/%d] ", 1, render_samples);
+    fflush(stdout);
+
+    // Set up world and scene objects
+    prepare_scene();
+
+    // Clear framebuffer
+    // XXX no 2.0 equivalent? Hmm, there *is* osp::cpp::FrameBuffer::clear()
+    //ospFrameBufferClear(framebuffer, OSP_FB_COLOR | OSP_FB_ACCUM);
+    ospResetAccumulation(framebuffer);
+
+    gettimeofday(&frame_start_time, NULL);
+    render_future = ospRenderFrame(framebuffer, renderer, camera, world);
 }
    
 // Connection handling
@@ -2795,6 +2800,8 @@ handle_connection(TCPSocket *sock)
         {
             // Fire off render of next sample frame
             current_sample++;
+
+            // XXX take framebuffer_reduction_factor into account
 
             printf("[%d/%d] ", current_sample, render_samples);
             fflush(stdout);

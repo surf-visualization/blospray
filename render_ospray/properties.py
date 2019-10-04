@@ -182,14 +182,18 @@ class RenderOspraySettingsScene(PropertyGroup):
         default = True
         )
 
-    """
-    # XXX removed in 2.0?
-    shadows_enabled: BoolProperty(
-        name="Shadows",
-        description="Compute (hard) shadows (shadowsEnabled)",
-        default = True
+    # Interactive rendering
+
+    reduction_factor: IntProperty(
+        name='Reduction factor',
+        description='For interactive rendering the initial factor by which the framebuffer resolution is decreased (in both width and height)',
+        default = 4,
+        min = 1,
+        max = 32
         )
-    """
+
+
+
         
         
 class RenderOspraySettingsWorld(PropertyGroup):
