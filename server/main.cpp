@@ -2785,17 +2785,16 @@ handle_connection(TCPSocket *sock)
         }
         else if (render_mode == RM_INTERACTIVE)
         {
-            // Send framebuffer directly
-
-            // XXX render_result.frame reduction factor
-
-            send_protobuf(sock, render_result);
+            // Send framebuffer directly        
 
             // XXX different pixel type?
             const float *fb = (float*)ospMapFrameBuffer(framebuffer, OSP_FB_COLOR);
 
             render_result.set_file_name("<memory>");
             render_result.set_file_size(framebuffer_width*framebuffer_height*4*sizeof(float));
+            // XXX render_result.frame reduction factor
+
+            send_protobuf(sock, render_result);
 
             // XXX depends on reduction factor
             sock->sendall((const uint8_t*)fb, framebuffer_width*framebuffer_height*4*sizeof(float));

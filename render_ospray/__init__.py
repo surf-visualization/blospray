@@ -39,7 +39,7 @@ if "bpy" in locals():
     #imp.reload(render)
     #imp.reload(update_files)
     
-import sys, socket, traceback
+import sys, logging, socket, time, traceback
 import bpy, bgl
 import numpy
 
@@ -53,6 +53,34 @@ from .messages_pb2 import (
 
 HOST = 'localhost'
 PORT = 5909
+
+def setup_logging(logger_name, logfile, console=True):
+
+    # Format
+    formatter = logging.Formatter('%(asctime)s - %(name)15s - %(levelname)-5s [%(thread)08x] %(message)s')    
+    
+    logger = logging.getLogger(logger_name)
+    logger.propagate = False
+    logger.setLevel(logging.DEBUG)
+
+    # Log all to file, truncates existing file
+    file_handler = logging.FileHandler(logfile, mode='w')
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+
+    # Log info and higher to console
+    if console:
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.DEBUG)
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
+
+    logger.info('------- Logging started ----------')
+
+    return logger
+
+setup_logging('blospray', 'blospray.log')
     
 class OsprayRenderEngine(bpy.types.RenderEngine):
     bl_idname = "OSPRAY"
@@ -69,19 +97,22 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
     # instances may exist at the same time, for example for a viewport and final
     # render.    
     def __init__(self):
-        print('>>> OsprayRenderEngine.__init__()')
+        self.log = logging.getLogger('blospray')
+
+        self.log.info('OsprayRenderEngine.__init__() [%s]' % self)
         super(OsprayRenderEngine, self).__init__()
 
         self.connection = None
         self.first_view_update = True
         self.rendering_active = False
+        self.framebuffer_width = self.framebuffer_height = None
     
         self.draw_data = None        
     
     # When the render engine instance is destroy, this is called. Clean up any
     # render engine data here, for example stopping running render threads.    
     def __del__(self):
-        print('>>> OsprayRenderEngine.__del__()')
+        print('[%s] OsprayRenderEngine.__del__() [%s]' % (time.asctime(), self))
         # XXX doesn't work, apparently self.connection is no longer available here?
         #if self.connection is not None:
         #    self.connection.close()
@@ -99,7 +130,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         Note that this method is always called, even when re-rendering
         exactly the same scene or moving just the camera.
         """
-        print('>>> OsprayRenderEngine.update()')
+        self.log.info('OsprayRenderEngine.update() [%s]' % self)        
 
         assert not self.is_preview
 
@@ -114,8 +145,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()            
             lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
-            print('ERROR: Exception while updating scene on server:')
-            print(''.join(lines))
+            self.log.exception('Exception while updating scene on server')
             self.report({'ERROR'}, 'Exception while updating scene on server: %s' % sys.exc_info()[0])
             return 
 
@@ -131,7 +161,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
     # small preview for materials, world and lights.        
     def render(self, depsgraph):
         """Render scene into an image"""
-        print('>>> OsprayRenderEngine.render()')
+        self.log.info('OsprayRenderEngine.render() [%s]' % self)
 
         if not self.update_succeeded:
             return
@@ -143,8 +173,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()            
             lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
-            print('ERROR: Exception while rendering scene on server:')
-            print(''.join(lines))
+            self.log.exception('Exception while rendering scene on server')
             self.report({'ERROR'}, 'Exception while rendering scene on server: %s' % sys.exc_info()[0])
 
     # If the two view_... methods are defined the interactive rendered
@@ -175,13 +204,15 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
     # thread will be started to do the work while keeping Blender responsive.        
     def view_update(self, context, depsgraph):
         """Update on data changes for viewport render"""
-        print('>>> OsprayRenderEngine.view_update()')
+        self.log.info('OsprayRenderEngine.view_update() [%s]' % self)        
 
         if self.first_view_update:
 
+            self.log.debug('view_update(): FIRST')
+
             # Open connection
             if not self.connect(depsgraph):  
-                print('ERROR(view_update): Failed to connect to server')                
+                self.log.info('ERROR(view_update): Failed to connect to server')                
                 return 
 
             scene = depsgraph.scene
@@ -210,13 +241,12 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
 
             # Send complete (visible) scene
             try:
-                print('Sending initial scene')
+                self.log.info('Sending initial scene')
                 self.connection.update(None, depsgraph)
             except:
                 exc_type, exc_value, exc_traceback = sys.exc_info()            
                 lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
-                print('ERROR(view_update): Exception while updating scene on server:')
-                print(''.join(lines))
+                self.log.exception('Exception while updating scene on server')
                 self.report({'ERROR'}, 'Exception sending initial scene to server: %s' % sys.exc_info()[0])
                 return 
 
@@ -224,8 +254,21 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
 
         else:
             #  Update scene on server
+            self.log.debug('view_update(): SUBSEQUENT')
             self._print_depsgraph_updates(depsgraph)
             # XXX
+
+        # Viewport
+        region = context.region
+        width = region.width
+        height = region.height
+
+        if width != self.framebuffer_width or height != self.framebuffer_height:
+            self.log.info('view_update(): framebuffer size changed to %d x %d' % (width,height))
+            self.framebuffer_width = width
+            self.framebuffer_height = height
+            self.connection.send_updated_framebuffer_settings(width, height, OSP_FB_RGBA32F)
+
 
     # For viewport renders, this method is called whenever Blender redraws
     # the 3D viewport. The renderer is expected to quickly draw the render
@@ -240,7 +283,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         but only a view_draw():
         - Resizing the 3D editor 
         """
-        print('>>> OsprayRenderEngine.view_draw()')
+        self.log.info('OsprayRenderEngine.view_draw() [%s]' % self)        
 
         assert len(depsgraph.updates) == 0
 
@@ -254,6 +297,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
 
         if not self.rendering_active:
 
+            """
             # XXX only send update in case the values changed, as
             # the view_draw method also gets called in response to
             # a tag_redraw()
@@ -262,8 +306,9 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             self.framebuffer_height = region.height
 
             self.connection.send_updated_framebuffer_settings(region.width, region.height, OSP_FB_RGBA32F)
+            """
 
-            # Get camera, HOW?
+            # XXX Get camera view, HOW?
 
             # Start rendering
 
@@ -285,7 +330,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         render_result = RenderResult()
         # XXX handle receive error
         self.connection.receive_protobuf(render_result)
-        print(render_result)
+        self.log.debug(render_result)
 
         # Bind shader that converts from scene linear to display space,
         bgl.glEnable(bgl.GL_BLEND)
@@ -293,27 +338,30 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         self.bind_display_space_shader(scene)        
 
         if render_result.type == RenderResult.FRAME:
-            print('FRAME')
+            self.log.info('FRAME')
 
             bufsize = render_result.file_size   #self.framebuffer_width * self.framebuffer_height * 4 * 4
             fbpixels = numpy.empty(self.framebuffer_width*self.framebuffer_height*4, dtype=numpy.float32)
 
-            # XXX Method on engine
+            # XXX Make method on engine
             n = self.connection.sock.recv_into(fbpixels, bufsize, socket.MSG_WAITALL)
 
             if n != bufsize:
-                print('ERROR: did not receive all bytes!')
+                self.log.error('Did not receive all bytes (%d != %d)!' % (n, bufsize))
 
             if not self.draw_data or self.draw_data.dimensions != dimensions:
                 self.draw_data = CustomDrawData(dimensions, fbpixels)
+            else:
+                self.draw_data.update_pixels(fbpixels)
+
+            self.draw_data.draw()
 
             # Signal that we expect more frames
             self.tag_redraw()
 
         elif render_result.type == RenderResult.DONE:
             self.rendering_active = False
-
-        self.draw_data.draw()
+            self.draw_data.draw()
 
         self.unbind_display_space_shader()
         bgl.glDisable(bgl.GL_BLEND)
@@ -322,28 +370,27 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
     
     def NO_update_script_node(self, node):
         """Compile shader script node"""
-        print('>>> OsprayRenderEngine.update_script_node()')
+        self.log.debug('OsprayRenderEngine.update_script_node() [%s]' % self)
                 
 
 
-# From https://docs.blender.org/api/current/bpy.types.RenderEngine.html
+# Based on https://docs.blender.org/api/current/bpy.types.RenderEngine.html
 class CustomDrawData:
-    def __init__(self, dimensions, pixels=None):
-        print('CustomDrawData.__init__()')
-        
-        # Generate dummy float image buffer
-        self.dimensions = dimensions
-        width, height = dimensions
-        
-        if pixels is None:
-            pixels = numpy.full(width*height*4, 0.3, dtype=numpy.float32)
-            #pixels = [0.1, 0.2, 0.1, 1.0] * width * height
 
+    def __init__(self, dimensions, pixels):
+        self.log = logging.getLogger('blospray')
+
+        self.log.info('CustomDrawData.__init__(%s, %s) [%s]' % (dimensions, pixels, self))    
+        
+        width, height = self.dimensions = dimensions
+        
+        assert pixels is not None
         pixels = bgl.Buffer(bgl.GL_FLOAT, width * height * 4, pixels)
 
         # Generate texture
         self.texture = bgl.Buffer(bgl.GL_INT, 1)
         bgl.glGenTextures(1, self.texture)
+
         bgl.glActiveTexture(bgl.GL_TEXTURE0)
         bgl.glBindTexture(bgl.GL_TEXTURE_2D, self.texture[0])
         bgl.glTexImage2D(bgl.GL_TEXTURE_2D, 0, bgl.GL_RGBA16F, width, height, 0, bgl.GL_RGBA, bgl.GL_FLOAT, pixels)
@@ -354,18 +401,18 @@ class CustomDrawData:
         # Bind shader that converts from scene linear to display space,
         # use the scene's color management settings.
         shader_program = bgl.Buffer(bgl.GL_INT, 1)
-        bgl.glGetIntegerv(bgl.GL_CURRENT_PROGRAM, shader_program);
+        bgl.glGetIntegerv(bgl.GL_CURRENT_PROGRAM, shader_program)
 
         # Generate vertex array
         self.vertex_array = bgl.Buffer(bgl.GL_INT, 1)
         bgl.glGenVertexArrays(1, self.vertex_array)
         bgl.glBindVertexArray(self.vertex_array[0])
 
-        texturecoord_location = bgl.glGetAttribLocation(shader_program[0], "texCoord");
-        position_location = bgl.glGetAttribLocation(shader_program[0], "pos");
+        texturecoord_location = bgl.glGetAttribLocation(shader_program[0], "texCoord")
+        position_location = bgl.glGetAttribLocation(shader_program[0], "pos")
 
-        bgl.glEnableVertexAttribArray(texturecoord_location);
-        bgl.glEnableVertexAttribArray(position_location);
+        bgl.glEnableVertexAttribArray(texturecoord_location)
+        bgl.glEnableVertexAttribArray(position_location)
 
         # Generate geometry buffers for drawing textured quad
         position = [0.0, 0.0, width, 0.0, width, height, 0.0, height]
@@ -388,16 +435,24 @@ class CustomDrawData:
         bgl.glBindVertexArray(0)
 
     def __del__(self):
-        print('CustomDrawData.__del__()')
-        
+        print('[%s] CustomDrawData.__del__() [%s]' % (time.asctime(), self))        
         bgl.glDeleteBuffers(2, self.vertex_buffer)
         bgl.glDeleteVertexArrays(1, self.vertex_array)
         bgl.glBindTexture(bgl.GL_TEXTURE_2D, 0)
         bgl.glDeleteTextures(1, self.texture)
 
+    def update_pixels(self, pixels):
+        self.log.info('CustomDrawData.update_pixels() [%s]' % self)        
+        width, height = self.dimensions
+        pixels = bgl.Buffer(bgl.GL_FLOAT, width * height * 4, pixels)
+        bgl.glActiveTexture(bgl.GL_TEXTURE0)        
+        bgl.glBindTexture(bgl.GL_TEXTURE_2D, self.texture[0])
+        # XXX glTexSubImage2D
+        bgl.glTexImage2D(bgl.GL_TEXTURE_2D, 0, bgl.GL_RGBA16F, width, height, 0, bgl.GL_RGBA, bgl.GL_FLOAT, pixels)
+        bgl.glBindTexture(bgl.GL_TEXTURE_2D, 0)
+
     def draw(self):
-        print('CustomDrawData.draw()')
-        
+        self.log.info('CustomDrawData.draw() [%s]' % self)        
         bgl.glActiveTexture(bgl.GL_TEXTURE0)
         bgl.glBindTexture(bgl.GL_TEXTURE_2D, self.texture[0])
         bgl.glBindVertexArray(self.vertex_array[0])
