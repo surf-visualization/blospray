@@ -70,7 +70,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         self.scene_data = None
         self.draw_data = None        
     
-    # When the render engine instance is destroy, this is called. Clean up any
+    # When the render engine instance is destroyed, this is called. Clean up any
     # render engine data here, for example stopping running render threads.    
     def __del__(self):
         print('>>> OsprayRenderEngine.__del__()')
