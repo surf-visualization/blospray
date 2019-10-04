@@ -1,0 +1,52 @@
+Entering rendered view
+    RenderEngine.__init__()
+    view_update(), object_instances
+    view_draw(), dims changed
+
+
+Moving blender window / showing window
+    view_draw()
+    
+Resize 3D view
+    view_draw(), changed dimensions
+    
+Minimize/maximize 3D view
+    view_update()  ??
+    view_draw(), changed dims
+    
+Zoom/translate/rotate view with mouse
+    view_draw()
+    
+Change selection
+    view_update(), OBJECT+SCENE
+    view_draw()
+    (moving mouse after selection: 2x view_draw())
+    
+Hovering over UI elements on top of the 3D view
+    view_draw()
+    
+Duplicating an object
+    view_update()
+    view_draw()
+    view_update()
+    view_draw()
+    view_update()
+    view_draw()
+    view_update()
+    view_draw()
+    <no mouse moved yet?>
+    
+Entering edit mode
+    view_update(), OBJECT+"MESH"
+    view_draw()
+    
+Exiting edit mode
+    view_update(), OBJECT+"MESH"
+    view_draw()
+    
+Exiting rendered view
+    RenderEngine.__del__()
+    -> CANCEL_RENDERING
+    
+
+    

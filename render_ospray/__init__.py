@@ -201,7 +201,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
     # For viewport renders, this method gets called once at the start and
     # whenever the scene or 3D viewport changes. This method is where data
     # should be read from Blender in the same thread. Typically a render
-    # thread will be started to do the work while keeping Blender responsive.        
+    # thread will be started to do the work while keeping Blender responsive.   
     def view_update(self, context, depsgraph):
         """Update on data changes for viewport render"""
         self.log.info('OsprayRenderEngine.view_update() [%s]' % self)        
