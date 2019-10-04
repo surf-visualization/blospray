@@ -100,9 +100,11 @@ class Connection:
         self.framebuffer_width = self.framebuffer_height = None
 
     def connect(self):
-        try:
-            self.sock.connect((self.host, self.port))
-        except:
+        self.engine.update_stats('', 'Connecting')
+
+        try:            
+            self.sock.connect((self.host, self.port))            
+        except:            
             return False
 
         # Handshake
@@ -128,207 +130,18 @@ class Connection:
 
         self.sock.close()
 
-    def update(self, data, depsgraph):
-        #print(data)
-        #print(depsgraph)
-
-        self.engine.update_stats('', 'Connecting')
-
-        # Export scene    
-        self.export_scene(data, depsgraph)
-
-        # Connection will be closed by render(), which is always
-        # called after update()
-
-    #
-    # Scene export
-    #
-
-    def _process_properties(self, obj, properties):
-        """
-        Get Blender custom properties set on obj.
-        Custom properties starting with an underscore become
-        element properties (key without the underscore), all the others
-        become plugin parameters, set in the key "plugin_parameters",
-        *but only if a property key 'plugin_type' is set*.
-        """
-
-        plugin_parameters = None
-        if 'plugin_type' in properties:
-            if 'plugin_parameters' in properties:
-                plugin_parameters = properties['plugin_parameters']
-            else:
-                plugin_parameters = properties['plugin_parameters'] = {}
-
-        custom_properties = customproperties2dict(obj)
-        for k, v in custom_properties.items():
-            #print('k', k, 'v', v)
-            if k[0] == '_':
-                # This might overwrite one of the already defined properties above
-                #print(properties, k, v)
-                properties[k[1:]] = v
-            elif plugin_parameters is not None:
-                plugin_parameters[k] = v
-                
-    def _process_properties2(self, obj, extract_plugin_parameters=False):
-        """
-        Get Blender custom properties set on obj.
-        Custom properties starting with an underscore become
-        element properties (with a key without the underscore), 
-        all the others become plugin parameters, but only if
-        extract_plugin_parameters is True.
-        """
-
-        properties = {}
-        plugin_parameters = {}
-
-        for k, v in customproperties2dict(obj).items():
-            #print('k', k, 'v', v)
-            if k[0] == '_':
-                #print(properties, k, v)
-                properties[k[1:]] = v
-            elif extract_plugin_parameters:
-                plugin_parameters[k] = v       
-            else:
-                properties[k] = v
-                
-        return properties, plugin_parameters
-        
-    def send_clear_scene(self, sock):
-        client_message = ClientMessage()
-        client_message.type = ClientMessage.CLEAR_SCENE
-        send_protobuf(self.sock, client_message)        
-
-    def send_updated_framebuffer_settings(self, sock, width, height, format):
-        client_message = ClientMessage()
-        client_message.type = ClientMessage.UPDATE_FRAMEBUFFER
-        client_message.uint_value = format
-        client_message.uint_value2 = width
-        client_message.uint_value3 = height
-        send_protobuf(self.sock, client_message)
-
-    def send_updated_camera(self, sock, cam_obj, border=None):
-        
-        # Camera
-
-        cam_xform = cam_obj.matrix_world
-        cam_data = cam_obj.data
-
-        camera_settings = CameraSettings()
-        camera_settings.object_name = cam_obj.name
-        camera_settings.camera_name = cam_data.name
-
-        camera_settings.aspect = self.framebuffer_aspect
-        camera_settings.clip_start = cam_data.clip_start
-        # XXX no far clip in ospray :)
-
-        if cam_data.type == 'PERSP':
-            camera_settings.type = CameraSettings.PERSPECTIVE
-
-            hfov = vfov = None
-
-            if cam_data.sensor_fit == 'AUTO':
-                if self.framebuffer_aspect >= 1:
-                    # Horizontal
-                    hfov = cam_data.angle
-                else:
-                    # Vertical
-                    vfov = cam_data.angle
-            elif cam_data.sensor_fit == 'HORIZONTAL':
-                hfov = cam_data.angle
-            else:
-                vfov = cam_data.angle
-
-            # Blender provides FOV in radians
-            # OSPRay needs vertical FOV in degrees
-            if vfov is None:
-                image_plane_width = 2 * tan(hfov/2)
-                image_plane_height = image_plane_width / self.framebuffer_aspect
-                vfov = 2*atan(image_plane_height/2)
-                
-            camera_settings.fov_y = degrees(vfov)
-
-        elif cam_data.type == 'ORTHO':
-            camera_settings.type = CameraSettings.ORTHOGRAPHIC
-            camera_settings.height = cam_data.ortho_scale / self.framebuffer_aspect
-
-        elif cam_data.type == 'PANO':
-            camera_settings.type = CameraSettings.PANORAMIC
-
-        else:
-            raise ValueError('Unknown camera type "%s"' % cam_data.type)
-
-        camera_settings.position[:] = list(cam_obj.location)
-        camera_settings.view_dir[:] = list(cam_xform @ Vector((0, 0, -1)) - cam_obj.location)
-        camera_settings.up_dir[:] = list(cam_xform @ Vector((0, 1, 0)) - cam_obj.location)
-
-        # Depth of field
-        camera_settings.dof_focus_distance = 0
-        camera_settings.dof_aperture = 0.0
-
-        if cam_data.dof.use_dof:
-            dof_settings = cam_data.dof
-            if dof_settings.focus_object is not None:
-                focus_world = dof_settings.focus_object.matrix_world.translation
-                cam_world = cam_obj.matrix_world.translation
-                camera_settings.dof_focus_distance = (focus_world - cam_world).length
-            else:
-                camera_settings.dof_focus_distance = dof_settings.focus_distance
-
-            # Camera focal length in mm + f-stop -> aperture in m
-            camera_settings.dof_aperture = (0.5 * cam_data.lens / dof_settings.aperture_fstop) / 1000
-
-        if border is not None:
-            camera_settings.border[:] = border
-            
-        client_message = ClientMessage()
-        client_message.type = ClientMessage.UPDATE_CAMERA
-
-        send_protobuf(self.sock, client_message)
-        send_protobuf(self.sock, camera_settings)
-
-    def send_updated_renderer_type(self, sock, type):
-        client_message = ClientMessage()
-        client_message.type = ClientMessage.UPDATE_RENDERER_TYPE
-        client_message.string_value = type
-        send_protobuf(self.sock, client_message)
-
-    def send_updated_render_settings(self, sock, render_settings):
-        client_message = ClientMessage()
-        client_message.type = ClientMessage.UPDATE_RENDER_SETTINGS
-        send_protobuf(self.sock, client_message)
-        send_protobuf(self.sock, render_settings) 
-
-    def send_updated_world_settings(self, background_color, ambient_color, ambient_intensity):
-
-        client_message = ClientMessage()
-        client_message.type = ClientMessage.UPDATE_WORLD_SETTINGS
-
-        world_settings = WorldSettings()        
-        world_settings.ambient_color[:] = ambient_color
-        world_settings.ambient_intensity = ambient_intensity
-        world_settings.background_color[:] = background_color
-        
-        send_protobuf(self.sock, client_message)
-        send_protobuf(self.sock, world_settings)
-
-    def export_scene(self, data, depsgraph):
-
-        msg = 'Exporting scene'
-        self.engine.update_stats('', msg)
-        print(msg)    
+    def update(self, blend_data, depsgraph):    
 
         scene = depsgraph.scene
         render = scene.render
-        world = scene.world
+        world = scene.world        
 
+        # Renderer type
+        #
         # Make sure this is the first thing we send, other
         # things can depend on it (e.g. created materials)
-        self.send_updated_renderer_type(self.sock, scene.ospray.renderer)
 
-        # Clear scene
-
-        self.send_clear_scene(self.sock)
+        self.send_updated_renderer_type(scene.ospray.renderer)
 
         # Render settings    
        
@@ -348,7 +161,7 @@ class Connection:
             render_settings.max_contribution = scene.ospray.max_contribution
             render_settings.geometry_lights = scene.ospray.geometry_lights
 
-        self.send_updated_render_settings(self.sock, render_settings)
+        self.send_updated_render_settings(render_settings)  
 
         # Framebuffer
 
@@ -397,16 +210,180 @@ class Connection:
 
             print('Framebuffer for border render: %d x %d' % (self.framebuffer_width, self.framebuffer_height))
         
-        self.send_updated_framebuffer_settings(self.sock, self.framebuffer_width, self.framebuffer_height, OSP_FB_RGBA32F)
+        self.send_updated_framebuffer_settings(self.framebuffer_width, self.framebuffer_height, OSP_FB_RGBA32F)
 
         # Camera settings
-        self.send_updated_camera(self.sock, scene.camera, border)  
+
+        self.send_updated_camera(scene.camera, border)  
 
         # World settings      
-        self.send_updated_world_settings(world.ospray.background_color, 
-            world.ospray.ambient_color, world.ospray.ambient_intensity)
 
-        # Scene objects
+        self.send_updated_world_settings(world.ospray.background_color, 
+            world.ospray.ambient_color, world.ospray.ambient_intensity)        
+
+        # Clear scene
+
+        self.send_clear_scene()
+
+        # Send scene content
+
+        self.send_scene(blend_data, depsgraph)
+
+        # Connection will be closed by render(), which is always
+        # called after update()
+
+    #
+    # Scene export
+    #
+
+    def _process_properties(self, obj, extract_plugin_parameters=False):
+        """
+        Get Blender custom properties set on obj.
+        Custom properties starting with an underscore become
+        element properties (with a key without the underscore), 
+        all the others become plugin parameters, but only if
+        extract_plugin_parameters is True.
+        """
+
+        properties = {}
+        plugin_parameters = {}
+
+        for k, v in customproperties2dict(obj).items():
+            #print('k', k, 'v', v)
+            if k[0] == '_':
+                #print(properties, k, v)
+                properties[k[1:]] = v
+            elif extract_plugin_parameters:
+                plugin_parameters[k] = v       
+            else:
+                properties[k] = v
+                
+        return properties, plugin_parameters
+        
+    def send_clear_scene(self):
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.CLEAR_SCENE
+        send_protobuf(self.sock, client_message)    
+        # XXX flags to pick which scene items are cleared    
+
+    def send_updated_framebuffer_settings(self, width, height, format):
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.UPDATE_FRAMEBUFFER
+        client_message.uint_value = format
+        client_message.uint_value2 = width
+        client_message.uint_value3 = height
+        send_protobuf(self.sock, client_message)
+
+    def send_updated_camera(self, cam_obj, border=None):
+        
+        cam_xform = cam_obj.matrix_world
+        cam_data = cam_obj.data
+
+        camera_settings = CameraSettings()
+        camera_settings.object_name = cam_obj.name
+        camera_settings.camera_name = cam_data.name
+
+        camera_settings.aspect = self.framebuffer_aspect
+        camera_settings.clip_start = cam_data.clip_start
+        # XXX no far clip in ospray :)
+
+        if cam_data.type == 'PERSP':
+            camera_settings.type = CameraSettings.PERSPECTIVE
+
+            hfov = vfov = None
+
+            if cam_data.sensor_fit == 'AUTO':
+                if self.framebuffer_aspect >= 1:
+                    # Horizontal
+                    hfov = cam_data.angle
+                else:
+                    # Vertical
+                    vfov = cam_data.angle
+            elif cam_data.sensor_fit == 'HORIZONTAL':
+                hfov = cam_data.angle
+            else:
+                vfov = cam_data.angle
+
+            # Blender provides FOV in radians
+            # OSPRay needs (vertical) FOV in degrees
+            if vfov is None:
+                image_plane_width = 2 * tan(hfov/2)
+                image_plane_height = image_plane_width / self.framebuffer_aspect
+                vfov = 2*atan(image_plane_height/2)
+                
+            camera_settings.fov_y = degrees(vfov)
+
+        elif cam_data.type == 'ORTHO':
+            camera_settings.type = CameraSettings.ORTHOGRAPHIC
+            camera_settings.height = cam_data.ortho_scale / self.framebuffer_aspect
+
+        elif cam_data.type == 'PANO':
+            camera_settings.type = CameraSettings.PANORAMIC
+
+        else:
+            raise ValueError('Unknown camera type "%s"' % cam_data.type)
+
+        camera_settings.position[:] = list(cam_obj.location)
+        camera_settings.view_dir[:] = list(cam_xform @ Vector((0, 0, -1)) - cam_obj.location)
+        camera_settings.up_dir[:] = list(cam_xform @ Vector((0, 1, 0)) - cam_obj.location)
+
+        # Depth of field
+        camera_settings.dof_focus_distance = 0
+        camera_settings.dof_aperture = 0.0
+
+        if cam_data.dof.use_dof:
+            dof_settings = cam_data.dof
+            if dof_settings.focus_object is not None:
+                focus_world = dof_settings.focus_object.matrix_world.translation
+                cam_world = cam_obj.matrix_world.translation
+                camera_settings.dof_focus_distance = (focus_world - cam_world).length
+            else:
+                camera_settings.dof_focus_distance = dof_settings.focus_distance
+
+            # Camera focal length in mm + f-stop -> aperture in m
+            camera_settings.dof_aperture = (0.5 * cam_data.lens / dof_settings.aperture_fstop) / 1000
+
+        if border is not None:
+            camera_settings.border[:] = border
+            
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.UPDATE_CAMERA
+
+        send_protobuf(self.sock, client_message)
+        send_protobuf(self.sock, camera_settings)
+
+    def send_updated_renderer_type(self, type):
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.UPDATE_RENDERER_TYPE
+        client_message.string_value = type
+        send_protobuf(self.sock, client_message)
+
+    def send_updated_render_settings(self, render_settings):
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.UPDATE_RENDER_SETTINGS
+        send_protobuf(self.sock, client_message)
+        send_protobuf(self.sock, render_settings) 
+
+    def send_updated_world_settings(self, background_color, ambient_color, ambient_intensity):
+
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.UPDATE_WORLD_SETTINGS
+
+        world_settings = WorldSettings()        
+        world_settings.ambient_color[:] = ambient_color
+        world_settings.ambient_intensity = ambient_intensity
+        world_settings.background_color[:] = background_color
+        
+        send_protobuf(self.sock, client_message)
+        send_protobuf(self.sock, world_settings)
+
+    def send_scene(self, blend_data, depsgraph):
+
+        msg = 'Sending scene'
+        self.engine.update_stats('', msg)
+        print(msg)    
+
+        scene = depsgraph.scene
 
         self.mesh_data_exported = set()
         self.materials_exported = set()
@@ -421,13 +398,13 @@ class Connection:
             #    (obj.name, obj.type, instance.is_instance, instance.random_id))
 
             if obj.type == 'LIGHT':
-                self.send_updated_light(data, depsgraph, obj)
+                self.send_updated_light(blend_data, depsgraph, obj)
             elif obj.type == 'MESH':                                        
-                self.send_updated_mesh_object(data, depsgraph, obj, obj.data, instance.matrix_world, instance.is_instance, instance.random_id)        
+                self.send_updated_mesh_object(blend_data, depsgraph, obj, obj.data, instance.matrix_world, instance.is_instance, instance.random_id)        
             elif obj.type not in ['CAMERA']:
                 print('Warning: not exporting object of type "%s"' % obj.type)
 
-    def send_updated_light(self, data, depsgraph, obj):
+    def send_updated_light(self, blend_data, depsgraph, obj):
 
         self.engine.update_stats('', 'Light %s' % obj.name)
 
@@ -494,7 +471,7 @@ class Connection:
         update.object2world[:] = matrix2list(xform)
         update.data_link = data.name
         
-        custom_properties, plugin_parameters = self._process_properties2(obj, False)
+        custom_properties, plugin_parameters = self._process_properties(obj, False)
         assert len(plugin_parameters.keys()) == 0
         
         update.custom_properties = json.dumps(custom_properties)  
@@ -504,7 +481,7 @@ class Connection:
         send_protobuf(self.sock, update)
         send_protobuf(self.sock, light_settings)
 
-    def send_updated_material(self, data, depsgraph, material):
+    def send_updated_material(self, blend_data, depsgraph, material):
 
         name = material.name        
         
@@ -644,7 +621,7 @@ class Connection:
         self.materials_exported.add(name)
 
 
-    def send_updated_mesh_object(self, data, depsgraph, obj, mesh, matrix_world, is_instance, random_id):
+    def send_updated_mesh_object(self, blend_data, depsgraph, obj, mesh, matrix_world, is_instance, random_id):
 
         # We do a bit of the logic here in determining what a certain
         # mesh object -> mesh data combination (including their properties)
@@ -659,7 +636,7 @@ class Connection:
         mesh = obj.data
 
         # Send mesh data first, so the object can refer to it
-        self.send_updated_mesh_data(data, depsgraph, mesh)
+        self.send_updated_mesh_data(blend_data, depsgraph, mesh)
                     
         name = obj.name
         
@@ -677,7 +654,7 @@ class Connection:
         update.object2world[:] = matrix2list(matrix_world)
         update.data_link = mesh.name
         
-        custom_properties, plugin_parameters = self._process_properties2(obj, False)
+        custom_properties, plugin_parameters = self._process_properties(obj, False)
         assert len(plugin_parameters.keys()) == 0
         
         update.custom_properties = json.dumps(custom_properties)    
@@ -711,7 +688,7 @@ class Connection:
                     # Material linked to object
                     material = mslot.material
 
-                self.send_updated_material(data, depsgraph, material)
+                self.send_updated_material(blend_data, depsgraph, material)
 
                 update.material_link = material.name
 
@@ -737,7 +714,7 @@ class Connection:
                     assert mslot.link == 'DATA'
                     material = obj.data.materials[0]
 
-                    self.send_updated_material(data, depsgraph, material)
+                    self.send_updated_material(blend_data, depsgraph, material)
 
                     update.material_link = material.name
                 
@@ -788,7 +765,7 @@ class Connection:
 
                         print('Sending slicing child mesh "%s"' % childobj.data.name)
 
-                        self.update_blender_mesh(data, depsgraph, childobj.data, childobj.matrix_local)
+                        self.update_blender_mesh(blend_data, depsgraph, childobj.data, childobj.matrix_local)
 
                         slice = Slice()
                         slice.linked_mesh_data = childobj.data.name
@@ -810,7 +787,7 @@ class Connection:
                 send_protobuf(self.sock, msg)
     
 
-    def send_updated_mesh_data(self, data, depsgraph, mesh):
+    def send_updated_mesh_data(self, blend_data, depsgraph, mesh):
         
         """
         Send an update on a Mesh Data block
@@ -830,14 +807,14 @@ class Connection:
             plugin_name = ospray.plugin_name
             plugin_type = ospray.plugin_type
             
-            custom_properties, plugin_parameters = self._process_properties2(mesh, True)
+            custom_properties, plugin_parameters = self._process_properties(mesh, True)
             
             self.update_plugin_instance(mesh.name, plugin_type, plugin_name, plugin_parameters, custom_properties)
 
         else:
             # Treat as regular blender mesh
             # XXX any need to send custom properties?
-            self.update_blender_mesh(data, depsgraph, mesh) 
+            self.update_blender_mesh(blend_data, depsgraph, mesh) 
 
         # Remember that we exported this mesh
         self.mesh_data_exported.add(mesh.name)        
@@ -877,7 +854,7 @@ class Connection:
             return
         
 
-    def update_blender_mesh(self, data, depsgraph, mesh, xform=None):
+    def update_blender_mesh(self, blend_data, depsgraph, mesh, xform=None):
 
         if mesh.name in self.mesh_data_exported:
             print('Not updating MESH DATA "%s", already sent' % mesh.name)

@@ -66,14 +66,24 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         print('>>> OsprayRenderEngine.__init__()')
         super(OsprayRenderEngine, self).__init__()
 
+        self.connection = None
         self.first_view_update = True
-        self.scene_data = None
+    
         self.draw_data = None        
     
     # When the render engine instance is destroy, this is called. Clean up any
     # render engine data here, for example stopping running render threads.    
     def __del__(self):
         print('>>> OsprayRenderEngine.__del__()')
+        # XXX doesn't work, apparently self.connection is no longer available here?
+        #if self.connection is not None:
+        #    self.connection.close()
+
+    def connect(self, depsgraph):
+        assert self.connection is None
+        ospray = depsgraph.scene.ospray        
+        self.connection = Connection(self, ospray.host, ospray.port)        
+        return self.connection.connect()
         
     def update(self, data, depsgraph):
         """
@@ -88,10 +98,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
 
         self.update_succeeded = False
         
-        ospray = depsgraph.scene.ospray        
-        self.connection = Connection(self, ospray.host, ospray.port)
-
-        if not self.connection.connect():        
+        if not self.connect(depsgraph):        
             self.report({'ERROR'}, 'Failed to connect to server')
             return 
 
@@ -125,6 +132,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         try:
             self.connection.render(depsgraph)
             self.connection.close()        
+            self.connection = None
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()            
             lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
@@ -163,23 +171,38 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         print('>>> OsprayRenderEngine.view_update()')
 
         if self.first_view_update:
-            # The initial call will not include any updates, so we need to send the whole scene.            
+
+            # Open connection
+            if not self.connect(depsgraph):  
+                print('ERROR(view_update): Failed to connect to server')                
+                return 
+
+            # Send whole scene: all object_instances (which only lists visible objects)                        
+            try:
+                print('Sending initial scene')
+                self.connection.update(None, depsgraph)
+            except:
+                exc_type, exc_value, exc_traceback = sys.exc_info()            
+                lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+                print('ERROR(view_update): Exception while updating scene on server:')
+                print(''.join(lines))
+                self.report({'ERROR'}, 'Exception sending initial scene to server: %s' % sys.exc_info()[0])
+                return 
+
             self.first_view_update = False
-
-            print('Sending initial scene: %d datablocks' % len(depsgraph.object_instances))
-
-            for datablock in depsgraph.object_instances:
-                print(datablock, datablock.show_self)
         else:
-            # Apply updates to scene
+            #  Update scene on server
             self._print_depsgraph_updates(depsgraph)
+            # XXX
 
+        """
         region = context.region
         view3d = context.space_data
         scene = depsgraph.scene
 
         # Get viewport dimensions
         dimensions = region.width, region.height
+        """
 
     # For viewport renders, this method is called whenever Blender redraws
     # the 3D viewport. The renderer is expected to quickly draw the render

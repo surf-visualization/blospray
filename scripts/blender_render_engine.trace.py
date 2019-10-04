@@ -92,6 +92,9 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         log('view_update #%d' % self.update_count)
         print('-' * 40)
         
+        # The first call to view_update will not list any object updates,
+        # so the full scene has to be synced using depsgraph.object_instances
+        
         print('object_instances: %d objects' % len(depsgraph.object_instances))
         
         region = context.region
