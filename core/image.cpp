@@ -59,7 +59,7 @@ writePNG(const char *fileName, int width, int height, const uint32_t *pixel)
 
 // RGBA, i.e. 4 floats per pixel
 bool
-writeEXRFramebuffer(const char *fileName, int width, int height, const float *pixel)
+writeEXRFramebuffer(const char *fileName, int width, int height, const float *pixel, bool compress)
 {
     auto out = ImageOutput::create(fileName);
     
@@ -76,6 +76,9 @@ writeEXRFramebuffer(const char *fileName, int width, int height, const float *pi
     int scanlinesize = width * channels * 4;
     
     ImageSpec spec(width, height, channels, TypeDesc::FLOAT);
+    if (!compress)
+        spec.attribute("Compression", "none");
+
     out->open(fileName, spec);
     out->write_image(TypeDesc::FLOAT, 
         (uint8_t*)pixel + size_t(height-1)*scanlinesize,

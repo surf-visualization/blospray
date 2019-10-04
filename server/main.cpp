@@ -105,15 +105,15 @@ enum RenderMode
 
 std::thread     render_thread;
 RenderMode      render_mode = RM_IDLE;
+int             render_samples = 1;
 
 BlockingQueue<ClientMessage> render_input_queue;
 BlockingQueue<RenderResult>  render_result_queue;
 
-int             render_samples = 1;
-
-bool            keep_framebuffer_files = getenv("BLOSPRAY_KEEP_FRAMEBUFFER_FILES") != nullptr;
-bool            dump_client_messages = getenv("BLOSPRAY_DUMP_CLIENT_MESSAGES") != nullptr;
-bool            abort_on_ospray_error = getenv("BLOSPRAY_ABORT_ON_OSPRAY_ERROR") != nullptr;
+bool framebuffer_compression = getenv("BLOSPRAY_COMPRESS_FRAMEBUFFER") != nullptr;
+bool keep_framebuffer_files = getenv("BLOSPRAY_KEEP_FRAMEBUFFER_FILES") != nullptr;
+bool dump_client_messages = getenv("BLOSPRAY_DUMP_CLIENT_MESSAGES") != nullptr;
+bool abort_on_ospray_error = getenv("BLOSPRAY_ABORT_ON_OSPRAY_ERROR") != nullptr;
 
 // Geometry buffers used during network receive
 
@@ -2294,7 +2294,7 @@ write_framebuffer_exr(const char *fname)
     // Access framebuffer
     const float *fb = (float*)ospMapFrameBuffer(framebuffer, OSP_FB_COLOR);
 
-    writeEXRFramebuffer(fname, framebuffer_width, framebuffer_height, fb);
+    writeEXRFramebuffer(fname, framebuffer_width, framebuffer_height, fb, framebuffer_compression);
 
     // Unmap framebuffer
     ospUnmapFrameBuffer(fb, framebuffer);
@@ -2355,7 +2355,7 @@ void
 render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
     BlockingQueue<RenderResult>& render_result_queue)
 {
-    struct timeval t0, t1, t2;
+    struct timeval t0, t1, t2, t3;
     size_t  framebuffer_file_size;
     char fname[1024];
     float variance;
@@ -2392,7 +2392,7 @@ render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
         variance = ospRenderFrameBlocking(framebuffer, renderer, camera, world);
 
         gettimeofday(&t2, NULL);
-        printf("%.3f seconds (variance %.3f)\n", time_diff(t1, t2), variance);
+        printf("frame %.3f seconds (variance %.3f) ... ", time_diff(t1, t2), variance);
         
         // Check for cancel before writing framebuffer to file
         if (render_input_queue.size() > 0)
@@ -2416,6 +2416,9 @@ render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
 
         framebuffer_file_size = write_framebuffer_exr(fname);
         // XXX check result value
+
+        gettimeofday(&t3, NULL);
+        printf("EXR file %.3f seconds, %d bytes\n", time_diff(t2, t3), framebuffer_file_size);
 
         mem_usage = memory_usage();
         peak_memory_usage = std::max(mem_usage, peak_memory_usage);
@@ -2445,7 +2448,8 @@ render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
     render_result_queue.push(rs);
 
     gettimeofday(&t2, NULL);
-    printf("Rendering done in %.3f seconds\n", time_diff(t0, t2));
+    printf("Rendering done in %.3f seconds (%.3f seconds/sample)\n", 
+        time_diff(t0, t2), time_diff(t0, t2)/render_samples);
 }
 
 // Querying

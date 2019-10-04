@@ -27,6 +27,6 @@
 bool    writePNG(const char *fileName, int width, int height, const uint32_t *pixel);
 void    writePPM(const char *fileName, int width, int height, const uint32_t *pixel);
 
-bool    writeEXRFramebuffer(const char *fileName, int width, int height, const float *pixel);
+bool    writeEXRFramebuffer(const char *fileName, int width, int height, const float *pixel, bool compress=true);
 
 #endif
