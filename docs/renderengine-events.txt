@@ -49,4 +49,13 @@ Exiting rendered view
     -> CANCEL_RENDERING
     
 
+Viewport dimensions changed:
+- UPDATE_FRAMEBUFFER
+- START_RENDERING
+
+
+
+
+    
+
     
