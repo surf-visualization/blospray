@@ -32,7 +32,7 @@ import numpy
 
 sys.path.insert(0, os.path.split(__file__)[0])
 
-from .common import PROTOCOL_VERSION, send_protobuf, receive_protobuf
+from .common import PROTOCOL_VERSION, send_protobuf, receive_protobuf, OSP_FB_RGBA32F
 from .messages_pb2 import (
     HelloResult,
     ClientMessage,
@@ -44,11 +44,6 @@ from .messages_pb2 import (
     MaterialUpdate, 
     CarPaintSettings, GlassSettings, LuminousSettings, MetallicPaintSettings, OBJMaterialSettings, PrincipledSettings
 )
-
-OSP_FB_NONE = 0 
-OSP_FB_RGBA8 = 1    # one dword per pixel: rgb+alpha, each one byte
-OSP_FB_SRGBA = 2    # one dword per pixel: rgb (in sRGB space) + alpha, each one byte
-OSP_FB_RGBA32F = 3  # one float4 per pixel: rgb+alpha, each one float
 
 # Object to world matrix
 #
@@ -129,6 +124,12 @@ class Connection:
         send_protobuf(self.sock, client_message)
 
         self.sock.close()
+
+    def send_protobuf(self, message):
+        send_protobuf(self.sock, message)
+
+    def receive_protobuf(self, message):
+        receive_protobuf(self.sock, message)
 
     def update(self, blend_data, depsgraph):    
 

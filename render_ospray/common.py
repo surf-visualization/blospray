@@ -2,6 +2,11 @@ from struct import pack, unpack
 
 PROTOCOL_VERSION = 2
 
+OSP_FB_NONE = 0 
+OSP_FB_RGBA8 = 1    # one dword per pixel: rgb+alpha, each one byte
+OSP_FB_SRGBA = 2    # one dword per pixel: rgb (in sRGB space) + alpha, each one byte
+OSP_FB_RGBA32F = 3  # one float4 per pixel: rgb+alpha, each one float
+
 def send_protobuf(sock, pb, sendall=False):
     """Serialize a protobuf object and send it on the socket"""
     s = pb.SerializeToString()

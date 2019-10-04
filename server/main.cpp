@@ -2670,7 +2670,8 @@ handle_connection(TCPSocket *sock)
     ClientMessage       client_message;
     bool                connection_done;
 
-    size_t              framebuffer_file_size;
+    struct stat         st;
+
     char                fname[1024];
     float               variance;
     float               mem_usage, peak_memory_usage=0.0f;    
@@ -2745,34 +2746,64 @@ handle_connection(TCPSocket *sock)
         variance = ospGetVariance(framebuffer);
         
         printf("Frame %8.3f seconds | Variance %7.3f ", time_diff(frame_start_time, frame_end_time), variance);
-        
-        // Save framebuffer to file
 
-        sprintf(fname, "/dev/shm/blosprayfb%04d.exr", current_sample);
-        framebuffer_file_size = write_framebuffer_exr(fname);
-        // XXX check result value
-
-        gettimeofday(&now, NULL);
-        printf("| Save FB %6.3f seconds | EXR file %9d bytes\n", time_diff(frame_end_time, now), framebuffer_file_size);
-
-        // Signal a new frame is available, including framebuffer
         mem_usage = memory_usage();
         peak_memory_usage = std::max(mem_usage, peak_memory_usage);        
 
         render_result.set_type(RenderResult::FRAME);
         render_result.set_sample(current_sample);
-        render_result.set_variance(variance);
-        render_result.set_file_name(fname);
-        render_result.set_file_size(framebuffer_file_size);
+        render_result.set_variance(variance);        
         render_result.set_memory_usage(mem_usage);
         render_result.set_peak_memory_usage(peak_memory_usage);
-        send_protobuf(sock, render_result);
+        
+        if (render_mode == RM_FINAL)
+        {        
+            // Save framebuffer to file
 
-        sock->sendfile(fname);
-        if (!keep_framebuffer_files)
+            sprintf(fname, "/dev/shm/blosprayfb%04d.exr", current_sample);
+
+            const float *fb = (float*)ospMapFrameBuffer(framebuffer, OSP_FB_COLOR);            
+            writeEXRFramebuffer(fname, framebuffer_width, framebuffer_height, fb, framebuffer_compression);
+            ospUnmapFrameBuffer(fb, framebuffer);
+            
+            stat(fname, &st);
+
+            gettimeofday(&now, NULL);
+            printf("| Save FB %6.3f seconds | EXR file %9d bytes\n", time_diff(frame_end_time, now), st.st_size);
+
+            render_result.set_file_name(fname);
+            render_result.set_file_size(st.st_size);
+
+            send_protobuf(sock, render_result);
+
+            sock->sendfile(fname);
+            if (!keep_framebuffer_files)
+            {
+                // Remove local framebuffer file
+                unlink(fname);
+            }            
+        }
+        else if (render_mode == RM_INTERACTIVE)
         {
-            // Remove local framebuffer file
-            unlink(fname);
+            // Send framebuffer directly
+
+            // XXX render_result.frame reduction factor
+
+            send_protobuf(sock, render_result);
+
+            // XXX different pixel type?
+            const float *fb = (float*)ospMapFrameBuffer(framebuffer, OSP_FB_COLOR);
+
+            render_result.set_file_name("<memory>");
+            render_result.set_file_size(framebuffer_width*framebuffer_height*4*sizeof(float));
+
+            // XXX depends on reduction factor
+            sock->sendall((const uint8_t*)fb, framebuffer_width*framebuffer_height*4*sizeof(float));
+            
+            ospUnmapFrameBuffer(fb, framebuffer);        
+
+            gettimeofday(&now, NULL);
+            printf("| Send FB %6.3f seconds | Pixels %9d bytes\n", time_diff(frame_end_time, now), st.st_size);    
         }
 
         // Check if we're done rendering

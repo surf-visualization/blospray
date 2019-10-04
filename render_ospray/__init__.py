@@ -39,11 +39,17 @@ if "bpy" in locals():
     #imp.reload(render)
     #imp.reload(update_files)
     
-import sys, traceback
+import sys, socket, traceback
 import bpy, bgl
 import numpy
 
+from .common import send_protobuf, receive_protobuf, OSP_FB_RGBA32F
 from .connection import Connection
+from .messages_pb2 import (
+    ClientMessage,
+    RenderResult,
+    WorldSettings, CameraSettings, LightSettings, RenderSettings,
+)
 
 HOST = 'localhost'
 PORT = 5909
@@ -68,6 +74,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
 
         self.connection = None
         self.first_view_update = True
+        self.rendering_active = False
     
         self.draw_data = None        
     
@@ -182,13 +189,11 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             world = scene.world        
 
             # Renderer type
-            self.send_updated_renderer_type(scene.ospray.renderer)
+            self.connection.send_updated_renderer_type(scene.ospray.renderer)
 
             # Render settings
             render_settings = RenderSettings()
-            render_settings.renderer = scene.ospray.renderer
-            render_settings.type = RenderSettings.INTERACTIVE        
-            render_settings.samples = scene.ospray.samples
+            render_settings.renderer = scene.ospray.renderer                        
             render_settings.max_depth = scene.ospray.max_depth
             render_settings.min_contribution = scene.ospray.min_contribution
             render_settings.variance_threshold = scene.ospray.variance_threshold
@@ -201,7 +206,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
                 render_settings.max_contribution = scene.ospray.max_contribution
                 render_settings.geometry_lights = scene.ospray.geometry_lights
 
-            self.send_updated_render_settings(render_settings)  
+            self.connection.send_updated_render_settings(render_settings)  
 
             # Send complete (visible) scene
             try:
@@ -241,44 +246,77 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
 
         scene = depsgraph.scene
         ospray = scene.ospray
-
-        # We only know the viewport resolution for certain here
-
         region = context.region
-        view3d = context.space_data
+        view3d = context.space_data     
 
         # Get viewport dimensions
         dimensions = region.width, region.height
 
-        self.connection.send_updated_framebuffer_settings(region.width, region.height, OSP_FB_RGBA32F)
+        if not self.rendering_active:
 
-        # Get camera, HOW?
+            # XXX only send update in case the values changed, as
+            # the view_draw method also gets called in response to
+            # a tag_redraw()
 
-        # Start rendering
+            self.framebuffer_width = region.width
+            self.framebuffer_height = region.height
 
-        client_message = ClientMessage()
-        client_message.type = ClientMessage.START_RENDERING
-        client_message.string_value = "interactive"
-        client_message.uint_value = ospray.samples
-        client_message.uint_value2 = ospray.reduction_factor
-        send_protobuf(self.sock, client_message)
+            self.connection.send_updated_framebuffer_settings(region.width, region.height, OSP_FB_RGBA32F)
+
+            # Get camera, HOW?
+
+            # Start rendering
+
+            client_message = ClientMessage()
+            client_message.type = ClientMessage.START_RENDERING
+            client_message.string_value = "interactive"
+            client_message.uint_value = ospray.samples
+            client_message.uint_value2 = ospray.reduction_factor
+            self.connection.send_protobuf(client_message)
+
+            self.rendering_active = True
+            self.tag_redraw()
+
+            return
 
         # Check for incoming render results
+        # XXX use select
 
-        if False:
+        render_result = RenderResult()
+        # XXX handle receive error
+        self.connection.receive_protobuf(render_result)
+        print(render_result)
 
-            # Bind shader that converts from scene linear to display space,
-            bgl.glEnable(bgl.GL_BLEND)
-            bgl.glBlendFunc(bgl.GL_ONE, bgl.GL_ONE_MINUS_SRC_ALPHA);
-            self.bind_display_space_shader(scene)
+        # Bind shader that converts from scene linear to display space,
+        bgl.glEnable(bgl.GL_BLEND)
+        bgl.glBlendFunc(bgl.GL_ONE, bgl.GL_ONE_MINUS_SRC_ALPHA);
+        self.bind_display_space_shader(scene)        
+
+        if render_result.type == RenderResult.FRAME:
+            print('FRAME')
+
+            bufsize = render_result.file_size   #self.framebuffer_width * self.framebuffer_height * 4 * 4
+            fbpixels = numpy.empty(self.framebuffer_width*self.framebuffer_height*4, dtype=numpy.float32)
+
+            # XXX Method on engine
+            n = self.connection.sock.recv_into(fbpixels, bufsize, socket.MSG_WAITALL)
+
+            if n != bufsize:
+                print('ERROR: did not receive all bytes!')
 
             if not self.draw_data or self.draw_data.dimensions != dimensions:
-                self.draw_data = CustomDrawData(dimensions)
+                self.draw_data = CustomDrawData(dimensions, fbpixels)
 
-            self.draw_data.draw()
+            # Signal that we expect more frames
+            self.tag_redraw()
 
-            self.unbind_display_space_shader()
-            bgl.glDisable(bgl.GL_BLEND)
+        elif render_result.type == RenderResult.DONE:
+            self.rendering_active = False
+
+        self.draw_data.draw()
+
+        self.unbind_display_space_shader()
+        bgl.glDisable(bgl.GL_BLEND)
         
     # Nodes
     
@@ -290,15 +328,17 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
 
 # From https://docs.blender.org/api/current/bpy.types.RenderEngine.html
 class CustomDrawData:
-    def __init__(self, dimensions):
+    def __init__(self, dimensions, pixels=None):
         print('CustomDrawData.__init__()')
         
         # Generate dummy float image buffer
         self.dimensions = dimensions
         width, height = dimensions
         
-        pixels = numpy.full(width*height*4, 0.3, dtype=numpy.float32)
-        #pixels = [0.1, 0.2, 0.1, 1.0] * width * height
+        if pixels is None:
+            pixels = numpy.full(width*height*4, 0.3, dtype=numpy.float32)
+            #pixels = [0.1, 0.2, 0.1, 1.0] * width * height
+
         pixels = bgl.Buffer(bgl.GL_FLOAT, width * height * 4, pixels)
 
         # Generate texture
