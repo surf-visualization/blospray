@@ -94,13 +94,27 @@ OSPData                     scene_lights_data = nullptr;
 
 int                         framebuffer_width=0, framebuffer_height=0;
 OSPFrameBufferFormat        framebuffer_format;
+int                         framebuffer_reduction_factor;
 bool                        framebuffer_created = false;
 
-int             render_samples=1;
+enum RenderMode
+{
+    RM_IDLE,
+    RM_FINAL,
+    RM_INTERACTIVE
+};
 
-bool            keep_framebuffer_files = getenv("BLOSPRAY_KEEP_FRAMEBUFFER_FILES") != nullptr;
-bool            dump_client_messages = getenv("BLOSPRAY_DUMP_CLIENT_MESSAGES") != nullptr;
-bool            abort_on_ospray_error = getenv("BLOSPRAY_ABORT_ON_OSPRAY_ERROR") != nullptr;
+RenderMode      render_mode = RM_IDLE;
+int             render_samples = 1;
+int             current_sample;
+OSPFuture       render_future;
+struct timeval  rendering_start_time, frame_start_time;
+bool            cancel_rendering;
+
+bool framebuffer_compression = getenv("BLOSPRAY_COMPRESS_FRAMEBUFFER") != nullptr;
+bool keep_framebuffer_files = getenv("BLOSPRAY_KEEP_FRAMEBUFFER_FILES") != nullptr;
+bool dump_client_messages = getenv("BLOSPRAY_DUMP_CLIENT_MESSAGES") != nullptr;
+bool abort_on_ospray_error = getenv("BLOSPRAY_ABORT_ON_OSPRAY_ERROR") != nullptr;
 
 // Geometry buffers used during network receive
 
@@ -160,6 +174,8 @@ SceneObjectMap      scene_objects;
 SceneDataTypeMap    scene_data_types;
 PluginInstanceMap   plugin_instances;
 BlenderMeshMap      blender_meshes;
+
+void start_rendering(const ClientMessage& client_message);
 
 // Plugin handling
 
@@ -1578,7 +1594,7 @@ bool
 update_light_object(const UpdateObject& update, const LightSettings& light_settings)
 {
     const std::string& object_name = light_settings.object_name();
-    const std::string& linked_data = light_settings.light_name();    
+    //const std::string& linked_data = light_settings.light_name();    
 
     printf("OBJECT '%s' (light)\n", object_name.c_str());
     //printf("--> '%s' (blender light data)\n", linked_data.c_str());    // XXX not set for ambient
@@ -1586,8 +1602,7 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
     SceneObject *scene_object;
     SceneObjectLight *light_object = nullptr;
     OSPLight light;
-    LightSettings::Type light_type;
-    bool create_new_light = false;
+    LightSettings::Type light_type;    
 
     scene_object = find_scene_object(object_name, SOT_LIGHT);
 
@@ -2183,7 +2198,6 @@ update_render_settings(const RenderSettings& render_settings)
 {
     printf("Applying render settings\n");
 
-    render_samples = render_settings.samples();
     //ospSetInt(renderer, "spp", 1);
 
     ospSetInt(renderer, "maxDepth", render_settings.max_depth());
@@ -2282,7 +2296,7 @@ write_framebuffer_exr(const char *fname)
     // Access framebuffer
     const float *fb = (float*)ospMapFrameBuffer(framebuffer, OSP_FB_COLOR);
 
-    writeEXRFramebuffer(fname, framebuffer_width, framebuffer_height, fb);
+    writeEXRFramebuffer(fname, framebuffer_width, framebuffer_height, fb, framebuffer_compression);
 
     // Unmap framebuffer
     ospUnmapFrameBuffer(fb, framebuffer);
@@ -2336,105 +2350,6 @@ send_framebuffer(TCPSocket *sock)
     printf("Sent framebuffer in %.3f seconds\n", time_diff(t0, t1));
 }
 */
-
-// Rendering
-
-void
-render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
-    BlockingQueue<RenderResult>& render_result_queue)
-{
-    struct timeval t0, t1, t2;
-    size_t  framebuffer_file_size;
-    char fname[1024];
-    float variance;
-    int num_samples;
-    float mem_usage, peak_memory_usage=0.0f;
-
-    gettimeofday(&t0, NULL);
-
-    // Clear framebuffer
-    // XXX no 2.0 equivalent?
-    //ospFrameBufferClear(framebuffer, OSP_FB_COLOR | OSP_FB_ACCUM);
-    ospResetAccumulation(framebuffer);
-
-    printf("Rendering %d samples:\n", render_samples);
-
-    for (int i = 1; i <= render_samples; i++)
-    {
-        printf("[%d/%d] ", i, render_samples);
-        fflush(stdout);
-
-        gettimeofday(&t1, NULL);
-
-        /*
-        What to render and how to render it depends on the renderer's parameters. If
-        the framebuffer supports accumulation (i.e., it was created with
-        `OSP_FB_ACCUM`) then successive calls to `ospRenderFrame` will progressively
-        refine the rendered image. If additionally the framebuffer has an
-        `OSP_FB_VARIANCE` channel then `ospRenderFrame` returns an estimate of the
-        current variance of the rendered image, otherwise `inf` is returned. The
-        estimated variance can be used by the application as a quality indicator and
-        thus to decide whether to stop or to continue progressive rendering.
-        */
-        // XXX use new future-based call?
-        variance = ospRenderFrameBlocking(framebuffer, renderer, camera, world);
-
-        gettimeofday(&t2, NULL);
-        printf("%.3f seconds (variance %.3f)\n", time_diff(t1, t2), variance);
-        
-        // Check for cancel before writing framebuffer to file
-        if (render_input_queue.size() > 0)
-        {
-            ClientMessage cm = render_input_queue.pop();
-
-            if (cm.type() == ClientMessage::CANCEL_RENDERING)
-            {
-                printf("{render thread} Canceling rendering\n");
-
-                RenderResult rs;
-                rs.set_type(RenderResult::CANCELED);
-                render_result_queue.push(rs);
-
-                return;
-            }
-        }
-
-        // Save framebuffer to file
-        sprintf(fname, "/dev/shm/blosprayfb%04d.exr", i);
-
-        framebuffer_file_size = write_framebuffer_exr(fname);
-        // XXX check result value
-
-        mem_usage = memory_usage();
-        peak_memory_usage = std::max(mem_usage, peak_memory_usage);
-
-        // Signal a new frame is available
-        RenderResult rs;
-        rs.set_type(RenderResult::FRAME);
-        rs.set_sample(i);
-        rs.set_variance(variance);
-        rs.set_file_name(fname);
-        rs.set_file_size(framebuffer_file_size);
-        rs.set_memory_usage(mem_usage);
-        rs.set_peak_memory_usage(peak_memory_usage);
-
-        render_result_queue.push(rs);
-    }
-
-    mem_usage = memory_usage();
-    peak_memory_usage = std::max(mem_usage, peak_memory_usage);
-
-    // Final frame
-    RenderResult rs;
-    rs.set_type(RenderResult::DONE);    
-    rs.set_variance(variance);
-    rs.set_memory_usage(mem_usage);
-    rs.set_peak_memory_usage(peak_memory_usage);
-    render_result_queue.push(rs);
-
-    gettimeofday(&t2, NULL);
-    printf("Rendering done in %.3f seconds\n", time_diff(t0, t2));
-}
 
 // Querying
 
@@ -2563,29 +2478,213 @@ handle_hello(TCPSocket *sock, const ClientMessage& client_message)
 
     return res;
 }
+
+// Returns false on socket errors
+bool
+handle_client_message(TCPSocket *sock, const ClientMessage& client_message, bool& connection_done)
+{
+    connection_done = false;
+
+    switch (client_message.type())
+    {
+        case ClientMessage::HELLO:
+            if (!handle_hello(sock, client_message))
+            {
+                sock->close();
+                connection_done = true;
+                return false;
+            }
+
+            break;
+
+        case ClientMessage::BYE:
+            // XXX if we were still rendering, handle the chaos
+            printf("Got BYE message\n");
+            sock->close();
+            connection_done = true;
+            return true;
+
+        case ClientMessage::QUIT:
+            // XXX if we were still rendering, handle the chaos
+            // XXX exit server
+            printf("Got QUIT message\n");
+            connection_done = true;
+            sock->close();
+            return true;
+
+        case ClientMessage::UPDATE_RENDERER_TYPE:
+            update_renderer_type(client_message.string_value());
+            break;
+
+        case ClientMessage::CLEAR_SCENE:
+            clear_scene();
+            break;
+
+        case ClientMessage::UPDATE_RENDER_SETTINGS:  
+        {
+            RenderSettings render_settings;   
+
+            if (!receive_protobuf(sock, render_settings))
+            {
+                sock->close();
+                connection_done = true;
+                return false;
+            }
+
+            update_render_settings(render_settings);
+
+            break;
+        }
+
+        case ClientMessage::UPDATE_WORLD_SETTINGS:
+        {
+            WorldSettings world_settings;
+
+            if (!receive_protobuf(sock, world_settings))
+            {
+                sock->close();
+                connection_done = true;
+                return false;
+            }
+
+            update_world_settings(world_settings);
+
+            break;
+        }
+
+        case ClientMessage::UPDATE_PLUGIN_INSTANCE:
+            handle_update_plugin_instance(sock);
+            break;
+
+        case ClientMessage::UPDATE_BLENDER_MESH:
+            handle_update_blender_mesh_data(sock, client_message.string_value());
+            break;
+
+        case ClientMessage::UPDATE_OBJECT:
+            handle_update_object(sock);
+            break;
+        
+        case ClientMessage::UPDATE_FRAMEBUFFER:
+            update_framebuffer((OSPFrameBufferFormat)(client_message.uint_value()), 
+                client_message.uint_value2(), client_message.uint_value3());
+            break;
+
+        case ClientMessage::UPDATE_CAMERA:
+        {
+            CameraSettings camera_settings;
+            
+            if (!receive_protobuf(sock, camera_settings))
+            {
+                sock->close();
+                connection_done = true;
+                return false;
+            }
+
+            update_camera(camera_settings);    
+
+            break;
+        }
+
+        case ClientMessage::UPDATE_MATERIAL:
+            handle_update_material(sock);
+            break;
+
+        case ClientMessage::GET_SERVER_STATE:
+            handle_get_server_state(sock);
+            break;
+
+        case ClientMessage::QUERY_BOUND:
+            handle_query_bound(sock, client_message.string_value());
+            break;
+
+        case ClientMessage::START_RENDERING:
+            start_rendering(client_message);
+            break;
+
+        case ClientMessage::CANCEL_RENDERING:
+            if (render_mode == RM_IDLE)
+            {
+                printf("WARNING: ignoring CANCEL request as we're not rendering\n");
+                break;
+            }
+
+            cancel_rendering = true;
+            break;
+
+        default:
+            printf("WARNING: unhandled client message %d!\n", client_message.type());
+    }
+
+    return true;
+}
+
+void
+start_rendering(const ClientMessage& client_message)
+{
+    if (render_mode != RM_IDLE)
+    {        
+        printf("Received START_RENDERING message, but we're already rendering, ignoring!\n");                        
+        return;                        
+    }
+
+    gettimeofday(&rendering_start_time, NULL);    
+
+    render_samples = client_message.uint_value();  
+    current_sample = 1;
+
+    auto& mode = client_message.string_value();
+    if (mode == "final")
+    {
+        render_mode = RM_FINAL;
+        framebuffer_reduction_factor = 1;
+    }
+    else if (mode == "interactive")
+    {
+        render_mode = RM_INTERACTIVE;
+        framebuffer_reduction_factor = client_message.uint_value2();
+    }
+
+    cancel_rendering = false;
+    
+    printf("Rendering %d samples:\n", render_samples);
+    printf("[%d/%d] ", 1, render_samples);
+    fflush(stdout);
+
+    // Set up world and scene objects
+    prepare_scene();
+
+    // Clear framebuffer
+    // XXX no 2.0 equivalent? Hmm, there *is* osp::cpp::FrameBuffer::clear()
+    //ospFrameBufferClear(framebuffer, OSP_FB_COLOR | OSP_FB_ACCUM);
+    ospResetAccumulation(framebuffer);
+
+    gettimeofday(&frame_start_time, NULL);
+    render_future = ospRenderFrame(framebuffer, renderer, camera, world);
+}
    
 // Connection handling
 
 bool
 handle_connection(TCPSocket *sock)
 {
-    BlockingQueue<ClientMessage> render_input_queue;
-    BlockingQueue<RenderResult> render_result_queue;
-
     ClientMessage       client_message;
+    bool                connection_done;
+
+    struct stat         st;
+
+    char                fname[1024];
+    float               variance;
+    float               mem_usage, peak_memory_usage=0.0f;    
+    struct timeval      frame_end_time, now;
+
     RenderResult        render_result;
-    RenderResult::Type  rr_type;
-
-    CameraSettings      camera_settings;
-    RenderSettings      render_settings;
-    WorldSettings       world_settings;
-
-    std::thread         render_thread;
-    bool                rendering = false;
 
     while (true)
     {
+        usleep(1000);
+
         // Check for new client message
+        // XXX loop to get more messages before checking frame is done?
 
         if (sock->is_readable())
         {            
@@ -2604,178 +2703,143 @@ handle_connection(TCPSocket *sock)
                 printf("%s\n", client_message.DebugString().c_str());
             }
 
-            switch (client_message.type())
+            if (!handle_client_message(sock, client_message, connection_done))
             {
-                case ClientMessage::HELLO:
-                    if (!handle_hello(sock, client_message))
-                    {
-                        sock->close();
-                        return false;
-                    }
-
-                    break;
-
-                case ClientMessage::BYE:
-                    // XXX if we were still rendering, handle the chaos
-                    printf("Got BYE message\n");
-                    sock->close();
-                    return true;
-
-                case ClientMessage::QUIT:
-                    // XXX if we were still rendering, handle the chaos
-                    // XXX exit server
-                    printf("Got QUIT message\n");
-                    sock->close();
-                    return true;
-
-                case ClientMessage::UPDATE_RENDERER_TYPE:
-                    update_renderer_type(client_message.string_value());
-                    break;
-
-                case ClientMessage::CLEAR_SCENE:
-                    clear_scene();
-                    break;
-
-                case ClientMessage::UPDATE_RENDER_SETTINGS:     
-                    if (!receive_protobuf(sock, render_settings))
-                    {
-                        sock->close();
-                        return false;
-                    }
-                    update_render_settings(render_settings);
-                    break;
-
-                case ClientMessage::UPDATE_WORLD_SETTINGS:
-                    if (!receive_protobuf(sock, world_settings))
-                    {
-                        sock->close();
-                        return false;
-                    }
-                    update_world_settings(world_settings);
-                    break;
-
-                case ClientMessage::UPDATE_PLUGIN_INSTANCE:
-                    handle_update_plugin_instance(sock);
-                    break;
-
-                case ClientMessage::UPDATE_BLENDER_MESH:
-                    handle_update_blender_mesh_data(sock, client_message.string_value());
-                    break;
-
-                case ClientMessage::UPDATE_OBJECT:
-                    handle_update_object(sock);
-                    break;
-                
-                case ClientMessage::UPDATE_FRAMEBUFFER:
-                    update_framebuffer((OSPFrameBufferFormat)(client_message.uint_value()), 
-                        client_message.uint_value2(), client_message.uint_value3());
-                    break;
-
-                case ClientMessage::UPDATE_CAMERA:
-                    if (!receive_protobuf(sock, camera_settings))
-                    {
-                        sock->close();
-                        return false;
-                    }
-                    update_camera(camera_settings);
-                    break;
-
-                case ClientMessage::UPDATE_MATERIAL:
-                    handle_update_material(sock);
-                    break;
-
-                case ClientMessage::GET_SERVER_STATE:
-                    handle_get_server_state(sock);
-                    break;
-
-                case ClientMessage::QUERY_BOUND:
-                    handle_query_bound(sock, client_message.string_value());
-                    break;
-
-                case ClientMessage::START_RENDERING:
-
-                    if (rendering)
-                    {
-                        // Ignore                        
-                        printf("Received ClientMessage::START_RENDERING, but we're already rendering!\n");                        
-                        break;                        
-                    }
-
-                    //render_input_queue.clear();
-                    //render_result_queue.clear();        // XXX handle any remaining results
-
-                    // Setup world and scene objects
-                    prepare_scene();
-
-                    // Start render thread
-                    render_thread = std::thread(&render_thread_func, std::ref(render_input_queue), std::ref(render_result_queue));
-
-                    rendering = true;
-
-                    break;
-
-                case ClientMessage::CANCEL_RENDERING:
-
-                    printf("Got request to CANCEL rendering\n");
-
-                    if (!rendering)
-                        break;
-
-                    render_input_queue.push(client_message);
-
-                    break;
-
-                default:
-                    printf("WARNING: unhandled client message %d!\n", client_message.type());
+                printf("Failed to handle client message, goodbye!\n");
+                return false;
             }
+
+            if (connection_done)    // XXX yuck
+                return true;
         }
 
-        // Check for new render results
+        if (render_mode == RM_IDLE)
+            continue;
 
-        if (rendering && render_result_queue.size() > 0)
+        // Check for cancel before writing framebuffer to file
+        if (cancel_rendering)
         {
-            render_result = render_result_queue.pop();
+            printf("CANCELING RENDER...\n");
 
-            // Forward render results on socket
+            // https://github.com/ospray/ospray/issues/366
+            ospWait(render_future, OSP_WORLD_RENDERED);
+
+            render_result.set_type(RenderResult::CANCELED);
+            send_protobuf(sock, render_result);  
+
+            gettimeofday(&now, NULL);
+            printf("Rendering cancelled after %.3f seconds\n", time_diff(rendering_start_time, now));
+
+            render_mode = RM_IDLE;
+            cancel_rendering = false;
+
+            continue;            
+        }
+                
+        if (!ospIsReady(render_future, OSP_TASK_FINISHED))
+            continue;
+
+        // Frame done, process it
+
+        gettimeofday(&frame_end_time, NULL);        
+        ospRelease(render_future);
+        variance = ospGetVariance(framebuffer);
+        
+        printf("Frame %8.3f seconds | Variance %7.3f ", time_diff(frame_start_time, frame_end_time), variance);
+
+        mem_usage = memory_usage();
+        peak_memory_usage = std::max(mem_usage, peak_memory_usage);        
+
+        render_result.set_type(RenderResult::FRAME);
+        render_result.set_sample(current_sample);
+        render_result.set_variance(variance);        
+        render_result.set_memory_usage(mem_usage);
+        render_result.set_peak_memory_usage(peak_memory_usage);
+        
+        if (render_mode == RM_FINAL)
+        {        
+            // Save framebuffer to file
+
+            sprintf(fname, "/dev/shm/blosprayfb%04d.exr", current_sample);
+
+            const float *fb = (float*)ospMapFrameBuffer(framebuffer, OSP_FB_COLOR);            
+            writeEXRFramebuffer(fname, framebuffer_width, framebuffer_height, fb, framebuffer_compression);
+            ospUnmapFrameBuffer(fb, framebuffer);
+            
+            stat(fname, &st);
+
+            gettimeofday(&now, NULL);
+            printf("| Save FB %6.3f seconds | EXR file %9d bytes\n", time_diff(frame_end_time, now), st.st_size);
+
+            render_result.set_file_name(fname);
+            render_result.set_file_size(st.st_size);
+
             send_protobuf(sock, render_result);
 
-            switch (render_result.type())
+            sock->sendfile(fname);
+            if (!keep_framebuffer_files)
             {
-                case RenderResult::FRAME:
-                    // New framebuffer (for a single sample) available, send
-                    // it to the client
+                // Remove local framebuffer file
+                unlink(fname);
+            }            
+        }
+        else if (render_mode == RM_INTERACTIVE)
+        {
+            // Send framebuffer directly        
 
-                    //printf("Frame available, sample %d (%s, %d bytes)\n", render_result.sample(), render_result.file_name().c_str(), render_result.file_size());
+            // XXX different pixel type?
+            const float *fb = (float*)ospMapFrameBuffer(framebuffer, OSP_FB_COLOR);
 
-                    sock->sendfile(render_result.file_name().c_str());
+            render_result.set_file_name("<memory>");
+            render_result.set_file_size(framebuffer_width*framebuffer_height*4*sizeof(float));
+            // XXX render_result.frame reduction factor
 
-                    // Remove local framebuffer file
-                    if (!keep_framebuffer_files)
-                        unlink(render_result.file_name().c_str());
+            send_protobuf(sock, render_result);
 
-                    break;
+            // XXX depends on reduction factor
+            sock->sendall((const uint8_t*)fb, framebuffer_width*framebuffer_height*4*sizeof(float));
+            
+            ospUnmapFrameBuffer(fb, framebuffer);        
 
-                case RenderResult::CANCELED:
-                    printf("Rendering canceled!\n");
-
-                    // Thread should have finished by now
-                    render_thread.join();
-
-                    rendering = false;
-                    break;
-
-                case RenderResult::DONE:
-                    printf("Rendering done!\n");
-
-                    // Thread should have finished by now
-                    render_thread.join();
-
-                    rendering = false;
-                    break;
-            }
+            gettimeofday(&now, NULL);
+            printf("| Send FB %6.3f seconds | Pixels %9d bytes\n", time_diff(frame_end_time, now), st.st_size);    
         }
 
-        usleep(1000);
+        // Check if we're done rendering
+
+        if (current_sample == render_samples)
+        {
+            // Rendering done!
+
+            mem_usage = memory_usage();
+            peak_memory_usage = std::max(mem_usage, peak_memory_usage);
+                        
+            render_result.set_type(RenderResult::DONE);    
+            render_result.set_variance(variance);
+            render_result.set_memory_usage(mem_usage);
+            render_result.set_peak_memory_usage(peak_memory_usage);
+            send_protobuf(sock, render_result);
+
+            gettimeofday(&now, NULL);
+            printf("Rendering done in %.3f seconds (%.3f seconds/sample)\n", 
+                time_diff(rendering_start_time, now), time_diff(rendering_start_time, now)/render_samples);
+
+            render_mode = RM_IDLE;
+        }
+        else
+        {
+            // Fire off render of next sample frame
+            current_sample++;
+
+            // XXX take framebuffer_reduction_factor into account
+
+            printf("[%d/%d] ", current_sample, render_samples);
+            fflush(stdout);
+
+            gettimeofday(&frame_start_time, NULL);
+
+            render_future = ospRenderFrame(framebuffer, renderer, camera, world);
+        }
     }
 
     sock->close();
@@ -2862,7 +2926,7 @@ main(int argc, const char **argv)
 
     while (true)
     {
-        //printf("Waiting for new connection...\n");
+        printf("Waiting for new connection...\n");
 
         sock = listen_sock->accept();
 
@@ -2877,3 +2941,4 @@ main(int argc, const char **argv)
 
     return 0;
 }
+

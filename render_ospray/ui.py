@@ -97,6 +97,9 @@ class OSPRAY_RENDER_PT_rendering(Panel):
             col.prop(ospray, 'geometry_lights') 
         #col.prop(ospray, 'shadows_enabled')    # XXX Removed in 2.0?
 
+        col.separator()
+        col.prop(ospray, 'reduction_factor')
+
 
 class OSPRAY_OBJECT_PT_settings(Panel):
     #bl_idname = 'OSPRAY_OBJECT_PT_settings'
