@@ -258,7 +258,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         client_message = ClientMessage()
         client_message.type = ClientMessage.START_RENDERING
         client_message.string_value = "interactive"
-        self.render_samples = client_message.uint_value = scene.ospray.samples
+        client_message.uint_value = scene.ospray.samples
         send_protobuf(self.sock, client_message)
 
         # Check for incoming render results

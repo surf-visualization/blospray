@@ -31,7 +31,7 @@ on rendering scenes containing (large) scientific datasets, where
 efficient handling and rendering of the data is usually a more important goal 
 and challenge than production of photo-realistic imagery.
 
-## Features
+## Features & limitations
 
 ### Supported scene elements and features
 
@@ -63,17 +63,28 @@ Other features that might be of interest in the HPC context that are missing:
 * Texturing
 * HDRI lighting
 
-Integration within the Blender UI, mostly panels for editing properties and such, 
-is also very rudimentary. Some properties are currently only settable using Blender
+
+Finally, some current limitations:
+
+* Integration within the Blender UI, mostly panels for editing properties and such, 
+is not very advanced. Some properties are currently only settable using Blender
 [custom properties](https://docs.blender.org/manual/en/latest/data_system/custom_properties.html) on objects and meshes.
+* Only a single connection to the render server (see below) is handled 
+  at a time
+* Simulatenous rendering modes in Blender are not supported. E.g. multiple
+  3D views each in interactive rendering mode will not work.
 
 ### Workflow
 
-The overall idea is to use Blender to set up a scene to render in the usual way.
-Regular Blender meshes are handled mostly correct, although Blender materials
-are currently not exported. To make use of (BL)OSPRAY-specific features a "plugin" can be enabled on a mesh object.
-This plugin generates OSPRay-specific scene elements that are handled independently
-from Blender. Examples of such elements are volumetric data or point sets.
+The overall idea is to use Blender to set up the scene to render in the usual way.
+Regular Blender meshes are handled mostly correct, although Blender's Cycles
+and EEVEE materials are currently not exported. A subset of the materials
+supported by OSPRay is available, though.
+
+To make use of (BL)OSPRAY-specific features a "plugin" can be enabled on a 
+normal mesh object. This plugin generates OSPRay-specific scene elements 
+that are handled independently from Blender. Examples of such elements are 
+volumetric data or point sets.
 
 There are currently 3 types of plugins in BLOSPRAY:
 
@@ -84,10 +95,10 @@ There are currently 3 types of plugins in BLOSPRAY:
   Note that OSPRay supports regular volumetric grids, but also ununstructured grids
   and AMR meshes. 
 
-- Scene plugins: these can generate any set of `OSPInstance`
+- Scene plugins: these can generate any set of `OSPInstance` elements
 
-Meshes that have a geometry of scene plugin attached can be transformed in the
-Blender scene in the usual way. Meshes with a volume plugin have a few more options
+Meshes that have a plugin attached can be transformed in the Blender scene 
+in the usual way. Meshes with a volume plugin have a few more options
 specific to volumes: 
 
 - One or more isosurfaces can be rendered through the volume
@@ -118,7 +129,7 @@ Plus, the client-server setup also has some advantages:
 - The separate render server can be run on a remote system, for example an HPC system 
   that holds a large scientific dataset to be rendered. This offloads most of the 
   compute-intensive rendering workload and memory/storage requirements of the data to be rendered 
-  away from the system running Blender.
+  away from the (desktop) system running Blender.
 
 - It makes it feasible to use OSPRay's [Parallel Rendering with MPI](http://www.ospray.org/documentation.html#parallel-rendering-with-mpi) 
   mode, by providing a variant of the render server as an MPI program. Again,
@@ -131,14 +142,14 @@ Plus, the client-server setup also has some advantages:
   server can be independently restarted in case of crashes or bugs.
 
 Of course, this client-server setup does introduce some overhead, in terms of 
-network latency and data (de)serialization. But in practice this overhead is 
+network latency and data (de)serialization and transfer. But in practice this overhead is 
 small compared to actual render times. Caching of data on the server 
 between renders helps reducing the overhead even further. However, for scenes with
 thousands of objects, or where objects are instanced in large numbers the
 network overhead will become noticeable (and sometimes even prohibitive).
 
 Note that the render server currently doesn't support loading multiple different 
-Blender scenes or serving different users at the same time. And there is also 
+Blender scenes or serving different users at the same time. There is also 
 a manual action required to start/stop the render server.
 
 ### Plugins
@@ -189,11 +200,11 @@ As BLOSPRAY is in early development some things are currently suboptimal or miss
   
 * In many cases only a subset of OSPRay parameters can be set from Blender, either using UI elements or using custom properties
 
-* Scene management on the render server is not optimal yet. I.e. memory usage will usually increase after each render.  
+* Scene management on the render server is not optimal yet. I.e. memory usage might increase after each render.  
 
-* Caching of scene data on the server, especially for large data loaded by plugins, is partly done. A large part of the scene data is re-sent when rendering a new image.
+* Caching of scene data on the server, especially for large data loaded by plugins, is partly done
 
-* Only a single (hard-coded) transfer function for volume rendering and slice planes are supported. 
+* Only a single (hard-coded) transfer function for volume rendering and slice geometry is supported. 
 
 * Only a few OSPRay materials can be set through the shader editor. They also don't work on all types of geometry yet.
 
@@ -201,9 +212,10 @@ As BLOSPRAY is in early development some things are currently suboptimal or miss
 
 * Error handling isn't very good yet, causing a lockup in the Blender script in case the BLOSPRAY server does something wrong (like crash ;-))
 
-* BLOSPRAY is only being developed on Linux at the moment, on other platforms it might only work after some tweaks
+* BLOSPRAY is only being developed on Linux at the moment, on other platforms it might only work after some code tweaks
 
-* Command-line (batch) rendering isn't supported in a nice way yet, as the lifetime of the BLOSPRAY server needs to be managed manually.
+* Command-line (batch) rendering isn't supported in a nice way yet, as the lifetime of the BLOSPRAY server needs to be managed manually,
+  although this isn't a big issue.
 
 * Volumes can only use point-based values, not cell-based values (XXX this is a limitation of the volume_raw plugin)
 
@@ -213,24 +225,20 @@ As BLOSPRAY is in early development some things are currently suboptimal or miss
 
 ### Limitations specific to OSPRay 
 
-Some of these we can work around, some of these we can't:
+Some of the OSPRay limitations we can work around, some of these we can't:
 
 * OSPRay's SciVis and Path Tracer renderer do not have the same set of features:
 
-    - Only the Scivis renderer supports volume rendering, but that should change with OSPRay 2.0
     - Only the Path Tracer supports advanced materials, like the principled material
+    - The lighting in the SciVis renderer is very basic
 
-* In OSPRay structured grid volumes currently cannot be transformed with an 
-  arbitrary affine transformation (see [this issue](https://github.com/ospray/ospray/issues/159)
-  and [this issue](https://github.com/ospray/ospray/issues/48)). 
-    
 * Volumes are limited in their size, due to the relevant ISPC-based
   code being built in 32-bit mode. See [this issue](https://github.com/ospray/ospray/issues/239).
   
 * Unstructured volumes can only contain float values (i.e. not integers).
   See [here](https://github.com/ospray/ospray/issues/289)
   
-* The OSPRay orthographic camera does not support depth-of-field
+* The OSPRay *orthographic* camera does not support depth-of-field
   
 * Blender supports multiple colors per vertex (basically one per vertex per face loop),
   while OSPRay only supports a single value per vertex (XXX need to double-check this). 
@@ -244,8 +252,8 @@ Some of these we can work around, some of these we can't:
 
 For building:
 
-* [OSPRay 2.x](http://www.ospray.org/), which is currently not released yet, so 
-  use the "devel" branch
+* [OSPRay 2.x](http://www.ospray.org/), which is currently still in development.
+  Use the `release-2.0.x` branch
 * [GLM](https://glm.g-truc.net/0.9.9/index.html)
 * [OpenImageIO](https://sites.google.com/site/openimageio/home)
 * [Google protobuf (C/C++ libraries)](https://developers.google.com/protocol-buffers/)
@@ -253,7 +261,7 @@ For building:
 * The code uses the [JSON for Modern C++](https://github.com/nlohmann/json) library,
   which is included in the sources
 
-For running with Blender:
+For running the BLOSPRAY addon in Blender:
 
 * Numpy
 * Google protobuf (Python modules)
@@ -276,14 +284,17 @@ $ cmake -GNinja ..
 $ ninja install
 $ cd ../bin
 $ ls
-geometry_plane.so  ospray_render_server  t_json  volume_raw.so
+blserver            libblospray.so      plugin.h             scene_rbc.so    volume_testing.so
+geometry_assimp.so  libblospray.so.0.2  scene_boxes.so       t_json
+geometry_plane.so   libblospray.so.1    scene_cornellbox.so  volume_hdf5.so
+geometry_ply.so     libfaker.so         scene_cosmogrid.so   volume_raw.so
 ```
 
 ## Installation
 
 Part of BLOSPRAY consists of the Blender add-on, but this is not being distributed separately
 as the focus currently is getting to a releasable state in terms of features.
-Currently, the way to install it is to clone this repository and then
+Currently, the way to install the add-on is to clone this repository and then
 make a symlink to the `render_ospray` directory in the Blender addon directory:
 
 ```
@@ -291,17 +302,20 @@ $ cd <blender-2.8>/2.80/scripts/addons
 $ ln -sf <blospray-repo>/render_ospray render_ospray
 ```
 
-Within Blender enable the `Render: OSPRay` addon. You should now have a new `OSPRay`
-entry in the `Render Engine` dropdown on the `Render` properties tab.
-
-To make Blender find the necessary protobuf packages add symlinks to
-`google` and `six.py` in Blender's python library dir:
+If needed, make Blender find the necessary protobuf dependencies by adding 
+symlinks to `google` and `six.py` in Blender's python library dir:
 
   ```
   $ cd <blender-2.8>/2.80/python/lib/python3.7/site-packages
   $ ln -sf /usr/lib/python3.7/site-packages/six.py six.py
   $ ln -sf /usr/lib/python3.7/site-packages/google google
   ```
+
+Finally, enable the `Render: OSPRay` add-on in Blender (`Edit -> Preferences -> Add-ons`). 
+
+You should now have a new `OSPRay` entry in the `Render Engine` 
+dropdown on the `Render` properties tab. If not, check for error messages
+in the console window where Blender is running.
 
 ## Examples
 
