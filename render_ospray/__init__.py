@@ -281,7 +281,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
 
         Note: some changes in blender do not cause a view_update(),
         but only a view_draw():
-        - Resizing the 3D editor 
+        - Resizing the 3D editor that's in interactive rendering mode
         """
         self.log.info('OsprayRenderEngine.view_draw() [%s]' % self)        
 
@@ -294,19 +294,17 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
 
         # Get viewport dimensions
         dimensions = region.width, region.height
-
+        width, height = dimensions
+        
         if not self.rendering_active:
-
-            """
-            # XXX only send update in case the values changed, as
-            # the view_draw method also gets called in response to
-            # a tag_redraw()
-
-            self.framebuffer_width = region.width
-            self.framebuffer_height = region.height
-
-            self.connection.send_updated_framebuffer_settings(region.width, region.height, OSP_FB_RGBA32F)
-            """
+            
+            self.log.warn('view_draw(): rendering not active')
+        
+            if width != self.framebuffer_width or height != self.framebuffer_height:
+                self.log.info('view_draw(): framebuffer size changed to %d x %d' % (width,height))
+                self.framebuffer_width = width
+                self.framebuffer_height = height
+                self.connection.send_updated_framebuffer_settings(width, height, OSP_FB_RGBA32F)        
 
             # XXX Get camera view, HOW?
 
@@ -323,6 +321,12 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             self.tag_redraw()
 
             return
+        
+        if width != self.framebuffer_width or height != self.framebuffer_height:
+            self.log.info('view_draw(): framebuffer size changed to %d x %d' % (width,height))
+            self.framebuffer_width = width
+            self.framebuffer_height = height
+            self.connection.send_updated_framebuffer_settings(width, height, OSP_FB_RGBA32F) 
 
         # Check for incoming render results
         # XXX use select
@@ -339,6 +343,9 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
 
         if render_result.type == RenderResult.FRAME:
             self.log.info('FRAME')
+            
+            # XXX /samples
+            self.connection.engine.update_stats('', 'Rendering sample %d' % render_result.sample)
 
             bufsize = render_result.file_size   #self.framebuffer_width * self.framebuffer_height * 4 * 4
             fbpixels = numpy.empty(self.framebuffer_width*self.framebuffer_height*4, dtype=numpy.float32)
@@ -350,8 +357,10 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
                 self.log.error('Did not receive all bytes (%d != %d)!' % (n, bufsize))
 
             if not self.draw_data or self.draw_data.dimensions != dimensions:
+                self.log.info('Creating new CustomDrawData()')
                 self.draw_data = CustomDrawData(dimensions, fbpixels)
             else:
+                self.log.info('Updating pixels of existing CustomDraw')
                 self.draw_data.update_pixels(fbpixels)
 
             self.draw_data.draw()
