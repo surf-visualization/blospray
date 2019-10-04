@@ -103,12 +103,12 @@ enum RenderMode
     RM_INTERACTIVE
 };
 
-std::thread     render_thread;
 RenderMode      render_mode = RM_IDLE;
 int             render_samples = 1;
-
-BlockingQueue<ClientMessage> render_input_queue;
-BlockingQueue<RenderResult>  render_result_queue;
+int             current_sample;
+OSPFuture       render_future;
+struct timeval  rendering_start_time, frame_start_time;
+bool            cancel_rendering;
 
 bool framebuffer_compression = getenv("BLOSPRAY_COMPRESS_FRAMEBUFFER") != nullptr;
 bool keep_framebuffer_files = getenv("BLOSPRAY_KEEP_FRAMEBUFFER_FILES") != nullptr;
@@ -2349,109 +2349,6 @@ send_framebuffer(TCPSocket *sock)
 }
 */
 
-// Rendering
-
-void
-render_thread_func(BlockingQueue<ClientMessage>& render_input_queue,
-    BlockingQueue<RenderResult>& render_result_queue)
-{
-    struct timeval t0, t1, t2, t3;
-    size_t  framebuffer_file_size;
-    char fname[1024];
-    float variance;
-    int num_samples;
-    float mem_usage, peak_memory_usage=0.0f;
-
-    gettimeofday(&t0, NULL);
-
-    // Clear framebuffer
-    // XXX no 2.0 equivalent? Hmm, there *is* osp::cpp::FrameBuffer::clear()
-    //ospFrameBufferClear(framebuffer, OSP_FB_COLOR | OSP_FB_ACCUM);
-    ospResetAccumulation(framebuffer);
-
-    printf("Rendering %d samples:\n", render_samples);
-
-    for (int i = 1; i <= render_samples; i++)
-    {
-        printf("[%d/%d] ", i, render_samples);
-        fflush(stdout);
-
-        gettimeofday(&t1, NULL);
-
-        /*
-        What to render and how to render it depends on the renderer's parameters. If
-        the framebuffer supports accumulation (i.e., it was created with
-        `OSP_FB_ACCUM`) then successive calls to `ospRenderFrame` will progressively
-        refine the rendered image. If additionally the framebuffer has an
-        `OSP_FB_VARIANCE` channel then `ospRenderFrame` returns an estimate of the
-        current variance of the rendered image, otherwise `inf` is returned. The
-        estimated variance can be used by the application as a quality indicator and
-        thus to decide whether to stop or to continue progressive rendering.
-        */
-        // XXX use new future-based call?
-        variance = ospRenderFrameBlocking(framebuffer, renderer, camera, world);
-
-        gettimeofday(&t2, NULL);
-        printf("frame %.3f seconds (variance %.3f) ... ", time_diff(t1, t2), variance);
-        
-        // Check for cancel before writing framebuffer to file
-        if (render_input_queue.size() > 0)
-        {
-            ClientMessage cm = render_input_queue.pop();
-
-            if (cm.type() == ClientMessage::CANCEL_RENDERING)
-            {
-                printf("{render thread} Canceling rendering\n");
-
-                RenderResult rs;
-                rs.set_type(RenderResult::CANCELED);
-                render_result_queue.push(rs);
-
-                return;
-            }
-        }
-
-        // Save framebuffer to file
-        sprintf(fname, "/dev/shm/blosprayfb%04d.exr", i);
-
-        framebuffer_file_size = write_framebuffer_exr(fname);
-        // XXX check result value
-
-        gettimeofday(&t3, NULL);
-        printf("EXR file %.3f seconds, %d bytes\n", time_diff(t2, t3), framebuffer_file_size);
-
-        mem_usage = memory_usage();
-        peak_memory_usage = std::max(mem_usage, peak_memory_usage);
-
-        // Signal a new frame is available
-        RenderResult rs;
-        rs.set_type(RenderResult::FRAME);
-        rs.set_sample(i);
-        rs.set_variance(variance);
-        rs.set_file_name(fname);
-        rs.set_file_size(framebuffer_file_size);
-        rs.set_memory_usage(mem_usage);
-        rs.set_peak_memory_usage(peak_memory_usage);
-
-        render_result_queue.push(rs);
-    }
-
-    mem_usage = memory_usage();
-    peak_memory_usage = std::max(mem_usage, peak_memory_usage);
-
-    // Final frame
-    RenderResult rs;
-    rs.set_type(RenderResult::DONE);    
-    rs.set_variance(variance);
-    rs.set_memory_usage(mem_usage);
-    rs.set_peak_memory_usage(peak_memory_usage);
-    render_result_queue.push(rs);
-
-    gettimeofday(&t2, NULL);
-    printf("Rendering done in %.3f seconds (%.3f seconds/sample)\n", 
-        time_diff(t0, t2), time_diff(t0, t2)/render_samples);
-}
-
 // Querying
 
 bool
@@ -2580,6 +2477,41 @@ handle_hello(TCPSocket *sock, const ClientMessage& client_message)
     return res;
 }
 
+void
+start_rendering(const ClientMessage& client_message)
+{
+    if (render_mode != RM_IDLE)
+    {        
+        printf("Received START_RENDERING message, but we're already rendering, ignoring!\n");                        
+        return;                        
+    }
+
+    gettimeofday(&rendering_start_time, NULL);    
+
+    // Set up world and scene objects
+    prepare_scene();
+
+    // Clear framebuffer
+    // XXX no 2.0 equivalent? Hmm, there *is* osp::cpp::FrameBuffer::clear()
+    //ospFrameBufferClear(framebuffer, OSP_FB_COLOR | OSP_FB_ACCUM);
+    ospResetAccumulation(framebuffer);
+    
+    render_samples = client_message.uint_value();  
+    current_sample = 1;                         
+
+    printf("Rendering %d samples:\n", render_samples);
+
+    printf("[%d/%d] ", 1, render_samples);
+    fflush(stdout);
+
+    gettimeofday(&frame_start_time, NULL);
+
+    render_future = ospRenderFrame(framebuffer, renderer, camera, world);
+
+    // XXX
+    render_mode = RM_FINAL;
+    cancel_rendering = false;
+}
 
 // Returns false on socket errors
 bool
@@ -2672,7 +2604,7 @@ handle_client_message(TCPSocket *sock, const ClientMessage& client_message, bool
 
         case ClientMessage::UPDATE_CAMERA:
         {
-            CameraSettings      camera_settings;
+            CameraSettings camera_settings;
             
             if (!receive_protobuf(sock, camera_settings))
             {
@@ -2699,41 +2631,17 @@ handle_client_message(TCPSocket *sock, const ClientMessage& client_message, bool
             break;
 
         case ClientMessage::START_RENDERING:
-
-            if (render_mode != RM_IDLE)
-            {
-                // Ignore                        
-                printf("Received ClientMessage::START_RENDERING, but we're already rendering!\n");                        
-                break;                        
-            }
-
-            //render_input_queue.clear();
-            //render_result_queue.clear();        // XXX handle any remaining results
-
-            // Set up world and scene objects
-            prepare_scene();
-
-            render_samples = client_message.uint_value();                    
-
-            // Start render thread
-            render_thread = std::thread(&render_thread_func, std::ref(render_input_queue), std::ref(render_result_queue));
-
-            render_mode = RM_FINAL;
-
+            start_rendering(client_message);
             break;
 
         case ClientMessage::CANCEL_RENDERING:
-
-            printf("Got request to CANCEL rendering\n");
-
             if (render_mode == RM_IDLE)
             {
-                printf("Ignoring CANCEL as we're not rendering\n");
+                printf("WARNING: ignoring CANCEL request as we're not rendering\n");
                 break;
             }
 
-            render_input_queue.push(client_message);
-
+            cancel_rendering = true;
             break;
 
         default:
@@ -2751,12 +2659,21 @@ handle_connection(TCPSocket *sock)
     ClientMessage       client_message;
     bool                connection_done;
 
+    size_t              framebuffer_file_size;
+    char                fname[1024];
+    float               variance;
+    float               mem_usage, peak_memory_usage=0.0f;    
+    struct timeval      frame_end_time, now;
+
     RenderResult        render_result;
     RenderResult::Type  rr_type;
 
     while (true)
     {
+        usleep(1000);
+
         // Check for new client message
+        // XXX loop to get more messages before checking rendering
 
         if (sock->is_readable())
         {            
@@ -2785,56 +2702,98 @@ handle_connection(TCPSocket *sock)
                 return true;
         }
 
-        // Check for new render results
+        if (render_mode == RM_IDLE)
+            continue;
 
-        if (render_mode != RM_IDLE && render_result_queue.size() > 0)
+        // Check for cancel before writing framebuffer to file
+        if (cancel_rendering)
         {
-            render_result = render_result_queue.pop();
+            printf("CANCELING RENDER...\n");
+            ospWait(render_future, OSP_WORLD_RENDERED);
 
-            // Forward render results on socket
-            send_protobuf(sock, render_result);
+            render_result.set_type(RenderResult::CANCELED);
+            send_protobuf(sock, render_result);  
 
-            switch (render_result.type())
-            {
-                case RenderResult::FRAME:
-                    // New framebuffer (for a single sample) available, send
-                    // it to the client
+            gettimeofday(&now, NULL);
+            printf("Rendering cancelled after %.3f seconds\n", time_diff(rendering_start_time, now));
 
-                    //printf("Frame available, sample %d (%s, %d bytes)\n", render_result.sample(), render_result.file_name().c_str(), render_result.file_size());
+            render_mode = RM_IDLE;
+            cancel_rendering = false;
 
-                    sock->sendfile(render_result.file_name().c_str());
+            continue;            
+        }
+                
+        if (!ospIsReady(render_future, OSP_TASK_FINISHED))
+            continue;
 
-                    // Remove local framebuffer file
-                    if (!keep_framebuffer_files)
-                        unlink(render_result.file_name().c_str());
+        gettimeofday(&frame_end_time, NULL);        
+        ospRelease(render_future);
+        variance = ospGetVariance(framebuffer);
+        
+        printf("Frame %8.3f seconds | Variance %7.3f ", time_diff(frame_start_time, frame_end_time), variance);
+        
+        // Save framebuffer to file
 
-                    break;
+        sprintf(fname, "/dev/shm/blosprayfb%04d.exr", current_sample);
+        framebuffer_file_size = write_framebuffer_exr(fname);
+        // XXX check result value
 
-                case RenderResult::CANCELED:
-                    
-                    // Thread should have finished by now
-                    render_thread.join();                
+        gettimeofday(&now, NULL);
+        printf("| Save FB %6.3f seconds | EXR file %9d bytes\n", time_diff(frame_end_time, now), framebuffer_file_size);
 
-                    render_mode = RM_IDLE;
+        // Signal a new frame is available, including framebuffer
+        mem_usage = memory_usage();
+        peak_memory_usage = std::max(mem_usage, peak_memory_usage);        
 
-                    printf("Rendering canceled!\n");
+        render_result.set_type(RenderResult::FRAME);
+        render_result.set_sample(current_sample);
+        render_result.set_variance(variance);
+        render_result.set_file_name(fname);
+        render_result.set_file_size(framebuffer_file_size);
+        render_result.set_memory_usage(mem_usage);
+        render_result.set_peak_memory_usage(peak_memory_usage);
+        send_protobuf(sock, render_result);
 
-                    break;
-
-                case RenderResult::DONE:                    
-
-                    // Thread should have finished by now
-                    render_thread.join();
-
-                    render_mode = RM_IDLE;
-
-                    printf("Rendering done!\n");
-
-                    break;
-            }
+        sock->sendfile(fname);
+        if (!keep_framebuffer_files)
+        {
+            // Remove local framebuffer file
+            unlink(fname);
         }
 
-        usleep(1000);
+        // Check if we're done rendering
+
+        if (current_sample == render_samples)
+        {
+            // Rendering done!
+
+            mem_usage = memory_usage();
+            peak_memory_usage = std::max(mem_usage, peak_memory_usage);
+                        
+            render_result.set_type(RenderResult::DONE);    
+            render_result.set_variance(variance);
+            render_result.set_memory_usage(mem_usage);
+            render_result.set_peak_memory_usage(peak_memory_usage);
+            send_protobuf(sock, render_result);
+
+            gettimeofday(&now, NULL);
+            printf("Rendering done in %.3f seconds (%.3f seconds/sample)\n", 
+                time_diff(rendering_start_time, now), time_diff(rendering_start_time, now)/render_samples);
+
+            render_mode = RM_IDLE;
+        }
+        else
+        {
+            // Fire off render of next sample frame
+            current_sample++;
+
+            printf("[%d/%d] ", current_sample, render_samples);
+            fflush(stdout);
+
+            gettimeofday(&frame_start_time, NULL);
+
+            render_future = ospRenderFrame(framebuffer, renderer, camera, world);
+        }
     }
 
     sock->close();
@@ -2936,3 +2895,4 @@ main(int argc, const char **argv)
 
     return 0;
 }
+
