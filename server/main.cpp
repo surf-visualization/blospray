@@ -1591,7 +1591,7 @@ bool
 update_light_object(const UpdateObject& update, const LightSettings& light_settings)
 {
     const std::string& object_name = light_settings.object_name();
-    const std::string& linked_data = light_settings.light_name();    
+    //const std::string& linked_data = light_settings.light_name();    
 
     printf("OBJECT '%s' (light)\n", object_name.c_str());
     //printf("--> '%s' (blender light data)\n", linked_data.c_str());    // XXX not set for ambient
@@ -1599,8 +1599,7 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
     SceneObject *scene_object;
     SceneObjectLight *light_object = nullptr;
     OSPLight light;
-    LightSettings::Type light_type;
-    bool create_new_light = false;
+    LightSettings::Type light_type;    
 
     scene_object = find_scene_object(object_name, SOT_LIGHT);
 
@@ -2488,6 +2487,25 @@ start_rendering(const ClientMessage& client_message)
 
     gettimeofday(&rendering_start_time, NULL);    
 
+    render_samples = client_message.uint_value();  
+    current_sample = 1;
+
+    auto& mode = client_message.string_value();
+    if (mode == "final")
+    {
+        render_mode = RM_FINAL;
+    }
+    else if (mode == "interactive")
+    {
+        render_mode = RM_INTERACTIVE;
+    }
+
+    cancel_rendering = false;
+    
+    printf("Rendering %d samples:\n", render_samples);
+    printf("[%d/%d] ", 1, render_samples);
+    fflush(stdout);
+
     // Set up world and scene objects
     prepare_scene();
 
@@ -2495,22 +2513,9 @@ start_rendering(const ClientMessage& client_message)
     // XXX no 2.0 equivalent? Hmm, there *is* osp::cpp::FrameBuffer::clear()
     //ospFrameBufferClear(framebuffer, OSP_FB_COLOR | OSP_FB_ACCUM);
     ospResetAccumulation(framebuffer);
-    
-    render_samples = client_message.uint_value();  
-    current_sample = 1;                         
-
-    printf("Rendering %d samples:\n", render_samples);
-
-    printf("[%d/%d] ", 1, render_samples);
-    fflush(stdout);
 
     gettimeofday(&frame_start_time, NULL);
-
     render_future = ospRenderFrame(framebuffer, renderer, camera, world);
-
-    // XXX
-    render_mode = RM_FINAL;
-    cancel_rendering = false;
 }
 
 // Returns false on socket errors
@@ -2525,6 +2530,7 @@ handle_client_message(TCPSocket *sock, const ClientMessage& client_message, bool
             if (!handle_hello(sock, client_message))
             {
                 sock->close();
+                connection_done = true;
                 return false;
             }
 
@@ -2666,14 +2672,13 @@ handle_connection(TCPSocket *sock)
     struct timeval      frame_end_time, now;
 
     RenderResult        render_result;
-    RenderResult::Type  rr_type;
 
     while (true)
     {
         usleep(1000);
 
         // Check for new client message
-        // XXX loop to get more messages before checking rendering
+        // XXX loop to get more messages before checking frame is done?
 
         if (sock->is_readable())
         {            
@@ -2709,6 +2714,8 @@ handle_connection(TCPSocket *sock)
         if (cancel_rendering)
         {
             printf("CANCELING RENDER...\n");
+
+            // https://github.com/ospray/ospray/issues/366
             ospWait(render_future, OSP_WORLD_RENDERED);
 
             render_result.set_type(RenderResult::CANCELED);
@@ -2725,6 +2732,8 @@ handle_connection(TCPSocket *sock)
                 
         if (!ospIsReady(render_future, OSP_TASK_FINISHED))
             continue;
+
+        // Frame done, process it
 
         gettimeofday(&frame_end_time, NULL);        
         ospRelease(render_future);

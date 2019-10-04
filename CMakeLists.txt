@@ -69,6 +69,8 @@ if(NOT PROTOBUF_FOUND)
 endif()
 
 set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wunused")
+set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -Wunused")
 
 # ASAN_OPTIONS=halt_on_error=0
 if (ADDRESS_SANITIZER)
