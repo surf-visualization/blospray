@@ -266,12 +266,39 @@ class Connection:
         # XXX flags to pick which scene items are cleared    
 
     def send_updated_framebuffer_settings(self, width, height, format):
+
         client_message = ClientMessage()
         client_message.type = ClientMessage.UPDATE_FRAMEBUFFER
         client_message.uint_value = format
         client_message.uint_value2 = width
         client_message.uint_value3 = height
         send_protobuf(self.sock, client_message)
+
+    def send_updated_interactive_camera(self, cam_xform, aspect, clip_start, lens, border=None):
+        
+        camera_settings = CameraSettings()
+        camera_settings.object_name = '<interactive>'
+        camera_settings.camera_name = '<none>'
+
+        camera_settings.aspect = aspect
+        camera_settings.clip_start = clip_start
+        # XXX
+        camera_settings.type = CameraSettings.PERSPECTIVE
+        camera_settings.fov_y = lens
+
+        location = cam_xform.translation
+        camera_settings.position[:] = list(location)
+        camera_settings.view_dir[:] = list(cam_xform @ Vector((0, 0, -1)) - location)
+        camera_settings.up_dir[:] = list(cam_xform @ Vector((0, 1, 0)) - location)
+
+        camera_settings.dof_focus_distance = 0
+        camera_settings.dof_aperture = 0.0
+            
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.UPDATE_CAMERA
+
+        send_protobuf(self.sock, client_message)
+        send_protobuf(self.sock, camera_settings)
 
     def send_updated_camera(self, cam_obj, border=None):
         

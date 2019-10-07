@@ -2486,7 +2486,12 @@ ensure_idle_render_mode()
         return;
 
     ospCancel(render_future);
+    ospRelease(render_future);
+    render_future = nullptr;
+
     render_mode = RM_IDLE;
+
+    printf("Canceled active render\n");
 }
 
 // Returns false on socket errors
@@ -2671,18 +2676,18 @@ start_rendering(const ClientMessage& client_message)
     }
 
     cancel_rendering = false;
-    
-    printf("Rendering %d samples:\n", render_samples);
-    printf("[%d/%d] ", 1, render_samples);
-    fflush(stdout);
 
     // Set up world and scene objects
-    prepare_scene();
-
+    prepare_scene();    
+    
     // Clear framebuffer
     // XXX no 2.0 equivalent? Hmm, there *is* osp::cpp::FrameBuffer::clear()
     //ospFrameBufferClear(framebuffer, OSP_FB_COLOR | OSP_FB_ACCUM);
     ospResetAccumulation(framebuffer);
+
+    printf("Rendering %d samples:\n", render_samples);
+    printf("[%d/%d] ", 1, render_samples);
+    fflush(stdout);    
 
     gettimeofday(&frame_start_time, NULL);
     render_future = ospRenderFrame(framebuffer, renderer, camera, world);
@@ -2749,6 +2754,8 @@ handle_connection(TCPSocket *sock)
 
             // https://github.com/ospray/ospray/issues/366
             ospCancel(render_future);
+            ospRelease(render_future);
+            render_future = nullptr;
 
             render_mode = RM_IDLE;
             cancel_rendering = false;  
@@ -2768,7 +2775,10 @@ handle_connection(TCPSocket *sock)
         // Frame done, process it
 
         gettimeofday(&frame_end_time, NULL);        
+        
         ospRelease(render_future);
+        render_future = nullptr;
+
         variance = ospGetVariance(framebuffer);
         
         printf("Frame %8.3f seconds | Variance %7.3f ", time_diff(frame_start_time, frame_end_time), variance);
@@ -2826,11 +2836,15 @@ handle_connection(TCPSocket *sock)
 
             // XXX depends on reduction factor
             sock->sendall((const uint8_t*)fb, framebuffer_width*framebuffer_height*4*sizeof(float));
+
+            sprintf(fname, "/dev/shm/blosprayfb%04d.exr", current_sample);                    
+            writeEXRFramebuffer(fname, framebuffer_width, framebuffer_height, fb, framebuffer_compression);
             
             ospUnmapFrameBuffer(fb, framebuffer);        
 
             gettimeofday(&now, NULL);
-            printf("| Send FB %6.3f seconds | Pixels %9d bytes\n", time_diff(frame_end_time, now), st.st_size);    
+            printf("| Send FB %6.3f seconds | Pixels %9d bytes\n", time_diff(frame_end_time, now), 
+                framebuffer_width*framebuffer_height*4*sizeof(float));    
         }
 
         // Check if we're done rendering

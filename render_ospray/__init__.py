@@ -53,6 +53,8 @@ from .messages_pb2 import (
     WorldSettings, CameraSettings, LightSettings, RenderSettings,
 )
 
+# bpy.app.background
+
 HOST = 'localhost'
 PORT = 5909
 
@@ -124,7 +126,11 @@ class ReceiveRenderResultThread(threading.Thread):
                     break         
 
             self.log.debug('(RRR thread) Tagging for view_draw()')
-            self.engine.tag_redraw()
+            try:
+                self.engine.tag_redraw()
+            except ReferenceError:
+                # engine might go away
+                break
 
 
     
@@ -153,6 +159,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         self.rendering_active = False
         self.framebuffer_width = self.framebuffer_height = None
         self.receive_render_result_thread = None
+        self.last_view_matrix = None
 
         self.draw_data = None        
     
@@ -255,7 +262,14 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
     # thread will be started to do the work while keeping Blender responsive.   
     def view_update(self, context, depsgraph):
         """Update on data changes for viewport render"""
-        self.log.info('OsprayRenderEngine.view_update() [%s]' % self)        
+        self.log.info('OsprayRenderEngine.view_update() [%s]' % self)   
+
+        restart_rendering = False     
+
+        scene = depsgraph.scene
+        render = scene.render
+        #world = scene.world   
+        region = context.region     
 
         if self.first_view_update:
 
@@ -269,10 +283,6 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             self.render_result_queue = Queue()
             self.receive_render_result_thread = ReceiveRenderResultThread(self, self.connection, self.render_result_queue, self.log)
             self.receive_render_result_thread.start()
-
-            scene = depsgraph.scene
-            render = scene.render
-            world = scene.world        
 
             # Renderer type
             self.connection.send_updated_renderer_type(scene.ospray.renderer)
@@ -292,7 +302,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
                 render_settings.max_contribution = scene.ospray.max_contribution
                 render_settings.geometry_lights = scene.ospray.geometry_lights
 
-            self.connection.send_updated_render_settings(render_settings)  
+            self.connection.send_updated_render_settings(render_settings)          
 
             # Send complete (visible) scene
             try:
@@ -307,14 +317,17 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
 
             self.first_view_update = False
 
+            restart_rendering = True
+
         else:
             #  Update scene on server
             self.log.debug('view_update(): SUBSEQUENT')
             self._print_depsgraph_updates(depsgraph)
             # XXX
+            # restart_rendering = True
 
         # Viewport
-        region = context.region
+        """
         width = region.width
         height = region.height
 
@@ -323,7 +336,11 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             self.framebuffer_width = width
             self.framebuffer_height = height
             self.connection.send_updated_framebuffer_settings(width, height, OSP_FB_RGBA32F)
+            restart_rendering = True
+        """
 
+        if restart_rendering:
+            self.log.info('view_update(): restarting rendering')
             client_message = ClientMessage()
             client_message.type = ClientMessage.START_RENDERING
             client_message.string_value = "interactive"
@@ -345,56 +362,53 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         but only a view_draw():
         - Resizing the 3D editor that's in interactive rendering mode
         """
-        self.log.info('OsprayRenderEngine.view_draw() [%s]' % self)        
+        self.log.info('OsprayRenderEngine.view_draw() [%s]' % self)   
+
+        restart_rendering = False     
 
         assert len(depsgraph.updates) == 0
 
         scene = depsgraph.scene
         ospray = scene.ospray
         region = context.region
-        view3d = context.space_data     
+        assert region.type == 'WINDOW'        
+        assert context.space_data.type == 'VIEW_3D'
+        
+        region_data = context.region_data
+        space_data = context.space_data        
 
         # Get viewport dimensions
         dimensions = region.width, region.height
         width, height = dimensions
-        
-        if not self.rendering_active:
+               
+        if width != self.framebuffer_width or height != self.framebuffer_height:
+            self.log.info('view_draw(): framebuffer size changed to %d x %d' % (width,height))
+            self.framebuffer_width = width
+            self.framebuffer_height = height
+            self.connection.send_updated_framebuffer_settings(width, height, OSP_FB_RGBA32F)        
+            restart_rendering = True
+
+        # Camera view
+
+        view_matrix = region_data.view_matrix
+        if view_matrix != self.last_view_matrix:
+            camera_to_world = view_matrix.inverted()
+            clip_start = 0.1 # XXX
+            self.connection.send_updated_interactive_camera(camera_to_world, width/height, clip_start, space_data.lens)        
             
-            self.log.warn('view_draw(): rendering not active')
-        
-            if width != self.framebuffer_width or height != self.framebuffer_height:
-                self.log.info('view_draw(): framebuffer size changed to %d x %d' % (width,height))
-                self.framebuffer_width = width
-                self.framebuffer_height = height
-                self.connection.send_updated_framebuffer_settings(width, height, OSP_FB_RGBA32F)        
+            restart_rendering = True
+            self.last_view_matrix = view_matrix.copy()
 
-                client_message = ClientMessage()
-                client_message.type = ClientMessage.START_RENDERING
-                client_message.string_value = "interactive"
-                client_message.uint_value = ospray.samples
-                client_message.uint_value2 = ospray.reduction_factor
-                self.connection.send_protobuf(client_message)
+        # Restart rendering if needed
 
-            # XXX Get camera view, HOW?
-
-            # Start rendering
-
+        if restart_rendering:
+            self.log.info('view_draw(): restarting rendering')
             client_message = ClientMessage()
             client_message.type = ClientMessage.START_RENDERING
             client_message.string_value = "interactive"
             client_message.uint_value = ospray.samples
             client_message.uint_value2 = ospray.reduction_factor
-            self.connection.send_protobuf(client_message)
-                
-            self.rendering_active = True
-
-            return
-        
-        if width != self.framebuffer_width or height != self.framebuffer_height:
-            self.log.info('view_draw(): framebuffer size changed to %d x %d' % (width,height))
-            self.framebuffer_width = width
-            self.framebuffer_height = height
-            self.connection.send_updated_framebuffer_settings(width, height, OSP_FB_RGBA32F) 
+            self.connection.send_protobuf(client_message)        
 
         # Bind shader that converts from scene linear to display space
         bgl.glEnable(bgl.GL_BLEND)
@@ -513,13 +527,16 @@ class CustomDrawData:
         bgl.glDeleteTextures(1, self.texture)
 
     def update_pixels(self, pixels):
-        self.log.info('CustomDrawData.update_pixels(%s) [%s]' % (pixels, self))        
+        self.log.info('CustomDrawData.update_pixels(%d x %d, %d) [%s]' % (self.dimensions[0], self.dimensions[1], pixels.shape[0], self))        
         width, height = self.dimensions
+        assert pixels.shape[0] == width*height*4
         pixels = bgl.Buffer(bgl.GL_FLOAT, width * height * 4, pixels)
         bgl.glActiveTexture(bgl.GL_TEXTURE0)        
         bgl.glBindTexture(bgl.GL_TEXTURE_2D, self.texture[0])
         # XXX glTexSubImage2D
         bgl.glTexImage2D(bgl.GL_TEXTURE_2D, 0, bgl.GL_RGBA16F, width, height, 0, bgl.GL_RGBA, bgl.GL_FLOAT, pixels)
+        bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
+        bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)        
         bgl.glBindTexture(bgl.GL_TEXTURE_2D, 0)
 
     def draw(self):

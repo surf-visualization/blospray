@@ -146,6 +146,8 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         print('WINDOW', region_data.window_matrix)
         print('PERSPECTIVE', region_data.perspective_matrix)    # = window * view
         print('VIEW', region_data.view_matrix)
+        # view_matrix = identity when in top view.
+        # view_matrix = model-view matrix,  i.e. world to camera
         
         print('view location', region_data.view_location)
         print('view rotation', region_data.view_rotation)       # Quat
