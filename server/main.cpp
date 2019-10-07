@@ -2479,6 +2479,16 @@ handle_hello(TCPSocket *sock, const ClientMessage& client_message)
     return res;
 }
 
+void
+ensure_idle_render_mode()
+{
+    if (render_mode == RM_IDLE)
+        return;
+
+    ospCancel(render_future);
+    render_mode = RM_IDLE;
+}
+
 // Returns false on socket errors
 bool
 handle_client_message(TCPSocket *sock, const ClientMessage& client_message, bool& connection_done)
@@ -2500,6 +2510,7 @@ handle_client_message(TCPSocket *sock, const ClientMessage& client_message, bool
         case ClientMessage::BYE:
             // XXX if we were still rendering, handle the chaos
             printf("Got BYE message\n");
+            ensure_idle_render_mode();
             sock->close();
             connection_done = true;
             return true;
@@ -2508,21 +2519,26 @@ handle_client_message(TCPSocket *sock, const ClientMessage& client_message, bool
             // XXX if we were still rendering, handle the chaos
             // XXX exit server
             printf("Got QUIT message\n");
+            ensure_idle_render_mode();
             connection_done = true;
             sock->close();
             return true;
 
         case ClientMessage::UPDATE_RENDERER_TYPE:
+            ensure_idle_render_mode();
             update_renderer_type(client_message.string_value());
             break;
 
         case ClientMessage::CLEAR_SCENE:
+            ensure_idle_render_mode();
             clear_scene();
             break;
 
         case ClientMessage::UPDATE_RENDER_SETTINGS:  
         {
             RenderSettings render_settings;   
+
+            ensure_idle_render_mode();
 
             if (!receive_protobuf(sock, render_settings))
             {
@@ -2540,6 +2556,8 @@ handle_client_message(TCPSocket *sock, const ClientMessage& client_message, bool
         {
             WorldSettings world_settings;
 
+            ensure_idle_render_mode();
+
             if (!receive_protobuf(sock, world_settings))
             {
                 sock->close();
@@ -2553,18 +2571,22 @@ handle_client_message(TCPSocket *sock, const ClientMessage& client_message, bool
         }
 
         case ClientMessage::UPDATE_PLUGIN_INSTANCE:
+            ensure_idle_render_mode();
             handle_update_plugin_instance(sock);
             break;
 
         case ClientMessage::UPDATE_BLENDER_MESH:
+            ensure_idle_render_mode();
             handle_update_blender_mesh_data(sock, client_message.string_value());
             break;
 
         case ClientMessage::UPDATE_OBJECT:
+            ensure_idle_render_mode();
             handle_update_object(sock);
             break;
         
         case ClientMessage::UPDATE_FRAMEBUFFER:
+            ensure_idle_render_mode();
             update_framebuffer((OSPFrameBufferFormat)(client_message.uint_value()), 
                 client_message.uint_value2(), client_message.uint_value3());
             break;
@@ -2572,6 +2594,8 @@ handle_client_message(TCPSocket *sock, const ClientMessage& client_message, bool
         case ClientMessage::UPDATE_CAMERA:
         {
             CameraSettings camera_settings;
+
+            ensure_idle_render_mode();
             
             if (!receive_protobuf(sock, camera_settings))
             {
@@ -2586,6 +2610,7 @@ handle_client_message(TCPSocket *sock, const ClientMessage& client_message, bool
         }
 
         case ClientMessage::UPDATE_MATERIAL:
+            ensure_idle_render_mode();
             handle_update_material(sock);
             break;
 
@@ -2598,6 +2623,7 @@ handle_client_message(TCPSocket *sock, const ClientMessage& client_message, bool
             break;
 
         case ClientMessage::START_RENDERING:
+            assert (render_mode == RM_IDLE);
             start_rendering(client_message);
             break;
 
@@ -2718,20 +2744,20 @@ handle_connection(TCPSocket *sock)
 
         // Check for cancel before writing framebuffer to file
         if (cancel_rendering)
-        {
+        {    
             printf("CANCELING RENDER...\n");
 
             // https://github.com/ospray/ospray/issues/366
-            ospWait(render_future, OSP_WORLD_RENDERED);
+            ospCancel(render_future);
 
-            render_result.set_type(RenderResult::CANCELED);
-            send_protobuf(sock, render_result);  
+            render_mode = RM_IDLE;
+            cancel_rendering = false;  
 
             gettimeofday(&now, NULL);
             printf("Rendering cancelled after %.3f seconds\n", time_diff(rendering_start_time, now));
 
-            render_mode = RM_IDLE;
-            cancel_rendering = false;
+            render_result.set_type(RenderResult::CANCELED);
+            send_protobuf(sock, render_result);
 
             continue;            
         }
@@ -2752,6 +2778,8 @@ handle_connection(TCPSocket *sock)
 
         render_result.set_type(RenderResult::FRAME);
         render_result.set_sample(current_sample);
+        render_result.set_width(framebuffer_width);
+        render_result.set_height(framebuffer_height);
         render_result.set_variance(variance);        
         render_result.set_memory_usage(mem_usage);
         render_result.set_peak_memory_usage(peak_memory_usage);
