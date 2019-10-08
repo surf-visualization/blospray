@@ -2486,6 +2486,8 @@ ensure_idle_render_mode()
         return;
 
     ospCancel(render_future);
+    ospWait(render_future, OSP_TASK_FINISHED);
+    
     ospRelease(render_future);
     render_future = nullptr;
 
@@ -2752,8 +2754,10 @@ handle_connection(TCPSocket *sock)
         {    
             printf("CANCELING RENDER...\n");
 
-            // https://github.com/ospray/ospray/issues/366
+            // https://github.com/ospray/ospray/issues/368
             ospCancel(render_future);
+            ospWait(render_future, OSP_TASK_FINISHED);
+            
             ospRelease(render_future);
             render_future = nullptr;
 
