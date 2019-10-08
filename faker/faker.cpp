@@ -1339,7 +1339,7 @@ ospGetVariance(OSPFrameBuffer framebuffer)
         {"framebuffer", (size_t)framebuffer}, 
     };
 
-    int res = libcall(framebuffer);
+    float res = libcall(framebuffer);   // Sigh, inf gets turned into null in JSON
 
     j["result"] = res;     
     log_json(j);
