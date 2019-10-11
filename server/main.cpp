@@ -2050,6 +2050,28 @@ handle_update_material(TCPSocket *sock)
         break;
     }
 
+    case MaterialUpdate::THIN_GLASS:
+    {
+        ThinGlassSettings settings;
+
+        receive_protobuf(sock, settings);
+        printf("... ThinGlass\n");
+
+        if (scene_material == nullptr)
+        {
+            scene_material = new SceneMaterial;
+            material = scene_material->material = ospNewMaterial(current_renderer_type.c_str(), "ThinGlass");
+        }
+
+        ospSetFloat(material, "eta", settings.eta());
+        if (settings.attenuation_color_size() == 3)
+            ospSetVec3f(material, "attenuationColor", settings.attenuation_color(0), settings.attenuation_color(1), settings.attenuation_color(2));        
+        ospSetFloat(material, "attenuationDistance", settings.attenuation_distance());
+        ospSetFloat(material, "thickness", settings.thickness());
+
+        break;
+    }
+
     case MaterialUpdate::LUMINOUS:
     {
         LuminousSettings settings;
@@ -2060,7 +2082,7 @@ handle_update_material(TCPSocket *sock)
         if (scene_material == nullptr)
         {
             scene_material = new SceneMaterial;
-            material = scene_material->material = ospNewMaterial(current_renderer_type.c_str(), "Glass");
+            material = scene_material->material = ospNewMaterial(current_renderer_type.c_str(), "Luminous");
         }
 
         if (settings.color_size() == 3)

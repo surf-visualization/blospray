@@ -42,7 +42,7 @@ from .messages_pb2 import (
     GenerateFunctionResult, RenderResult,    
     Volume, Slices, Slice,
     MaterialUpdate, 
-    CarPaintSettings, GlassSettings, LuminousSettings, MetallicPaintSettings, OBJMaterialSettings, PrincipledSettings
+    CarPaintSettings, GlassSettings, ThinGlassSettings, LuminousSettings, MetallicPaintSettings, OBJMaterialSettings, PrincipledSettings
 )
 
 # Object to world matrix
@@ -589,6 +589,14 @@ class Connection:
 
         elif idname == 'OSPRayGlass':
             update.type = MaterialUpdate.GLASS
+            settings = ThinGlassSettings()
+            settings.eta = inputs['Eta'].default_value   
+            settings.attenuation_color[:] = list(inputs['Attenuation color'].default_value)[:3]
+            settings.attenuation_distance = inputs['Attenuation distance'].default_value
+            settings.thickness = inputs['Thickness'].default_value
+
+        elif idname == 'OSPRayThinGlass':
+            update.type = MaterialUpdate.THIN_GLASS
             settings = GlassSettings()
             settings.eta = inputs['Eta'].default_value   
             settings.attenuation_color[:] = list(inputs['Attenuation color'].default_value)[:3]

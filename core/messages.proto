@@ -318,10 +318,11 @@ message MaterialUpdate
     {
         CAR_PAINT = 0;
         GLASS = 1;
-        LUMINOUS = 2;
-        METALLIC_PAINT = 3;
-        OBJMATERIAL = 4;
-        PRINCIPLED = 5;
+        THIN_GLASS = 2;
+        LUMINOUS = 3;
+        METALLIC_PAINT = 4;
+        OBJMATERIAL = 5;
+        PRINCIPLED = 6;
     }
 
     Type    type = 1;
@@ -353,6 +354,14 @@ message GlassSettings
     float           eta = 1;
     repeated float  attenuation_color = 2;
     float           attenuation_distance = 3;
+}
+
+message ThinGlassSettings
+{
+    float           eta = 1;
+    repeated float  attenuation_color = 2;
+    float           attenuation_distance = 3;
+    float           thickness = 4;
 }
 
 message LuminousSettings

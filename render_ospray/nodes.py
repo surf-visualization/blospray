@@ -309,6 +309,31 @@ class OSPRayGlass(bpy.types.Node):
         self.outputs.new('NodeSocketShader', 'Material')
 
 
+class OSPRayThinGlass(bpy.types.Node):
+    """ThinGlass"""
+    bl_idname = 'OSPRayThinGlass'
+    bl_label = 'ThinGlass'
+    bl_icon = 'SOUND'
+    bl_color = (0, 0.7, 0, 1)           # XXX doesn't work?
+
+    def init(self, context):
+        # all inputs, except Tf, can be controlled using a texture
+        
+        eta = self.inputs.new('OSPRaySocketFloat_IOR', 'Eta')
+        eta.default_value = 1.5
+        
+        attenuation_color = self.inputs.new('NodeSocketColor', 'Attenuation color')    
+        attenuation_color.default_value = (1, 1, 1, 1)
+        
+        attenuation_distance = self.inputs.new('OSPRaySocketFloat_NonNegative', 'Attenuation distance') 
+        attenuation_distance.default_value = 1
+
+        thickness = self.inputs.new('OSPRaySocketFloat_NonNegative', 'Thickness') 
+        thickness.default_value = 1
+        
+        self.outputs.new('NodeSocketShader', 'Material')
+
+
 class OSPRayLuminous(bpy.types.Node):
     """Luminous"""
     bl_idname = 'OSPRayLuminous'
@@ -516,6 +541,7 @@ node_classes = (
     # Material nodes
     OSPRayCarPaint,
     OSPRayGlass,
+    OSPRayThinGlass,
     OSPRayLuminous,
     OSPRayMetallicPaint,
     OSPRayOBJMaterial,
@@ -532,6 +558,7 @@ node_categories = [
         
         NodeItem('OSPRayCarPaint'),
         NodeItem('OSPRayGlass'),
+        NodeItem('OSPRayThinGlass'),
         NodeItem('OSPRayLuminous'),
         NodeItem('OSPRayMetallicPaint'),
         NodeItem('OSPRayOBJMaterial'),
