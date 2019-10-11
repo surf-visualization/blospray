@@ -380,13 +380,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         space_data = context.space_data        
 
         # Get viewport dimensions
-<<<<<<< HEAD
-        dimensions = region.width, region.height
-        width, height = dimensions
-        aspect = width / height
-=======
         viewport_width, viewport_height = viewport_dimensions = region.width, region.height        
->>>>>>> 5b2459d6f71081528e3eb9450a4e25ed7f3d5146
                
         if viewport_width != self.viewport_width or viewport_height != self.viewport_height:
             self.log.info('view_draw(): viewport size changed to %d x %d' % (viewport_width,viewport_height))
@@ -396,30 +390,13 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             self.connection.send_updated_framebuffer_settings(viewport_width, viewport_height, OSP_FB_RGBA32F)        
             restart_rendering = True
 
-        # Camera view
-<<<<<<< HEAD
-        
-        if region_data.view_perspective == 'PERSP':
-            # Free 3D view 
-            # XXX seems mostly correct, which is amazing given that we don't understand the lens value
-            view_matrix = region_data.view_matrix
-            if view_matrix != self.last_view_matrix:
-                camera_to_world = view_matrix.inverted()
-                clip_start = 0.1 # XXX
-                print('LENS', space_data.lens)
-                self.connection.send_updated_interactive_camera(camera_to_world, width/height, clip_start, space_data.lens)        
-                
-                restart_rendering = True
-                self.last_view_matrix = view_matrix.copy()
-=======
-
+        # Camera viev
         view_matrix = region_data.view_matrix
         if view_matrix != self.last_view_matrix:
             camera_to_world = view_matrix.inverted()
             clip_start = 0.1 # XXX
             # XXX aspect = ...
             self.connection.send_updated_interactive_camera(camera_to_world, viewport_width/viewport_height, clip_start, space_data.lens)        
->>>>>>> 5b2459d6f71081528e3eb9450a4e25ed7f3d5146
             
         elif region_data.view_perspective == 'CAMERA':
             # View from camera (but with surrounding area)

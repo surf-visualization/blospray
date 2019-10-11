@@ -2477,13 +2477,7 @@ ensure_idle_render_mode()
     if (render_mode == RM_IDLE)
         return;
 
-<<<<<<< HEAD
-    ospCancel(render_future);
-    ospWait(render_future, OSP_TASK_FINISHED);
-    
-=======
     ospCancel(render_future);    
->>>>>>> 5b2459d6f71081528e3eb9450a4e25ed7f3d5146
     ospRelease(render_future);
     render_future = nullptr;
 
