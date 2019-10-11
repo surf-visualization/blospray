@@ -157,10 +157,11 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
 
         self.connection = None
         self.first_view_update = True
-        self.rendering_active = False
-        self.framebuffer_width = self.framebuffer_height = None
+        self.rendering_active = False        
         self.receive_render_result_thread = None
         self.last_view_matrix = None
+
+        self.viewport_width = self.viewport_height = None
 
         self.draw_data = None        
     
@@ -379,18 +380,24 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         space_data = context.space_data        
 
         # Get viewport dimensions
+<<<<<<< HEAD
         dimensions = region.width, region.height
         width, height = dimensions
         aspect = width / height
+=======
+        viewport_width, viewport_height = viewport_dimensions = region.width, region.height        
+>>>>>>> 5b2459d6f71081528e3eb9450a4e25ed7f3d5146
                
-        if width != self.framebuffer_width or height != self.framebuffer_height:
-            self.log.info('view_draw(): framebuffer size changed to %d x %d' % (width,height))
-            self.framebuffer_width = width
-            self.framebuffer_height = height
-            self.connection.send_updated_framebuffer_settings(width, height, OSP_FB_RGBA32F)        
+        if viewport_width != self.viewport_width or viewport_height != self.viewport_height:
+            self.log.info('view_draw(): viewport size changed to %d x %d' % (viewport_width,viewport_height))
+            self.viewport_width = viewport_width
+            self.viewport_height = viewport_height
+            # Reduction factor is passed with START_RENDERING
+            self.connection.send_updated_framebuffer_settings(viewport_width, viewport_height, OSP_FB_RGBA32F)        
             restart_rendering = True
 
         # Camera view
+<<<<<<< HEAD
         
         if region_data.view_perspective == 'PERSP':
             # Free 3D view 
@@ -404,6 +411,15 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
                 
                 restart_rendering = True
                 self.last_view_matrix = view_matrix.copy()
+=======
+
+        view_matrix = region_data.view_matrix
+        if view_matrix != self.last_view_matrix:
+            camera_to_world = view_matrix.inverted()
+            clip_start = 0.1 # XXX
+            # XXX aspect = ...
+            self.connection.send_updated_interactive_camera(camera_to_world, viewport_width/viewport_height, clip_start, space_data.lens)        
+>>>>>>> 5b2459d6f71081528e3eb9450a4e25ed7f3d5146
             
         elif region_data.view_perspective == 'CAMERA':
             # View from camera (but with surrounding area)
@@ -485,11 +501,11 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
                 # XXX .../samples
                 self.connection.engine.update_stats('', 'Rendering sample %d' % render_result.sample)
                 
-                dimensions = render_result.width, render_result.height
+                image_dimensions = render_result.width, render_result.height
 
-                if not self.draw_data or self.draw_data.dimensions != dimensions:
-                    self.log.info('Creating new CustomDrawData(%d x %d)' % dimensions)
-                    self.draw_data = CustomDrawData(dimensions, fbpixels)
+                if not self.draw_data or self.draw_data.image_dimensions != image_dimensions or self.draw_data.viewport_dimensions != viewport_dimensions:
+                    self.log.info('Creating new CustomDrawData(viewport = %s, image = %s)' % (viewport_dimensions, image_dimensions))
+                    self.draw_data = CustomDrawData(viewport_dimensions, image_dimensions, fbpixels)
                 else:
                     self.log.info('Updating pixels of existing CustomDraw')
                     self.draw_data.update_pixels(fbpixels)
@@ -520,15 +536,17 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
 # Based on https://docs.blender.org/api/current/bpy.types.RenderEngine.html
 class CustomDrawData:
 
-    def __init__(self, dimensions, pixels):
+    def __init__(self, viewport_dimensions, image_dimensions, pixels):
         self.log = logging.getLogger('blospray')
 
-        self.log.info('CustomDrawData.__init__(dimensions=%s, fbpixels=%s) [%s]' % (dimensions, pixels.shape, self))    
+        self.log.info('CustomDrawData.__init__(viewport_dimensions=%s, image_dimensions=%s, fbpixels=%s) [%s]' % \
+            (viewport_dimensions, image_dimensions, pixels.shape, self))    
         
-        width, height = self.dimensions = dimensions
+        viewport_width, viewport_height = self.viewport_dimensions = viewport_dimensions
+        image_width, image_height = self.image_dimensions = image_dimensions
         
         assert pixels is not None
-        pixels = bgl.Buffer(bgl.GL_FLOAT, width * height * 4, pixels)
+        pixels = bgl.Buffer(bgl.GL_FLOAT, image_width * image_height * 4, pixels)
 
         # Generate texture
         self.texture = bgl.Buffer(bgl.GL_INT, 1)
@@ -536,7 +554,7 @@ class CustomDrawData:
 
         bgl.glActiveTexture(bgl.GL_TEXTURE0)
         bgl.glBindTexture(bgl.GL_TEXTURE_2D, self.texture[0])
-        bgl.glTexImage2D(bgl.GL_TEXTURE_2D, 0, bgl.GL_RGBA16F, width, height, 0, bgl.GL_RGBA, bgl.GL_FLOAT, pixels)
+        bgl.glTexImage2D(bgl.GL_TEXTURE_2D, 0, bgl.GL_RGBA16F, image_width, image_height, 0, bgl.GL_RGBA, bgl.GL_FLOAT, pixels)
         bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
         bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
         bgl.glBindTexture(bgl.GL_TEXTURE_2D, 0)
@@ -558,7 +576,7 @@ class CustomDrawData:
         bgl.glEnableVertexAttribArray(position_location)
 
         # Generate geometry buffers for drawing textured quad
-        position = [0.0, 0.0, width, 0.0, width, height, 0.0, height]
+        position = [0.0, 0.0, viewport_width, 0.0, viewport_width, viewport_height, 0.0, viewport_height]
         position = bgl.Buffer(bgl.GL_FLOAT, len(position), position)
         texcoord = [0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0]
         texcoord = bgl.Buffer(bgl.GL_FLOAT, len(texcoord), texcoord)
@@ -585,14 +603,14 @@ class CustomDrawData:
         bgl.glDeleteTextures(1, self.texture)
 
     def update_pixels(self, pixels):
-        self.log.info('CustomDrawData.update_pixels(%d x %d, %d) [%s]' % (self.dimensions[0], self.dimensions[1], pixels.shape[0], self))        
-        width, height = self.dimensions
-        assert pixels.shape[0] == width*height*4
-        pixels = bgl.Buffer(bgl.GL_FLOAT, width * height * 4, pixels)
+        self.log.info('CustomDrawData.update_pixels(%d x %d, %d) [%s]' % (self.image_dimensions[0], self.image_dimensions[1], pixels.shape[0], self))        
+        image_width, image_height = self.image_dimensions
+        assert pixels.shape[0] == image_width*image_height*4
+        pixels = bgl.Buffer(bgl.GL_FLOAT, image_width * image_height * 4, pixels)
         bgl.glActiveTexture(bgl.GL_TEXTURE0)        
         bgl.glBindTexture(bgl.GL_TEXTURE_2D, self.texture[0])
         # XXX glTexSubImage2D
-        bgl.glTexImage2D(bgl.GL_TEXTURE_2D, 0, bgl.GL_RGBA16F, width, height, 0, bgl.GL_RGBA, bgl.GL_FLOAT, pixels)
+        bgl.glTexImage2D(bgl.GL_TEXTURE_2D, 0, bgl.GL_RGBA16F, image_width, image_height, 0, bgl.GL_RGBA, bgl.GL_FLOAT, pixels)
         bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
         bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)        
         bgl.glBindTexture(bgl.GL_TEXTURE_2D, 0)
