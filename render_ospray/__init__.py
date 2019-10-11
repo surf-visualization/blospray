@@ -40,6 +40,7 @@ if "bpy" in locals():
     #imp.reload(update_files)
     
 import sys, logging, socket, threading, time, traceback
+from math import tan, atan, degrees
 from queue import Queue
 
 import bpy, bgl
@@ -405,7 +406,6 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         elif region_data.view_perspective == 'CAMERA':
             pass
 
-
         view_matrix = region_data.view_matrix
         if view_matrix != self.last_view_matrix:
             camera_to_world = view_matrix.inverted()
@@ -413,8 +413,57 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             # XXX aspect = ...
             self.connection.send_updated_interactive_camera(camera_to_world, self.viewport_width/self.viewport_height, clip_start, space_data.lens)        
             
-            restart_rendering = True
-            self.last_view_matrix = view_matrix.copy()
+        elif region_data.view_perspective == 'CAMERA':
+            # View from camera (but with surrounding area)
+            # XXX missing some xform
+            cam_obj = space_data.camera
+            cam_data = cam_obj.data
+            
+            camera_to_world = cam_obj.matrix_world
+            view_matrix = camera_to_world.inverted()
+            
+            if view_matrix != self.last_view_matrix:
+                
+                clip_start = cam_data.clip_start
+                
+                if cam_data.type == 'PERSP':
+
+                    hfov = vfov = None
+
+                    if cam_data.sensor_fit == 'AUTO':
+                        if aspect >= 1:
+                            # Horizontal
+                            hfov = cam_data.angle
+                        else:
+                            # Vertical
+                            vfov = cam_data.angle
+                    elif cam_data.sensor_fit == 'HORIZONTAL':
+                        hfov = cam_data.angle
+                    else:
+                        vfov = cam_data.angle
+
+                    # Blender provides FOV in radians
+                    # OSPRay needs (vertical) FOV in degrees
+                    if vfov is None:
+                        image_plane_width = 2 * tan(hfov/2)
+                        image_plane_height = image_plane_width / aspect
+                        vfov = 2*atan(image_plane_height/2)
+                        
+                    fov_y = degrees(vfov)
+                else:
+                    # XXX
+                    fov_y = 90
+                
+                self.connection.send_updated_interactive_camera(camera_to_world, width/height, clip_start, fov_y)        
+                    
+                restart_rendering = True
+                self.last_view_matrix = view_matrix.copy()
+                
+        elif region_data.view_perspective == 'ORTHO':
+            # Top/side/...
+            pass
+
+
 
         # Restart rendering if needed
 

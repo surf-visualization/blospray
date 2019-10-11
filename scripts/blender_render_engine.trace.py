@@ -2,7 +2,7 @@
 # blender -P blender_render_engine.trace.py  -p 900 1000 3000 1500 
 import bpy
 import bgl
-import time
+import math, time
 import numpy
 
 t0 = time.time()
@@ -149,22 +149,25 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         # view_matrix = identity when in top view.
         # view_matrix = model-view matrix,  i.e. world to camera
         
-        print('view location', region_data.view_location)
-        print('view rotation', region_data.view_rotation)       # Quat
-        print('perspective %d' % (region_data.is_perspective))
+        print('region_data:')
+        print('view_perspective', region_data.view_perspective) # PERSP (regular 3D view not tied to camera), CAMERA (view from camera) or ORTHO (one of top, etc)
+        print('view_location', region_data.view_location)       # Look at point
+        print('view_rotation', region_data.view_rotation)       # Quat
+        print('is_perspective %d' % (region_data.is_perspective))
         
         # view3d.perspective_matrix = window_matrix * view_matrix
         perspective_matrix = region_data.perspective_matrix
         
-        print('space_data.lens', space_data.lens)   # Always set to viewport lens setting, even when in camera view
+        # Borrowed from blendseed source code:
+        # Borrowed from Cycles source code, since for something this nutty there's no reason to reinvent the wheel
+        #zoom = 4 / ((math.sqrt(2) + region_data.view_camera_zoom / 50) ** 2)
+        #print('zoom (derived)', zoom)
         
-        #print('region_data', dir(region_data))
-        print('region_data.view_perspective', region_data.view_perspective) # PERSP, ORTHO or CAMERA
-        
-        #print('space_data', dir(space_data))
-        print('space_data.camera', space_data.camera)
-        #print('space_data.use_local_camera', space_data.use_local_camera)  # No relation to camera view yes/no
-        
+        print('space_data:')
+        print('camera', space_data.camera)
+        print('use_local_camera', space_data.use_local_camera)  # No relation to camera view yes/no
+        print('lens', space_data.lens)                          # Always set to viewport lens setting, even when in camera view
+                      
         scene = depsgraph.scene
 
         # Get viewport dimensions

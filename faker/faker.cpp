@@ -80,6 +80,14 @@ typedef void                (*ospSetAffine3fv_ptr)  (OSPObject obj, const char *
 
 typedef OSPFuture           (*ospRenderFrame_ptr)   (OSPFrameBuffer framebuffer, OSPRenderer renderer, OSPCamera camera, OSPWorld world);
 typedef float               (*ospRenderFrameBlocking_ptr) (OSPFrameBuffer framebuffer, OSPRenderer renderer, OSPCamera camera, OSPWorld world);
+typedef void                (*ospCancel_ptr)        (OSPFuture future);
+typedef void                (*ospWait_ptr)          (OSPFuture future, OSPSyncEvent event);
+typedef int                 (*ospIsReady_ptr)       (OSPFuture future, OSPSyncEvent event);
+
+typedef float               (*ospGetVariance_ptr)   (OSPFrameBuffer framebuffer);
+typedef void                (*ospResetAccumulation_ptr) (OSPFrameBuffer framebuffer);
+typedef const void *        (*ospMapFrameBuffer_ptr) (OSPFrameBuffer framebuffer, OSPFrameBufferChannel channel);
+typedef void                (*ospUnmapFrameBuffer_ptr) (const void *mapped, OSPFrameBuffer framebuffer);
 
 
 static double 
@@ -1259,6 +1267,145 @@ ospRenderFrameBlocking(OSPFrameBuffer framebuffer, OSPRenderer renderer, OSPCame
 
     return res;
 }
+
+extern "C"
+void 
+ospCancel(OSPFuture future)
+{
+    ospCancel_ptr libcall = GET_PTR(ospCancel);
+
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospCancel";
+    j["arguments"] = {
+        {"future", (size_t)future}
+    };
+
+    libcall(future);
+
+    log_json(j);
+}
+
+extern "C"
+void     
+ospWait(OSPFuture future, OSPSyncEvent event)
+{
+    ospWait_ptr libcall = GET_PTR(ospWait);
+
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospWait";
+    j["arguments"] = {
+        {"future", (size_t)future},
+        {"event", (int)event}
+    };
+
+    libcall(future, event);
+
+    log_json(j);
+}
+
+int
+ospIsReady(OSPFuture future, OSPSyncEvent event)
+{
+    ospIsReady_ptr libcall = GET_PTR(ospIsReady);
+
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospIsReady";
+    j["arguments"] = {
+        {"future", (size_t)future}, 
+        {"event", (int)event}
+    };
+
+    int res = libcall(future, event);
+
+    j["result"] = res;     
+    log_json(j);
+
+    return res;
+}
+
+extern "C"
+float 
+ospGetVariance(OSPFrameBuffer framebuffer)
+{
+    ospGetVariance_ptr libcall = GET_PTR(ospGetVariance);
+
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospGetVariance";
+    j["arguments"] = {
+        {"framebuffer", (size_t)framebuffer}, 
+    };
+
+    float res = libcall(framebuffer);   // Sigh, inf gets turned into null in JSON
+
+    j["result"] = res;     
+    log_json(j);
+
+    return res;
+}
+
+extern "C"
+void 
+ospResetAccumulation(OSPFrameBuffer framebuffer)
+{
+    ospResetAccumulation_ptr libcall = GET_PTR(ospResetAccumulation);
+
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospResetAccumulation";
+    j["arguments"] = {
+        {"framebuffer", (size_t)framebuffer}, 
+    };
+
+    libcall(framebuffer);
+
+    log_json(j);
+}
+
+extern "C"
+const void *
+ospMapFrameBuffer(OSPFrameBuffer framebuffer, OSPFrameBufferChannel channel)
+{
+    ospMapFrameBuffer_ptr libcall = GET_PTR(ospMapFrameBuffer);
+
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospMapFrameBuffer";
+    j["arguments"] = {
+        {"framebuffer", (size_t)framebuffer}, 
+        {"channel", (int)channel}, 
+    };
+
+    const void *res = libcall(framebuffer, channel);
+
+    j["result"] = (size_t)res;
+    log_json(j);
+    
+    return res;
+}
+
+extern "C"
+void 
+ospUnmapFrameBuffer(const void *mapped, OSPFrameBuffer framebuffer)
+{
+    ospUnmapFrameBuffer_ptr libcall = GET_PTR(ospUnmapFrameBuffer);
+
+    json j;
+    j["timestamp"] = timestamp();
+    j["call"] = "ospUnmapFrameBuffer";
+    j["arguments"] = {
+        {"mapped", (size_t)mapped}, 
+        {"framebuffer", (size_t)framebuffer}, 
+    };
+
+    libcall(mapped, framebuffer);
+
+    log_json(j);
+}
+
 
 /* 
   OSPRAY_INTERFACE void ospSetBox1f(OSPObject, const char *id, float lower_x, float upper_x);
