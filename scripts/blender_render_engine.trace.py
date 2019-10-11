@@ -159,7 +159,7 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         print('space_data.lens', space_data.lens)   # Always set to viewport lens setting, even when in camera view
         
         #print('region_data', dir(region_data))
-        print('region_data.view_perspective', region_data.view_perspective) # PERS, ORTHO or CAMERA
+        print('region_data.view_perspective', region_data.view_perspective) # PERSP, ORTHO or CAMERA
         
         #print('space_data', dir(space_data))
         print('space_data.camera', space_data.camera)

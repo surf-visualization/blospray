@@ -2875,10 +2875,11 @@ handle_connection(TCPSocket *sock)
             send_protobuf(sock, render_result);
             sock->sendall((const uint8_t*)fb, bufsize);
 
-            /*
-            sprintf(fname, "/dev/shm/blosprayfb%04d.exr", current_sample);                    
-            writeEXRFramebuffer(fname, reduced_framebuffer_width, reduced_framebuffer_height, fb, framebuffer_compression);
-            */
+            if (keep_framebuffer_files)
+            {
+                sprintf(fname, "/dev/shm/blosprayfb%04d-%d.exr", current_sample, framebuffer_reduction_factor);                    
+                writeEXRFramebuffer(fname, reduced_framebuffer_width, reduced_framebuffer_height, fb, framebuffer_compression);
+            }
             
             ospUnmapFrameBuffer(fb, framebuffer);        
 

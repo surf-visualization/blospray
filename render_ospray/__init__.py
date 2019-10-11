@@ -161,6 +161,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         self.last_view_matrix = None
 
         self.viewport_width = self.viewport_height = None
+        self.num_samples = 0
 
         self.draw_data = None        
     
@@ -346,6 +347,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             client_message.type = ClientMessage.START_RENDERING
             client_message.string_value = "interactive"
             client_message.uint_value = ospray.samples
+            self.num_samples = ospray.samples
             client_message.uint_value2 = ospray.reduction_factor
             self.connection.send_protobuf(client_message)
 
@@ -391,12 +393,25 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
 
         # Camera view
 
+        zoom = 1.0
+
+        xratio = self.viewport_width * 1 #camera.pixelaspect.x
+        yratio = self.viewport_height * 1
+
+        if region_data.view_perspective == 'PERSP':
+            zoom *= 2
+        elif region_data.view_perspective == 'ORTHO':
+            pass
+        elif region_data.view_perspective == 'CAMERA':
+            pass
+
+
         view_matrix = region_data.view_matrix
         if view_matrix != self.last_view_matrix:
             camera_to_world = view_matrix.inverted()
             clip_start = 0.1 # XXX
             # XXX aspect = ...
-            self.connection.send_updated_interactive_camera(camera_to_world, viewport_width/viewport_height, clip_start, space_data.lens)        
+            self.connection.send_updated_interactive_camera(camera_to_world, self.viewport_width/self.viewport_height, clip_start, space_data.lens)        
             
             restart_rendering = True
             self.last_view_matrix = view_matrix.copy()
@@ -409,6 +424,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             client_message.type = ClientMessage.START_RENDERING
             client_message.string_value = "interactive"
             client_message.uint_value = ospray.samples
+            self.num_samples = ospray.samples
             client_message.uint_value2 = ospray.reduction_factor
             self.connection.send_protobuf(client_message)        
 
@@ -427,7 +443,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
                 self.log.info('FRAME')
                 
                 # XXX .../samples
-                self.connection.engine.update_stats('', 'Rendering sample %d' % render_result.sample)
+                self.connection.engine.update_stats('', 'Rendering sample %d/%d' % (render_result.sample,self.num_samples))
                 
                 image_dimensions = render_result.width, render_result.height
 
@@ -441,6 +457,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             elif render_result.type == RenderResult.DONE:
                 self.log.info('DONE')
                 self.rendering_active = False
+                self.connection.engine.update_stats('', 'Rendering Done')
 
             elif render_result.type == RenderResult.CANCELED:
                 self.log.info('CANCELED')
@@ -483,8 +500,8 @@ class CustomDrawData:
         bgl.glActiveTexture(bgl.GL_TEXTURE0)
         bgl.glBindTexture(bgl.GL_TEXTURE_2D, self.texture[0])
         bgl.glTexImage2D(bgl.GL_TEXTURE_2D, 0, bgl.GL_RGBA16F, image_width, image_height, 0, bgl.GL_RGBA, bgl.GL_FLOAT, pixels)
-        bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
-        bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
+        bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_NEAREST)
+        bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_NEAREST)
         bgl.glBindTexture(bgl.GL_TEXTURE_2D, 0)
 
         # Bind shader that converts from scene linear to display space,
