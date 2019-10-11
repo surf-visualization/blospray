@@ -187,7 +187,7 @@ class RenderOspraySettingsScene(PropertyGroup):
     reduction_factor: IntProperty(
         name='Reduction factor',
         description='For interactive rendering the initial factor by which the framebuffer resolution is decreased (in both width and height)',
-        default = 4,
+        default = 8,
         min = 1,
         max = 32
         )
