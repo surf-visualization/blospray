@@ -1874,7 +1874,10 @@ update_framebuffer(OSPFrameBufferFormat format, uint32_t width, uint32_t height)
 
     // Clear framebuffer as its resolution/format changed
     for (auto& fb : framebuffers)
-        ospRelease(fb);
+    {
+        if (fb != nullptr)
+            ospRelease(fb);
+    }
     framebuffers.clear();
 
     framebuffer_width = width;
@@ -1910,7 +1913,7 @@ update_camera(CameraSettings& camera_settings)
     {
         case CameraSettings::PERSPECTIVE:
             camera = ospNewCamera("perspective");
-            ospSetFloat(camera, "fovy",  camera_settings.fov_y());
+            ospSetFloat(camera, "fovy",  camera_settings.fov_y());  // Degrees
             break;
 
         case CameraSettings::ORTHOGRAPHIC:
@@ -1927,7 +1930,7 @@ update_camera(CameraSettings& camera_settings)
             break;
     }
 
-    ospSetFloat(camera, "aspect", camera_settings.aspect());        // XXX panoramic only
+    ospSetFloat(camera, "aspect", camera_settings.aspect());        // XXX perspective only
     ospSetFloat(camera, "nearClip", camera_settings.clip_start());
 
     ospSetParam(camera, "position", OSP_VEC3F, cam_pos);
@@ -2688,7 +2691,10 @@ start_rendering(const ClientMessage& client_message)
         OSPFrameBuffer framebuffer;
 
         for (auto& fb : framebuffers)
-            ospRelease(fb);
+        {
+            if (fb != nullptr)
+                ospRelease(fb);
+        }
         framebuffers.clear();
 
         framebuffers.push_back(nullptr);

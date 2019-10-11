@@ -24,7 +24,7 @@ import bpy, bmesh
 #from bgl import *
 from mathutils import Vector, Matrix
 
-import sys, array, json, os, select, socket, time
+import sys, array, json, logging, os, select, socket, time
 from math import tan, atan, degrees, radians
 from struct import pack, unpack
 
@@ -274,18 +274,32 @@ class Connection:
         client_message.uint_value3 = height
         send_protobuf(self.sock, client_message)
 
-    def send_updated_interactive_camera(self, cam_xform, aspect, clip_start, lens, border=None):
-        
+    def send_updated_camera_for_interactive_view(self, view_matrix, focal_length, clip_start, viewport_width, viewport_height, border=None):
+
         camera_settings = CameraSettings()
         camera_settings.object_name = '<interactive>'
         camera_settings.camera_name = '<none>'
 
+        # XXX other types
+        camera_settings.type = CameraSettings.PERSPECTIVE
+        
+        # Blender provides FOV in radians
+        # OSPRay needs (vertical) FOV in degrees        
+        # Holy moly, needed sources from Blender, Cycles and Blenderseed to get a working set of formulas...
+        aspect = viewport_width / viewport_height       
+        zoom = 2.25
+        sensor_width = 32 * zoom   
+        if aspect >= 1:  
+            sensor_height = sensor_width / aspect
+        else:
+            sensor_height = sensor_width
+        vfov = 2 * atan((sensor_height/2)/focal_length)        
+
+        camera_settings.fov_y = degrees(vfov)        
         camera_settings.aspect = aspect
         camera_settings.clip_start = clip_start
-        # XXX
-        camera_settings.type = CameraSettings.PERSPECTIVE
-        camera_settings.fov_y = lens
 
+        cam_xform = view_matrix.inverted()
         location = cam_xform.translation
         camera_settings.position[:] = list(location)
         camera_settings.view_dir[:] = list(cam_xform @ Vector((0, 0, -1)) - location)
@@ -301,6 +315,8 @@ class Connection:
         send_protobuf(self.sock, camera_settings)
 
     def send_updated_camera(self, cam_obj, border=None):
+        # Final render from a camera. 
+        # Note: not usable for a camera view in interactive render mode
         
         cam_xform = cam_obj.matrix_world
         cam_data = cam_obj.data

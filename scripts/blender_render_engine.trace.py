@@ -167,6 +167,7 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         print('camera', space_data.camera)
         print('use_local_camera', space_data.use_local_camera)  # No relation to camera view yes/no
         print('lens', space_data.lens)                          # Always set to viewport lens setting, even when in camera view
+        print('clip_start', space_data.clip_start)
                       
         scene = depsgraph.scene
 

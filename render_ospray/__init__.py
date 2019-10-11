@@ -47,6 +47,7 @@ import bpy, bgl
 import numpy
 
 from .common import send_protobuf, receive_protobuf, OSP_FB_RGBA32F
+from .sync import BlenderCamera, sync_view
 from .connection import Connection
 from .messages_pb2 import (
     ClientMessage,
@@ -159,10 +160,10 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         self.first_view_update = True
         self.rendering_active = False        
         self.receive_render_result_thread = None
-        self.last_view_matrix = None
 
+        self.last_bcam = None
         self.viewport_width = self.viewport_height = None
-        self.num_samples = 0
+        self.last_view_matrix = None
 
         self.draw_data = None        
     
@@ -270,6 +271,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         restart_rendering = False     
 
         scene = depsgraph.scene
+        ospray = scene.ospray
         render = scene.render
         #world = scene.world   
         region = context.region     
@@ -368,7 +370,8 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         """
         self.log.info('OsprayRenderEngine.view_draw() [%s]' % self)   
 
-        restart_rendering = False     
+        restart_rendering = False
+        update_camera = False 
 
         assert len(depsgraph.updates) == 0
 
@@ -391,79 +394,17 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             # Reduction factor is passed with START_RENDERING
             self.connection.send_updated_framebuffer_settings(viewport_width, viewport_height, OSP_FB_RGBA32F)        
             restart_rendering = True
+            update_camera = True
 
-        # Camera view
-
-        zoom = 1.0
-
-        xratio = self.viewport_width * 1 #camera.pixelaspect.x
-        yratio = self.viewport_height * 1
-
-        if region_data.view_perspective == 'PERSP':
-            zoom *= 2
-        elif region_data.view_perspective == 'ORTHO':
-            pass
-        elif region_data.view_perspective == 'CAMERA':
-            pass
+        # Camera view    
+        # XXX clipping and focal length change should trigger camera update
 
         view_matrix = region_data.view_matrix
-        if view_matrix != self.last_view_matrix:
-            camera_to_world = view_matrix.inverted()
-            clip_start = 0.1 # XXX
-            # XXX aspect = ...
-            self.connection.send_updated_interactive_camera(camera_to_world, self.viewport_width/self.viewport_height, clip_start, space_data.lens)        
-            
-        elif region_data.view_perspective == 'CAMERA':
-            # View from camera (but with surrounding area)
-            # XXX missing some xform
-            cam_obj = space_data.camera
-            cam_data = cam_obj.data
-            
-            camera_to_world = cam_obj.matrix_world
-            view_matrix = camera_to_world.inverted()
-            
-            if view_matrix != self.last_view_matrix:
-                
-                clip_start = cam_data.clip_start
-                
-                if cam_data.type == 'PERSP':
-
-                    hfov = vfov = None
-
-                    if cam_data.sensor_fit == 'AUTO':
-                        if aspect >= 1:
-                            # Horizontal
-                            hfov = cam_data.angle
-                        else:
-                            # Vertical
-                            vfov = cam_data.angle
-                    elif cam_data.sensor_fit == 'HORIZONTAL':
-                        hfov = cam_data.angle
-                    else:
-                        vfov = cam_data.angle
-
-                    # Blender provides FOV in radians
-                    # OSPRay needs (vertical) FOV in degrees
-                    if vfov is None:
-                        image_plane_width = 2 * tan(hfov/2)
-                        image_plane_height = image_plane_width / aspect
-                        vfov = 2*atan(image_plane_height/2)
-                        
-                    fov_y = degrees(vfov)
-                else:
-                    # XXX
-                    fov_y = 90
-                
-                self.connection.send_updated_interactive_camera(camera_to_world, width/height, clip_start, fov_y)        
-                    
-                restart_rendering = True
-                self.last_view_matrix = view_matrix.copy()
-                
-        elif region_data.view_perspective == 'ORTHO':
-            # Top/side/...
-            pass
-
-
+        if view_matrix != self.last_view_matrix or update_camera:
+            self.log.info('view_draw(): view matrix changed, or camera updated')
+            self.connection.send_updated_camera_for_interactive_view(view_matrix, space_data.lens, space_data.clip_start, self.viewport_width, self.viewport_height)
+            self.last_view_matrix = view_matrix.copy()
+            restart_rendering = True
 
         # Restart rendering if needed
 
@@ -489,9 +430,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             render_result, fbpixels = self.render_result_queue.get()        
 
             if render_result.type == RenderResult.FRAME:
-                self.log.info('FRAME')
-                
-                # XXX .../samples
+                self.log.info('FRAME')                
                 self.connection.engine.update_stats('', 'Rendering sample %d/%d' % (render_result.sample,self.num_samples))
                 
                 image_dimensions = render_result.width, render_result.height
