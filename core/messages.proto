@@ -114,17 +114,18 @@ message RenderResult
     
     // FRAME
     uint32  sample = 2;             // 1, 2, ... number-of-samples
-    uint32  width = 3;
-    uint32  height = 4;
+    uint32  reduction_factor = 3;   // 1, 2, 3, ...
+    uint32  width = 4;
+    uint32  height = 5;
 
-    float   variance = 5;
+    float   variance = 10;
 
-    string  file_name = 10;         // Only used for server-internal purposes
-    uint32  file_size = 11;
+    string  file_name = 20;         // Only used for server-internal purposes
+    uint32  file_size = 21;
 
-    // In megabytes
-    float   memory_usage = 20;      // XXX is usage of whole server, not of render result
-    float   peak_memory_usage = 21; // XXX is usage of whole server, not of render result
+    // Server memory usage, in megabytes
+    float   memory_usage = 30;
+    float   peak_memory_usage = 31;
 }
 
 // Scene

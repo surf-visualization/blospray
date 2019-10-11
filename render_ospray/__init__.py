@@ -431,7 +431,12 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
 
             if render_result.type == RenderResult.FRAME:
                 self.log.info('FRAME')                
-                self.connection.engine.update_stats('', 'Rendering sample %d/%d' % (render_result.sample,self.num_samples))
+
+                rf = render_result.reduction_factor
+                if rf > 1:
+                    self.connection.engine.update_stats('', 'Rendering sample %d/%d (reduced %dx)' % (render_result.sample,self.num_samples, rf))
+                else:
+                    self.connection.engine.update_stats('', 'Rendering sample %d/%d' % (render_result.sample,self.num_samples))
                 
                 image_dimensions = render_result.width, render_result.height
 

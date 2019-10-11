@@ -851,6 +851,13 @@ handle_update_blender_mesh_data(TCPSocket *sock, const std::string& name)
 
     printf("... %d vertices, %d triangles, flags 0x%08x\n", nv, nt, flags);
 
+    if (nv == 0 || nt == 0)
+    {
+        printf("... WARNING: mesh without vertices/triangles not allowed, ignoring!\n");
+        // XXX release geometry
+        return false;
+    }
+
     // Receive mesh data
 
     vertex_buffer.reserve(nv*3);
@@ -2834,6 +2841,7 @@ handle_connection(TCPSocket *sock)
 
         render_result.set_type(RenderResult::FRAME);
         render_result.set_sample(current_sample);
+        render_result.set_reduction_factor(framebuffer_reduction_factor);
         render_result.set_width(reduced_framebuffer_width);
         render_result.set_height(reduced_framebuffer_height);
         render_result.set_variance(variance);        
