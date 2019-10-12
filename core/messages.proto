@@ -25,7 +25,7 @@ message ClientMessage
 {
     enum Type {
         HELLO = 0;                      
-        BYE = 1;            
+        BYE = 1;  
         
         CLEAR_SCENE = 11;
 
@@ -45,6 +45,7 @@ message ClientMessage
         
         START_RENDERING = 40;
         CANCEL_RENDERING = 41;
+        REQUEST_RENDER_OUTPUT = 49;
         
         GET_SERVER_STATE = 50;
         QUERY_BOUND = 51;

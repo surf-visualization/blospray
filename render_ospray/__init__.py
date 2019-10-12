@@ -122,9 +122,10 @@ class ReceiveRenderResultThread(threading.Thread):
 
             else:
                 # DONE, CANCELED
+                print('RRR: ', render_result)
                 self.result_queue.put((render_result, None))
 
-                if render_result.type == RenderResult.CANCELED:
+                if render_result.type == RenderResult.CANCELED:     # XXX why not break on DONE as well?
                     break         
 
             self.log.debug('(RRR thread) Tagging for view_draw()')
@@ -157,6 +158,8 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         super(OsprayRenderEngine, self).__init__()
 
         self.connection = None
+        self.render_output_connection = None
+
         self.first_view_update = True
         self.rendering_active = False        
         self.receive_render_result_thread = None
@@ -184,6 +187,13 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         ospray = depsgraph.scene.ospray        
         self.connection = Connection(self, ospray.host, ospray.port)        
         return self.connection.connect()
+
+    def connect_render_output(self, depsgraph):
+        assert self.render_output_connection is None
+        ospray = depsgraph.scene.ospray        
+        self.render_output_connection = Connection(self, ospray.host, ospray.port)     
+        assert self.render_output_connection.connect()
+        self.render_output_connection.request_render_output()
         
     def update(self, data, depsgraph):
         """
@@ -280,14 +290,18 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
 
             self.log.debug('view_update(): FIRST')
 
-            # Open connection
+            # Create connection that receives only the render results, plus
+            # the thread that processes the results
+            self.connect_render_output(depsgraph)
+
+            self.render_result_queue = Queue()
+            self.receive_render_result_thread = ReceiveRenderResultThread(self, self.render_output_connection, self.render_result_queue, self.log)
+            self.receive_render_result_thread.start()
+
+            # Open main connection
             if not self.connect(depsgraph):  
                 self.log.info('ERROR(view_update): Failed to connect to server')                
                 return 
-
-            self.render_result_queue = Queue()
-            self.receive_render_result_thread = ReceiveRenderResultThread(self, self.connection, self.render_result_queue, self.log)
-            self.receive_render_result_thread.start()
 
             # Renderer type
             self.connection.send_updated_renderer_type(scene.ospray.renderer)

@@ -118,6 +118,12 @@ class Connection:
 
         return True
 
+    def request_render_output(self):
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.REQUEST_RENDER_OUTPUT
+        send_protobuf(self.sock, client_message)
+        # XXX should have response
+
     def close(self):
         client_message = ClientMessage()
         client_message.type = ClientMessage.BYE

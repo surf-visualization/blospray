@@ -96,6 +96,7 @@ int                         framebuffer_width=0, framebuffer_height=0;
 OSPFrameBufferFormat        framebuffer_format;
 int                         framebuffer_reduction_factor=1;
 int                         reduced_framebuffer_width, reduced_framebuffer_height;
+TCPSocket                   *render_output_socket = nullptr;
 
 enum RenderMode
 {
@@ -2669,11 +2670,34 @@ handle_client_message(TCPSocket *sock, const ClientMessage& client_message, bool
         case ClientMessage::CANCEL_RENDERING:
             if (render_mode == RM_IDLE)
             {
-                printf("WARNING: ignoring CANCEL request as we're not rendering\n");
+                printf("WARNING: ignoring CANCEL request as we're not rendering!\n");
                 break;
             }
 
             cancel_rendering = true;
+            break;
+
+        case ClientMessage::REQUEST_RENDER_OUTPUT:
+            if (render_mode != RM_IDLE)
+            {
+                printf("WARNING: ignoring REQUEST_RENDER_OUTPUT request as we are currently rendering!\n");
+                sock->close();
+                connection_done = true;
+                return false;
+            }
+
+            if (render_output_socket != nullptr)
+            {
+                printf("ERROR: there is already a render output socket set!\n");
+                sock->close();
+                connection_done = true;
+                return false;
+            }
+
+            printf("Using separate socket for sending render output (only for interactive rendering)\n");
+            render_output_socket = sock;
+
+            connection_done = true;
             break;
 
         default:
@@ -2837,7 +2861,11 @@ handle_connection(TCPSocket *sock)
             printf("Rendering cancelled after %.3f seconds\n", time_diff(rendering_start_time, now));
 
             render_result.set_type(RenderResult::CANCELED);
-            send_protobuf(sock, render_result);
+
+            if (render_mode == RM_INTERACTIVE && render_output_socket != nullptr)
+                send_protobuf(render_output_socket, render_result);
+            else
+                send_protobuf(sock, render_result);
 
             continue;            
         }
@@ -2910,8 +2938,16 @@ handle_connection(TCPSocket *sock)
             render_result.set_file_size(bufsize);
             // XXX set render_result.frame reduction factor
 
-            send_protobuf(sock, render_result);
-            sock->sendall((const uint8_t*)fb, bufsize);
+            if (render_output_socket != nullptr)
+            {
+                send_protobuf(render_output_socket, render_result);
+                render_output_socket->sendall((const uint8_t*)fb, bufsize);
+            }
+            else
+            {
+                send_protobuf(sock, render_result);
+                sock->sendall((const uint8_t*)fb, bufsize);
+            }
 
             if (keep_framebuffer_files)
             {
@@ -2922,7 +2958,10 @@ handle_connection(TCPSocket *sock)
             ospUnmapFrameBuffer(fb, framebuffer);        
 
             gettimeofday(&now, NULL);
-            printf("| Send FB %6.3f seconds | Pixels %9d bytes\n", time_diff(frame_end_time, now), bufsize);                
+            if (render_output_socket != nullptr)
+                printf("| Send FB* %6.3f seconds | Pixels %9d bytes\n", time_diff(frame_end_time, now), bufsize);
+            else
+                printf("| Send FB %6.3f seconds | Pixels %9d bytes\n", time_diff(frame_end_time, now), bufsize);                
         }
 
         // Check if we're done rendering
@@ -2938,7 +2977,11 @@ handle_connection(TCPSocket *sock)
             render_result.set_variance(variance);
             render_result.set_memory_usage(mem_usage);
             render_result.set_peak_memory_usage(peak_memory_usage);
-            send_protobuf(sock, render_result);
+
+            if (render_output_socket != nullptr)
+                send_protobuf(render_output_socket, render_result);
+            else
+                send_protobuf(sock, render_result);
 
             gettimeofday(&now, NULL);
             printf("Rendering done in %.3f seconds (%.3f seconds/sample)\n", 
@@ -2972,6 +3015,12 @@ handle_connection(TCPSocket *sock)
     }
 
     sock->close();
+
+    if (render_output_socket != nullptr)
+    {
+        render_output_socket->close();
+        render_output_socket = nullptr;
+    }
 
     return true;
 }
