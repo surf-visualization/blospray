@@ -105,7 +105,13 @@ class ReceiveRenderResultThread(threading.Thread):
             render_result = RenderResult()
 
             # XXX handle receive error
-            self.connection.receive_protobuf(render_result)
+            # XXX currently blocks
+            try:
+                self.connection.receive_protobuf(render_result)
+            except ConnectionResetError:
+                self.log.error('(RRR thread) Connection reset by peer, exiting')
+                break
+
             self.log.debug('(RRR thread) RenderResult(%s):\n%s' % (render_result.type, render_result))
 
             if render_result.type == RenderResult.FRAME:
@@ -173,7 +179,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
     # When the render engine instance is destroyed, this is called. Clean up any
     # render engine data here, for example stopping running render threads.    
     def __del__(self):
-        print('[%s] OsprayRenderEngine.__del__() [%s]' % (time.asctime(), self))
+        logging.getLogger('blospray').info('[%s] OsprayRenderEngine.__del__() [%s]' % (time.asctime(), self))
 
         #if self.rendering_active:
         #    self.receive_render_result_thread.stop()
@@ -296,6 +302,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
 
             self.render_result_queue = Queue()
             self.receive_render_result_thread = ReceiveRenderResultThread(self, self.render_output_connection, self.render_result_queue, self.log)
+            self.receive_render_result_thread.daemon = True
             self.receive_render_result_thread.start()
 
             # Open main connection

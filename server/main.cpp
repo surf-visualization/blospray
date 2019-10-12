@@ -3018,6 +3018,7 @@ handle_connection(TCPSocket *sock)
 
     if (render_output_socket != nullptr)
     {
+        printf("Closing render output connection\n");
         render_output_socket->close();
         render_output_socket = nullptr;
     }
