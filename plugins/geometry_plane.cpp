@@ -76,15 +76,15 @@ create_plane(float cx, float cy, float cz, float sx, float sy)
     
     OSPGeometry mesh = ospNewGeometry("triangles");
   
-        OSPData data = ospNewData(num_vertices, OSP_VEC3F, vertices);   
+        OSPData data = ospNewCopiedData(num_vertices, OSP_VEC3F, vertices);   
         ospCommit(data);
         ospSetObject(mesh, "vertex.position", data);
 
-        data = ospNewData(num_vertices, OSP_VEC4F, colors);
+        data = ospNewCopiedData(num_vertices, OSP_VEC4F, colors);
         ospCommit(data);
         ospSetObject(mesh, "vertex.color", data);
 
-        data = ospNewData(num_triangles, OSP_VEC3UI, triangles);            
+        data = ospNewCopiedData(num_triangles, OSP_VEC3UI, triangles);            
         ospCommit(data);
         ospSetObject(mesh, "index", data);
 

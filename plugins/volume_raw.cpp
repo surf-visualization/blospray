@@ -38,7 +38,8 @@ load_as_structured(float *bbox, GenerateFunctionResult &result,
     
     OSPVolume volume = ospNewVolume("structured_volume");
     
-    OSPData voxelData = ospNewData(dims[0]*dims[1]*dims[2], dataType, grid_field_values, OSP_DATA_SHARED_BUFFER);   
+    // XXX shared
+    OSPData voxelData = ospNewCopiedData(dims[0]*dims[1]*dims[2], dataType, grid_field_values);   
     ospCommit(voxelData);
     
     ospSetObject(volume, "voxelData", voxelData);
@@ -171,13 +172,13 @@ load_as_unstructured(
     // Set up volume object
     
     // XXX need to look closer at the specific alignment requirements of using OSP_FLOAT3A
-    OSPData verticesData = ospNewData(num_grid_points, OSP_VEC3F, vertices);       
+    OSPData verticesData = ospNewCopiedData(num_grid_points, OSP_VEC3F, vertices);       
     ospCommit(verticesData);
     
-    OSPData fieldData = ospNewData(num_grid_points, dataType, grid_field_values);   
+    OSPData fieldData = ospNewCopiedData(num_grid_points, dataType, grid_field_values);   
     ospCommit(fieldData);
     
-    OSPData indicesData = ospNewData(num_hexahedrons*2, OSP_VEC4I, indices);
+    OSPData indicesData = ospNewCopiedData(num_hexahedrons*2, OSP_VEC4I, indices);
     ospCommit(indicesData);
     
     OSPVolume volume = ospNewVolume("unstructured_volume");
@@ -406,7 +407,7 @@ create_volume(float *bbox,
     
     OSPVolume volume = ospNewVolume("structured_volume");
     
-        OSPData voxelData = ospNewData(dims[0]*dims[1]*dims[2], dataType, grid_field_values, 0);//, OSP_DATA_SHARED_BUFFER);   
+        OSPData voxelData = ospNewCopiedData(dims[0]*dims[1]*dims[2], dataType, grid_field_values);   
         ospCommit(voxelData);
     
         ospSetObject(volume, "voxelData", voxelData);

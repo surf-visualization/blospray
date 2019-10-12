@@ -20,7 +20,6 @@
 
 #include <cstdio>
 #include <stdint.h>
-#include <ospray/ospray_testing/ospray_testing.h>
 #include "uhdf5.h"
 
 #include "plugin.h"
@@ -119,12 +118,12 @@ load_points(const char *renderer_type, const char *fname, int max_points, float 
     
     OSPGeometry spheres = ospNewGeometry("spheres");
     
-      OSPData data = ospNewData(num_points, OSP_VEC3F, positions, 0);
+      OSPData data = ospNewCopiedData(num_points, OSP_VEC3F, positions);
       ospSetObject(spheres, "sphere.position", data);
       //ospSetInt(spheres, "bytes_per_sphere", 3*sizeof(float));
       ospSetFloat(spheres, "radius", sphere_radius);
 
-      //data = ospNewData(num_vertices, OSP_VEC4F, colors, 0);
+      //data = ospNewCopiedData(num_vertices, OSP_VEC4F, colors);
       //ospCommit(data);
       //ospSetData(mesh, "vertex.color", data);
       
@@ -197,8 +196,8 @@ generate(GenerateFunctionResult &result, PluginState *state)
     float posradius[2*4] = { 0, 0, 0, 1.0f, 1, 1, 1, 1.0f };
 
     OSPGeometry spheres = ospNewGeometry("spheres");    
-      //OSPData data = ospNewData(2, OSP_VEC3F, positions);
-      OSPData data = ospNewData(2, OSP_VEC4F, posradius);
+      //OSPData data = ospNewCopiedData(2, OSP_VEC3F, positions);
+      OSPData data = ospNewCopiedData(2, OSP_VEC4F, posradius);
       ospSetData(spheres, "sphere", data);
       //ospSetInt(spheres, "bytes_per_sphere", 3*sizeof(float));
       ospSetInt(spheres, "offset_center", 0);
@@ -226,7 +225,7 @@ generate(GenerateFunctionResult &result, PluginState *state)
   #endif
     
     OSPGroup group = ospNewGroup();
-        OSPData models = ospNewData(1, OSP_OBJECT, &model, 0);
+        OSPData models = ospNewCopiedData(1, OSP_OBJECT, &model);
         ospSetObject(group, "geometry", models);  // XXX setdata after all?
         ospRelease(models);
     ospCommit(group);

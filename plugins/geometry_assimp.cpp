@@ -75,15 +75,15 @@ create_plane(float cx, float cy, float cz, float sx, float sy)
     
     OSPGeometry mesh = ospNewGeometry("triangles");
   
-        OSPData data = ospNewData(num_vertices, OSP_VEC3F, vertices);   
+        OSPData data = ospNewCopiedData(num_vertices, OSP_VEC3F, vertices);   
         ospCommit(data);
         ospSetData(mesh, "vertex.position", data);
 
-        data = ospNewData(num_vertices, OSP_VEC4F, colors);
+        data = ospNewCopiedData(num_vertices, OSP_VEC4F, colors);
         ospCommit(data);
         //ospSetData(mesh, "vertex.color", data);
 
-        data = ospNewData(num_triangles, OSP_VEC3UI, triangles);            
+        data = ospNewCopiedData(num_triangles, OSP_VEC3UI, triangles);            
         ospCommit(data);
         ospSetData(mesh, "index", data);
 
@@ -168,7 +168,7 @@ load_file(GenerateFunctionResult &result, PluginState *state)
             max[2] = std::max(max[2], z);
         }
 
-        OSPData data = ospNewData(nvertices, OSP_VEC3F, vertices.data());
+        OSPData data = ospNewCopiedData(nvertices, OSP_VEC3F, vertices.data());
         ospCommit(data);
         ospSetObject(geometry, "vertex.position", data);
         //ospRelease(data);
@@ -189,7 +189,7 @@ load_file(GenerateFunctionResult &result, PluginState *state)
         }
 
         // XXX check /3
-        OSPData data = ospNewData(triangles.size()/3, OSP_VEC3UI, triangles.data());
+        OSPData data = ospNewCopiedData(triangles.size()/3, OSP_VEC3UI, triangles.data());
         ospCommit(data);
         ospSetObject(geometry, "index", data);
         //ospRelease(data);
@@ -212,7 +212,7 @@ load_file(GenerateFunctionResult &result, PluginState *state)
             colors.push_back(vc[i].a);
         }
 
-        OSPData data = ospNewData(nvertices, OSP_VEC4F, colors.data());
+        OSPData data = ospNewCopiedData(nvertices, OSP_VEC4F, colors.data());
         ospCommit(data);
         ospSetObject(geometry, "vertex.color", data);
     }
@@ -231,7 +231,7 @@ load_file(GenerateFunctionResult &result, PluginState *state)
             normals.push_back(nn[i].z);
         }
 
-        OSPData data = ospNewData(nvertices, OSP_VEC3F, normals.data());
+        OSPData data = ospNewCopiedData(nvertices, OSP_VEC3F, normals.data());
         ospCommit(data);
         ospSetObject(geometry, "vertex.normal", data);
     }
@@ -250,7 +250,7 @@ load_file(GenerateFunctionResult &result, PluginState *state)
             texcoords.push_back(tc[i].z);
         }
 
-        OSPData data = ospNewData(nvertices, OSP_VEC3F, texcoords.data());
+        OSPData data = ospNewCopiedData(nvertices, OSP_VEC3F, texcoords.data());
         ospCommit(data);
         ospSetObject(geometry, "vertex.texcoord", data); 
     }
@@ -264,20 +264,20 @@ load_file(GenerateFunctionResult &result, PluginState *state)
 
             //ospSetFloat(geometry, "level", 1.0f);
 
-            OSPData data = ospNewData(nvertices, OSP_VEC3F, vertices.data());
+            OSPData data = ospNewCopiedData(nvertices, OSP_VEC3F, vertices.data());
             ospCommit(data);
             ospSetObject(geometry, "vertex.position", data);
 
-            //data = ospNewData(num_vertices, OSP_VEC4F, colors);
+            //data = ospNewCopiedData(num_vertices, OSP_VEC4F, colors);
             //ospCommit(data);
             //ospSetObject(mesh, "vertex.color", data);
 
             // XXX check /3
-            data = ospNewData(faces.size()/3, OSP_VEC3UI, faces.data());
+            data = ospNewCopiedData(faces.size()/3, OSP_VEC3UI, faces.data());
             ospCommit(data);
             ospSetObject(geometry, "index", data);
 
-            data = ospNewData(face_lengths.size(), OSP_UINT, face_lengths.data());
+            data = ospNewCopiedData(face_lengths.size(), OSP_UINT, face_lengths.data());
             ospCommit(data);
             ospSetObject(geometry, "face", data);
 

@@ -34,7 +34,7 @@
 #include <condition_variable>
 
 #include <ospray/ospray.h>
-#include <ospray/ospray_testing/ospray_testing.h>
+//#include <ospray/ospray_testing/ospray_testing.h>
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/string_cast.hpp>      // to_string()
@@ -523,12 +523,12 @@ create_transfer_function(const std::string& name, float minval, float maxval)
 {
     printf("create_transfer_function('%s', %.6f, %.6f)\n", name.c_str(), minval, maxval);
 
-	if (name == "jet")
+	/*if (name == "jet")
 	{
 		osp_vec2f voxelRange = { minval, maxval };
 		return ospTestingNewTransferFunction(voxelRange, "jet");
     }
-    else if (name == "cool2warm")
+    else if (name == "cool2warm")*/
     {
 		// XXX should do this only once
 	    float tf_colors[3*cool2warm_entries];
@@ -546,11 +546,11 @@ create_transfer_function(const std::string& name, float minval, float maxval)
 
         	ospSetVec2f(tf, "valueRange", minval, maxval);
 
-        	OSPData color_data = ospNewData(cool2warm_entries, OSP_VEC3F, tf_colors, 0);
+        	OSPData color_data = ospNewCopiedData(cool2warm_entries, OSP_VEC3F, tf_colors);
         	ospSetObject(tf, "color", color_data);        	
 
         	// XXX color and opacity can be decoupled?
-        	OSPData opacity_data = ospNewData(cool2warm_entries, OSP_FLOAT, tf_opacities, 0);
+        	OSPData opacity_data = ospNewCopiedData(cool2warm_entries, OSP_FLOAT, tf_opacities);
         	ospSetObject(tf, "opacity", opacity_data);        	
 
     	ospCommit(tf);
@@ -886,25 +886,25 @@ handle_update_blender_mesh_data(TCPSocket *sock, const std::string& name)
 
     // Set up geometry
 
-    data = ospNewData(nv, OSP_VEC3F, &vertex_buffer[0], 0);    
+    data = ospNewCopiedData(nv, OSP_VEC3F, &vertex_buffer[0]);    
     ospSetObject(geometry, "vertex.position", data);
     ospRelease(data);
 
     if (flags & MeshData::NORMALS)
     {
-        data = ospNewData(nv, OSP_VEC3F, &normal_buffer[0], 0);        
+        data = ospNewCopiedData(nv, OSP_VEC3F, &normal_buffer[0]);        
         ospSetObject(geometry, "vertex.normal", data);
         ospRelease(data);
     }
 
     if (flags & MeshData::VERTEX_COLORS)
     {
-        data = ospNewData(nv, OSP_VEC4F, &vertex_color_buffer[0], 0);        
+        data = ospNewCopiedData(nv, OSP_VEC4F, &vertex_color_buffer[0]);        
         ospSetObject(geometry, "vertex.color", data);
         ospRelease(data);
     }
 
-    data = ospNewData(nt, OSP_VEC3UI, &triangle_buffer[0], 0);    
+    data = ospNewCopiedData(nt, OSP_VEC3UI, &triangle_buffer[0]);    
     ospSetObject(geometry, "index", data);
     ospRelease(data);
 
@@ -1001,7 +1001,7 @@ update_blender_mesh_object(const UpdateObject& update)
 
     /*
     float cols[] = { 1, 0, 0, 1 };
-    OSPData colors = ospNewData(1, OSP_VEC4F, &cols[0], 0);        
+    OSPData colors = ospNewCopiedData(1, OSP_VEC4F, &cols[0]);        
     ospSetObject(gmodel, "color", colors);
     ospRelease(colors);
     */
@@ -1388,7 +1388,7 @@ update_isosurfaces_object(const UpdateObject& update)
         printf("... isovalue #%d: %.3f\n", i, isovalues[i]);
     }
 
-    OSPData isovalues_data = ospNewData(n, OSP_FLOAT, isovalues, 0);    
+    OSPData isovalues_data = ospNewCopiedData(n, OSP_FLOAT, isovalues);    
     delete [] isovalues;
 
     ospSetObject(isosurfaces_geometry, "volume", vmodel);       		// XXX structured vol example indicates this needs to be the volume model??
@@ -1570,7 +1570,7 @@ add_slices_objects(const UpdateObject& update, const Slices& slices)
 
         printf("... plane[%d]: %.3f, %3f, %.3f, %.3f\n", i, plane[0], plane[1], plane[2], plane[3]);
 
-        OSPData planeData = ospNewData(1, OSP_VEC4F, plane, 0);        
+        OSPData planeData = ospNewCopiedData(1, OSP_VEC4F, plane);        
 
             // XXX hacked temp volume module
         auto volumeModel = ospNewVolumetricModel(volume);
@@ -2293,7 +2293,7 @@ update_world_settings(const WorldSettings& world_settings)
             world_settings.background_color(3)
         };
 
-        OSPData data = ospNewData(1, OSP_VEC4F, texel, 0);
+        OSPData data = ospNewCopiedData(1, OSP_VEC4F, texel);
 
         OSPTexture backplate = ospNewTexture("texture2d");    
             ospSetInt(backplate, "format", OSP_TEXTURE_RGBA32F);

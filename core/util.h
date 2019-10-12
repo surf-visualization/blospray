@@ -282,4 +282,16 @@ memory_usage()
 #endif
 }
 
+// XXX 
+inline OSPData ospNewCopiedData(size_t numItems,
+                          OSPDataType type,
+                          const void *source)
+{
+    OSPData src = ospNewSharedData(source, type, numItems);
+    OSPData dst = ospNewData(type, numItems);
+    ospCopyData(src, dst);
+    ospRelease(src);
+    return dst;
+}
+
 #endif

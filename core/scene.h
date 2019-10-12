@@ -132,7 +132,7 @@ struct SceneObjectIsosurfaces : SceneObject
 		isosurfaces_geometry = ospNewGeometry("isosurfaces"); 
 		gmodel = ospNewGeometricModel(isosurfaces_geometry);
 		group = ospNewGroup();
-		OSPData data = ospNewData(1, OSP_OBJECT, &gmodel, 0);
+		OSPData data = ospNewCopiedData(1, OSP_OBJECT, &gmodel);
 	        ospSetObject(group, "geometry", data);
 	    ospCommit(group);
 		instance = ospNewInstance(group);
@@ -163,7 +163,7 @@ struct SceneObjectSlice : SceneObject
 		isosurfaces_geometry = ospNewGeometry("slices"); 
 		gmodel = ospNewGeometricModel(isosurfaces_geometry);
 		group = ospNewGroup();
-		OSPData data = ospNewData(1, OSP_OBJECT, &gmodel, 0);
+		OSPData data = ospNewCopiedData(1, OSP_OBJECT, &gmodel);
 	        ospSetObject(group, "geometry", data);
 	    ospCommit(group);
 		instance = ospNewInstance(group);

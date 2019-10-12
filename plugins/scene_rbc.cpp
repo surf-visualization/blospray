@@ -81,15 +81,15 @@ load_cell_models(const char *renderer_type)
     
       // XXX use ospRelease() here?
   
-      OSPData data = ospNewData(num_vertices, OSP_VEC3F, vertices);    
+      OSPData data = ospNewCopiedData(num_vertices, OSP_VEC3F, vertices);    
       ospCommit(data);
       ospSetObject(mesh, "vertex.position", data);
 
-      data = ospNewData(num_vertices, OSP_VEC4F, colors);
+      data = ospNewCopiedData(num_vertices, OSP_VEC4F, colors);
       ospCommit(data);
       ospSetObject(mesh, "vertex.color", data);
 
-      data = ospNewData(num_triangles, OSP_VEC3UI, triangles);            
+      data = ospNewCopiedData(num_triangles, OSP_VEC3UI, triangles);            
       ospCommit(data);
       ospSetObject(mesh, "index", data);
             
@@ -149,15 +149,15 @@ load_cell_models(const char *renderer_type)
     
       // XXX use ospRelease() here?
   
-      data = ospNewData(num_vertices, OSP_VEC3F, vertices);    
+      data = ospNewCopiedData(num_vertices, OSP_VEC3F, vertices);    
       ospCommit(data);
       ospSetObject(mesh, "vertex.position", data);
 
-      data = ospNewData(num_vertices, OSP_VEC4F, colors);
+      data = ospNewCopiedData(num_vertices, OSP_VEC4F, colors);
       ospCommit(data);
       ospSetObject(mesh, "vertex.color", data);
 
-      data = ospNewData(num_triangles, OSP_VEC3UI, triangles);            
+      data = ospNewCopiedData(num_triangles, OSP_VEC3UI, triangles);            
       ospCommit(data);
       ospSetObject(mesh, "index", data);
     
@@ -182,13 +182,13 @@ load_cell_models(const char *renderer_type)
     // Create groups for instancing
     
     rbc_group = ospNewGroup();
-        OSPData models = ospNewData(1, OSP_OBJECT, &mesh_model_rbc, 0);
+        OSPData models = ospNewCopiedData(1, OSP_OBJECT, &mesh_model_rbc);
         ospSetObject(rbc_group, "geometry", models);
         ospRelease(models);
     ospCommit(rbc_group);
 
     plt_group = ospNewGroup();
-        models = ospNewData(1, OSP_OBJECT, &mesh_model_plt, 0);
+        models = ospNewCopiedData(1, OSP_OBJECT, &mesh_model_plt);
         ospSetObject(plt_group, "geometry", models);
         ospRelease(models);
     ospCommit(plt_group);
@@ -248,15 +248,15 @@ add_ground_plane()
     
     OSPGeometry mesh2 = ospNewGeometry("triangles");
   
-      OSPData data = ospNewData(num_vertices, OSP_FLOAT3, vertices);   
+      OSPData data = ospNewCopiedData(num_vertices, OSP_FLOAT3, vertices);   
       ospCommit(data);
       ospSetData(mesh2, "vertex.position", data);
 
-      data = ospNewData(num_vertices, OSP_FLOAT4, colors);
+      data = ospNewCopiedData(num_vertices, OSP_FLOAT4, colors);
       ospCommit(data);
       ospSetData(mesh2, "vertex.color", data);
 
-      data = ospNewData(num_triangles, OSP_VEC3UI, triangles);            
+      data = ospNewCopiedData(num_triangles, OSP_VEC3UI, triangles);            
       ospCommit(data);
       ospSetData(mesh2, "index", data);
 

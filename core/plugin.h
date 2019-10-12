@@ -29,6 +29,7 @@
 #include "messages.pb.h"        
 #include "json.hpp"
 #include "bounding_mesh.h"
+#include "util.h"
 
 using json = nlohmann::json;
 

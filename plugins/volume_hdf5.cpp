@@ -20,7 +20,6 @@
 
 #include <cstdio>
 #include <stdint.h>
-#include <ospray/ospray_testing/ospray_testing.h>
 #include "uhdf5.h"
 
 #include "plugin.h"
@@ -119,7 +118,7 @@ generate(GenerateFunctionResult &result, PluginState *state)
 
     OSPVolume volume = ospNewVolume("structured_volume");
     
-        OSPData voxelData = ospNewData(n, dataType, grid_field_values, 0);//, OSP_DATA_SHARED_BUFFER);   
+        OSPData voxelData = ospNewCopiedData(n, dataType, grid_field_values);   
         ospCommit(voxelData);
     
         ospSetObject(volume, "voxelData", voxelData);

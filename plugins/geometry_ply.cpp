@@ -303,16 +303,16 @@ load_ply_file(GenerateFunctionResult &result, PluginState *state)
 
             //ospSetFloat(geometry, "level", 1.0f);
 
-            OSPData data = ospNewData(nvertices, OSP_VEC3F, vertices.data());
+            OSPData data = ospNewCopiedData(nvertices, OSP_VEC3F, vertices.data());
             ospCommit(data);
             ospSetObject(geometry, "vertex.position", data);
 
-            //data = ospNewData(num_vertices, OSP_VEC4F, colors);
+            //data = ospNewCopiedData(num_vertices, OSP_VEC4F, colors);
             //ospCommit(data);
             //ospSetObject(mesh, "vertex.color", data);
 
             // XXX check /3
-            data = ospNewData(faces.size()/3, OSP_VEC3UI, faces.data());
+            data = ospNewCopiedData(faces.size()/3, OSP_VEC3UI, faces.data());
             ospCommit(data);
             ospSetObject(geometry, "index", data);
 
@@ -325,20 +325,20 @@ load_ply_file(GenerateFunctionResult &result, PluginState *state)
 
             //ospSetFloat(geometry, "level", 1.0f);
 
-            OSPData data = ospNewData(nvertices, OSP_VEC3F, vertices.data());
+            OSPData data = ospNewCopiedData(nvertices, OSP_VEC3F, vertices.data());
             ospCommit(data);
             ospSetObject(geometry, "vertex.position", data);
 
-            //data = ospNewData(num_vertices, OSP_VEC4F, colors);
+            //data = ospNewCopiedData(num_vertices, OSP_VEC4F, colors);
             //ospCommit(data);
             //ospSetData(mesh, "vertex.color", data);
 
             // XXX check /3
-            data = ospNewData(faces.size()/3, OSP_VEC3UI, faces.data());
+            data = ospNewCopiedData(faces.size()/3, OSP_VEC3UI, faces.data());
             ospCommit(data);
             ospSetObject(geometry, "index", data);
 
-            data = ospNewData(face_lengths.size(), OSP_UINT, face_lengths.data());
+            data = ospNewCopiedData(face_lengths.size(), OSP_UINT, face_lengths.data());
             ospCommit(data);
             ospSetObject(geometry, "face", data);
 
