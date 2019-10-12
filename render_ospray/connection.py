@@ -595,18 +595,18 @@ class Connection:
 
         elif idname == 'OSPRayGlass':
             update.type = MaterialUpdate.GLASS
+            settings = GlassSettings()
+            settings.eta = inputs['Eta'].default_value   
+            settings.attenuation_color[:] = list(inputs['Attenuation color'].default_value)[:3]
+            settings.attenuation_distance = inputs['Attenuation distance'].default_value
+
+        elif idname == 'OSPRayThinGlass':
+            update.type = MaterialUpdate.THIN_GLASS
             settings = ThinGlassSettings()
             settings.eta = inputs['Eta'].default_value   
             settings.attenuation_color[:] = list(inputs['Attenuation color'].default_value)[:3]
             settings.attenuation_distance = inputs['Attenuation distance'].default_value
             settings.thickness = inputs['Thickness'].default_value
-
-        elif idname == 'OSPRayThinGlass':
-            update.type = MaterialUpdate.THIN_GLASS
-            settings = GlassSettings()
-            settings.eta = inputs['Eta'].default_value   
-            settings.attenuation_color[:] = list(inputs['Attenuation color'].default_value)[:3]
-            settings.attenuation_distance = inputs['Attenuation distance'].default_value
 
         elif idname == 'OSPRayLuminous':
             update.type = MaterialUpdate.LUMINOUS
