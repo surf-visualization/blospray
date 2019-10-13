@@ -25,7 +25,7 @@ import bpy, bmesh
 from mathutils import Vector, Matrix
 
 import sys, array, json, logging, os, select, socket, time
-from math import tan, atan, degrees, radians
+from math import tan, atan, degrees, radians, sqrt
 from struct import pack, unpack
 
 import numpy
@@ -279,8 +279,44 @@ class Connection:
         client_message.uint_value2 = width
         client_message.uint_value3 = height
         send_protobuf(self.sock, client_message)
+                
+    def _film_dimensions(self, camdata, aspect_ratio, zoom):
+        # Based on blendseed utils.util.calc_film_dimensions()
+        horizontal_fit = camdata.sensor_fit == 'HORIZONTAL' or \
+                         (camdata.sensor_fit == 'AUTO' and aspect_ratio > 1)
 
-    def send_updated_camera_for_interactive_view(self, region_data, space_data, viewport_width, viewport_height):
+        if camdata.sensor_fit == 'VERTICAL':
+            film_height = camdata.sensor_height / 1000 * zoom
+            film_width = film_height * aspect_ratio
+        elif horizontal_fit:
+            film_width = camdata.sensor_width / 1000 * zoom
+            film_height = film_width / aspect_ratio
+        else:
+            film_height = camdata.sensor_width / 1000 * zoom
+            film_width = film_height * aspect_ratio
+    
+        # In meters
+        return film_width, film_height
+        
+    def _film_dimensions(self, camdata, aspect_ratio, zoom):
+        # Based on blendseed utils.util.calc_film_dimensions()
+        horizontal_fit = camdata.sensor_fit == 'HORIZONTAL' or \
+                         (camdata.sensor_fit == 'AUTO' and aspect_ratio > 1)
+
+        if camdata.sensor_fit == 'VERTICAL':
+            film_height = camdata.sensor_height / 1000 * zoom
+            film_width = film_height * aspect_ratio
+        elif horizontal_fit:
+            film_width = camdata.sensor_width / 1000 * zoom
+            film_height = film_width / aspect_ratio
+        else:
+            film_height = camdata.sensor_width / 1000 * zoom
+            film_width = film_height * aspect_ratio
+    
+        # In meters
+        return film_width, film_height
+
+    def send_updated_camera_for_interactive_view(self, render, region_data, space_data, viewport_width, viewport_height):
 
         camera_settings = CameraSettings()
         camera_settings.object_name = '<interactive>'
@@ -289,7 +325,7 @@ class Connection:
         # Blender provides FOV in radians
         # OSPRay needs (vertical) FOV in degrees      
 
-        aspect = viewport_width / viewport_height
+        viewport_aspect = viewport_width / viewport_height
         view_matrix = region_data.view_matrix
         focal_length = space_data.lens
         clip_start = space_data.clip_start
@@ -300,14 +336,14 @@ class Connection:
 
             zoom = 2.25
             sensor_width = 32 * zoom
-            if aspect >= 1:  
-                sensor_height = sensor_width / aspect
+            if viewport_aspect >= 1:  
+                sensor_height = sensor_width / viewport_aspect
             else:
                 sensor_height = sensor_width
             vfov = 2 * atan((sensor_height/2)/focal_length)        
 
             camera_settings.type = CameraSettings.PERSPECTIVE
-            camera_settings.aspect = aspect
+            camera_settings.aspect = viewport_aspect
             camera_settings.clip_start = clip_start
 
             camera_settings.fov_y = degrees(vfov)
@@ -324,14 +360,14 @@ class Connection:
         elif region_data.view_perspective == 'ORTHO':
 
             camera_settings.type = CameraSettings.ORTHOGRAPHIC
-            camera_settings.aspect = aspect
+            camera_settings.aspect = viewport_aspect
             camera_settings.clip_start = clip_start
 
             zoom = 2.25
             extent_base = space_data.region_3d.view_distance * 32.0 / focal_length
             sensor_width = zoom * extent_base
-            if aspect >= 1:
-                sensor_height = sensor_width / aspect
+            if viewport_aspect >= 1:
+                sensor_height = sensor_width / viewport_aspect
             else:
                 sensor_height = sensor_width
             camera_settings.height = sensor_height
@@ -352,14 +388,108 @@ class Connection:
             camera_settings.dof_aperture = 0.0
 
         else:
-            #assert False
-            pass
+            # Camera view
+            
+            # Cycles source: "magic zoom formula"
+            zoom = region_data.view_camera_zoom
+            zoom = 1.41421 + zoom / 50.0
+            zoom *= zoom
+            zoom = 2.0 / zoom
+            zoom *= 2.0
+            
+            offset = region_data.view_camera_offset
+            
+            cam_xform = view_matrix.inverted()
+            location = cam_xform.translation
+            view_dir = cam_xform @ Vector((0, 0, -1)) - location
+            up_dir = cam_xform @ Vector((0, 1, 0)) - location
+            
+            camera_settings.position[:] = list(location)
+            camera_settings.view_dir[:] = list(view_dir)
+            camera_settings.up_dir[:] = list(up_dir)
+
+            camobj = space_data.camera
+            camdata = camobj.data
+            
+            camera_aspect = render.resolution_x / render.resolution_y
+            focal_length = camdata.lens
+            
+            sensor_width = camdata.sensor_width
+            if camera_aspect >= 1:  
+                sensor_height = sensor_width / camera_aspect 
+            else:
+                sensor_height = sensor_width
+                sensor_width = sensor_height * camera_aspect
+            
+            camera_settings.type = CameraSettings.PERSPECTIVE   # XXX can be ortho?
+            camera_settings.aspect = camera_aspect
+            camera_settings.fov_y = self._get_camera_vfov(camdata, camera_aspect)
+            camera_settings.clip_start = clip_start
+            
+            film_width, film_height = self._film_dimensions(camdata, viewport_aspect, zoom)
+            
+            x_aspect_comp = 1 if viewport_aspect > 1 else 1 / viewport_aspect
+            y_aspect_comp = viewport_aspect if viewport_aspect > 1 else 1
+            
+            #shift_x = ((offset[0] * 2 + (camdata.shift_x * x_aspect_comp)) / zoom) * film_width
+            #shift_y = ((offset[1] * 2 + (camdata.shift_y * y_aspect_comp)) / zoom) * film_height
+            
+            print('FILM', film_width, film_height)
+            #print('SHIFT', shift_x, shift_y)
+            print('SENSOR', sensor_width, sensor_height)
+            
+            film_normalized_width = film_width / (sensor_width/1000)
+            film_normalized_height = film_height / (sensor_height/1000)
+            print('FILM (normalized)', film_normalized_width, film_normalized_height)
+            
+            left = 0.5 - film_normalized_width/2 #- shift_x
+            right = 0.5 + film_normalized_width/2 #- shift_x
+            bottom = 0.5 - film_normalized_height/2 #- shift_y
+            top = 0.5 + film_normalized_height/2 #- shift_y
+            
+            camera_settings.border[:] = [left, bottom, right, top]
+            
+            print('CAM', camera_settings)
+            
+            """
+            
+
+            cam_xform = camobj.matrix_world
+            
+            # pixel aspect
+            #focal_length = camdata.lens / 1000
+            """
                 
         client_message = ClientMessage()
         client_message.type = ClientMessage.UPDATE_CAMERA
 
         send_protobuf(self.sock, client_message)
         send_protobuf(self.sock, camera_settings)
+        
+    def _get_camera_vfov(self, cam_data, aspect):
+        
+        hfov = vfov = None
+
+        if cam_data.sensor_fit == 'AUTO':
+            if aspect >= 1:
+                # Horizontal
+                hfov = cam_data.angle
+            else:
+                # Vertical
+                vfov = cam_data.angle
+        elif cam_data.sensor_fit == 'HORIZONTAL':
+            hfov = cam_data.angle
+        else:
+            vfov = cam_data.angle
+
+        # Blender provides FOV in radians
+        # OSPRay needs (vertical) FOV in degrees
+        if vfov is None:
+            image_plane_width = 2 * tan(hfov/2)
+            image_plane_height = image_plane_width / aspect
+            vfov = 2*atan(image_plane_height/2)
+                
+        return degrees(vfov)
 
     def send_updated_camera(self, cam_obj, border=None):
         # Final render from a camera. 
@@ -378,29 +508,7 @@ class Connection:
 
         if cam_data.type == 'PERSP':
             camera_settings.type = CameraSettings.PERSPECTIVE
-
-            hfov = vfov = None
-
-            if cam_data.sensor_fit == 'AUTO':
-                if self.framebuffer_aspect >= 1:
-                    # Horizontal
-                    hfov = cam_data.angle
-                else:
-                    # Vertical
-                    vfov = cam_data.angle
-            elif cam_data.sensor_fit == 'HORIZONTAL':
-                hfov = cam_data.angle
-            else:
-                vfov = cam_data.angle
-
-            # Blender provides FOV in radians
-            # OSPRay needs (vertical) FOV in degrees
-            if vfov is None:
-                image_plane_width = 2 * tan(hfov/2)
-                image_plane_height = image_plane_width / self.framebuffer_aspect
-                vfov = 2*atan(image_plane_height/2)
-                
-            camera_settings.fov_y = degrees(vfov)
+            camera_settings.fov_y = self._get_camera_vfov(cam_data, self.framebuffer_aspect)
 
         elif cam_data.type == 'ORTHO':
             camera_settings.type = CameraSettings.ORTHOGRAPHIC
@@ -408,6 +516,7 @@ class Connection:
 
         elif cam_data.type == 'PANO':
             camera_settings.type = CameraSettings.PANORAMIC
+            # XXX?
 
         else:
             raise ValueError('Unknown camera type "%s"' % cam_data.type)

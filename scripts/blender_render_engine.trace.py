@@ -144,6 +144,8 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         region_data = context.region_data
         space_data = context.space_data
         
+        scene = context.scene
+        
         # view clipping has no effect on these matrices
         print('window_matrix')
         print(region_data.window_matrix)
@@ -159,7 +161,9 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         print('view_location', region_data.view_location)       # View pivot point
         print('view_distance', region_data.view_distance)       # Distance to view location
         print('view_rotation', region_data.view_rotation)       # Quat
-        print('is_perspective %d' % (region_data.is_perspective))
+        print('view_camera_offset', list(region_data.view_camera_offset))
+        print('view_camera_zoom', region_data.view_camera_zoom)
+        print('is_perspective %d' % region_data.is_perspective)
         
         cam_xform = region_data.view_matrix.inverted()
         location = cam_xform.translation
@@ -174,13 +178,11 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         # view3d.perspective_matrix = window_matrix * view_matrix
         perspective_matrix = region_data.perspective_matrix
         
-        # Borrowed from blendseed source code:
-        # Borrowed from Cycles source code, since for something this nutty there's no reason to reinvent the wheel
-        #zoom = 4 / ((math.sqrt(2) + region_data.view_camera_zoom / 50) ** 2)
-        #print('zoom (derived)', zoom)
-        
         print('space_data:')
         print('camera', space_data.camera)
+        camobj = space_data.camera
+        camdata = camobj.data
+        print('... shift', camdata.shift_x, camdata.shift_y)
         print('use_local_camera', space_data.use_local_camera)  # No relation to camera view yes/no
         print('lens', space_data.lens)                          # Always set to viewport lens setting, even when in camera view
         print('clip_start', space_data.clip_start)

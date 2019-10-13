@@ -112,7 +112,7 @@ class ReceiveRenderResultThread(threading.Thread):
                 self.log.error('(RRR thread) Connection reset by peer, exiting')
                 break
 
-            self.log.debug('(RRR thread) RenderResult(%s):\n%s' % (render_result.type, render_result))
+            #self.log.debug('(RRR thread) RenderResult(%s):\n%s' % (render_result.type, render_result))
 
             if render_result.type == RenderResult.FRAME:
 
@@ -128,7 +128,6 @@ class ReceiveRenderResultThread(threading.Thread):
 
             else:
                 # DONE, CANCELED
-                print('RRR: ', render_result)
                 self.result_queue.put((render_result, None))
 
                 if render_result.type == RenderResult.CANCELED:     # XXX why not break on DONE as well?
@@ -170,10 +169,12 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         self.rendering_active = False        
         self.receive_render_result_thread = None
 
-        self.last_bcam = None
         self.viewport_width = self.viewport_height = None
+        
         self.last_view_matrix = None
         self.last_ortho_view_height = None
+        self.last_view_camera_zoom = None
+        self.last_view_camera_offset = None
 
         self.draw_data = None        
     
@@ -422,11 +423,18 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         # XXX clipping and focal length change should trigger camera update
 
         view_matrix = region_data.view_matrix
-        if update_camera or view_matrix != self.last_view_matrix or (region_data.view_perspective == 'ORTHO' and region_data.view_distance != self.last_ortho_view_height):
+        if update_camera or view_matrix != self.last_view_matrix or \
+            (region_data.view_perspective == 'ORTHO' and region_data.view_distance != self.last_ortho_view_height) or \
+            (region_data.view_perspective == 'CAMERA' and (region_data.view_camera_zoom != self.last_view_camera_zoom or list(region_data.view_camera_offset) != self.last_view_camera_offset)):
+                
             self.log.info('view_draw(): view matrix changed, or camera updated')
-            self.connection.send_updated_camera_for_interactive_view(region_data, space_data, self.viewport_width, self.viewport_height)
+            self.connection.send_updated_camera_for_interactive_view(scene.render, region_data, space_data, self.viewport_width, self.viewport_height)
+            
             self.last_view_matrix = view_matrix.copy()
             self.last_ortho_view_height = region_data.view_distance
+            self.last_view_camera_zoom = region_data.view_camera_zoom
+            self.last_view_camera_offset = list(region_data.view_camera_offset)
+            
             restart_rendering = True
 
         # Restart rendering if needed

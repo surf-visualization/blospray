@@ -3,7 +3,7 @@ from logging import getLogger
 
 PROTOCOL_VERSION = 2
 
-VERBOSE_PROTOBUF = True
+VERBOSE_PROTOBUF = False
 
 OSP_FB_NONE = 0 
 OSP_FB_RGBA8 = 1    # one dword per pixel: rgb+alpha, each one byte
