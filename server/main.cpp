@@ -1920,16 +1920,19 @@ update_camera(CameraSettings& camera_settings)
     switch (camera_settings.type())
     {
         case CameraSettings::PERSPECTIVE:
+            printf("... perspective\n");
             camera = ospNewCamera("perspective");
             ospSetFloat(camera, "fovy",  camera_settings.fov_y());  // Degrees
             break;
 
         case CameraSettings::ORTHOGRAPHIC:
+            printf("... orthographic\n");
             camera = ospNewCamera("orthographic");
             ospSetFloat(camera, "height", camera_settings.height());
             break;
 
         case CameraSettings::PANORAMIC:
+            printf("... panoramic\n");
             camera = ospNewCamera("panoramic");
             break;
 

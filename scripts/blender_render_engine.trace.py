@@ -2,6 +2,8 @@
 # blender -P blender_render_engine.trace.py  -p 900 1000 3000 1500 
 import bpy
 import bgl
+from mathutils import Vector
+
 import math, time
 import numpy
 
@@ -143,18 +145,32 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         space_data = context.space_data
         
         # view clipping has no effect on these matrices
-        print('WINDOW', region_data.window_matrix)
-        print('PERSPECTIVE', region_data.perspective_matrix)    # = window * view
-        print('VIEW', region_data.view_matrix)
+        print('window_matrix')
+        print(region_data.window_matrix)
+        print('perspective_matrix')
+        print(region_data.perspective_matrix)    # = window * view
+        print('view_matrix')
+        print(region_data.view_matrix)
         # view_matrix = identity when in top view.
         # view_matrix = model-view matrix,  i.e. world to camera
         
         print('region_data:')
         print('view_perspective', region_data.view_perspective) # PERSP (regular 3D view not tied to camera), CAMERA (view from camera) or ORTHO (one of top, etc)
-        print('view_location', region_data.view_location)       # Look at point
+        print('view_location', region_data.view_location)       # View pivot point
+        print('view_distance', region_data.view_distance)       # Distance to view location
         print('view_rotation', region_data.view_rotation)       # Quat
         print('is_perspective %d' % (region_data.is_perspective))
         
+        cam_xform = region_data.view_matrix.inverted()
+        location = cam_xform.translation
+        position = list(location)
+        view_dir = list(cam_xform @ Vector((0, 0, -1)) - location)
+        up_dir = list(cam_xform @ Vector((0, 1, 0)) - location)
+        print('derived camera:')
+        print('position', position)
+        print('view_dir', view_dir)
+        print('up_dir', up_dir)
+
         # view3d.perspective_matrix = window_matrix * view_matrix
         perspective_matrix = region_data.perspective_matrix
         

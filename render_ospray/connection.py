@@ -280,40 +280,81 @@ class Connection:
         client_message.uint_value3 = height
         send_protobuf(self.sock, client_message)
 
-    def send_updated_camera_for_interactive_view(self, view_matrix, focal_length, clip_start, viewport_width, viewport_height, border=None):
+    def send_updated_camera_for_interactive_view(self, region_data, space_data, viewport_width, viewport_height):
 
         camera_settings = CameraSettings()
         camera_settings.object_name = '<interactive>'
         camera_settings.camera_name = '<none>'
 
-        # XXX other types
-        camera_settings.type = CameraSettings.PERSPECTIVE
-        
         # Blender provides FOV in radians
-        # OSPRay needs (vertical) FOV in degrees        
-        # Holy moly, needed sources from Blender, Cycles and Blenderseed to get a working set of formulas...
-        aspect = viewport_width / viewport_height       
-        zoom = 2.25
-        sensor_width = 32 * zoom   
-        if aspect >= 1:  
-            sensor_height = sensor_width / aspect
-        else:
-            sensor_height = sensor_width
-        vfov = 2 * atan((sensor_height/2)/focal_length)        
+        # OSPRay needs (vertical) FOV in degrees      
 
-        camera_settings.fov_y = degrees(vfov)        
-        camera_settings.aspect = aspect
-        camera_settings.clip_start = clip_start
+        aspect = viewport_width / viewport_height
+        view_matrix = region_data.view_matrix
+        focal_length = space_data.lens
+        clip_start = space_data.clip_start
 
-        cam_xform = view_matrix.inverted()
-        location = cam_xform.translation
-        camera_settings.position[:] = list(location)
-        camera_settings.view_dir[:] = list(cam_xform @ Vector((0, 0, -1)) - location)
-        camera_settings.up_dir[:] = list(cam_xform @ Vector((0, 1, 0)) - location)
+        # Holy moly, needed sources from Cycles and Blenderseed to get a working set of formulas...
+        
+        if region_data.view_perspective == 'PERSP':
 
-        camera_settings.dof_focus_distance = 0
-        camera_settings.dof_aperture = 0.0
+            zoom = 2.25
+            sensor_width = 32 * zoom
+            if aspect >= 1:  
+                sensor_height = sensor_width / aspect
+            else:
+                sensor_height = sensor_width
+            vfov = 2 * atan((sensor_height/2)/focal_length)        
+
+            camera_settings.type = CameraSettings.PERSPECTIVE
+            camera_settings.aspect = aspect
+            camera_settings.clip_start = clip_start
+
+            camera_settings.fov_y = degrees(vfov)
+
+            cam_xform = view_matrix.inverted()
+            location = cam_xform.translation
+            camera_settings.position[:] = list(location)
+            camera_settings.view_dir[:] = list(cam_xform @ Vector((0, 0, -1)) - location)
+            camera_settings.up_dir[:] = list(cam_xform @ Vector((0, 1, 0)) - location)
+
+            camera_settings.dof_focus_distance = 0
+            camera_settings.dof_aperture = 0.0
+
+        elif region_data.view_perspective == 'ORTHO':
+
+            camera_settings.type = CameraSettings.ORTHOGRAPHIC
+            camera_settings.aspect = aspect
+            camera_settings.clip_start = clip_start
+
+            zoom = 2.25
+            extent_base = space_data.region_3d.view_distance * 32.0 / focal_length
+            sensor_width = zoom * extent_base
+            if aspect >= 1:
+                sensor_height = sensor_width / aspect
+            else:
+                sensor_height = sensor_width
+            camera_settings.height = sensor_height
+
+            cam_xform = view_matrix.inverted()
+            location = cam_xform.translation
+            view_dir = cam_xform @ Vector((0, 0, -1)) - location
+            up_dir = cam_xform @ Vector((0, 1, 0)) - location
             
+            # XXX
+            location += (-view_dir)*1000
+            
+            camera_settings.position[:] = list(location)
+            camera_settings.view_dir[:] = list(view_dir)
+            camera_settings.up_dir[:] = list(up_dir)
+
+            camera_settings.dof_focus_distance = 0
+            camera_settings.dof_aperture = 0.0
+
+        else:
+            #assert False
+            pass
+                
         client_message = ClientMessage()
         client_message.type = ClientMessage.UPDATE_CAMERA
 

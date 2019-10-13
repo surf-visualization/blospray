@@ -173,6 +173,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         self.last_bcam = None
         self.viewport_width = self.viewport_height = None
         self.last_view_matrix = None
+        self.last_ortho_view_height = None
 
         self.draw_data = None        
     
@@ -421,10 +422,11 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         # XXX clipping and focal length change should trigger camera update
 
         view_matrix = region_data.view_matrix
-        if view_matrix != self.last_view_matrix or update_camera:
+        if update_camera or view_matrix != self.last_view_matrix or (region_data.view_perspective == 'ORTHO' and region_data.view_distance != self.last_ortho_view_height):
             self.log.info('view_draw(): view matrix changed, or camera updated')
-            self.connection.send_updated_camera_for_interactive_view(view_matrix, space_data.lens, space_data.clip_start, self.viewport_width, self.viewport_height)
+            self.connection.send_updated_camera_for_interactive_view(region_data, space_data, self.viewport_width, self.viewport_height)
             self.last_view_matrix = view_matrix.copy()
+            self.last_ortho_view_height = region_data.view_distance
             restart_rendering = True
 
         # Restart rendering if needed
