@@ -39,7 +39,7 @@ if "bpy" in locals():
     #imp.reload(render)
     #imp.reload(update_files)
     
-import sys, logging, socket, threading, time, traceback
+import sys, logging, socket, threading, time, traceback, weakref
 from math import tan, atan, degrees
 from queue import Queue
 
@@ -93,7 +93,7 @@ class ReceiveRenderResultThread(threading.Thread):
 
     def __init__(self, engine, connection, result_queue, log):
         threading.Thread.__init__(self)
-        self.engine = engine
+        self.engine_ref = weakref.ref(engine)
         self.connection = connection
         self.result_queue = result_queue
         self.log = log
@@ -134,11 +134,21 @@ class ReceiveRenderResultThread(threading.Thread):
                     break         
 
             self.log.debug('(RRR thread) Tagging for view_draw()')
-            try:
-                self.engine.tag_redraw()
-            except ReferenceError:
-                # engine might go away
+            
+            engine = self.engine_ref()
+            if engine is not None:
+                try:                
+                    engine.tag_redraw()
+                except ReferenceError:
+                    #  StructRNA of type OsprayRenderEngine has been removed
+                    break
+                engine = None
+            else:
+                # Engine has gone away
                 break
+                
+        self.log.error('(RRR thread) Done, closing connection')
+        self.connection.close()
 
 
     
@@ -181,14 +191,17 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
     # When the render engine instance is destroyed, this is called. Clean up any
     # render engine data here, for example stopping running render threads.    
     def __del__(self):
+        print('OsprayRenderEngine.__del__()')
         logging.getLogger('blospray').info('[%s] OsprayRenderEngine.__del__() [%s]' % (time.asctime(), self))
+        
+        print(self.__dict__.keys())
 
         #if self.rendering_active:
         #    self.receive_render_result_thread.stop()
 
         # XXX doesn't work, apparently self.connection is no longer available here?
-        #if self.connection is not None:
-        #    self.connection.close()
+        if hasattr(self, 'connection') and self.connection is not None:        
+            self.connection.close()
 
     def connect(self, depsgraph):
         assert self.connection is None
@@ -465,9 +478,9 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
 
                 rf = render_result.reduction_factor
                 if rf > 1:
-                    self.connection.engine.update_stats('', 'Rendering sample %d/%d (reduced %dx)' % (render_result.sample,self.num_samples, rf))
+                    self.update_stats('', 'Rendering sample %d/%d (reduced %dx)' % (render_result.sample,self.num_samples, rf))
                 else:
-                    self.connection.engine.update_stats('', 'Rendering sample %d/%d' % (render_result.sample,self.num_samples))
+                    self.update_stats('', 'Rendering sample %d/%d' % (render_result.sample,self.num_samples))
                 
                 image_dimensions = render_result.width, render_result.height
 
@@ -481,7 +494,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             elif render_result.type == RenderResult.DONE:
                 self.log.info('DONE')
                 self.rendering_active = False
-                self.connection.engine.update_stats('', 'Rendering Done')
+                self.update_stats('', 'Rendering Done')
 
             elif render_result.type == RenderResult.CANCELED:
                 self.log.info('CANCELED')

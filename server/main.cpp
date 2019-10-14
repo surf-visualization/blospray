@@ -2555,6 +2555,11 @@ handle_client_message(TCPSocket *sock, const ClientMessage& client_message, bool
             printf("Got BYE message\n");
             ensure_idle_render_mode();
             sock->close();
+            if (render_mode == RM_INTERACTIVE && render_output_socket != nullptr)
+            {
+                render_output_socket->close();
+                render_output_socket = nullptr;
+            }
             connection_done = true;
             return true;
 
@@ -2563,8 +2568,13 @@ handle_client_message(TCPSocket *sock, const ClientMessage& client_message, bool
             // XXX exit server
             printf("Got QUIT message\n");
             ensure_idle_render_mode();
-            connection_done = true;
             sock->close();
+            if (render_mode == RM_INTERACTIVE && render_output_socket != nullptr)
+            {
+                render_output_socket->close();
+                render_output_socket = nullptr;
+            }
+            connection_done = true;
             return true;
 
         case ClientMessage::UPDATE_RENDERER_TYPE:
@@ -2838,7 +2848,7 @@ handle_connection(TCPSocket *sock)
                 return false;
             }
 
-            if (connection_done)    // XXX yuck
+            if (connection_done)
                 return true;
         }
 

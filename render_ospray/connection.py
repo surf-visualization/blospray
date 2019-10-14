@@ -24,7 +24,7 @@ import bpy, bmesh
 #from bgl import *
 from mathutils import Vector, Matrix
 
-import sys, array, json, logging, os, select, socket, time
+import sys, array, json, logging, os, select, socket, time, weakref
 from math import tan, atan, degrees, radians, sqrt
 from struct import pack, unpack
 
@@ -86,7 +86,7 @@ def customproperties2dict(obj, filepath_keys=['file']):
 class Connection:
 
     def __init__(self, engine, host, port):
-        self.engine = engine
+        self.engine = weakref.ref(engine)
 
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
         self.host = host
@@ -95,7 +95,7 @@ class Connection:
         self.framebuffer_width = self.framebuffer_height = None
 
     def connect(self):
-        self.engine.update_stats('', 'Connecting')
+        self.engine().update_stats('', 'Connecting')
 
         try:            
             self.sock.connect((self.host, self.port))            
@@ -578,7 +578,7 @@ class Connection:
     def send_scene(self, blend_data, depsgraph):
 
         msg = 'Sending scene'
-        self.engine.update_stats('', msg)
+        self.engine().update_stats('', msg)
         print(msg)    
 
         scene = depsgraph.scene
@@ -604,7 +604,7 @@ class Connection:
 
     def send_updated_light(self, blend_data, depsgraph, obj):
 
-        self.engine.update_stats('', 'Light %s' % obj.name)
+        self.engine().update_stats('', 'Light %s' % obj.name)
 
         TYPE2ENUM = dict(POINT=LightSettings.POINT, SUN=LightSettings.SUN, SPOT=LightSettings.SPOT, AREA=LightSettings.AREA)
 
@@ -1028,7 +1028,7 @@ class Connection:
 
     def update_plugin_instance(self, name, plugin_type, plugin_name, plugin_parameters, custom_properties):
         
-        self.engine.update_stats('', 'Updating plugin instance %s (type: %s)' % (name, plugin_type))
+        self.engine().update_stats('', 'Updating plugin instance %s (type: %s)' % (name, plugin_type))
         
         type2enum = dict(
             geometry = UpdatePluginInstance.GEOMETRY,
@@ -1077,7 +1077,7 @@ class Connection:
         # we choose ourselves. But props get copied when duplicating
         # See https://devtalk.blender.org/t/universal-unique-id-per-object/363/3
 
-        self.engine.update_stats('', 'Updating Blender MESH DATA "%s"' % mesh.name)
+        self.engine().update_stats('', 'Updating Blender MESH DATA "%s"' % mesh.name)
         
         client_message = ClientMessage()
         client_message.type = ClientMessage.UPDATE_BLENDER_MESH       
@@ -1221,7 +1221,7 @@ class Connection:
 
         t0 = time.time()
 
-        result = self.engine.begin_result(0, 0, self.framebuffer_width, self.framebuffer_height)
+        result = self.engine().begin_result(0, 0, self.framebuffer_width, self.framebuffer_height)
         # Only Combined and Depth seem to be available
         # https://docs.blender.org/manual/en/latest/render/layers/passes.html
         # Combined = lighting only        
@@ -1232,7 +1232,7 @@ class Connection:
         sample = 1
         cancel_sent = False
 
-        self.engine.update_stats('', 'Rendering sample %d/%d' % (sample, self.render_samples))
+        self.engine().update_stats('', 'Rendering sample %d/%d' % (sample, self.render_samples))
 
         # XXX this loop blocks too often, might need to move it to a separate thread,
         # but OTOH we're already using select() to detect when to read
@@ -1289,33 +1289,33 @@ class Connection:
                     # Remove file
                     os.unlink(FBFILE)
 
-                    self.engine.update_result(result)
-                    self.engine.update_progress(sample/self.render_samples)
-                    self.engine.update_memory_stats(memory_used=render_result.memory_usage, memory_peak=render_result.peak_memory_usage)
+                    self.engine().update_result(result)
+                    self.engine().update_progress(sample/self.render_samples)
+                    self.engine().update_memory_stats(memory_used=render_result.memory_usage, memory_peak=render_result.peak_memory_usage)
 
                     #print('[%6.3f] update_result() done' % (time.time()-t0))                
                     
                     sample += 1
                     
-                    self.engine.update_stats(
+                    self.engine().update_stats(
                         'Server %.1fM (peak %.1fM)' % (render_result.memory_usage, render_result.peak_memory_usage),
                         'Variance %.3f | Rendering sample %d/%d' % (render_result.variance, sample, self.render_samples))                
 
                 elif render_result.type == RenderResult.CANCELED:
                     print('Rendering CANCELED!')
-                    self.engine.update_stats('', 'Rendering canceled')
+                    self.engine().update_stats('', 'Rendering canceled')
                     cancel_sent = True
                     break
 
                 elif render_result.type == RenderResult.DONE:
                     # XXX this message is never really shown, the final timing stats get shown instead
-                    self.engine.update_stats('', 'Variance %.3f | Rendering done' % render_result.variance)
+                    self.engine().update_stats('', 'Variance %.3f | Rendering done' % render_result.variance)
                     print('Rendering done!')
                     break
 
             # Check if render was canceled
 
-            if self.engine.test_break() and not cancel_sent:
+            if self.engine().test_break() and not cancel_sent:
                 client_message = ClientMessage()
                 client_message.type = ClientMessage.CANCEL_RENDERING
                 send_protobuf(self.sock, client_message)
@@ -1323,7 +1323,7 @@ class Connection:
 
             time.sleep(0.001)
 
-        self.engine.end_result(result)
+        self.engine().end_result(result)
 
         print('Done with render loop')
 
