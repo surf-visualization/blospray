@@ -2784,7 +2784,7 @@ start_rendering(const ClientMessage& client_message)
     reduced_framebuffer_height = framebuffer_height / framebuffer_reduction_factor;
     
     printf("Rendering %d samples (%s):\n", render_samples, mode.c_str());
-    printf("[%d/%d@%d] ", 1, render_samples, framebuffer_reduction_factor);
+    printf("[1:%d] ", framebuffer_reduction_factor);
     fflush(stdout);    
 
     gettimeofday(&frame_start_time, NULL);
@@ -3007,10 +3007,13 @@ handle_connection(TCPSocket *sock)
                 // Fire off render of next sample frame
                 current_sample++;
             }        
-
-            printf("[%d/%d@%d] ", current_sample, render_samples, framebuffer_reduction_factor);
+            
+            if (framebuffer_reduction_factor > 1)
+                printf("[1:%d] ", framebuffer_reduction_factor);
+            else
+                printf("[%d/%d] ", current_sample, render_samples);
             fflush(stdout);
-
+            
             gettimeofday(&frame_start_time, NULL);
 
             render_future = ospRenderFrame(framebuffers[framebuffer_reduction_factor], renderer, camera, world);
