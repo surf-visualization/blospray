@@ -2997,7 +2997,7 @@ handle_connection(TCPSocket *sock)
             if (framebuffer_reduction_factor > 1)
             {
                 // Redo first sample, but in higher resolution
-                framebuffer_reduction_factor--;
+                framebuffer_reduction_factor >>= 1;
                 reduced_framebuffer_width = framebuffer_width / framebuffer_reduction_factor;
                 reduced_framebuffer_height = framebuffer_height / framebuffer_reduction_factor; 
                 ospResetAccumulation(framebuffers[framebuffer_reduction_factor]);
