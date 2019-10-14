@@ -118,6 +118,5 @@ Look into
   Plus look at overlap in functionality with our own plugins. It seems
   ospray plugins need an ispc component, which makes them less attractive
   to use for end users (yet another tool/syntax to learn).
-- ospray 2.0 async rendering support
 - ospray 2.0 model clipping (if it arrives)
 - ospray_sg

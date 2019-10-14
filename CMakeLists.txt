@@ -43,6 +43,7 @@ option(ADDRESS_SANITIZER "Compile with GCC's AddressSanitizer" OFF)
 option(VTK_QC_BOUND "Add support to generate a simplified bound using VTK" OFF)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmakemodules")
+include(FindOpenEXR)
 include(FindOpenImageIO)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)

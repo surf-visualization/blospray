@@ -41,7 +41,7 @@ add_custom_command(
     COMMENT 
         "Generating C++ and Python protobuf sources"
     VERBATIM)
-
+    
 add_library(libblospray
     SHARED
     bounding_mesh.cpp
@@ -60,6 +60,8 @@ set_target_properties(libblospray
 target_include_directories(libblospray
     PUBLIC
     ${PROTOBUF_INCLUDE_DIRS}
+    ${OPENEXR_INCLUDE_DIRS}
+    ${OPENIMAGEIO_INCLUDE_DIRS}
     ${CMAKE_CURRENT_BINARY_DIR}
     ${CMAKE_BINARY_DIR}
 )
