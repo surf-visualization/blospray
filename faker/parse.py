@@ -263,19 +263,31 @@ try:
                 obj.set_property('<type>', args['type'], False)
                 
             elif call == 'ospNewGeometricModel':   
-                geomobj = addr2object[args['geometry']]
+                geomaddr = args['geometry']
+                if geomaddr not in addr2object:
+                    print('WARNING: Unknown geometry %d for call to ospNewGeometricModel()' % geomaddr)
+                    continue
+                geomobj = addr2object[geomaddr]
                 obj.add_edge('geometry', geomobj, False)
                 obj.add_reference(geomobj)                
                 reference_counts[args['geometry']] += 1
                 
             elif call == 'ospNewVolumetricModel':
-                volobj = addr2object[args['volume']]
+                voladdr = args['volume']
+                if voladdr not in addr2object:
+                    print('WARNING: Unknown volume %d for call to ospNewVolumetricModel()' % voladdr)
+                    continue
+                volobj = addr2object[voladdr]
                 obj.add_edge('volume', volobj, False)
                 obj.add_reference(volobj)
                 reference_counts[args['volume']] += 1
                 
             elif call == 'ospNewInstance':
-                groupobj = addr2object[args['group']]
+                groupaddr = args['group']
+                if groupaddr not in addr2object:
+                    print('WARNING: Unknown group %d for call to ospNewInstance()' % groupaddr)
+                    continue
+                groupobj = addr2object[groupaddr]
                 obj.add_edge('instance', groupobj, False)
                 obj.add_reference(groupobj)
                 reference_counts[args['group']] += 1

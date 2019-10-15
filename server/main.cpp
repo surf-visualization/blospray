@@ -109,7 +109,7 @@ enum RenderMode
 RenderMode      render_mode = RM_IDLE;
 int             render_samples = 1;
 int             current_sample;
-OSPFuture       render_future;
+OSPFuture       render_future = nullptr;
 struct timeval  rendering_start_time, frame_start_time;
 bool            cancel_rendering;
 
@@ -2513,13 +2513,18 @@ ensure_idle_render_mode()
     if (render_mode == RM_IDLE)
         return;
 
-    ospCancel(render_future);    
-    ospRelease(render_future);
-    render_future = nullptr;
+    if (render_future != nullptr)
+    {
+        ospCancel(render_future);
+        //ospWait(render_future, OSP_TASK_FINISHED);
 
-    render_mode = RM_IDLE;
+        ospRelease(render_future);
+        render_future = nullptr;
 
-    printf("Canceled active render\n");
+        render_mode = RM_IDLE;
+
+        printf("Canceled active render\n");
+    }
 
     // XXX
     // Re-create framebuffer to work around https://github.com/ospray/ospray/issues/367
@@ -2801,6 +2806,8 @@ start_rendering(const ClientMessage& client_message)
 
     gettimeofday(&frame_start_time, NULL);
     render_future = ospRenderFrame(framebuffers[framebuffer_reduction_factor], renderer, camera, world);
+    if (render_future == nullptr)
+        printf("ERROR: ospRenderFrame() returned NULL!\n");
 }
    
 // Connection handling
@@ -3031,6 +3038,8 @@ handle_connection(TCPSocket *sock)
             gettimeofday(&frame_start_time, NULL);
 
             render_future = ospRenderFrame(framebuffers[framebuffer_reduction_factor], renderer, camera, world);
+            if (render_future == nullptr)
+                printf("ERROR: ospRenderFrame() returned NULL!\n");
         }
     }
 

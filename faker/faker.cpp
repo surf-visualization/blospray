@@ -238,7 +238,12 @@ find_or_load_call(const char *callname)
         return it->second;
     
     void *ptr = dlsym(RTLD_NEXT, callname);
-    // XXX check ptr
+
+    if (ptr == nullptr)
+    {
+        printf("ERROR: symbol '%s' not found:\n", callname);
+        printf("%s\n", dlerror());
+    }
     
     library_pointers[callname] = ptr;
     
@@ -847,6 +852,7 @@ ospSetParam(OSPObject obj, const char *id, OSPDataType type, const void *mem)
         break;
 
     case OSP_CAMERA:    
+    case OSP_DATA:
     case OSP_GEOMETRY:
     case OSP_GEOMETRIC_MODEL:
     case OSP_GROUP:

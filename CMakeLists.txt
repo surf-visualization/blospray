@@ -34,7 +34,7 @@ project(blospray
     DESCRIPTION "Blender external rendering engine using Intel OSPRay")
 
 
-option(BUILD_FAKER "Build faker shared library" OFF)
+option(BUILD_FAKER "Build faker shared library" ON)
 option(PLUGIN_COSMOGRID "Build cosmogrid scene plugin (needs uhdf5 and HDF5)" OFF)
 option(PLUGIN_PLY "Build PLY geometry plugin (needs rply 1.1.4 sources)" OFF)
 option(PLUGIN_ASSIMP "Build Assimp geometry plugin (needs Assimp)" OFF)

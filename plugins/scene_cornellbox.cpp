@@ -39,7 +39,7 @@ generate(GenerateFunctionResult &result, PluginState *state)
     GroupInstances &instances = state->group_instances;
 
     auto builder = ospray::testing::newBuilder("cornell_box");
-    ospray::testing::setParam(builder, "rendererType", state->renderer.c_str());
+    ospray::testing::setParam(builder, "rendererType", state->renderer);
     ospray::testing::commit(builder);
 
     auto cpp_group = ospray::testing::buildGroup(builder);

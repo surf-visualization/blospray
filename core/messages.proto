@@ -44,7 +44,8 @@ message ClientMessage
         DELETE_PLUGIN_INSTANCE = 32;
         
         START_RENDERING = 40;
-        CANCEL_RENDERING = 41;
+        PAUSE_RENDERING = 41;           // Interactive rendering only
+        CANCEL_RENDERING = 42;
         REQUEST_RENDER_OUTPUT = 49;
         
         GET_SERVER_STATE = 50;

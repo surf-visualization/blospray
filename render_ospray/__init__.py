@@ -149,6 +149,7 @@ class ReceiveRenderResultThread(threading.Thread):
                 client_message.type = ClientMessage.CANCEL_RENDERING
                 self.connection.send_protobuf(client_message)                    
                 self._cancel.clear()
+                break
 
             # Check for new incoming data
             r, w, e = select(rsocks, [], [], 0.001)
@@ -404,8 +405,11 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
     def cancel_render_thread(self):
         assert self.receive_render_result_thread is not None
         self.log.debug('cancel_render_thread(): Waiting for render thread to cancel')
+        t0= time.time()
         self.receive_render_result_thread.cancel()
         self.receive_render_result_thread.join()
+        t1 = time.time()
+        print('***************** CANCEL AND JOIN: %f' % (t1-t0))
         self.receive_render_result_thread = None
         self.log.debug('cancel_render_thread(): Render thread canceled')         
     
