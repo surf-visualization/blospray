@@ -296,7 +296,10 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         logging.getLogger('blospray').info('[%s] OsprayRenderEngine.__del__() [%s]' % (time.asctime(), self))
 
         if hasattr(self, 'receive_render_result_thread') and self.receive_render_result_thread is not None:
+            t0 = time.time()
             self.cancel_render_thread()
+            t1 = time.time()
+            print('************************************* %f' % (t1-t0))
             
         # XXX doesn't work, apparently self.connection is no longer available here?
         if hasattr(self, 'connection') and self.connection is not None:        
@@ -528,7 +531,10 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
 
             if self.receive_render_result_thread is not None:
                 self.log.debug('view_draw(): canceling render thread')
+                t0 = time.time()
                 self.cancel_render_thread()
+                t1 = time.time()
+                print('************************************* %f' % (t1-t0))
 
             self.viewport_width = viewport_width
             self.viewport_height = viewport_height
@@ -549,7 +555,10 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
 
             if self.receive_render_result_thread is not None:
                 self.log.debug('view_draw(): canceling render thread')
+                t0 = time.time()
                 self.cancel_render_thread()
+                t1 = time.time()
+                print('************************************* %f' % (t1-t0))
 
             self.connection.send_updated_camera_for_interactive_view(scene.render, region_data, space_data, self.viewport_width, self.viewport_height)
             

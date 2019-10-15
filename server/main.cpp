@@ -59,6 +59,7 @@ std::string     current_renderer_type;
 OSPWorld        world;
 OSPCamera       camera = nullptr;
 std::vector<OSPFrameBuffer>  framebuffers;    // 0 = nullptr (unused), 1 = FB for reduction factor 1, etc.
+bool            recreate_framebuffers = false;  // XXX workaround for ospCancel screwing up the framebuffer
 
 struct SceneMaterial
 {
@@ -2751,7 +2752,7 @@ start_rendering(const ClientMessage& client_message)
     prepare_scene();   
 
     // Prepare framebuffers, if needed
-    if (framebuffers.size()-1 != framebuffer_reduction_factor)
+    if (framebuffers.size()-1 != framebuffer_reduction_factor || recreate_framebuffers)
     {
         OSPFrameBuffer framebuffer;
 
@@ -2787,6 +2788,8 @@ start_rendering(const ClientMessage& client_message)
 
             framebuffers.push_back(framebuffer);
         }
+
+        recreate_framebuffers = false;
     }
 
     reduced_framebuffer_width = framebuffer_width / framebuffer_reduction_factor;
@@ -2862,6 +2865,8 @@ handle_connection(TCPSocket *sock)
             // https://github.com/ospray/ospray/issues/368
             ospCancel(render_future);
             ospWait(render_future, OSP_TASK_FINISHED);
+
+            recreate_framebuffers = true;
             
             ospRelease(render_future);
             render_future = nullptr;
@@ -2914,7 +2919,7 @@ handle_connection(TCPSocket *sock)
         {        
             // Save framebuffer to file
 
-            sprintf(fname, "/dev/shm/blosprayfb%04d.exr", current_sample);
+            sprintf(fname, "/dev/shm/blospray-final-%04d.exr", current_sample);
 
             const float *fb = (float*)ospMapFrameBuffer(framebuffer, OSP_FB_COLOR);            
             writeEXRFramebuffer(fname, reduced_framebuffer_width, reduced_framebuffer_height, fb, framebuffer_compression);
@@ -2963,7 +2968,7 @@ handle_connection(TCPSocket *sock)
 
             if (keep_framebuffer_files)
             {
-                sprintf(fname, "/dev/shm/blosprayfb%04d-%d.exr", current_sample, framebuffer_reduction_factor);                    
+                sprintf(fname, "/dev/shm/blospray-interactive-%04d-%d.exr", current_sample, framebuffer_reduction_factor);                    
                 writeEXRFramebuffer(fname, reduced_framebuffer_width, reduced_framebuffer_height, fb, framebuffer_compression);
             }
             
