@@ -2751,12 +2751,7 @@ start_rendering(const ClientMessage& client_message)
         framebuffer_reduction_factor = client_message.uint_value2();
     }
 
-    cancel_rendering = false;
-
-    // Set up world and scene objects
-    prepare_scene();   
-
-    // Prepare framebuffers, if needed
+    // Prepare framebuffer(s), if needed
     if (framebuffers.size()-1 != framebuffer_reduction_factor || recreate_framebuffers)
     {
         OSPFrameBuffer framebuffer;
@@ -2799,7 +2794,12 @@ start_rendering(const ClientMessage& client_message)
 
     reduced_framebuffer_width = framebuffer_width / framebuffer_reduction_factor;
     reduced_framebuffer_height = framebuffer_height / framebuffer_reduction_factor;
-    
+        
+    cancel_rendering = false;
+
+    // Set up world and scene objects
+    prepare_scene();   
+
     printf("Rendering %d samples (%s):\n", render_samples, mode.c_str());
     printf("[1:%d] ", framebuffer_reduction_factor);
     fflush(stdout);    

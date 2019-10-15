@@ -104,12 +104,14 @@ load_file(GenerateFunctionResult &result, PluginState *state)
     const std::string& file = state->parameters["file"];
     char        msg[1024];
 
+    printf("... Loading %s\n", file.c_str());
+
     Assimp::Importer importer;
     const aiScene* scene = importer.ReadFile(file.c_str(), aiProcess_Triangulate);
 
     if (!scene)
     {
-        sprintf(msg, "Assimp could not open file %s: %s", file.c_str(), importer.GetErrorString());
+        sprintf(msg, "Assimp could not open file '%s': %s", file.c_str(), importer.GetErrorString());
         result.set_success(false);
         result.set_message(msg);
         return;

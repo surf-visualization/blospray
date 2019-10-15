@@ -128,7 +128,7 @@ BoundingMesh::simplify_qc(const float *vertices, int num_vertices, const uint32_
 
     vtkSmartPointer<vtkPolyData> decimated = vtkSmartPointer<vtkPolyData>::New();
     decimated->ShallowCopy(trifilter->GetOutput());
-    printf("decimated: %d pts, %d polys\n", decimated->GetNumberOfPoints(), decimated->GetNumberOfPolys());
+    printf("... Decimated (QC): %d vertices, %d polygons\n", decimated->GetNumberOfPoints(), decimated->GetNumberOfPolys());
 
     points = decimated->GetPoints();
     polys = decimated->GetPolys();

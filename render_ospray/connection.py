@@ -24,7 +24,7 @@ import bpy, bmesh
 #from bgl import *
 from mathutils import Vector, Matrix
 
-import sys, array, json, logging, os, select, socket, time, weakref
+import sys, array, json, logging, os, re, select, socket, time, weakref
 from math import tan, atan, degrees, radians, sqrt
 from struct import pack, unpack
 
@@ -241,13 +241,30 @@ class Connection:
     # Scene export
     #
 
+    def _substitute_environment_values(self, value):
+        # XXX Handle multiple vars in the same value
+        pat = re.compile('\$\{([^}]+?)\}')
+        def func(m):
+            envvar = m.group(1)
+            if envvar in os.environ:
+                return os.environ[envvar]
+            else:
+                return '${%s}' % envvar
+        value, n = re.subn(pat, func, value)
+        return value
+
+
     def _process_properties(self, obj, extract_plugin_parameters=False):
         """
-        Get Blender custom properties set on obj.
-        Custom properties starting with an underscore become
-        element properties (with a key without the underscore), 
-        all the others become plugin parameters, but only if
-        extract_plugin_parameters is True.
+        Get Blender custom properties set on obj, and process where necessary:
+
+        - Custom properties starting with an underscore become
+          element properties (with a key without the underscore), 
+          all the others become plugin parameters, but only if
+          extract_plugin_parameters is True
+        - Property values can include references to environment variables,
+          of the form "${NAME}". These are substituted with their actual
+          value.
         """
 
         properties = {}
@@ -255,6 +272,9 @@ class Connection:
 
         for k, v in customproperties2dict(obj).items():
             #print('k', k, 'v', v)
+            if isinstance(v, str):
+                v = self._substitute_environment_values(v)
+                print(v)
             if k[0] == '_':
                 #print(properties, k, v)
                 properties[k[1:]] = v
@@ -717,7 +737,7 @@ class Connection:
                 break
         
         if shadernode is None:
-            print('... WARNING: no shader node attached to output!')
+            print('... WARNING: no shader node attached to Output!')
             return
         
         idname = shadernode.bl_idname
