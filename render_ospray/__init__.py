@@ -210,7 +210,7 @@ class ReceiveRenderResultThread(threading.Thread):
                     mode = 'f'                    
                     bytes_left = render_result.file_size
 
-                    framebuffer = bytearray(bytes_left)
+                    framebuffer = numpy.empty(bytes_left, dtype=numpy.uint8)
                     fbview = memoryview(framebuffer)
                     
                 else:
@@ -231,16 +231,12 @@ class ReceiveRenderResultThread(threading.Thread):
                 if bytes_left > 0:
                     continue
 
-                # Got complete frame buffer, let engine know
-
-                # XXX look into avoiding the copy here
-                pixels = numpy.frombuffer(framebuffer, dtype=numpy.float32)                
-
-                self.result_queue.put((render_result, pixels))   
-
                 mode = 'h'
-                bytes_left = 4         
-                
+                bytes_left = 4
+
+                # Got complete frame buffer, let engine know
+                self.result_queue.put((render_result, framebuffer))   
+
                 engine = self.engine_ref()
                 if engine is not None:
                     try:                
@@ -581,18 +577,19 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
 
         while self.render_result_queue.qsize() > 0:
 
-            render_result, fbpixels = self.render_result_queue.get()        
+            render_result, framebuffer = self.render_result_queue.get()            
 
             if render_result.type == RenderResult.FRAME:
                 self.log.info('FRAME')                
 
                 rf = render_result.reduction_factor
                 if rf > 1:
-                    self.update_stats('', 'Rendering sample %d/%d (reduced %dx)' % (render_result.sample,self.num_samples, rf))
+                    self.update_stats('', 'Rendering sample %d/%d (reduced %dx)' % (render_result.sample, self.num_samples, rf))
                 else:
-                    self.update_stats('', 'Rendering sample %d/%d' % (render_result.sample,self.num_samples))
+                    self.update_stats('', 'Rendering sample %d/%d' % (render_result.sample, self.num_samples))
                 
                 image_dimensions = render_result.width, render_result.height
+                fbpixels = framebuffer.view(numpy.float32)
 
                 if not self.draw_data or self.draw_data.image_dimensions != image_dimensions or self.draw_data.viewport_dimensions != viewport_dimensions:
                     self.log.info('Creating new CustomDrawData(viewport = %s, image = %s)' % (viewport_dimensions, image_dimensions))
