@@ -315,17 +315,31 @@ try:
                       
                 for name in ['renderer', 'world', 'camera', 'framebuffer']:
                     argaddr = args[name]
+                    if argaddr not in addr2object:
+                        print('WARNING: cannot add edge "%s" to unknown object %d' % (name, argaddr))
+                        continue
                     obj.add_edge(name, addr2object[argaddr], False)
 
                 break
             
         elif call == 'ospCommit':
+            
+            objaddr = args['obj']
+            if objaddr not in addr2object:
+                print('WARNING: Unknown object %d for call to ospCommit()' % objaddr)
+                continue
+            
             obj = addr2object[args['obj']]
             obj.commit()
             
         elif call.startswith('ospSet'):
             
-            obj = addr2object[args['obj']]
+            objaddr = args['obj']
+            if objaddr not in addr2object:
+                print('WARNING: Unknown object %d for call to %s()' % (objaddr, call))
+                continue
+                
+            obj = addr2object[objaddr]
             
             if call == 'ospSetParam':
                 data_type = args['type']

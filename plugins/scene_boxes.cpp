@@ -38,35 +38,27 @@ generate(GenerateFunctionResult &result, PluginState *state)
 
     GroupInstances &instances = state->group_instances;
 
-    OSPTestingGeometry boxes =
-        ospTestingNewGeometry("boxes", state->renderer.c_str());
+    auto builder = ospray::testing::newBuilder("boxes");
+    ospray::testing::setParam(builder, "rendererType", state->renderer.c_str());
+    ospray::testing::commit(builder);
 
-    instances.push_back(std::make_pair(boxes.group, glm::mat4(1.0f)));
-    ospRetain(boxes.group);
+    auto cpp_group = ospray::testing::buildGroup(builder);
+    ospray::testing::release(builder);
+    cpp_group.commit();
+
+    OSPGroup group = cpp_group.handle();
+    ospRetain(group);
+    instances.push_back(std::make_pair(group, glm::mat4(1.0f)));
     
-    ospRelease(boxes.geometry);
-    ospRelease(boxes.model);
-    ospRelease(boxes.group);
-    ospRelease(boxes.instance);
-
     /*
-    OSPData lightsData = ospTestingNewLights("ambient_only");
-    ospSetObject(world, "light", lightsData);
-    //ospRelease(lightsData);    
-    
-    // Set up area light in the ceiling
-    // XXX this code comes from OSPRay's apps/tutorials/ospTutorialQuadMesh.cpp
-    OSPLight light = ospNewLight("quad");
-        ospSetVec3f(light, "color", 0.78f, 0.551f, 0.183f);
-        ospSetFloat(light, "intensity", 47.f);
-        ospSetVec3f(light, "position", -0.23f, 0.98f, -0.16f);
-        ospSetVec3f(light, "edge1", 0.47f, 0.0f, 0.0f);
-        ospSetVec3f(light, "edge2", 0.0f, 0.0f, 0.38f);
-    ospCommit(light);
-    state->lights.push_back(light);
+    printf("GROUP %x\n", group);
+    OSPBounds bbox = ospGetBounds(group);
+    printf("BBOX %f %f %f -> %f %f %f",
+        bbox.lower[0], bbox.lower[1], bbox.lower[2],
+        bbox.upper[0], bbox.upper[1], bbox.upper[2]);
     */
-
-    state->bound = BoundingMesh::bbox_from_group(boxes.group, true);
+    
+    state->bound = BoundingMesh::bbox_from_group(group, true);
 }
 
 static PluginParameters 

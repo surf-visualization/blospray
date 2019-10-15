@@ -105,25 +105,25 @@ target_include_directories(scene_rbc
 
 # scene_cornellbox
 
-#add_library(scene_cornellbox SHARED scene_cornellbox.cpp)
-#set_target_properties(scene_cornellbox PROPERTIES PREFIX "")   
-#target_link_libraries(scene_cornellbox PUBLIC ${OSPRAY_LIBRARIES} ospray::ospray_testing)
-#target_include_directories(scene_cornellbox
-#    PUBLIC
-#    ${PROTOBUF_INCLUDE_DIRS}
-#    ${CMAKE_CURRENT_BINARY_DIR}
-#)
+add_library(scene_cornellbox SHARED scene_cornellbox.cpp)
+set_target_properties(scene_cornellbox PROPERTIES PREFIX "")   
+target_link_libraries(scene_cornellbox PUBLIC ${OSPRAY_LIBRARIES} ospray::ospray_testing)
+target_include_directories(scene_cornellbox
+    PUBLIC
+    ${PROTOBUF_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_BINARY_DIR}
+)
 
 # scene_boxes
 
-#add_library(scene_boxes SHARED scene_boxes.cpp)
-#set_target_properties(scene_boxes PROPERTIES PREFIX "")   
-#target_link_libraries(scene_boxes PUBLIC ${OSPRAY_LIBRARIES} ospray::ospray_testing)
-#target_include_directories(scene_boxes
-#    PUBLIC
-#    ${PROTOBUF_INCLUDE_DIRS}
-#    ${CMAKE_CURRENT_BINARY_DIR}
-#)
+add_library(scene_boxes SHARED scene_boxes.cpp)
+set_target_properties(scene_boxes PROPERTIES PREFIX "")   
+target_link_libraries(scene_boxes PUBLIC ${OSPRAY_LIBRARIES} ospray::ospray_testing)
+target_include_directories(scene_boxes
+    PUBLIC
+    ${PROTOBUF_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_BINARY_DIR}
+)
 
 
 if(PLUGIN_COSMOGRID)
@@ -163,8 +163,8 @@ install(TARGETS
     #volume_testing
     geometry_plane
     scene_rbc
-    #scene_boxes
-    #scene_cornellbox
+    scene_boxes
+    scene_cornellbox
     DESTINATION bin)
     
 

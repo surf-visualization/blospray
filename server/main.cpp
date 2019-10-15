@@ -1137,7 +1137,6 @@ update_scene_object(const UpdateObject& update)
     else
     {
         scene_object_scene = new SceneObjectScene;
-        printf("allocating SceneObjectScene %016x\n", scene_object_scene);
         scene_object_scene->data_link = linked_data;
     }
 

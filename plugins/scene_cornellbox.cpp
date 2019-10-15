@@ -38,17 +38,18 @@ generate(GenerateFunctionResult &result, PluginState *state)
     
     GroupInstances &instances = state->group_instances;
 
-    OSPTestingGeometry cornell_box =
-        ospTestingNewGeometry("cornell_box", state->renderer.c_str()); 
+    auto builder = ospray::testing::newBuilder("cornell_box");
+    ospray::testing::setParam(builder, "rendererType", state->renderer.c_str());
+    ospray::testing::commit(builder);
 
-    instances.push_back(std::make_pair(cornell_box.group, glm::mat4(1.0f)));
-    ospRetain(cornell_box.group);
+    auto cpp_group = ospray::testing::buildGroup(builder);
+    ospray::testing::release(builder);
+    cpp_group.commit();
 
-    ospRelease(cornell_box.geometry);
-    ospRelease(cornell_box.model);
-    ospRelease(cornell_box.group);
-    ospRelease(cornell_box.instance);
-
+    OSPGroup group = cpp_group.handle();
+    ospRetain(group);
+    instances.push_back(std::make_pair(group, glm::mat4(1.0f)));
+    
     // Set up area light in the ceiling
     // XXX this code comes from OSPRay's apps/tutorials/ospTutorialQuadMesh.cpp
     OSPLight light = ospNewLight("quad");
@@ -60,7 +61,7 @@ generate(GenerateFunctionResult &result, PluginState *state)
     ospCommit(light);
     state->lights.push_back(light);
 
-    state->bound = BoundingMesh::bbox_from_group(cornell_box.group, true);
+    state->bound = BoundingMesh::bbox_from_group(group, true);
 }
 
 static PluginParameters 

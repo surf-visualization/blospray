@@ -120,12 +120,12 @@ typedef std::vector<OSPLight>               Lights;
 //
  
 // XXX rename, as it is not the state of the plugin, but state of one
-// of the "instances" managed by the plugin
+// of the "instances" managed by the plugin, e.g. PluginInstanceState or just PluginInstance
 struct PluginState
 {   
     // Renderer type the plugin is called for
-    std::string     renderer;
-    bool            uses_renderer_type;
+    std::string     renderer;                   // XXX rename to renderer_type
+    bool            uses_renderer_type;         
 
     // XXX need to store renderer type as well, for scene plugins,  
     // as an OSPGroup can indirectly link to an OSPMaterial (which is 
