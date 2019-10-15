@@ -149,7 +149,6 @@ class ReceiveRenderResultThread(threading.Thread):
                 client_message.type = ClientMessage.CANCEL_RENDERING
                 self.connection.send_protobuf(client_message)                    
                 self._cancel.clear()
-                break
 
             # Check for new incoming data
             r, w, e = select(rsocks, [], [], 0.001)
