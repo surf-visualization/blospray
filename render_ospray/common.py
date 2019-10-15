@@ -5,12 +5,13 @@ PROTOCOL_VERSION = 2
 
 VERBOSE_PROTOBUF = False
 
+# Keep in sync with include/ospray/OSPEnums.h
 OSP_FB_NONE = 0 
 OSP_FB_RGBA8 = 1    # one dword per pixel: rgb+alpha, each one byte
 OSP_FB_SRGBA = 2    # one dword per pixel: rgb (in sRGB space) + alpha, each one byte
 OSP_FB_RGBA32F = 3  # one float4 per pixel: rgb+alpha, each one float
 
-def send_protobuf(sock, pb, sendall=False):
+def send_protobuf(sock, pb, sendall=True):
     """Serialize a protobuf object and send it on the socket"""
     if VERBOSE_PROTOBUF:
         getLogger('blospray').debug('send_protobuf(): %s' % pb)
@@ -24,7 +25,10 @@ def send_protobuf(sock, pb, sendall=False):
 
 def receive_protobuf(sock, protobuf):
     d = sock.recv(4)
+
     if d == b'':
+        if VERBOSE_PROTOBUF:
+            getLogger('blospray').debug('receive_protobuf(): connection reset by peer')
         raise ConnectionResetError()
 
     bufsize = unpack('<I', d)[0]
@@ -34,6 +38,8 @@ def receive_protobuf(sock, protobuf):
     while bytes_left > 0:
         d = sock.recv(bytes_left)
         if d == b'':
+            if VERBOSE_PROTOBUF:
+                getLogger('blospray').debug('receive_protobuf(): connection reset by peer')            
             raise ConnectionResetError()
         parts.append(d)
         bytes_left -= len(d)

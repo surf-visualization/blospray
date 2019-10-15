@@ -42,6 +42,8 @@ if "bpy" in locals():
 import sys, logging, socket, threading, time, traceback, weakref
 from math import tan, atan, degrees
 from queue import Queue
+from select import select
+from struct import unpack
 
 import bpy, bgl
 import numpy
@@ -91,65 +93,168 @@ setup_logging('blospray', 'blospray.log')
 
 class ReceiveRenderResultThread(threading.Thread):
 
-    def __init__(self, engine, connection, result_queue, log):
+    """
+    Thread to handle receiving of interactive render results 
+    (i.e. framebuffer)
+    """
+
+    def __init__(self, engine, connection, result_queue, log, num_samples, initial_reduction_factor):
         threading.Thread.__init__(self)
         self.engine_ref = weakref.ref(engine)
         self.connection = connection
         self.result_queue = result_queue
         self.log = log
 
+        self.num_samples = num_samples
+        self.initial_reduction_factor = initial_reduction_factor
+
+        self._cancel = threading.Event()
+
+    def cancel(self):
+        """Cancel rendering, to be sent by outside thread"""
+        self._cancel.set()
+
     def run(self):
 
+        # Start rendering on the server
+        self.log.debug('(RRR thread) Sending START_RENDERING to server')
+        client_message = ClientMessage()
+        client_message.type = ClientMessage.START_RENDERING
+        client_message.string_value = "interactive"
+        client_message.uint_value = self.num_samples        
+        client_message.uint_value2 = self.initial_reduction_factor
+        self.connection.send_protobuf(client_message)
+
+        # Loop to get results until the render is either done or canceled
+
+        sock = self.connection.sock         # XXX        
+        rsocks = [sock]
+        incoming_data = []
+
+        framebuffer = None
+        fbview = None
+
+        # h = receive protobuf length header
+        # r = receive RenderResult protobuf
+        # f = receive framebuffer data
+        mode = 'h'                          
+        bytes_left = 4        
+
+        self.log.debug('(RRR thread) Entering receive loop')
         while True:
 
-            render_result = RenderResult()
+            if self._cancel.is_set():                
+                self.log.error('(RRR thread) Got request to cancel thread, sending CANCEL_RENDERING to server')
+                client_message = ClientMessage()
+                client_message.type = ClientMessage.CANCEL_RENDERING
+                self.connection.send_protobuf(client_message)                    
+                self._cancel.clear()
 
-            # XXX handle receive error
-            # XXX currently blocks
-            try:
-                self.connection.receive_protobuf(render_result)
-            except ConnectionResetError:
-                self.log.error('(RRR thread) Connection reset by peer, exiting')
-                break
+            # Check for new incoming data
+            r, w, e = select(rsocks, [], [], 0.001)
 
-            #self.log.debug('(RRR thread) RenderResult(%s):\n%s' % (render_result.type, render_result))
+            if len(r) == 0:
+                continue
 
-            if render_result.type == RenderResult.FRAME:
+            # There's new data available, read some
 
-                bufsize = render_result.file_size
-                fbpixels = numpy.empty(render_result.width*render_result.height*4, dtype=numpy.float32)
-
-                n = self.connection.sock.recv_into(fbpixels, bufsize, socket.MSG_WAITALL)
-
-                if n != bufsize:
-                    self.log.error('Did not receive all bytes (%d != %d)!' % (n, bufsize))
-
-                self.result_queue.put((render_result, fbpixels))
-
-            else:
-                # DONE, CANCELED
-                self.result_queue.put((render_result, None))
-
-                if render_result.type == RenderResult.CANCELED:     # XXX why not break on DONE as well?
-                    break         
-
-            self.log.debug('(RRR thread) Tagging for view_draw()')
-            
-            engine = self.engine_ref()
-            if engine is not None:
-                try:                
-                    engine.tag_redraw()
-                except ReferenceError:
-                    #  StructRNA of type OsprayRenderEngine has been removed
+            if mode == 'f':
+                #print('bufsize', len(fbview), 'bytes_left', bytes_left)
+                n = sock.recv_into(fbview, bytes_left)
+                if n == 0:
+                    # XXX
+                    self.log.error('(RRR thread) Connection reset by peer, exiting')
                     break
-                engine = None
-            else:
-                # Engine has gone away
-                break
-                
-        self.log.error('(RRR thread) Done, closing connection')
-        self.connection.close()
+                bytes_left -= n
+                assert bytes_left >= 0
+                fbview = fbview[n:]
 
+            else:
+                d = sock.recv(bytes_left)
+                if d == '':
+                    # XXX
+                    self.log.error('(RRR thread) Connection reset by peer, exiting')
+                    break                
+                bytes_left -= len(d)
+                assert bytes_left >= 0
+
+            # Next step?
+
+            if mode == 'h': 
+
+                assert bytes_left == 0              # Assume we got the 4 byte length header in one recv()
+                bytes_left = unpack('<I', d)[0]
+                assert bytes_left > 0
+                mode = 'r'
+
+            elif mode == 'r':
+
+                incoming_data.append(d)
+
+                if bytes_left > 0:
+                    continue
+                    
+                message = b''.join(incoming_data)
+                incoming_data = []
+
+                render_result = RenderResult()
+                render_result.ParseFromString(message)
+
+                self.log.debug('(RRR thread): Render result of type %s' % render_result.type)
+                self.log.debug('(RRR thread): %s' % render_result)
+
+                if render_result.type == RenderResult.FRAME:                    
+                    # XXX can keep buffer if res didn't change
+                    print('allocating empty %d x %d' % (render_result.width, render_result.height))
+                    
+                    mode = 'f'                    
+                    bytes_left = render_result.file_size
+
+                    framebuffer = bytearray(bytes_left)
+                    fbview = memoryview(framebuffer)
+                    
+                else:
+                    # DONE, CANCELED
+                    self.result_queue.put((render_result, None))
+
+                    #mode = 'h'
+                    #bytes_left = 4
+
+                    # XXX why not break on DONE as well?
+                    #if render_result.type == RenderResult.CANCELED:     
+                    #    break         
+
+                    break
+
+            elif mode == 'f':
+
+                if bytes_left > 0:
+                    continue
+
+                # Got complete frame buffer, let engine know
+
+                # XXX look into avoiding the copy here
+                pixels = numpy.frombuffer(framebuffer, dtype=numpy.float32)                
+
+                self.result_queue.put((render_result, pixels))   
+
+                mode = 'h'
+                bytes_left = 4         
+                
+                engine = self.engine_ref()
+                if engine is not None:
+                    try:                
+                        self.log.debug('(RRR thread) Tagging for view_draw()')
+                        engine.tag_redraw()
+                    except ReferenceError:
+                        #  StructRNA of type OsprayRenderEngine has been removed
+                        break
+                    engine = None
+                else:
+                    # Engine has gone away
+                    break
+                
+        self.log.error('(RRR thread) Done')
 
     
 class OsprayRenderEngine(bpy.types.RenderEngine):
@@ -193,12 +298,10 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
     def __del__(self):
         print('OsprayRenderEngine.__del__()')
         logging.getLogger('blospray').info('[%s] OsprayRenderEngine.__del__() [%s]' % (time.asctime(), self))
-        
-        print(self.__dict__.keys())
 
-        #if self.rendering_active:
-        #    self.receive_render_result_thread.stop()
-
+        if hasattr(self, 'receive_render_result_thread') and self.receive_render_result_thread is not None:
+            self.cancel_render_thread()
+            
         # XXX doesn't work, apparently self.connection is no longer available here?
         if hasattr(self, 'connection') and self.connection is not None:        
             self.connection.close()
@@ -290,40 +393,49 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
                 print('-- transform was updated')
                 
         print('-'*50)
-        
+
+    def start_render_thread(self):
+        assert self.receive_render_result_thread is None
+        self.log.debug('Starting render thread')
+        self.render_result_queue = Queue()
+        self.receive_render_result_thread = ReceiveRenderResultThread(self, self.connection, self.render_result_queue, self.log, 
+            self.num_samples, self.initial_reduction_factor)
+        self.receive_render_result_thread.start()
+
+    def cancel_render_thread(self):
+        assert self.receive_render_result_thread is not None
+        self.log.debug('cancel_render_thread(): Waiting for render thread to cancel')
+        self.receive_render_result_thread.cancel()
+        self.receive_render_result_thread.join()
+        self.receive_render_result_thread = None
+        self.log.debug('cancel_render_thread(): Render thread canceled')         
+    
     # For viewport renders, this method gets called once at the start and
     # whenever the scene or 3D viewport changes. This method is where data
     # should be read from Blender in the same thread. Typically a render
     # thread will be started to do the work while keeping Blender responsive.   
     def view_update(self, context, depsgraph):
         """Update on data changes for viewport render"""
-        self.log.info('OsprayRenderEngine.view_update() [%s]' % self)   
-
-        restart_rendering = False     
+        self.log.info('OsprayRenderEngine.view_update() [%s]' % self)       
 
         scene = depsgraph.scene
         ospray = scene.ospray
         render = scene.render
-        #world = scene.world   
-        region = context.region     
+        #world = scene.world
+        region = context.region  
 
-        if self.first_view_update:
+        restart_rendering = False   
+
+        if self.first_view_update:        
 
             self.log.debug('view_update(): FIRST')
 
-            # Create connection that receives only the render results, plus
-            # the thread that processes the results
-            self.connect_render_output(depsgraph)
+            assert self.receive_render_result_thread is None
 
-            self.render_result_queue = Queue()
-            self.receive_render_result_thread = ReceiveRenderResultThread(self, self.render_output_connection, self.render_result_queue, self.log)
-            self.receive_render_result_thread.daemon = True
-            self.receive_render_result_thread.start()
-
-            # Open main connection
+            # Open connection
             if not self.connect(depsgraph):  
-                self.log.info('ERROR(view_update): Failed to connect to server')                
-                return 
+                self.log.info('ERROR(view_update): Failed to connect to BLOSPRAY server')                
+                return
 
             # Renderer type
             self.connection.send_updated_renderer_type(scene.ospray.renderer)
@@ -346,6 +458,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             self.connection.send_updated_render_settings(render_settings)          
 
             # Send complete (visible) scene
+            # XXX put exception handler around whole block above
             try:
                 self.log.info('Sending initial scene')
                 self.connection.update(None, depsgraph)
@@ -361,35 +474,26 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             restart_rendering = True
 
         else:
+            # Cancel render thread and wait for it to finish
+            self.log.debug('view_update(): canceling render thread')
+
+            if self.receive_render_result_thread is not None:
+                self.log.debug('view_update(): canceling render thread')
+                self.cancel_render_thread()
+
             #  Update scene on server
             self.log.debug('view_update(): SUBSEQUENT')
             self._print_depsgraph_updates(depsgraph)
             # XXX
             # restart_rendering = True
 
-        # Viewport
-        """
-        width = region.width
-        height = region.height
-
-        if width != self.framebuffer_width or height != self.framebuffer_height:
-            self.log.info('view_update(): framebuffer size changed to %d x %d' % (width,height))
-            self.framebuffer_width = width
-            self.framebuffer_height = height
-            self.connection.send_updated_framebuffer_settings(width, height, OSP_FB_RGBA32F)
-            restart_rendering = True
-        """
-
         if restart_rendering:
             self.log.info('view_update(): restarting rendering')
-            client_message = ClientMessage()
-            client_message.type = ClientMessage.START_RENDERING
-            client_message.string_value = "interactive"
-            client_message.uint_value = ospray.samples
+            assert self.receive_render_result_thread is None
+            # Start thread to handle results
             self.num_samples = ospray.samples
-            client_message.uint_value2 = ospray.reduction_factor
-            self.connection.send_protobuf(client_message)
-
+            self.initial_reduction_factor = ospray.reduction_factor
+            self.start_render_thread()
 
     # For viewport renders, this method is called whenever Blender redraws
     # the 3D viewport. The renderer is expected to quickly draw the render
@@ -424,7 +528,12 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         viewport_width, viewport_height = viewport_dimensions = region.width, region.height        
                
         if viewport_width != self.viewport_width or viewport_height != self.viewport_height:
-            self.log.info('view_draw(): viewport size changed to %d x %d' % (viewport_width,viewport_height))
+            self.log.info('view_draw(): viewport size changed to %d x %d' % (viewport_width,viewport_height))        
+
+            if self.receive_render_result_thread is not None:
+                self.log.debug('view_draw(): canceling render thread')
+                self.cancel_render_thread()
+
             self.viewport_width = viewport_width
             self.viewport_height = viewport_height
             # Reduction factor is passed with START_RENDERING
@@ -441,6 +550,11 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             (region_data.view_perspective == 'CAMERA' and (region_data.view_camera_zoom != self.last_view_camera_zoom or list(region_data.view_camera_offset) != self.last_view_camera_offset)):
                 
             self.log.info('view_draw(): view matrix changed, or camera updated')
+
+            if self.receive_render_result_thread is not None:
+                self.log.debug('view_draw(): canceling render thread')
+                self.cancel_render_thread()
+
             self.connection.send_updated_camera_for_interactive_view(scene.render, region_data, space_data, self.viewport_width, self.viewport_height)
             
             self.last_view_matrix = view_matrix.copy()
@@ -454,13 +568,9 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
 
         if restart_rendering:
             self.log.info('view_draw(): restarting rendering')
-            client_message = ClientMessage()
-            client_message.type = ClientMessage.START_RENDERING
-            client_message.string_value = "interactive"
-            client_message.uint_value = ospray.samples
             self.num_samples = ospray.samples
-            client_message.uint_value2 = ospray.reduction_factor
-            self.connection.send_protobuf(client_message)        
+            self.initial_reduction_factor = ospray.reduction_factor
+            self.start_render_thread()
 
         # Bind shader that converts from scene linear to display space
         bgl.glEnable(bgl.GL_BLEND)
