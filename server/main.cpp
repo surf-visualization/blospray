@@ -2953,7 +2953,7 @@ start_rendering(const ClientMessage& client_message)
 
         framebuffers.push_back(nullptr);
 
-        for (int factor = 1; factor <= framebuffer_reduction_factor; factor >>= 1)
+        for (int factor = 1; factor <= framebuffer_reduction_factor; factor <<= 1)
         {
             reduced_framebuffer_width = framebuffer_width / factor;
             reduced_framebuffer_height = framebuffer_height / factor;
