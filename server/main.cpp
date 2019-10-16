@@ -1973,6 +1973,7 @@ handle_update_object(TCPSocket *sock)
     return true;
 }
 
+// XXX rename update_framebuffer_size
 void
 update_framebuffer(OSPFrameBufferFormat format, uint32_t width, uint32_t height)
 {
@@ -1981,7 +1982,7 @@ update_framebuffer(OSPFrameBufferFormat format, uint32_t width, uint32_t height)
     if (framebuffer_width == width && framebuffer_height == height && framebuffer_format == format)
         return;
 
-    // Clear framebuffer as its resolution/format changed
+    // Clear framebuffers
     for (auto& fb : framebuffers)
     {
         if (fb != nullptr)
@@ -2953,7 +2954,7 @@ start_rendering(const ClientMessage& client_message)
 
         framebuffers.push_back(nullptr);
 
-        for (int factor = 1; factor <= framebuffer_reduction_factor; factor <<= 1)
+        for (int factor = 1; factor <= framebuffer_reduction_factor; factor++)
         {
             reduced_framebuffer_width = framebuffer_width / factor;
             reduced_framebuffer_height = framebuffer_height / factor;
