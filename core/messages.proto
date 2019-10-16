@@ -185,9 +185,20 @@ message UpdateObject
     string          material_link = 12;     // XXX use a list of strings, to get ready for slots
 }
 
+message Color
+{
+    float   r = 1;
+    float   g = 2;
+    float   b = 3;
+    float   a = 4;
+}
+
 message Volume
 {
-    float   sampling_rate = 1;
+    float               sampling_rate = 1;
+
+    repeated float      tf_positions = 10;
+    repeated Color      tf_colors = 11;
 }
 
 message Slice

@@ -44,17 +44,19 @@ basic functionality and integration with Blender features is already available:
 * Instancing 
 * Vertex colors on Blender meshes
 * Point, sun, spot and area lights
-* Perspective and orthographic cameras, plus OSPRay's panoramic camera (which is similar to Cycles` equirectangular camera, but without any parameters to tweak)
+* Perspective and orthographic cameras, plus OSPRay's panoramic camera (which is similar to Cycles' equirectangular camera, but without any parameters to tweak)
 * Depth of field
-* Border render (i.e. render only part of an image)
+* Border render (i.e. render only part of an image). But only works currently for final render, not for interactive rendering
 * Rudimentary support for volume, geometry and scene plugins
 * Node-based material editing for a subset of OSPRay materials
+* Rudimentary transfer function editing for volume data (by mis-using the ColorRamp node)
+
+Available, but not in the most optimal way and/or not completely bug-free:
+
+* Interactive preview render
 
 Major features that are currently missing:
 
-* Interactive preview render (which is ironic, given that real-time interactive rendering
-  is one of OSPRay's main features)
-* Volume transfer function editing
 * Motion blur (which is not supported by OSPRay itself)
 * Parallel rendering mode through MPI
 

@@ -40,7 +40,7 @@ from .messages_pb2 import (
     UpdateObject, UpdatePluginInstance,
     MeshData,
     GenerateFunctionResult, RenderResult,    
-    Volume, Slices, Slice,
+    Volume, Slices, Slice, Color,
     MaterialUpdate, 
     CarPaintSettings, GlassSettings, ThinGlassSettings, LuminousSettings, MetallicPaintSettings, OBJMaterialSettings, PrincipledSettings
 )
@@ -863,6 +863,8 @@ class Connection:
 
         # Send mesh data first, so the object can refer to it
         self.send_updated_mesh_data(blend_data, depsgraph, mesh)
+
+        # Process mesh object itself
                     
         name = obj.name
         
@@ -883,7 +885,24 @@ class Connection:
         custom_properties, plugin_parameters = self._process_properties(obj, False)
         assert len(plugin_parameters.keys()) == 0
         
-        update.custom_properties = json.dumps(custom_properties)    
+        update.custom_properties = json.dumps(custom_properties)   
+
+        # Check if a material is set
+
+        material = None
+        if len(obj.material_slots) > 0:
+            if len(obj.material_slots) > 1:
+                print('WARNING: only exporting a single material slot!')
+
+            mslot = obj.material_slots[0]
+
+            if mslot.link == 'DATA':
+                material = obj.data.materials[0]
+            else:
+                # Material linked to object
+                material = mslot.material
+
+        # Plugin enabled or not?
 
         if not obj.ospray.ospray_override or not mesh.ospray.plugin_enabled:
             # Not OSPRay enabled or plugin disabled on the linked mesh data.
@@ -901,21 +920,8 @@ class Connection:
                     return
 
             # Update material first (if set)
-
-            if len(obj.material_slots) > 0:
-                if len(obj.material_slots) > 1:
-                    print('WARNING: only exporting a single material slot!')
-
-                mslot = obj.material_slots[0]
-
-                if mslot.link == 'DATA':
-                    material = obj.data.materials[0]
-                else:
-                    # Material linked to object
-                    material = mslot.material
-
+            if material is not None:
                 self.send_updated_material(blend_data, depsgraph, material)
-
                 update.material_link = material.name
 
             # Send object itself            
@@ -928,20 +934,12 @@ class Connection:
         
             plugin_type = mesh.ospray.plugin_type
             print("Plugin type = %s" % plugin_type)
-            
+
             if plugin_type == 'geometry':
                 update.type = UpdateObject.GEOMETRY
 
-                # XXX yuck, duplicated from above
-                if len(obj.material_slots) > 0:
-                    if len(obj.material_slots) > 1:
-                        print('WARNING: only exporting a single material slot!')
-                    mslot = obj.material_slots[0]
-                    assert mslot.link == 'DATA'
-                    material = obj.data.materials[0]
-
+                if material is not None:
                     self.send_updated_material(blend_data, depsgraph, material)
-
                     update.material_link = material.name
                 
             elif plugin_type == 'scene':
@@ -958,6 +956,61 @@ class Connection:
                     update.type = UpdateObject.VOLUME
                     volume = Volume()
                     volume.sampling_rate = obj.ospray.sampling_rate
+
+                    # Check if a TF is set (ColorRamp node)
+                    if material is not None:
+
+                        tree = material.node_tree
+                        assert tree.type == 'SHADER'
+
+                        nodes = tree.nodes
+                        print('... %d shader nodes in tree' % len(nodes))
+
+                        # Get output node
+                        outputs = list(filter(lambda n: n.bl_idname == 'OSPRayOutputNode', tree.nodes))
+
+                        if len(outputs) > 0:
+                            # XXX takes first output
+                            output = outputs[0]
+
+                            # Find node attached to the output
+                            shadernode = None
+                            for link in tree.links:
+                                if link.to_node == output:
+                                    shadernode = link.from_node
+                                    break
+                            
+                            if shadernode is not None:
+                                idname = shadernode.bl_idname 
+
+                                tf_positions = []
+                                tf_colors = []
+
+                                if idname == 'ShaderNodeValToRGB':  # ColorRamp
+                                    color_ramp = shadernode.color_ramp
+                                    for e in color_ramp.elements:
+                                        tf_positions.append(e.position)
+                                        col = e.color
+                                        print(type(col))
+                                        color = Color()
+                                        color.r = col[0]
+                                        color.g = col[1]
+                                        color.b = col[2]
+                                        color.a = col[3]
+                                        tf_colors.append(color)
+
+                                    volume.tf_positions[:] = tf_positions
+                                    volume.tf_colors.extend(tf_colors)
+                                        
+                                else:
+                                    print('... No ColorRamp node connected to Output, using default transfer function')
+
+                            else:
+                                print('... WARNING: no shader node attached to Output!')                                
+                            
+                        else:
+                            print('... WARNING: no Output shader node found!')
+                            
                     extra.append(volume)
 
                 elif volume_usage == 'slices':

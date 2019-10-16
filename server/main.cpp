@@ -565,6 +565,102 @@ create_transfer_function(const std::string& name, float minval, float maxval)
     return nullptr;
 }
 
+OSPTransferFunction
+create_user_transfer_function(float minval, float maxval, const Volume& volume, int num_tf_entries=128)
+{
+    printf("create_user_transfer_function(%.6f, %.6f, ...)\n", minval, maxval);
+
+    if (volume.tf_positions_size() != volume.tf_colors_size())
+    {
+        printf("... WARNING: number of positions and colors not equal, falling back to default TF\n");
+        return create_transfer_function("cool2warm", minval, maxval);
+    }
+
+    const int& num_positions = volume.tf_positions_size();
+
+    float tf_colors[3*num_tf_entries];
+    float tf_opacities[num_tf_entries];
+
+    assert(num_tf_entries >= 2);
+    float value_step = 1.0f / (num_tf_entries - 1);
+    float normalized_value;
+    int pos;
+    float r, g, b, a;
+
+    normalized_value = 0.0f;
+
+    // XXX need to verify correctness here
+    for (int i = 0; i < num_tf_entries; i++)
+    {
+        // Find first position that is <= normalized_value        
+        if (normalized_value < volume.tf_positions(0))
+        {            
+            const Color &col = volume.tf_colors(0);
+            r = col.r();
+            g = col.g();
+            b = col.b();
+            a = col.a();
+        }
+        else                    
+        {
+            pos = 0;
+            while (pos < num_positions && volume.tf_positions(pos) <= normalized_value)
+                pos++;
+            
+            if (pos == num_positions)
+            {
+                const Color &col = volume.tf_colors(volume.tf_colors_size()-1);
+                r = col.r();
+                g = col.g();
+                b = col.b();
+                a = col.a();             
+            }
+            else
+            {
+                // Interpolate
+                pos--;
+                const Color &col1 = volume.tf_colors(pos);
+                const Color &col2 = volume.tf_colors(pos+1);
+
+                const float pos1 = volume.tf_positions(pos);
+                const float pos2 = volume.tf_positions(pos+1);
+                const float f = 1.0 - (normalized_value - pos1) / (pos2 - pos1);
+
+                r = f*col1.r() + (1-f)*col2.r();
+                g = f*col1.g() + (1-f)*col2.g();
+                b = f*col1.b() + (1-f)*col2.b();
+                a = f*col1.a() + (1-f)*col2.a(); 
+            }
+        }    
+
+        //printf("[%d] %f, %f, %f; %f\n", i, r, g, b, a);
+
+        tf_colors[3*i+0] = r;
+        tf_colors[3*i+1] = g;
+        tf_colors[3*i+2] = b;
+        tf_opacities[i]  = a;
+
+        normalized_value += value_step;
+    }
+
+    OSPTransferFunction tf = ospNewTransferFunction("piecewise_linear");
+
+        ospSetVec2f(tf, "valueRange", minval, maxval);
+
+        OSPData color_data = ospNewCopiedData(num_tf_entries, OSP_VEC3F, tf_colors);
+        ospSetObject(tf, "color", color_data);
+
+        OSPData opacity_data = ospNewCopiedData(num_tf_entries, OSP_FLOAT, tf_opacities);
+        ospSetObject(tf, "opacity", opacity_data);   
+
+    ospCommit(tf);
+    ospRelease(color_data);
+    ospRelease(opacity_data);        
+
+    return tf;
+}
+
+
 bool
 handle_update_plugin_instance(TCPSocket *sock)
 {
@@ -1255,20 +1351,25 @@ update_volume_object(const UpdateObject& update, const Volume& volume_settings)
     if (scene_object == nullptr)
     {
         assert(scene_objects.find(object_name) == scene_objects.end());
-        printf("setting %s -> %016x\n", object_name.c_str(), volume_object);
         scene_objects[object_name] = volume_object;
         vmodel = volume_object->vmodel = ospNewVolumetricModel(volume);
-
-        OSPTransferFunction tf = create_transfer_function("cool2warm", state->volume_data_range[0], state->volume_data_range[1]);
-        ospSetObject(vmodel, "transferFunction", tf);
-        ospRelease(tf);
     }
 
     // XXX not sure these are handled correctly, and working in API2
     ospSetFloat(vmodel,  "samplingRate", volume_settings.sampling_rate());
     //ospSetFloat(vmodel,  "densityScale", volume_settings.density_scale());  // TODO
-    //ospSetFloat(vmodel,  "maxDensity", volume_settings.max_density());  // TODO
     //ospSetFloat(vmodel,  "anisotropy", volume_settings.anisotropy());  // TODO    
+
+    OSPTransferFunction tf;
+
+    if (volume_settings.tf_positions_size() > 0 && volume_settings.tf_colors_size() > 0)
+        tf = create_user_transfer_function(state->volume_data_range[0], state->volume_data_range[1], volume_settings);
+    else
+        // Default TF        
+        tf = create_transfer_function("cool2warm", state->volume_data_range[0], state->volume_data_range[1]);
+
+    ospSetObject(vmodel, "transferFunction", tf);
+    ospRelease(tf);
 
     ospCommit(vmodel);
 

@@ -205,11 +205,12 @@ class OSPRayOutputNode(bpy.types.Node):
 
     def init(self, context):
         self.inputs.new('NodeSocketShader', 'Material')
+        self.inputs.new('NodeSocketShader', 'Transfer Function')
 
 class OSPRayVolumeTexture(bpy.types.Node):
     """Volumetric texture"""
     bl_idname = 'OSPRayVolumeTexture'
-    bl_label = 'Volume texture'
+    bl_label = 'Volume texture (OSPRay)'
     bl_icon = 'SOUND'
 
     def init(self, context):
