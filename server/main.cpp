@@ -2969,15 +2969,17 @@ start_rendering(const ClientMessage& client_message)
                 framebuffer_format, 
                 OSP_FB_COLOR | /*OSP_FB_DEPTH |*/ OSP_FB_ACCUM | OSP_FB_VARIANCE);                
 
-            // Clear framebuffer
-            // XXX no 2.0 equivalent? Hmm, there *is* osp::cpp::FrameBuffer::clear()
-            //ospFrameBufferClear(framebuffer, OSP_FB_COLOR | OSP_FB_ACCUM);
-            ospResetAccumulation(framebuffer);
-
             framebuffers.push_back(framebuffer);
         }
 
         recreate_framebuffers = false;
+    }
+
+    // Clear framebuffers
+    for (auto& fb : framebuffers)
+    {
+        if (fb != nullptr)
+            ospResetAccumulation(fb);
     }
 
     reduced_framebuffer_width = framebuffer_width / framebuffer_reduction_factor;
