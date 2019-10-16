@@ -60,8 +60,6 @@ Must haves
 - Light UI panel
 - Volume UI panel
 - Camera UI panel
-- TF editor in Blender
-- Interactive preview rendering, including adaptive accumulation
 - Better error handling and recovery
 - Cancel render during export of large scenes (if this is even possible)
 - Reload plugin on update
