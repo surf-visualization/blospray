@@ -2871,7 +2871,7 @@ start_rendering(const ClientMessage& client_message)
             reduced_framebuffer_width = framebuffer_width / factor;
             reduced_framebuffer_height = framebuffer_height / factor;
 
-            printf("Initializing framebuffer of %dx%d pixels (%dx%d @ reduction factor %d), format %d)\n", 
+            printf("Initializing framebuffer of %dx%d pixels (%dx%d @ reduction factor %d), format %d\n", 
                 reduced_framebuffer_width, reduced_framebuffer_height, 
                 framebuffer_width, framebuffer_height, factor, 
                 framebuffer_format);

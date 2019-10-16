@@ -136,7 +136,7 @@ load_points(const char *renderer_type, const char *fname, int max_points, float 
     ospCommit(material);
     
     model = ospNewGeometricModel(spheres);
-        ospSetObject(model, "material", material);
+        ospSetObjectAsData(model, "material", OSP_MATERIAL, material);
     ospCommit(model);
     ospRelease(material);
     ospRelease(spheres);
@@ -218,15 +218,15 @@ generate(GenerateFunctionResult &result, PluginState *state)
     ospCommit(material);
     
     model = ospNewGeometricModel(spheres);
-        ospSetObject(model, "material", material);
+        ospSetObjectAsData(model, "material", OSP_MATERIAL, material);
     ospCommit(model);
     ospRelease(material);
     //ospRelease(spheres);
   #endif
     
     OSPGroup group = ospNewGroup();
-        OSPData models = ospNewCopiedData(1, OSP_OBJECT, &model);
-        ospSetObject(group, "geometry", models);  // XXX setdata after all?
+        OSPData models = ospNewCopiedData(1, OSP_GEOMETRIC_MODEL, &model);
+        ospSetObject(group, "geometry", models); 
         ospRelease(models);
     ospCommit(group);
     

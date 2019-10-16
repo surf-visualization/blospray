@@ -106,7 +106,7 @@ load_cell_models(const char *renderer_type)
     ospCommit(material);
 
     mesh_model_rbc = ospNewGeometricModel(mesh);
-        ospSetObject(mesh_model_rbc, "material", material);
+        ospSetObjectAsData(mesh_model_rbc, "material", OSP_MATERIAL, material);
     ospCommit(mesh_model_rbc);
     ospRelease(material);
     ospRelease(mesh);
@@ -174,7 +174,7 @@ load_cell_models(const char *renderer_type)
     ospCommit(material);
 
     mesh_model_plt = ospNewGeometricModel(mesh);
-        ospSetObject(mesh_model_plt, "material", material);
+        ospSetObjectAsData(mesh_model_plt, "material", OSP_MATERIAL, material);
     ospCommit(mesh_model_plt);
     ospRelease(mesh);
     ospRelease(material);
@@ -182,13 +182,13 @@ load_cell_models(const char *renderer_type)
     // Create groups for instancing
     
     rbc_group = ospNewGroup();
-        OSPData models = ospNewCopiedData(1, OSP_OBJECT, &mesh_model_rbc);
+        OSPData models = ospNewCopiedData(1, OSP_GEOMETRIC_MODEL, &mesh_model_rbc);
         ospSetObject(rbc_group, "geometry", models);
         ospRelease(models);
     ospCommit(rbc_group);
 
     plt_group = ospNewGroup();
-        models = ospNewCopiedData(1, OSP_OBJECT, &mesh_model_plt);
+        models = ospNewCopiedData(1, OSP_GEOMETRIC_MODEL, &mesh_model_plt);
         ospSetObject(plt_group, "geometry", models);
         ospRelease(models);
     ospCommit(plt_group);
