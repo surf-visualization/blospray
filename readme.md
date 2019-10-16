@@ -11,11 +11,13 @@ the [OSPRay](http://www.ospray.org/) ray tracing engine from Intel in Blender
 as an external renderer.
 
 Currently, this software is somewhere between alpha and beta quality,
-as it can already be used to produce useful visualization, but lots of
-things are still missing and not all errors are gracefully handled.
+as it can already be used to produce useful visualizations, but lots of
+things are still incomplete and/or missing. Also, not all errors are robustly
+and gracefully handled yet.
 
 In case you give it a try and/or have remarks or questions, let us know
-at visualization@surfsara.nl!
+at visualization@surfsara.nl! Bugs and feature requests can be entered 
+in this github project.
 
 ## Goals 
 
@@ -234,6 +236,9 @@ Some of the OSPRay limitations we can work around, some of these we can't:
     - Only the Path Tracer supports advanced materials, like the principled material
     - The lighting in the SciVis renderer is very basic
 
+* Volumes cannot be transformed properly when using the SciVis rendering. This is a
+  current limitation in OSPRay.
+
 * Volumes are limited in their size, due to the relevant ISPC-based
   code being built in 32-bit mode. See [this issue](https://github.com/ospray/ospray/issues/239).
   
@@ -255,7 +260,7 @@ Some of the OSPRay limitations we can work around, some of these we can't:
 For building:
 
 * [OSPRay 2.x](http://www.ospray.org/), which is currently still in development.
-  Use the `release-2.0.x` branch
+  Use the `release-2.0.x` branch from https://github.com/ospray/ospray.
 * [GLM](https://glm.g-truc.net/0.9.9/index.html)
 * [OpenImageIO](https://sites.google.com/site/openimageio/home)
 * [Google protobuf (C/C++ libraries)](https://developers.google.com/protocol-buffers/)
