@@ -290,7 +290,7 @@ inline OSPData ospNewCopiedData(size_t numItems,
     OSPData src = ospNewSharedData(source, type, numItems);
     OSPData dst = ospNewData(type, numItems);
     ospCopyData(src, dst);
-    ospRelease(src);
+    ospRelease(src);    
     return dst;
 }
 

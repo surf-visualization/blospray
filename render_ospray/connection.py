@@ -42,8 +42,8 @@ from .messages_pb2 import (
     GenerateFunctionResult, RenderResult,    
     Volume, Slices, Slice, Color,
     MaterialUpdate, 
-    AlloySettings, CarPaintSettings, GlassSettings, LuminousSettings, MetallicPaintSettings, 
-    OBJMaterialSettings, PrincipledSettings, ThinGlassSettings
+    AlloySettings, CarPaintSettings, GlassSettings, LuminousSettings, MetalSettings,
+    MetallicPaintSettings, OBJMaterialSettings, PrincipledSettings, ThinGlassSettings
 )
 
 # Object to world matrix
@@ -785,20 +785,22 @@ class Connection:
             settings.attenuation_color[:] = list(inputs['Attenuation color'].default_value)[:3]
             settings.attenuation_distance = inputs['Attenuation distance'].default_value
 
-        elif idname == 'OSPRayThinGlass':
-            update.type = MaterialUpdate.THIN_GLASS
-            settings = ThinGlassSettings()
-            settings.eta = inputs['Eta'].default_value   
-            settings.attenuation_color[:] = list(inputs['Attenuation color'].default_value)[:3]
-            settings.attenuation_distance = inputs['Attenuation distance'].default_value
-            settings.thickness = inputs['Thickness'].default_value
-
         elif idname == 'OSPRayLuminous':
             update.type = MaterialUpdate.LUMINOUS
             settings = LuminousSettings()
             settings.color[:] = inputs['Color'].default_value[:3]  
             settings.intensity = inputs['Intensity'].default_value
             settings.transparency = inputs['Transparency'].default_value
+
+        elif idname == 'OSPRayMetal':
+            update.type = MaterialUpdate.METAL
+            settings = MetalSettings()
+
+            metal = inputs['Metal'].metal
+            metal = ['ALUMINIUM', 'CHROMIUM', 'COPPER', 'GOLD', 'SILVER'].index(metal)
+
+            settings.metal = metal
+            settings.roughness = inputs['Roughness'].default_value
 
         elif idname == 'OSPRayMetallicPaint':
             update.type = MaterialUpdate.METALLIC_PAINT
@@ -849,6 +851,14 @@ class Connection:
             settings.sheen_tint = inputs['Sheen tint'].default_value
             settings.sheen_roughness = inputs['Sheen roughness'].default_value
             settings.opacity = inputs['Opacity'].default_value
+
+        elif idname == 'OSPRayThinGlass':
+            update.type = MaterialUpdate.THIN_GLASS
+            settings = ThinGlassSettings()
+            settings.eta = inputs['Eta'].default_value   
+            settings.attenuation_color[:] = list(inputs['Attenuation color'].default_value)[:3]
+            settings.attenuation_distance = inputs['Attenuation distance'].default_value
+            settings.thickness = inputs['Thickness'].default_value            
 
         else:
             print('... WARNING: shader of type "%s" not handled!' % shadernode.bl_idname)

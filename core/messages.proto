@@ -333,10 +333,11 @@ message MaterialUpdate
         CAR_PAINT = 1;
         GLASS = 2;        
         LUMINOUS = 3;
-        METALLIC_PAINT = 4;
-        OBJMATERIAL = 5;
-        PRINCIPLED = 6;
-        THIN_GLASS = 7;
+        METAL = 4;
+        METALLIC_PAINT = 5;
+        OBJMATERIAL = 6;
+        PRINCIPLED = 7;
+        THIN_GLASS = 8;
     }
 
     Type    type = 1;
@@ -377,19 +378,17 @@ message GlassSettings
     float           attenuation_distance = 3;
 }
 
-message ThinGlassSettings
-{
-    float           eta = 1;
-    repeated float  attenuation_color = 2;
-    float           attenuation_distance = 3;
-    float           thickness = 4;
-}
-
 message LuminousSettings
 {
     repeated float  color = 1;
     float           intensity = 2;
     float           transparency = 3;
+}
+
+message MetalSettings
+{
+    uint32          metal = 1;
+    float           roughness = 2;
 }
 
 message MetallicPaintSettings
@@ -447,6 +446,14 @@ message PrincipledSettings
     float sheen_tint = 26;
     float sheen_roughness = 27;
     float opacity = 28;
+}
+
+message ThinGlassSettings
+{
+    float           eta = 1;
+    repeated float  attenuation_color = 2;
+    float           attenuation_distance = 3;
+    float           thickness = 4;
 }
 
 // Plugins

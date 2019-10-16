@@ -195,6 +195,32 @@ class OSPRaySocketVolumeData(bpy.types.NodeSocket):
         return (0.65, 0.65, 0.65, 1)
 
 
+class OSPRaySocketMetal(bpy.types.NodeSocket):
+    """Metal selection"""
+
+    bl_idname = 'OSPRaySocketMetal'
+    bl_label = 'Metal'
+
+    items = [
+        ('ALUMINIUM', 'Aluminium', 'Al'),
+        ('CHROMIUM', 'Chromium', 'Cr'),
+        ('COPPER', 'Copper', 'Cu'),
+        ('GOLD', 'Gold', 'Au'),
+        ('SILVER', 'Silver', 'Ag')
+    ]
+
+    metal: EnumProperty(
+            name='Metal',
+            default='ALUMINIUM',      
+            items=items
+            )
+    
+    def draw(self, context, layout, node, text):
+        layout.prop(self, 'metal')
+            
+    def draw_color(self, context, node):
+        return (0.65, 0.65, 0.65, 1)
+
 # Nodes
 
 class OSPRayOutputNode(bpy.types.Node):
@@ -348,6 +374,24 @@ class OSPRayLuminous(bpy.types.Node):
         transparency = self.inputs.new('OSPRaySocketFloat_NonNegative', 'Transparency')    
         transparency.default_value = 1
         
+        self.outputs.new('NodeSocketShader', 'Material')
+
+
+class OSPRayMetal(bpy.types.Node):
+    """Metal"""
+    bl_idname = 'OSPRayMetal'
+    bl_label = 'Metal (OSPRay)'
+    bl_icon = 'SOUND'
+    bl_color = (0, 0.7, 0, 1)           # XXX doesn't work?
+
+    def init(self, context):
+        # Note: we don't allow direct setting of eta and k, as there is no
+        # easy UI for that. Also, we hide ior.       
+        metal = self.inputs.new('OSPRaySocketMetal', 'Metal')
+        
+        roughness = self.inputs.new('OSPRaySocketFloat_0_1', 'Roughness') 
+        roughness.default_value = 0.1
+
         self.outputs.new('NodeSocketShader', 'Material')
 
 
@@ -554,6 +598,7 @@ node_classes = (
     OSPRaySocketFloat_0_2,
     OSPRaySocketFloat_NonNegative,
     OSPRaySocketFloat_IOR,
+    OSPRaySocketMetal,
     OSPRaySocketVolumeData,
 
     # General nodes
@@ -564,6 +609,7 @@ node_classes = (
     OSPRayCarPaint,
     OSPRayGlass,    
     OSPRayLuminous,
+    OSPRayMetal,
     OSPRayMetallicPaint,
     OSPRayOBJMaterial,
     OSPRayPrincipled,
@@ -580,12 +626,13 @@ node_categories = [
         
         NodeItem('OSPRayAlloy'),
         NodeItem('OSPRayCarPaint'),
-        NodeItem('OSPRayGlass'),
-        NodeItem('OSPRayThinGlass'),
+        NodeItem('OSPRayGlass'),        
         NodeItem('OSPRayLuminous'),
+        NodeItem('OSPRayMetal'),
         NodeItem('OSPRayMetallicPaint'),
         NodeItem('OSPRayOBJMaterial'),
         NodeItem('OSPRayPrincipled'),
+        NodeItem('OSPRayThinGlass'),
         
         NodeItem('OSPRayVolumeTexture'),
     ]),

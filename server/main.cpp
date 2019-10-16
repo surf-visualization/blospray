@@ -2114,7 +2114,7 @@ handle_update_material(TCPSocket *sock)
         if (settings.color_size() == 3)
             ospSetVec3f(material, "color", settings.color(0), settings.color(1), settings.color(2));    
         if (settings.edge_color_size() == 3)
-            ospSetVec3f(material, "edge_color", settings.edge_color(0), settings.edge_color(1), settings.edge_color(2));    
+            ospSetVec3f(material, "edgeColor", settings.edge_color(0), settings.edge_color(1), settings.edge_color(2));    
         ospSetFloat(material, "roughness", settings.roughness());
 
         break;
@@ -2220,6 +2220,70 @@ handle_update_material(TCPSocket *sock)
         break;
     }
 
+    case MaterialUpdate::METAL:
+    {
+        MetalSettings settings;
+
+        receive_protobuf(sock, settings);  
+
+        const uint32_t& metal = settings.metal();
+
+        printf("... Metal (%d)\n", metal);
+
+        assert(metal < 5);
+
+        if (scene_material == nullptr)
+        {
+            scene_material = new SceneMaterial;
+            material = scene_material->material = ospNewMaterial(current_renderer_type.c_str(), "Metal");
+        }
+
+        const float metal_eta_values[] = {
+            1.5f, 0.98f, 0.6f,      // Aluminium
+            3.2f, 3.1f, 2.3f,       // Chromium
+            0.1f, 0.8f, 1.1f,       // Copper
+            0.07f, 0.37f, 1.5f,     // Gold
+            0.051f, 0.043f, 0.041f  // Silver
+        };
+
+        const float metal_k_values[] = {
+            7.6f, 6.6f, 5.4f,       // Aluminium
+            3.3f, 3.3f, 3.1f,       // Chromium
+            3.5f, 2.5f, 2.4f,       // Copper
+            3.7f, 2.3f, 1.7f,       // Gold
+            5.3f, 3.6f, 2.3f,       // Silver
+        };
+
+        // Table
+        const float eta_gold[] = { 0.07, 0.37, 1.5 };
+        const float k_gold[] = { 3.7, 2.3, 1.7 };
+
+        // Based on https://refractiveindex.info/ (R 670, G 510, B 440 nm)
+        const float eta_gold2[] = { 0.13767, 0.80312, 1.4174};
+        const float k_gold2[] = { 3.7917, 1.9729, 1.9322 };
+
+        const float eta_silver2[] = { 0.047667, 0.050000, 0.040000 };
+        const float k_silver2[] = { 4.5658, 3.2233, 2.5528 };
+
+        OSPData eta_data = ospNewCopiedData(1, OSP_VEC3F, eta_gold);
+        ospCommit(eta_data);        
+        OSPData k_data = ospNewCopiedData(1, OSP_VEC3F, k_gold);
+        ospCommit(k_data);
+
+        //OSPData eta_data = ospNewCopiedData(1, OSP_VEC3F, metal_eta_values+3*metal);
+        //OSPData k_data = ospNewCopiedData(1, OSP_VEC3F, metal_k_values+3*metal);
+
+        ospSetObject(material, "eta", eta_data);
+        ospSetObject(material, "k", k_data);
+        ospSetFloat(material, "roughness", settings.roughness());  
+        ospCommit(material);
+
+        ospRelease(eta_data);
+        ospRelease(k_data);
+        
+        break;
+    }    
+
     case MaterialUpdate::METALLIC_PAINT:
     {
         MetallicPaintSettings settings;
@@ -2319,6 +2383,7 @@ handle_update_material(TCPSocket *sock)
 
     default:
         printf("ERROR: unknown material update type %d!\n", update.type());
+        return;
 
     }
 
@@ -2424,7 +2489,7 @@ update_world_settings(const WorldSettings& world_settings)
 
         OSPTexture backplate = ospNewTexture("texture2d");    
             ospSetInt(backplate, "format", OSP_TEXTURE_RGBA32F);
-            ospSetVec2i(backplate, "size", 1, 1);            
+            //ospSetVec2i(backplate, "size", 1, 1);            
             ospSetObject(backplate, "data", data);
         ospCommit(backplate);            
         ospRelease(data);
