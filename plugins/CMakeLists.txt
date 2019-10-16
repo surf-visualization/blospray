@@ -125,6 +125,18 @@ target_include_directories(scene_boxes
     ${CMAKE_CURRENT_BINARY_DIR}
 )
 
+# scene_gravity_spheres_volume
+
+add_library(scene_gravity_spheres_volume SHARED scene_gravity_spheres_volume.cpp)
+set_target_properties(scene_gravity_spheres_volume PROPERTIES PREFIX "")   
+target_link_libraries(scene_gravity_spheres_volume PUBLIC ${OSPRAY_LIBRARIES} ospray::ospray_testing)
+target_include_directories(scene_gravity_spheres_volume
+    PUBLIC
+    ${PROTOBUF_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_BINARY_DIR}
+)
+
+
 
 if(PLUGIN_COSMOGRID)
 
@@ -165,6 +177,7 @@ install(TARGETS
     scene_rbc
     scene_boxes
     scene_cornellbox
+    scene_gravity_spheres_volume
     DESTINATION bin)
     
 
