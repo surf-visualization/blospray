@@ -107,7 +107,7 @@ class OSPRaySocketFloat_0_2(bpy.types.NodeSocket):
     """Float in [0,2]"""
 
     bl_idname = 'OSPRaySocketFloat_0_2'
-    bl_label = 'Unit float socket'
+    bl_label = 'Restricted float socket'
 
     default_value: bpy.props.FloatProperty(min=0, max=2, default=1)
     
@@ -200,7 +200,7 @@ class OSPRaySocketVolumeData(bpy.types.NodeSocket):
 class OSPRayOutputNode(bpy.types.Node):
     """Output"""
     bl_idname = 'OSPRayOutputNode'
-    bl_label = 'Output'
+    bl_label = 'Output (OSPRay)'
     bl_icon = 'SOUND'
 
     def init(self, context):
@@ -229,7 +229,7 @@ class OSPRayVolumeTexture(bpy.types.Node):
 class OSPRayCarPaint(bpy.types.Node):
     """Car paint material"""
     bl_idname = 'OSPRayCarPaint'
-    bl_label = 'Car paint'
+    bl_label = 'Car paint (OSPRay)'
     bl_icon = 'SOUND'
     bl_color = (0, 0.7, 0, 1)           # XXX doesn't work?
 
@@ -290,7 +290,7 @@ class OSPRayCarPaint(bpy.types.Node):
 class OSPRayGlass(bpy.types.Node):
     """Glass"""
     bl_idname = 'OSPRayGlass'
-    bl_label = 'Glass'
+    bl_label = 'Glass (OSPRay)'
     bl_icon = 'SOUND'
     bl_color = (0, 0.7, 0, 1)           # XXX doesn't work?
 
@@ -312,7 +312,7 @@ class OSPRayGlass(bpy.types.Node):
 class OSPRayThinGlass(bpy.types.Node):
     """ThinGlass"""
     bl_idname = 'OSPRayThinGlass'
-    bl_label = 'ThinGlass'
+    bl_label = 'ThinGlass (OSPRay)'
     bl_icon = 'SOUND'
     bl_color = (0, 0.7, 0, 1)           # XXX doesn't work?
 
@@ -337,7 +337,7 @@ class OSPRayThinGlass(bpy.types.Node):
 class OSPRayLuminous(bpy.types.Node):
     """Luminous"""
     bl_idname = 'OSPRayLuminous'
-    bl_label = 'Luminous'
+    bl_label = 'Luminous (OSPRay)'
     bl_icon = 'SOUND'
     bl_color = (0, 0.7, 0, 1)           # XXX doesn't work?
 
@@ -359,7 +359,7 @@ class OSPRayLuminous(bpy.types.Node):
 class OSPRayMetallicPaint(bpy.types.Node):
     """Metallic paint"""
     bl_idname = 'OSPRayMetallicPaint'
-    bl_label = 'MetallicPaint'
+    bl_label = 'MetallicPaint (OSPRay)'
     bl_icon = 'SOUND'
     bl_color = (0, 0.7, 0, 1)           # XXX doesn't work?
 
@@ -387,7 +387,7 @@ class OSPRayMetallicPaint(bpy.types.Node):
 class OSPRayOBJMaterial(bpy.types.Node):
     """OBJMaterial"""
     bl_idname = 'OSPRayOBJMaterial'
-    bl_label = 'OBJMaterial'
+    bl_label = 'OBJMaterial (OSPRay)'
     bl_icon = 'SOUND'
     bl_color = (0, 0.7, 0, 1)           # XXX doesn't work?
 
@@ -433,7 +433,7 @@ class OSPRayOBJMaterial(bpy.types.Node):
 class OSPRayPrincipled(bpy.types.Node):
     """Principled material"""
     bl_idname = 'OSPRayPrincipled'
-    bl_label = 'Principled'
+    bl_label = 'Principled (OSPRay)'
     bl_icon = 'SOUND'
     bl_color = (0, 0.7, 0, 1)           # XXX doesn't work?
 
