@@ -2254,34 +2254,15 @@ handle_update_material(TCPSocket *sock)
             3.7f, 2.3f, 1.7f,       // Gold
             5.3f, 3.6f, 2.3f,       // Silver
         };
+        
+        const float *eta = metal_eta_values + 3*metal;
+        const float *k = metal_k_values + 3*metal;
 
-        // Table
-        const float eta_gold[] = { 0.07, 0.37, 1.5 };
-        const float k_gold[] = { 3.7, 2.3, 1.7 };
-
-        // Based on https://refractiveindex.info/ (R 670, G 510, B 440 nm)
-        const float eta_gold2[] = { 0.13767, 0.80312, 1.4174};
-        const float k_gold2[] = { 3.7917, 1.9729, 1.9322 };
-
-        const float eta_silver2[] = { 0.047667, 0.050000, 0.040000 };
-        const float k_silver2[] = { 4.5658, 3.2233, 2.5528 };
-
-        OSPData eta_data = ospNewCopiedData(1, OSP_VEC3F, eta_gold);
-        ospCommit(eta_data);        
-        OSPData k_data = ospNewCopiedData(1, OSP_VEC3F, k_gold);
-        ospCommit(k_data);
-
-        //OSPData eta_data = ospNewCopiedData(1, OSP_VEC3F, metal_eta_values+3*metal);
-        //OSPData k_data = ospNewCopiedData(1, OSP_VEC3F, metal_k_values+3*metal);
-
-        ospSetObject(material, "eta", eta_data);
-        ospSetObject(material, "k", k_data);
+        ospSetVec3f(material, "eta", eta[0], eta[1], eta[2]);
+        ospSetVec3f(material, "k", k[0], k[1], k[2]);
         ospSetFloat(material, "roughness", settings.roughness());  
         ospCommit(material);
 
-        ospRelease(eta_data);
-        ospRelease(k_data);
-        
         break;
     }    
 
