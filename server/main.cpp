@@ -2098,6 +2098,28 @@ handle_update_material(TCPSocket *sock)
     switch (update.type())
     {
 
+    case MaterialUpdate::ALLOY:
+    {
+        AlloySettings settings;
+
+        receive_protobuf(sock, settings);
+        printf("... Alloy\n");
+
+        if (scene_material == nullptr)
+        {
+            scene_material = new SceneMaterial;
+            material = scene_material->material = ospNewMaterial(current_renderer_type.c_str(), "Alloy");
+        }
+
+        if (settings.color_size() == 3)
+            ospSetVec3f(material, "color", settings.color(0), settings.color(1), settings.color(2));    
+        if (settings.edge_color_size() == 3)
+            ospSetVec3f(material, "edge_color", settings.edge_color(0), settings.edge_color(1), settings.edge_color(2));    
+        ospSetFloat(material, "roughness", settings.roughness());
+
+        break;
+    }
+
     case MaterialUpdate::CAR_PAINT:
     {
         CarPaintSettings settings;
@@ -2300,10 +2322,10 @@ handle_update_material(TCPSocket *sock)
 
     }
 
+    ospCommit(material);
+
     scene_material->type = update.type();
     scene_materials[update.name()] = scene_material;
-
-    ospCommit(material);
 }
 
 void

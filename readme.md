@@ -50,7 +50,9 @@ basic functionality and integration with Blender features is already available:
 * Depth of field
 * Border render (i.e. render only part of an image). But only works currently for final render, not for interactive rendering
 * Rudimentary support for volume, geometry and scene plugins
-* Node-based material editing for a subset of OSPRay materials
+* Node-based material editing for a subset of OSPRay materials. Note that input ports for
+  node values, like a color, will not work as expected when a connection is made. 
+  There is also no way to hide the sockets.
 * Rudimentary transfer function editing for volume data (by mis-using the ColorRamp node)
 
 Available, but not in the most optimal way and/or not completely bug-free:

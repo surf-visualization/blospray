@@ -329,17 +329,25 @@ message MaterialUpdate
 {
     enum Type
     {
-        CAR_PAINT = 0;
-        GLASS = 1;
-        THIN_GLASS = 2;
+        ALLOY = 0;
+        CAR_PAINT = 1;
+        GLASS = 2;        
         LUMINOUS = 3;
         METALLIC_PAINT = 4;
         OBJMATERIAL = 5;
         PRINCIPLED = 6;
+        THIN_GLASS = 7;
     }
 
     Type    type = 1;
     string  name = 2;
+}
+
+message AlloySettings
+{
+    repeated float  color = 1;
+    repeated float  edge_color = 2;
+    float           roughness = 3;
 }
 
 message CarPaintSettings

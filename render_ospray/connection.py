@@ -42,7 +42,8 @@ from .messages_pb2 import (
     GenerateFunctionResult, RenderResult,    
     Volume, Slices, Slice, Color,
     MaterialUpdate, 
-    CarPaintSettings, GlassSettings, ThinGlassSettings, LuminousSettings, MetallicPaintSettings, OBJMaterialSettings, PrincipledSettings
+    AlloySettings, CarPaintSettings, GlassSettings, LuminousSettings, MetallicPaintSettings, 
+    OBJMaterialSettings, PrincipledSettings, ThinGlassSettings
 )
 
 # Object to world matrix
@@ -727,7 +728,14 @@ class Connection:
 
         # Get output node
         # XXX tree.get_output_node() doesn't return anything?
-        output = nodes.get('Output')
+        outputs = list(filter(lambda n: n.bl_idname == 'OSPRayOutputNode', tree.nodes))
+
+        if len(outputs) == 0:
+            print('... WARNING: no Output node found')
+            return
+
+        # XXX takes first output
+        output = outputs[0]
 
         # Find node attached to the output
         shadernode = None
@@ -743,7 +751,14 @@ class Connection:
         idname = shadernode.bl_idname
         inputs = shadernode.inputs
 
-        if idname == 'OSPRayCarPaint':
+        if idname == 'OSPRayAlloy':
+            update.type = MaterialUpdate.ALLOY
+            settings = AlloySettings()
+            settings.color[:] = inputs['Color'].default_value[:3]
+            settings.edge_color[:] = inputs['Edge color'].default_value[:3]
+            settings.roughness = inputs['Roughness'].default_value
+            
+        elif idname == 'OSPRayCarPaint':
             update.type = MaterialUpdate.CAR_PAINT
             settings = CarPaintSettings()
             settings.base_color[:] = inputs['Base color'].default_value[:3]  
