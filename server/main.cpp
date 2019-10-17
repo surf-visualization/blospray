@@ -3297,7 +3297,11 @@ main(int argc, const char **argv)
     TCPSocket *listen_sock;
 
     listen_sock = new TCPSocket;
-    listen_sock->bind(PORT);
+    if (listen_sock->bind(PORT) == -1)
+    {
+        printf("ERROR: could not bind to port %d, exiting\n", PORT);
+        exit(-1);
+    }
     listen_sock->listen(1);
 
     printf("Listening on port %d\n", PORT);
