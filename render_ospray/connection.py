@@ -700,11 +700,11 @@ class Connection:
         send_protobuf(self.sock, update)
         send_protobuf(self.sock, light_settings)
 
-    def send_updated_material(self, blend_data, depsgraph, material):
+    def send_updated_material(self, blend_data, depsgraph, material, force_update=False):
 
         name = material.name        
         
-        if name in self.materials_exported:
+        if not force_update and name in self.materials_exported:
             print('Not sending MATERIAL "%s" again' % name)
             return
 

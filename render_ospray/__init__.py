@@ -25,7 +25,7 @@ bl_info = {
     "blender": (2, 80, 0),
     "location": "Render > Engine > OSPRay",
     "description": "OSPRay integration for blender",
-    "warning": "Alpha quality",
+    "warning": "Alpha/Beta quality",
     "category": "Render"}
     
 if "bpy" in locals():
@@ -111,7 +111,7 @@ class ReceiveRenderResultThread(threading.Thread):
         self._cancel = threading.Event()
 
     def cancel(self):
-        """Cancel rendering, to be sent by outside thread"""
+        """Cancel rendering, to be sent by outside thread"""        
         self._cancel.set()
 
     def run(self):
@@ -296,10 +296,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         logging.getLogger('blospray').info('[%s] OsprayRenderEngine.__del__() [%s]' % (time.asctime(), self))
 
         if hasattr(self, 'receive_render_result_thread') and self.receive_render_result_thread is not None:
-            t0 = time.time()
             self.cancel_render_thread()
-            t1 = time.time()
-            print('************************************* %f' % (t1-t0))
             
         # XXX doesn't work, apparently self.connection is no longer available here?
         if hasattr(self, 'connection') and self.connection is not None:        
@@ -317,6 +314,27 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         self.render_output_connection = Connection(self, ospray.host, ospray.port)     
         assert self.render_output_connection.connect()
         self.render_output_connection.request_render_output()
+
+    def start_render_thread(self):
+        assert self.receive_render_result_thread is None
+        self.log.debug('Starting render thread')
+        self.render_result_queue = Queue()
+        self.receive_render_result_thread = ReceiveRenderResultThread(self, self.connection, self.render_result_queue, self.log, 
+            self.num_samples, self.initial_reduction_factor)
+        self.receive_render_result_thread.start()
+
+    def cancel_render_thread(self):
+        assert self.receive_render_result_thread is not None
+        self.log.debug('cancel_render_thread(): Waiting for render thread to cancel')
+        t0= time.time()
+        self.receive_render_result_thread.cancel()
+        self.receive_render_result_thread.join()
+        t1 = time.time()
+        print('***************** CANCEL AND JOIN: %f' % (t1-t0))
+        self.receive_render_result_thread = None
+        self.log.debug('cancel_render_thread(): Render thread canceled')         
+    
+    # Final (and preview) render
         
     def update(self, data, depsgraph):
         """
@@ -371,8 +389,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             self.log.exception('Exception while rendering scene on server')
             self.report({'ERROR'}, 'Exception while rendering scene on server: %s' % sys.exc_info()[0])
 
-    # If the two view_... methods are defined the interactive rendered
-    # mode becomes available
+    # Interactive render
 
     def _print_depsgraph_updates(self, depsgraph):
         print('--- DEPSGRAPH UPDATES '+'-'*50)
@@ -393,25 +410,24 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
                 
         print('-'*50)
 
-    def start_render_thread(self):
-        assert self.receive_render_result_thread is None
-        self.log.debug('Starting render thread')
-        self.render_result_queue = Queue()
-        self.receive_render_result_thread = ReceiveRenderResultThread(self, self.connection, self.render_result_queue, self.log, 
-            self.num_samples, self.initial_reduction_factor)
-        self.receive_render_result_thread.start()
+    def update_scene_from_depsgraph(self, depsgraph):
+        self._print_depsgraph_updates(depsgraph)        
 
-    def cancel_render_thread(self):
-        assert self.receive_render_result_thread is not None
-        self.log.debug('cancel_render_thread(): Waiting for render thread to cancel')
-        t0= time.time()
-        self.receive_render_result_thread.cancel()
-        self.receive_render_result_thread.join()
-        t1 = time.time()
-        print('***************** CANCEL AND JOIN: %f' % (t1-t0))
-        self.receive_render_result_thread = None
-        self.log.debug('cancel_render_thread(): Render thread canceled')         
-    
+        for update in depsgraph.updates:
+            print('Datablock "%s" updated (%s)' % (update.id.name, type(update.id)))
+            if update.is_updated_geometry:
+                print('-- geometry was updated')
+            if update.is_updated_transform:
+                print('-- transform was updated')
+
+            datablock = update.id
+            print(datablock)
+            print(dir(datablock))
+            if isinstance(datablock, bpy.types.Material):
+                self.connection.send_updated_material(None, depsgraph, datablock, True)
+
+
+
     # For viewport renders, this method gets called once at the start and
     # whenever the scene or 3D viewport changes. This method is where data
     # should be read from Blender in the same thread. Typically a render
@@ -485,9 +501,10 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
 
             #  Update scene on server
             self.log.debug('view_update(): SUBSEQUENT')
-            self._print_depsgraph_updates(depsgraph)
-            # XXX
-            # restart_rendering = True
+
+            self.update_scene_from_depsgraph(depsgraph)
+        
+            restart_rendering = True
 
         if restart_rendering:
             self.log.info('view_update(): restarting rendering')
@@ -534,10 +551,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
 
             if self.receive_render_result_thread is not None:
                 self.log.debug('view_draw(): canceling render thread')
-                t0 = time.time()
                 self.cancel_render_thread()
-                t1 = time.time()
-                print('************************************* %f' % (t1-t0))
 
             self.viewport_width = viewport_width
             self.viewport_height = viewport_height
@@ -558,10 +572,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
 
             if self.receive_render_result_thread is not None:
                 self.log.debug('view_draw(): canceling render thread')
-                t0 = time.time()
                 self.cancel_render_thread()
-                t1 = time.time()
-                print('************************************* %f' % (t1-t0))
 
             self.connection.send_updated_camera_for_interactive_view(scene.render, region_data, space_data, self.viewport_width, self.viewport_height)
             
@@ -627,10 +638,12 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         bgl.glDisable(bgl.GL_BLEND)     
         
     # Nodes
+
+    if False:
     
-    def NO_update_script_node(self, node):
-        """Compile shader script node"""
-        self.log.debug('OsprayRenderEngine.update_script_node() [%s]' % self)
+        def update_script_node(self, node):
+            """Compile shader script node"""
+            self.log.debug('OsprayRenderEngine.update_script_node() [%s]' % self)
                 
 
 
