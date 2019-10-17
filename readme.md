@@ -58,6 +58,9 @@ basic functionality and integration with Blender features is already available:
 Available, but not in the most optimal way and/or not completely bug-free:
 
 * Interactive preview render
+* Subdivision surfaces. These are handled by Blender's dependency graph mechanism,
+  but this triangulates the geometry instead of passing the subdivision control
+  cage to OSPRay (which also has subdiv support).
 
 Major features that are currently missing:
 

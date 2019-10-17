@@ -425,7 +425,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             print(dir(datablock))
             if isinstance(datablock, bpy.types.Material):
                 self.connection.send_updated_material(None, depsgraph, datablock, True)
-
+            
 
 
     # For viewport renders, this method gets called once at the start and
