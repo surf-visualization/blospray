@@ -1717,6 +1717,7 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
 
     if (scene_object != nullptr)
     {
+        // Check existing light
         light_object = dynamic_cast<SceneObjectLight*>(scene_object);
         light = light_object->light;
         assert(light != nullptr);
@@ -1725,7 +1726,12 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
         {            
             printf("... Light type changed from %d to %d, replacing with new light\n",
                 light_type, light_settings.type());
-            delete_object(object_name);
+
+            delete_object(object_name);                    
+
+            auto it = std::find(scene_lights.begin(), scene_lights.end(), light);
+            scene_lights.erase(it);
+            
             light_object = nullptr;
         }
     }
@@ -1759,7 +1765,8 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
         light_object->light_type = light_type;
         light_object->data_link = light_settings.light_name();
 
-        scene_objects[object_name] = light_object;        
+        scene_objects[object_name] = light_object;    
+        scene_lights.push_back(light);    
     }
 
     if (light_settings.type() == LightSettings::SPOT)
@@ -1796,8 +1803,6 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
         ospSetFloat(light, "radius", light_settings.radius());
 
     ospCommit(light);  
-
-    scene_lights.push_back(light);  
 
     return true;
 }
