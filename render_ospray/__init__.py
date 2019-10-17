@@ -423,10 +423,12 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             datablock = update.id
             print(datablock)
             print(dir(datablock))
+
             if isinstance(datablock, bpy.types.Material):
                 self.connection.send_updated_material(None, depsgraph, datablock, True)
-            
-
+            elif isinstance(datablock, bpy.types.Object):                
+                if datablock.type == 'LIGHT':
+                    self.connection.send_updated_light(None, depsgraph, datablock)
 
     # For viewport renders, this method gets called once at the start and
     # whenever the scene or 3D viewport changes. This method is where data

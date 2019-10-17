@@ -2974,6 +2974,7 @@ start_rendering(const ClientMessage& client_message)
 
     printf("Rendering %d samples (%s):\n", render_samples, mode.c_str());
     printf("[1:%d] ", framebuffer_reduction_factor);
+    printf("I:%d L:%d m:%d | ", scene_instances.size(), scene_lights.size(), scene_materials.size());
     fflush(stdout);    
 
     gettimeofday(&frame_start_time, NULL);
@@ -3205,6 +3206,9 @@ handle_connection(TCPSocket *sock)
                 printf("[1:%d] ", framebuffer_reduction_factor);
             else
                 printf("[%d/%d] ", current_sample, render_samples);
+
+            printf("I:%d L:%d m:%d | ", scene_instances.size(), scene_lights.size(), scene_materials.size());
+
             fflush(stdout);
             
             gettimeofday(&frame_start_time, NULL);

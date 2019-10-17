@@ -1,19 +1,23 @@
-OSPRAY things/bugs
+OSPRAY issues
 - Volume rendering currently is buggy work when applying a transform
-  to the volumetricmodel with the scivis renderer
-- No samplingRate setting on the pathtracer renderer for a volume?
-- The background alpha seems to be ignored (or always 0) when using the path
-  tracer renderer. See https://github.com/ospray/ospray/issues/347
+  to the volume model with the scivis renderer (path tracer works ok)
+- The background alpha with `bgColor` seems to be ignored (or always 0) when using the path
+  tracer renderer. See https://github.com/ospray/ospray/issues/347.
+  For now use backplate work around.
 - Camera clipping start doesn't match cycles render, nor OpenGL scene view.
   OSPRay also only supports setting the clipping start, not a far clip value.
+- Apparently the framebuffer gets corrupted when using ospCancel(), see
+  https://github.com/ospray/ospray/issues/367. However, still needs to be
+  confirmed that it really is an issue with ospray.
 
-Bugs
-- Doing a render in e.g. scivis and then switching to pathtracer leaves
-  certain scene elements using the wrong material (which is renderer dependent)
-  causing a segfault during render
-- https://developer.blender.org/T59089 (get evee render instead of custom one)
+Blender issues
+- https://developer.blender.org/T59089 (get eevee render instead of custom one)
 - https://developer.blender.org/T64295 (custom props not updating in UI)
-- https://developer.blender.org/T69808 (custom nodes with draw function segfaults)
+- No depsgraph updates are sent when merely changing connections between 
+  custom shader nodes?
+- The depsgraph updates sent to view_update() are not always fine-grained
+  enough and/or are missing specific updates. Examples: custom prop update
+  cannot be detected as such, the whole object/datablock is flagged
 
 Fix/improve/optimize
 - Correctly release the scene after rendering
@@ -62,7 +66,8 @@ Must haves
 - Camera UI panel
 - Better error handling and recovery
 - Cancel render during export of large scenes (if this is even possible)
-- Reload plugin on update
+- Reload plugin when shared lib changes
+- Handle text objects
 
 Very nice to haves ;-)
 - UI buttons to preload/clear the scene on the server, including
@@ -72,7 +77,6 @@ Very nice to haves ;-)
 
 Nice to haves
 - Start/stop server during rendering automatically
-- Handle text objects
 - Reduce overhead in server -> client communication. E.g. render
   of angel.blend in 3840x2160 @ 4 spp takes 40.972s on the server,
   but 46.90s on the blender side (i.e. +14.5% longer)
