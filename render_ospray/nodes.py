@@ -349,6 +349,8 @@ class OSPRayGlass(bpy.types.Node):
         attenuation_color = self.inputs.new('NodeSocketColor', 'Attenuation color')    
         attenuation_color.default_value = (1, 1, 1, 1)
         
+        # XXX This currently can go up to 10000 or so with the slider, which isn't
+        # terribly useful
         attenuation_distance = self.inputs.new('OSPRaySocketFloat_NonNegative', 'Attenuation distance') 
         attenuation_distance.default_value = 1
         
