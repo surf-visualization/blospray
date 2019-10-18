@@ -69,6 +69,8 @@ message ClientMessage
     /*
     HELLO: 
         uint_value = protocol version
+    CLEAR_SCENE:
+        string_value = "all" | "keep_plugin_instances"
     QUERY_BOUND: 
         string_value = object name
     START_RENDERING:

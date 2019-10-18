@@ -252,7 +252,7 @@ load_file(GenerateFunctionResult &result, PluginState *state)
             texcoords.push_back(tc[i].z);
         }
 
-        OSPData data = ospNewCopiedData(nvertices, OSP_VEC3F, texcoords.data());
+        OSPData data = ospNewCopiedData(nvertices, OSP_VEC2F, texcoords.data());
         ospCommit(data);
         ospSetObject(geometry, "vertex.texcoord", data); 
     }

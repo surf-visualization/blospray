@@ -54,10 +54,17 @@ using json = nlohmann::json;
 const int       PORT = 5909;
 const uint32_t  PROTOCOL_VERSION = 2;
 
-OSPRenderer     renderer;
+bool framebuffer_compression = getenv("BLOSPRAY_COMPRESS_FRAMEBUFFER") != nullptr;
+bool keep_framebuffer_files = getenv("BLOSPRAY_KEEP_FRAMEBUFFER_FILES") != nullptr;
+bool dump_client_messages = getenv("BLOSPRAY_DUMP_CLIENT_MESSAGES") != nullptr;
+bool abort_on_ospray_error = getenv("BLOSPRAY_ABORT_ON_OSPRAY_ERROR") != nullptr;
+// Print server state to console just before starting to render
+bool dump_server_state = getenv("BLOSPRAY_DUMP_SERVER_STATE") != nullptr;
+
+OSPRenderer     ospray_renderer;
 std::string     current_renderer_type;
-OSPWorld        world;
-OSPCamera       camera = nullptr;
+OSPWorld        ospray_world;
+OSPCamera       ospray_camera = nullptr;
 std::vector<OSPFrameBuffer>  framebuffers;    // 0 = nullptr (unused), 1 = FB for reduction factor 1, etc.
 bool            recreate_framebuffers = false;  // XXX workaround for ospCancel screwing up the framebuffer
 
@@ -73,7 +80,8 @@ struct SceneMaterial
 
     ~SceneMaterial()
     {
-        ospRelease(material);
+        if (material != nullptr)
+            ospRelease(material);
     }
 };
 
@@ -83,15 +91,15 @@ std::map<std::string, OSPRenderer>  renderers;
 
 std::map<std::string, OSPMaterial>  default_materials;
 SceneMaterialMap            scene_materials;
-std::string                 scene_materials_renderer;
+//std::string                 scene_materials_renderer;
 
-std::vector<OSPInstance>    scene_instances;
+std::vector<OSPInstance>    ospray_scene_instances;
 
-OSPLight                    ambient_light;
-std::vector<OSPLight>       scene_lights;
+OSPLight                    ospray_scene_ambient_light;
+std::vector<OSPLight>       ospray_scene_lights;
 
-OSPData                     scene_instances_data = nullptr;
-OSPData                     scene_lights_data = nullptr;
+OSPData                     ospray_scene_instances_data = nullptr;
+OSPData                     ospray_scene_lights_data = nullptr;
 
 int                         framebuffer_width=0, framebuffer_height=0;
 OSPFrameBufferFormat        framebuffer_format;
@@ -112,11 +120,6 @@ int             current_sample;
 OSPFuture       render_future = nullptr;
 struct timeval  rendering_start_time, frame_start_time;
 bool            cancel_rendering;
-
-bool framebuffer_compression = getenv("BLOSPRAY_COMPRESS_FRAMEBUFFER") != nullptr;
-bool keep_framebuffer_files = getenv("BLOSPRAY_KEEP_FRAMEBUFFER_FILES") != nullptr;
-bool dump_client_messages = getenv("BLOSPRAY_DUMP_CLIENT_MESSAGES") != nullptr;
-bool abort_on_ospray_error = getenv("BLOSPRAY_ABORT_ON_OSPRAY_ERROR") != nullptr;
 
 // Geometry buffers used during network receive
 
@@ -150,6 +153,17 @@ struct PluginInstance
     // Plugin state contains OSPRay scene elements
     // XXX move properties out of PluginState?
     PluginState     *state;     // XXX store as object, not as pointer?
+
+    PluginInstance()
+    {
+        state = nullptr;
+    }
+
+    ~PluginInstance()
+    {
+        if (state != nullptr)
+            delete state;
+    }
 };
 
 // A regular Blender Mesh XXX currently triangles only
@@ -443,7 +457,7 @@ delete_scene_data(const std::string& name)
         delete_plugin_instance(name);
     else
     {
-        assert(it->second == SDT_MESH);
+        assert(it->second == SDT_BLENDER_MESH);
         // XXX todo
         //delete_blender_mesh(name);
     }
@@ -801,8 +815,7 @@ handle_update_plugin_instance(TCPSocket *sock)
         return false;
     }    
 
-    // Create plugin instance and state
-    // XXX delete plugin instance and state below in case of error
+    // Create plugin instance and state    
 
     state = new PluginState; 
     state->renderer = current_renderer_type;   
@@ -909,7 +922,7 @@ handle_update_blender_mesh_data(TCPSocket *sock, const std::string& name)
         // Have existing scene data with this name, check what it is
         SceneDataType type = it->second;
 
-        if (type != SDT_MESH)
+        if (type != SDT_BLENDER_MESH)
         {
             printf("... WARNING: data is currently of type %s, overwriting with new mesh!\n", SceneDataType_names[type]);
             delete_scene_data(name);
@@ -933,7 +946,7 @@ handle_update_blender_mesh_data(TCPSocket *sock, const std::string& name)
     {
         blender_mesh = blender_meshes[name] = new BlenderMesh;
         geometry = blender_mesh->geometry = ospNewGeometry("triangles");
-        scene_data_types[name] = SDT_MESH;
+        scene_data_types[name] = SDT_BLENDER_MESH;
     }
 
     MeshData    mesh_data;
@@ -1040,7 +1053,7 @@ update_blender_mesh_object(const UpdateObject& update)
 
     // Check linked data
 
-    if (!scene_data_with_type_exists(linked_data, SDT_MESH))
+    if (!scene_data_with_type_exists(linked_data, SDT_BLENDER_MESH))
     {
         if (scene_object == nullptr)
             delete mesh_object;
@@ -1110,7 +1123,7 @@ update_blender_mesh_object(const UpdateObject& update)
         scene_objects[object_name] = mesh_object;
 
     // XXX should create this list from scene_objects?
-    scene_instances.push_back(instance);
+    ospray_scene_instances.push_back(instance);
 
     return true;
 }
@@ -1204,7 +1217,7 @@ update_geometry_object(const UpdateObject& update)
     if (scene_object == nullptr)
         scene_objects[object_name] = geometry_object;
 
-    scene_instances.push_back(instance);
+    ospray_scene_instances.push_back(instance);
 
     return true;
 }
@@ -1274,7 +1287,7 @@ update_scene_object(const UpdateObject& update)
         ospCommit(instance);
 
         scene_object_scene->instances.push_back(instance);
-        scene_instances.push_back(instance);
+        ospray_scene_instances.push_back(instance);
     }
 
     // Lights
@@ -1287,7 +1300,7 @@ update_scene_object(const UpdateObject& update)
             // XXX Sigh, need to apply object2world transform manually
             // This should be coming in 2.0
             scene_object_scene->lights.push_back(light);
-            scene_lights.push_back(light);
+            ospray_scene_lights.push_back(light);
         }
     }
 
@@ -1388,7 +1401,7 @@ update_volume_object(const UpdateObject& update, const Volume& volume_settings)
     if (scene_object == nullptr)
         scene_objects[object_name] = volume_object;
 
-    scene_instances.push_back(instance);
+    ospray_scene_instances.push_back(instance);
 
     return true;
 }
@@ -1513,7 +1526,7 @@ update_isosurfaces_object(const UpdateObject& update)
     if (scene_object == nullptr)
         scene_objects[object_name] = isosurfaces_object;
 
-    scene_instances.push_back(instance);
+    ospray_scene_instances.push_back(instance);
     
     return true;
 }
@@ -1601,9 +1614,9 @@ add_slices_objects(const UpdateObject& update, const Slices& slices)
             printf("--> '%s' | WARNING: linked data not found!\n", linked_data.c_str());
             return false;
         }
-        else if (it->second != SDT_MESH)
+        else if (it->second != SDT_BLENDER_MESH)
         {
-            printf("--> '%s' | WARNING: linked data is not of type SDT_MESH but of type %s!\n", 
+            printf("--> '%s' | WARNING: linked data is not of type SDT_BLENDER_MESH but of type %s!\n", 
                 linked_data.c_str(), SceneDataType_names[it->second]);
             return false;
         }
@@ -1662,7 +1675,7 @@ add_slices_objects(const UpdateObject& update, const Slices& slices)
         //if (scene_object == nullptr)
         //scene_objects[object_name] = ...
 
-        scene_instances.push_back(instance);
+        ospray_scene_instances.push_back(instance);
 
 #if 0
         plane[0] = slice.a();
@@ -1719,9 +1732,12 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
     {
         // Check existing light
         light_object = dynamic_cast<SceneObjectLight*>(scene_object);
+        
         light = light_object->light;
         assert(light != nullptr);
+        
         light_type = light_object->light_type;
+
         if (light_type != light_settings.type())
         {            
             printf("... Light type changed from %d to %d, replacing with new light\n",
@@ -1729,16 +1745,18 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
 
             delete_object(object_name);                    
 
-            auto it = std::find(scene_lights.begin(), scene_lights.end(), light);
-            scene_lights.erase(it);
+            auto it = std::find(ospray_scene_lights.begin(), ospray_scene_lights.end(), light);
+            ospray_scene_lights.erase(it);
             
             light_object = nullptr;
         }
     }
     
     if (light_object == nullptr)
-    {
+    {            
         light_type = light_settings.type();
+        printf("... Creating new light of type %d\n", light_type);
+
         light_object = new SceneObjectLight;
         switch (light_type)
         {
@@ -1766,7 +1784,7 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
         light_object->data_link = light_settings.light_name();
 
         scene_objects[object_name] = light_object;    
-        scene_lights.push_back(light);    
+        ospray_scene_lights.push_back(light);    
     }
 
     if (light_settings.type() == LightSettings::SPOT)
@@ -1808,10 +1826,10 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
 }
 
 // XXX add world/object bounds
-bool 
-handle_get_server_state(TCPSocket *sock)
+void
+get_server_state(json& j)
 {    
-    json j, p;
+    json p;
 
     p = {};
     for (auto& kv: scene_objects)
@@ -1893,27 +1911,85 @@ handle_get_server_state(TCPSocket *sock)
     json scene;
 
     p = {};
-    for (auto& i: scene_instances)
+    for (auto& i: ospray_scene_instances)
         p.push_back((size_t)i);
-    scene["scene_instances"] = p;
+    scene["ospray_scene_instances"] = p;
 
     p = {};
-    for (auto& l: scene_lights)
+    for (auto& l: ospray_scene_lights)
         p.push_back((size_t)l);
-    scene["scene_lights"] = p;
+    scene["ospray_scene_lights"] = p;
 
     j["scene"] = scene;
 
+    // Framebuffer
+
+    json fb;
+
+    p = {};
+    for (int i = 0; i < framebuffers.size(); i++)
+        p.push_back((size_t)framebuffers[i]);
+    fb["framebuffers"] = p;
+
+    fb["framebuffer_reduction_factor"] = framebuffer_reduction_factor;
+
+    j["framebuffer"] = fb;
+
+    // Camera
+
+    json cam;
+
+    cam["ospray_camera"] = (size_t)ospray_camera;
+
+    j["camera"] = cam;    
+
+    // World
+
+    json world;
+
+    world["ospray_world"] = (size_t)ospray_world;
+
+    j["world"] = world;
+
+    // Renderer
+
+    json r;
+
+    r["ospray_renderer"] = (size_t)ospray_renderer;
+
+    json rr;
+    for (auto& nr : renderers)
+        rr[nr.first] = (size_t)nr.second;
+    j["renderers"] = rr;
+
+    j["renderer"] = r;    
+}
+
+bool 
+handle_get_server_state(TCPSocket *sock)
+{    
+    json j;
+
+    get_server_state(j);
+
     // Send result
-
     ServerStateResult   result;
-
     result.set_state(j.dump(4));
-
     send_protobuf(sock, result);
 
     return true;
 }
+
+void 
+print_server_state()
+{
+    json j;
+    get_server_state(j);
+
+    printf("Server state:\n");
+    printf("%s\n", j.dump(4).c_str());
+}
+
 
 bool
 handle_update_object(TCPSocket *sock)
@@ -2021,26 +2097,26 @@ update_camera(CameraSettings& camera_settings)
     cam_updir[2] = camera_settings.up_dir(2);
     
     // XXX for now create new cam object
-    if (camera != nullptr)
-        ospRelease(camera);
+    if (ospray_camera != nullptr)
+        ospRelease(ospray_camera);
 
     switch (camera_settings.type())
     {
         case CameraSettings::PERSPECTIVE:
             printf("... perspective\n");
-            camera = ospNewCamera("perspective");
-            ospSetFloat(camera, "fovy",  camera_settings.fov_y());  // Degrees
+            ospray_camera = ospNewCamera("perspective");
+            ospSetFloat(ospray_camera, "fovy",  camera_settings.fov_y());  // Degrees
             break;
 
         case CameraSettings::ORTHOGRAPHIC:
             printf("... orthographic\n");
-            camera = ospNewCamera("orthographic");
-            ospSetFloat(camera, "height", camera_settings.height());
+            ospray_camera = ospNewCamera("orthographic");
+            ospSetFloat(ospray_camera, "height", camera_settings.height());
             break;
 
         case CameraSettings::PANORAMIC:
             printf("... panoramic\n");
-            camera = ospNewCamera("panoramic");
+            ospray_camera = ospNewCamera("panoramic");
             break;
 
         default:
@@ -2048,28 +2124,28 @@ update_camera(CameraSettings& camera_settings)
             break;
     }
 
-    ospSetFloat(camera, "aspect", camera_settings.aspect());        // XXX perspective only
-    ospSetFloat(camera, "nearClip", camera_settings.clip_start());
+    ospSetFloat(ospray_camera, "aspect", camera_settings.aspect());        // XXX perspective only
+    ospSetFloat(ospray_camera, "nearClip", camera_settings.clip_start());
 
-    ospSetParam(camera, "position", OSP_VEC3F, cam_pos);
-    ospSetParam(camera, "direction", OSP_VEC3F, cam_viewdir);
-    ospSetParam(camera, "up",  OSP_VEC3F, cam_updir);
+    ospSetParam(ospray_camera, "position", OSP_VEC3F, cam_pos);
+    ospSetParam(ospray_camera, "direction", OSP_VEC3F, cam_viewdir);
+    ospSetParam(ospray_camera, "up",  OSP_VEC3F, cam_updir);
 
     if (camera_settings.dof_focus_distance() > 0.0f)
     {
         // XXX seem to stuck in loop during rendering when distance is 0
-        ospSetFloat(camera, "focusDistance", camera_settings.dof_focus_distance());
-        ospSetFloat(camera, "apertureRadius", camera_settings.dof_aperture());
+        ospSetFloat(ospray_camera, "focusDistance", camera_settings.dof_focus_distance());
+        ospSetFloat(ospray_camera, "apertureRadius", camera_settings.dof_aperture());
     }
 
     if (camera_settings.border_size() == 4)
     {
         // Border render enabled
-        ospSetVec2f(camera, "imageStart", camera_settings.border(0), camera_settings.border(1));
-        ospSetVec2f(camera, "imageEnd", camera_settings.border(2), camera_settings.border(3));
+        ospSetVec2f(ospray_camera, "imageStart", camera_settings.border(0), camera_settings.border(1));
+        ospSetVec2f(ospray_camera, "imageEnd", camera_settings.border(2), camera_settings.border(3));
     }    
 
-    ospCommit(camera);
+    ospCommit(ospray_camera);
 }
 
 void
@@ -2388,7 +2464,7 @@ update_renderer_type(const std::string& type)
 
     printf("Updating renderer type to '%s'\n", type.c_str());
 
-    renderer = renderers[type.c_str()];
+    ospray_renderer = renderers[type.c_str()];
 
     scene_materials.clear();
     // XXX any more?
@@ -2403,26 +2479,26 @@ update_render_settings(const RenderSettings& render_settings)
 
     //ospSetInt(renderer, "spp", 1);
 
-    ospSetInt(renderer, "maxDepth", render_settings.max_depth());
-    ospSetFloat(renderer, "minContribution", render_settings.min_contribution());
-    ospSetFloat(renderer, "varianceThreshold", render_settings.variance_threshold());
+    ospSetInt(ospray_renderer, "maxDepth", render_settings.max_depth());
+    ospSetFloat(ospray_renderer, "minContribution", render_settings.min_contribution());
+    ospSetFloat(ospray_renderer, "varianceThreshold", render_settings.variance_threshold());
 
     if (current_renderer_type == "scivis")
     {
-        ospSetInt(renderer, "aoSamples", render_settings.ao_samples());
-        ospSetFloat(renderer, "aoRadius", render_settings.ao_radius());
-        ospSetFloat(renderer, "aoIntensity", render_settings.ao_intensity());
+        ospSetInt(ospray_renderer, "aoSamples", render_settings.ao_samples());
+        ospSetFloat(ospray_renderer, "aoRadius", render_settings.ao_radius());
+        ospSetFloat(ospray_renderer, "aoIntensity", render_settings.ao_intensity());
     }
     else
     {
         // Pathtracer
 
-        ospSetInt(renderer, "rouletteDepth", render_settings.roulette_depth());
-        ospSetFloat(renderer, "maxContribution", render_settings.max_contribution());
-        ospSetBool(renderer, "geometryLights", render_settings.geometry_lights());
+        ospSetInt(ospray_renderer, "rouletteDepth", render_settings.roulette_depth());
+        ospSetFloat(ospray_renderer, "maxContribution", render_settings.max_contribution());
+        ospSetBool(ospray_renderer, "geometryLights", render_settings.geometry_lights());
     }
 
-    ospCommit(renderer);
+    ospCommit(ospray_renderer);
 
     // Done!
 
@@ -2440,9 +2516,9 @@ update_world_settings(const WorldSettings& world_settings)
         world_settings.ambient_color(2), 
         world_settings.ambient_intensity());
 
-    ospSetVec3f(ambient_light, "color", world_settings.ambient_color(0), world_settings.ambient_color(1), world_settings.ambient_color(2));
-    ospSetFloat(ambient_light, "intensity", world_settings.ambient_intensity());
-    ospCommit(ambient_light);
+    ospSetVec3f(ospray_scene_ambient_light, "color", world_settings.ambient_color(0), world_settings.ambient_color(1), world_settings.ambient_color(2));
+    ospSetFloat(ospray_scene_ambient_light, "intensity", world_settings.ambient_intensity());
+    ospCommit(ospray_scene_ambient_light);
 
     printf("... background color %f, %f, %f, %f\n", 
         world_settings.background_color(0),
@@ -2452,7 +2528,7 @@ update_world_settings(const WorldSettings& world_settings)
 
     if (current_renderer_type == "scivis")
     {
-        ospSetVec4f(renderer, "bgColor",
+        ospSetVec4f(ospray_renderer, "bgColor",
             world_settings.background_color(0),
             world_settings.background_color(1),
             world_settings.background_color(2),
@@ -2481,11 +2557,11 @@ update_world_settings(const WorldSettings& world_settings)
         ospCommit(backplate);            
         ospRelease(data);
 
-        ospSetObject(renderer, "backplate", backplate);
+        ospSetObject(ospray_renderer, "backplate", backplate);
         ospRelease(backplate);
     }
 
-    ospCommit(renderer);
+    ospCommit(ospray_renderer);
 
     return true;
 }
@@ -2602,22 +2678,44 @@ handle_query_bound(TCPSocket *sock, const std::string& name)
 }
 
 bool
-clear_scene()
+clear_scene(const std::string& type)
 {
-    printf("Clearing scene (OSPRay elements only)\n");
+    printf("Clearing scene\n");
+    printf("... type: %s\n", type.c_str());
 
-    ospRelease(scene_instances_data);
-    ospRelease(scene_lights_data);    
+    if (ospray_scene_instances_data != nullptr)
+        ospRelease(ospray_scene_instances_data);
+    if (ospray_scene_lights_data != nullptr)
+        ospRelease(ospray_scene_lights_data);   
 
-    scene_instances.clear();
-    scene_instances_data = nullptr;
+    ospray_scene_instances.clear();
+    ospray_scene_instances_data = nullptr;
 
-    scene_lights.clear();
-    scene_lights.push_back(ambient_light);
-    scene_lights_data = nullptr;
+    ospray_scene_lights.clear();    
+    ospray_scene_lights_data = nullptr;
 
-    if (world != nullptr)
-        ospRelease(world);
+    if (ospray_world != nullptr)
+    {
+        ospRelease(ospray_world);
+        ospray_world = nullptr;
+    }
+
+    for (auto& so : scene_objects)
+        delete so.second;
+    scene_objects.clear();
+
+    scene_data_types.clear();
+
+    for (auto& sm : scene_materials)
+        delete sm.second;
+    scene_materials.clear();
+
+    if (type == "all")
+    {
+        for (auto& pi : plugin_instances)
+            delete pi.second;
+        plugin_instances.clear();
+    }
 
     return true;
 }
@@ -2626,29 +2724,33 @@ bool
 prepare_scene()
 {
     // XXX might not have to recreate world, only update instances
-    world = ospNewWorld();
+    ospray_world = ospNewWorld();
     // Check https://github.com/ospray/ospray/issues/277. Is bool setting fixed in 2.0?
-    //ospSetBool(world, "compactMode", true);
+    //ospSetBool(ospray_world, "compactMode", true);
 
-    printf("Setting up world with %d instance(s)\n", scene_instances.size());
-    if (scene_instances.size() > 0)
+    printf("Setting up world with %d instance(s)\n", ospray_scene_instances.size());
+    if (ospray_scene_instances.size() > 0)
     {
-        ospRelease(scene_instances_data);    
-        scene_instances_data = ospNewSharedData(&scene_instances[0], OSP_INSTANCE, scene_instances.size());
-        ospSetObject(world, "instance", scene_instances_data);    
-        ospRetain(scene_instances_data);
+        if (ospray_scene_instances_data != nullptr)
+            ospRelease(ospray_scene_instances_data);    
+        ospray_scene_instances_data = ospNewSharedData(&ospray_scene_instances[0], OSP_INSTANCE, ospray_scene_instances.size());
+        ospSetObject(ospray_world, "instance", ospray_scene_instances_data);    
+        ospRetain(ospray_scene_instances_data);
     }
     
-    printf("Adding %d light(s) to the world\n", scene_lights.size());
-    if (scene_lights.size() > 0)
+    printf("Adding %d light(s) to the world\n", ospray_scene_lights.size());
+    if (ospray_scene_lights.size() > 0)
     {
-        ospRelease(scene_lights_data);
-        scene_lights_data = ospNewSharedData(&scene_lights[0], OSP_LIGHT, scene_lights.size());
-        ospSetObject(world, "light", scene_lights_data);
-        ospRetain(scene_lights_data);
+        if (ospray_scene_lights_data != nullptr)
+            ospRelease(ospray_scene_lights_data);
+        ospray_scene_lights_data = ospNewSharedData(&ospray_scene_lights[0], OSP_LIGHT, ospray_scene_lights.size());
+        ospSetObject(ospray_world, "light", ospray_scene_lights_data);
+        ospRetain(ospray_scene_lights_data);
     }
 
-    ospCommit(world);
+    ospCommit(ospray_world);
+
+    ospray_scene_lights.push_back(ospray_scene_ambient_light);
 
     return true;
 }
@@ -2764,7 +2866,7 @@ handle_client_message(TCPSocket *sock, const ClientMessage& client_message, bool
 
         case ClientMessage::CLEAR_SCENE:
             ensure_idle_render_mode();
-            clear_scene();
+            clear_scene(client_message.string_value());
             break;
 
         case ClientMessage::UPDATE_RENDER_SETTINGS:  
@@ -2977,13 +3079,16 @@ start_rendering(const ClientMessage& client_message)
     // Set up world and scene objects
     prepare_scene();   
 
+    if (dump_server_state)
+        print_server_state();    
+
     printf("Rendering %d samples (%s):\n", render_samples, mode.c_str());
     printf("[1:%d] ", framebuffer_reduction_factor);
-    printf("I:%d L:%d m:%d | ", scene_instances.size(), scene_lights.size(), scene_materials.size());
+    printf("I:%d L:%d m:%d | ", ospray_scene_instances.size(), ospray_scene_lights.size(), scene_materials.size());
     fflush(stdout);    
 
     gettimeofday(&frame_start_time, NULL);
-    render_future = ospRenderFrame(framebuffers[framebuffer_reduction_factor], renderer, camera, world);
+    render_future = ospRenderFrame(framebuffers[framebuffer_reduction_factor], ospray_renderer, ospray_camera, ospray_world);
     if (render_future == nullptr)
         printf("ERROR: ospRenderFrame() returned NULL!\n");
 }
@@ -3212,13 +3317,13 @@ handle_connection(TCPSocket *sock)
             else
                 printf("[%d/%d] ", current_sample, render_samples);
 
-            printf("I:%d L:%d m:%d | ", scene_instances.size(), scene_lights.size(), scene_materials.size());
+            printf("I:%d L:%d m:%d | ", ospray_scene_instances.size(), ospray_scene_lights.size(), scene_materials.size());
 
             fflush(stdout);
             
             gettimeofday(&frame_start_time, NULL);
 
-            render_future = ospRenderFrame(framebuffers[framebuffer_reduction_factor], renderer, camera, world);
+            render_future = ospRenderFrame(framebuffers[framebuffer_reduction_factor], ospray_renderer, ospray_camera, ospray_world);
             if (render_future == nullptr)
                 printf("ERROR: ospRenderFrame() returned NULL!\n");
         }
@@ -3253,7 +3358,7 @@ prepare_renderers()
     ospCommit(m);
 
     // XXX move somewhere else
-    ambient_light = ospNewLight("ambient");
+    ospray_scene_ambient_light = ospNewLight("ambient");
 }
 
 // Error/status display

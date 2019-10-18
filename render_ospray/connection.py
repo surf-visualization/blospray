@@ -289,6 +289,7 @@ class Connection:
     def send_clear_scene(self):
         client_message = ClientMessage()
         client_message.type = ClientMessage.CLEAR_SCENE
+        client_message.string_value = 'keep_plugin_instances'
         send_protobuf(self.sock, client_message)    
         # XXX flags to pick which scene items are cleared    
 

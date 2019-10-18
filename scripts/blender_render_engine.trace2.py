@@ -4,7 +4,7 @@ import bpy
 import bgl
 from mathutils import Vector
 
-import math, time
+import math, time, queue
 import numpy
 from PIL import Image, ImageFont, ImageDraw
 
@@ -19,6 +19,8 @@ class CustomRenderEngine(bpy.types.RenderEngine):
     bl_use_preview = True
     bl_use_eevee_viewport = True
     bl_use_shading_nodes_custom = False     # Default: True
+    
+    MAIN_LOG_SIZE = 25
 
     # Init is called whenever a new render engine instance is created. Multiple
     # instances may exist at the same time, for example for a viewport and final
@@ -36,6 +38,13 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         self.draw_count = 0
         self.update_count = 0
         self.dimensions = None
+        
+        self.log_lines_main = queue.Queue()
+        self.log_lines_viewupdate = []
+        self.log_lines_viewdraw = []
+        
+        self.font = ImageFont.truetype('/usr/share/fonts/DejaVuSansMono-Bold.ttf', 14)
+        
 
     # When the render engine instance is destroyed, this is called. Clean up any
     # render engine data here, for example stopping running render threads.
@@ -50,6 +59,18 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         
     def clear_log_viewdraw(self):
         self.log_lines_viewdraw = []
+        
+    def log_main(self, *args):
+        if len(args) > 0:
+            s = ' ' .join(map(str, args))
+            t = '%.6f' % (time.time() - t0)
+            msg = '%s | %s' % (t, s)
+        else:
+            msg = ''
+            
+        if self.log_lines_main.qsize() == self.MAIN_LOG_SIZE:
+            self.log_lines_main.get_nowait()
+        self.log_lines_main.put(msg)            
         
     def log_viewupdate(self, *args):
         if len(args) > 0:
@@ -74,20 +95,40 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         draw = ImageDraw.Draw(img)
         
         col = (255, 0, 0)
-
+                
+        Y = 200
+        L = 4
+        
         x = 300
-        y = 200
+        y = Y
+        
+        # XXX yuck, but can iterate over a queue
+        t = queue.Queue()
+        while True:
+            try:
+                line = self.log_lines_main.get_nowait()
+                w, h = draw.textsize(line, font=self.font)
+                draw.text((x, y), line, fill=col, font=self.font)
+                y += h + L                                   
+                t.put(line)
+            except queue.Empty:
+                break
+            
+        self.log_lines_main = t
+        
+        x += 300
+        y = Y
         for line in self.log_lines_viewupdate:
-            w, h = draw.textsize(line)
-            draw.text((x, y), line, fill=col)
-            y += h + 4            
+            w, h = draw.textsize(line, font=self.font)
+            draw.text((x, y), line, fill=col, font=self.font)
+            y += h + L           
 
-        x = 800
-        y = 200
+        x += 700
+        y = Y
         for line in self.log_lines_viewdraw:
-            w, h = draw.textsize(line)
-            draw.text((x, y), line, fill=col)
-            y += h + 4            
+            w, h = draw.textsize(line, font=self.font)
+            draw.text((x, y), line, fill=col, font=self.font)
+            y += h + L           
         
         del draw
         
@@ -102,6 +143,8 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         self.clear_log_viewupdate()
         
         self.update_count += 1
+        
+        self.log_main('view_update #%d' % self.update_count)
         
         self.log_viewupdate('-' * 40)
         self.log_viewupdate('view_update #%d' % self.update_count)
@@ -148,6 +191,8 @@ class CustomRenderEngine(bpy.types.RenderEngine):
 
         self.draw_count += 1
         
+        self.log_main('view_draw #%d' % self.draw_count)
+        
         self.log_viewdraw('-' * 40)
         self.log_viewdraw('view_draw #%d' % self.draw_count)
         self.log_viewdraw('-' * 40)
@@ -161,24 +206,31 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         
         scene = context.scene
         
+        self.log_viewdraw('region_data:')
+        
         # view clipping has no effect on these matrices
         self.log_viewdraw('window_matrix')
-        self.log_viewdraw(region_data.window_matrix)
+        for line in str(region_data.window_matrix).split('\n'):
+            self.log_viewdraw(line)
+            
         self.log_viewdraw('perspective_matrix')
-        self.log_viewdraw(region_data.perspective_matrix)    # = window * view
+        for line in str(region_data.perspective_matrix).split('\n'):    # = window * view
+            self.log_viewdraw(line)
+            
         self.log_viewdraw('view_matrix')
-        self.log_viewdraw(region_data.view_matrix)
+        for line in str(region_data.view_matrix).split('\n'):
+            self.log_viewdraw(line)
+        
         # view_matrix = identity when in top view.
         # view_matrix = model-view matrix,  i.e. world to camera
         
-        self.log_viewdraw('region_data:')
-        self.log_viewdraw('view_perspective', region_data.view_perspective) # PERSP (regular 3D view not tied to camera), CAMERA (view from camera) or ORTHO (one of top, etc)
-        self.log_viewdraw('view_location', region_data.view_location)       # View pivot point
-        self.log_viewdraw('view_distance', region_data.view_distance)       # Distance to view location
-        self.log_viewdraw('view_rotation', region_data.view_rotation)       # Quat
-        self.log_viewdraw('view_camera_offset', list(region_data.view_camera_offset))
-        self.log_viewdraw('view_camera_zoom', region_data.view_camera_zoom)
-        self.log_viewdraw('is_perspective %d' % region_data.is_perspective)
+        self.log_viewdraw('... view_perspective', region_data.view_perspective) # PERSP (regular 3D view not tied to camera), CAMERA (view from camera) or ORTHO (one of top, etc)
+        self.log_viewdraw('... view_location', region_data.view_location)       # View pivot point
+        self.log_viewdraw('... view_distance', region_data.view_distance)       # Distance to view location
+        self.log_viewdraw('... view_rotation', region_data.view_rotation)       # Quat
+        self.log_viewdraw('... view_camera_offset', list(region_data.view_camera_offset))
+        self.log_viewdraw('... view_camera_zoom', region_data.view_camera_zoom)
+        self.log_viewdraw('... is_perspective %d' % region_data.is_perspective)
         
         cam_xform = region_data.view_matrix.inverted()
         location = cam_xform.translation
@@ -186,21 +238,21 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         view_dir = list(cam_xform @ Vector((0, 0, -1)) - location)
         up_dir = list(cam_xform @ Vector((0, 1, 0)) - location)
         self.log_viewdraw('derived camera:')
-        self.log_viewdraw('position', position)
-        self.log_viewdraw('view_dir', view_dir)
-        self.log_viewdraw('up_dir', up_dir)
+        self.log_viewdraw('... position', position)
+        self.log_viewdraw('... view_dir', view_dir)
+        self.log_viewdraw('... up_dir', up_dir)
 
         # view3d.perspective_matrix = window_matrix * view_matrix
         perspective_matrix = region_data.perspective_matrix
         
         self.log_viewdraw('space_data:')
-        self.log_viewdraw('camera', space_data.camera)
+        self.log_viewdraw('... camera', space_data.camera)
         camobj = space_data.camera
         camdata = camobj.data
         self.log_viewdraw('... shift', camdata.shift_x, camdata.shift_y)
-        self.log_viewdraw('use_local_camera', space_data.use_local_camera)  # No relation to camera view yes/no
-        self.log_viewdraw('lens', space_data.lens)                          # Always set to viewport lens setting, even when in camera view
-        self.log_viewdraw('clip_start', space_data.clip_start)
+        self.log_viewdraw('... use_local_camera', space_data.use_local_camera)  # No relation to camera view yes/no
+        self.log_viewdraw('... lens', space_data.lens)                          # Always set to viewport lens setting, even when in camera view
+        self.log_viewdraw('... clip_start', space_data.clip_start)
                       
         scene = depsgraph.scene
 
@@ -211,8 +263,8 @@ class CustomRenderEngine(bpy.types.RenderEngine):
             self.log_viewdraw('Dimensions changed to %d x %d' % dimensions)
             self.dimensions = dimensions        
             
-        self.log_viewdraw('aspect (dims) %.3f' % (self.dimensions[0]/self.dimensions[1]))
-        self.log_viewdraw('aspect (window matrix) %.3f' % (region_data.window_matrix[1][1] / region_data.window_matrix[0][0]))
+        self.log_viewdraw('Aspect (dims) %.3f' % (self.dimensions[0]/self.dimensions[1]))
+        self.log_viewdraw('Aspect (window matrix) %.3f' % (region_data.window_matrix[1][1] / region_data.window_matrix[0][0]))
         
         # Turn log into image :)
         img = self.log_image(region.width, region.height)
@@ -223,7 +275,7 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         self.bind_display_space_shader(scene)
 
         if not self.draw_data or self.draw_data.dimensions != dimensions:
-            self.draw_data = CustomDrawData(img)
+            self.draw_data = CustomDrawData(img)            
         else:
             self.draw_data.update_image(img)
 

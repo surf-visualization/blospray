@@ -24,7 +24,7 @@ enum SceneObjectType
 enum SceneDataType
 {
     SDT_PLUGIN,
-    SDT_MESH
+    SDT_BLENDER_MESH
 };
 
 static const char *SceneObjectType_names[] = {
@@ -32,7 +32,7 @@ static const char *SceneObjectType_names[] = {
 };
 
 static const char *SceneDataType_names[] = {
-	"SDT_PLUGIN", "SDT_MESH"
+	"SDT_PLUGIN", "SDT_BLENDER_MESH"
 };
 
 struct SceneObject

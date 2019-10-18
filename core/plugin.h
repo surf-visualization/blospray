@@ -166,6 +166,20 @@ struct PluginState
         volume_data_range[0] = volume_data_range[1] = 0.0f;
         geometry = nullptr;
     }
+
+    ~PluginState()
+    {        
+        if (bound != nullptr)
+            delete bound;
+        if (volume != nullptr)
+            ospRelease(volume);
+        if (geometry != nullptr)
+            ospRelease(geometry);
+        for (auto& gi : group_instances)
+            ospRelease(gi.first);
+        for (auto& l : lights)     
+            ospRelease(l);
+    }
 };
 
 
