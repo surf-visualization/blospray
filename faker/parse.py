@@ -82,7 +82,7 @@ class Object:
         
         self.fields = {}
         self.edges = {}
-        self.dirty = False
+        self.dirty = True   # All objects must be committed at least once
         
         self.references = []
         
@@ -323,6 +323,7 @@ try:
             if renderframe_call_count == stop_at_renderframe:
 
                 obj = Object('<%s>' % call, 0)  
+                assert 0 not in addr2object
                 addr2object[0] = obj    # XXX 0
                       
                 for name in ['renderer', 'world', 'camera', 'framebuffer']:
@@ -341,7 +342,7 @@ try:
                 print('WARNING: Unknown object %d for call to ospCommit()' % objaddr)
                 continue
             
-            obj = addr2object[args['obj']]
+            obj = addr2object[objaddr]
             obj.commit()
             
         elif call.startswith('ospSet'):

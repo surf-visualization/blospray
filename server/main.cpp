@@ -2691,7 +2691,8 @@ clear_scene(const std::string& type)
     ospray_scene_instances.clear();
     ospray_scene_instances_data = nullptr;
 
-    ospray_scene_lights.clear();    
+    ospray_scene_lights.clear();
+    ospray_scene_lights.push_back(ospray_scene_ambient_light);
     ospray_scene_lights_data = nullptr;
 
     if (ospray_world != nullptr)
@@ -2749,8 +2750,6 @@ prepare_scene()
     }
 
     ospCommit(ospray_world);
-
-    ospray_scene_lights.push_back(ospray_scene_ambient_light);
 
     return true;
 }
