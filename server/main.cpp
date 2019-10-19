@@ -63,7 +63,7 @@ bool dump_server_state = getenv("BLOSPRAY_DUMP_SERVER_STATE") != nullptr;
 
 OSPRenderer     ospray_renderer;
 std::string     current_renderer_type;
-OSPWorld        ospray_world;
+OSPWorld        ospray_world = nullptr;
 OSPCamera       ospray_camera = nullptr;
 std::vector<OSPFrameBuffer>  framebuffers;    // 0 = nullptr (unused), 1 = FB for reduction factor 1, etc.
 bool            recreate_framebuffers = false;  // XXX workaround for ospCancel screwing up the framebuffer
@@ -2682,6 +2682,12 @@ clear_scene(const std::string& type)
 {
     printf("Clearing scene\n");
     printf("... type: %s\n", type.c_str());
+        
+    if (ospray_world != nullptr)
+        ospRelease(ospray_world);
+    
+    ospray_world = ospNewWorld();    
+    //ospSetBool(ospray_world, "compactMode", true);
 
     if (ospray_scene_instances_data != nullptr)
         ospRelease(ospray_scene_instances_data);
@@ -2694,12 +2700,6 @@ clear_scene(const std::string& type)
     ospray_scene_lights.clear();
     ospray_scene_lights.push_back(ospray_scene_ambient_light);
     ospray_scene_lights_data = nullptr;
-
-    if (ospray_world != nullptr)
-    {
-        ospRelease(ospray_world);
-        ospray_world = nullptr;
-    }
 
     for (auto& so : scene_objects)
         delete so.second;
@@ -2724,11 +2724,6 @@ clear_scene(const std::string& type)
 bool
 prepare_scene()
 {
-    // XXX might not have to recreate world, only update instances
-    ospray_world = ospNewWorld();
-    // Check https://github.com/ospray/ospray/issues/277. Is bool setting fixed in 2.0?
-    //ospSetBool(ospray_world, "compactMode", true);
-
     printf("Setting up world with %d instance(s)\n", ospray_scene_instances.size());
     if (ospray_scene_instances.size() > 0)
     {
