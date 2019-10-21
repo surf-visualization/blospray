@@ -155,7 +155,7 @@ class RenderOspraySettingsScene(PropertyGroup):
         description='Ambient occlusion strength (aoIntensity)',
         default = 1,
         min = 0,
-        max = 100
+        max = 1000
         )
 
     # Pathtracer
@@ -220,7 +220,7 @@ class RenderOspraySettingsWorld(PropertyGroup):
         description='Amount of ambient light',
         default = 0.5,
         min = 0,
-        max = 100
+        max = 1000
         )
         
         
@@ -318,7 +318,7 @@ class RenderOspraySettingsLight(PropertyGroup):
         description='Intensity of the light (intensity)',
         default = 1,
         min = 0,
-        max = 100
+        max = 1000
         )    
         
     visible: BoolProperty(
