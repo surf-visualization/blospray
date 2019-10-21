@@ -39,6 +39,7 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/string_cast.hpp>      // to_string()
 
+#include "config.h"
 #include "image.h"
 #include "tcpsocket.h"
 #include "json.hpp"
@@ -647,7 +648,7 @@ create_user_transfer_function(float minval, float maxval, const Volume& volume, 
             }
         }    
 
-        //printf("[%d] %f, %f, %f; %f\n", i, r, g, b, a);
+        printf("[%d] %f, %f, %f; %f\n", i, r, g, b, a);
 
         tf_colors[3*i+0] = r;
         tf_colors[3*i+1] = g;
@@ -2705,6 +2706,7 @@ clear_scene(const std::string& type)
         delete so.second;
     scene_objects.clear();
 
+    // XXX currently, plugin instances ARE clear, no matter what the type of clear_scene is used, need to fix this
     scene_data_types.clear();
 
     for (auto& sm : scene_materials)
@@ -3381,6 +3383,14 @@ ospray_status(const char *message)
 int
 main(int argc, const char **argv)
 {
+    printf("BLOSPRAY render server %d.%d\n", BLOSPRAY_VERSION_MAJOR, BLOSPRAY_VERSION_MINOR);
+    printf("\n");
+
+#if defined(__SANITIZE_ADDRESS__)
+    printf("Note: compiled with AddressSanitizer support, performance will be impacted\n");
+    printf("\n");
+#endif
+
     // Verify that the version of the library that we linked against is
     // compatible with the version of the headers we compiled against.
     GOOGLE_PROTOBUF_VERIFY_VERSION;
