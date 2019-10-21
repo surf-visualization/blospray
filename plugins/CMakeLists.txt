@@ -33,6 +33,26 @@ target_include_directories(volume_raw
     ${CMAKE_CURRENT_BINARY_DIR}
 )
 
+# volume_disney_cloud
+
+if(PLUGIN_DISNEY_CLOUD)
+
+    add_library(volume_disney_cloud SHARED volume_disney_cloud.cpp)
+    set_target_properties(volume_disney_cloud PROPERTIES PREFIX "")   
+    target_link_libraries(volume_disney_cloud 
+        PUBLIC
+        ${OpenVDB_LIBRARIES}
+        ${TBB_LIBRARIES}
+        ${OSPRAY_LIBRARIES})
+    target_include_directories(volume_disney_cloud
+        PUBLIC
+        ${OpenVDB_INCLUDE_DIR}
+        ${PROTOBUF_INCLUDE_DIRS}
+        ${CMAKE_CURRENT_BINARY_DIR}
+    )
+
+endif(PLUGIN_DISNEY_CLOUD)
+
 # volume_testing
 
 #add_library(volume_testing SHARED volume_testing.cpp)
@@ -188,6 +208,14 @@ if(PLUGIN_COSMOGRID)
         DESTINATION bin)
 
 endif(PLUGIN_COSMOGRID)
+
+if(PLUGIN_DISNEY_CLOUD)
+
+    install(TARGETS 
+        volume_disney_cloud 
+        DESTINATION bin)
+
+endif(PLUGIN_DISNEY_CLOUD)
 
 if(PLUGIN_PLY)
 

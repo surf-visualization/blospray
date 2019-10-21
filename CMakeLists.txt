@@ -39,12 +39,18 @@ option(PLUGIN_COSMOGRID "Build cosmogrid scene plugin (needs uhdf5 and HDF5)" OF
 option(PLUGIN_PLY "Build PLY geometry plugin (needs rply 1.1.4 sources)" OFF)
 option(PLUGIN_ASSIMP "Build Assimp geometry plugin (needs Assimp)" OFF)
 option(PLUGIN_VOLUME_HDF5 "Build PLY geometry plugin (needs uhdf5 and HDF5)" OFF)
+option(PLUGIN_DISNEY_CLOUD "Build disney cloud volume plugin (needs OpenVDB)" OFF)
 option(ADDRESS_SANITIZER "Compile with GCC's AddressSanitizer" OFF)
 option(VTK_QC_BOUND "Add support to generate a simplified bound using VTK" OFF)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmakemodules")
+list(APPEND CMAKE_MODULE_PATH "/usr/lib/cmake/OpenVDB")
+
 include(FindOpenEXR)
 include(FindOpenImageIO)
+if(PLUGIN_DISNEY_CLOUD)
+    find_package(OpenVDB REQUIRED)
+endif(PLUGIN_DISNEY_CLOUD)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)

@@ -24,9 +24,6 @@
 
 #include "plugin.h"
 
-std::string         data_file;
-OSPGeometricModel   model;
-
 extern "C" 
 void
 generate(GenerateFunctionResult &result, PluginState *state)
