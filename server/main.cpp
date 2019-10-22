@@ -3383,10 +3383,10 @@ ospray_status(const char *message)
 int
 main(int argc, const char **argv)
 {
-    printf("BLOSPRAY render server %d.%d\n", BLOSPRAY_VERSION_MAJOR, BLOSPRAY_VERSION_MINOR);
-    printf("\n");
+    printf("BLOSPRAY render server %d.%d\n", BLOSPRAY_VERSION_MAJOR, BLOSPRAY_VERSION_MINOR);    
 
 #if defined(__SANITIZE_ADDRESS__)
+    printf("\n");
     printf("Note: compiled with AddressSanitizer support, performance will be impacted\n");
     printf("\n");
 #endif
