@@ -101,6 +101,8 @@ std::vector<OSPLight>       ospray_scene_lights;
 
 OSPData                     ospray_scene_instances_data = nullptr;
 OSPData                     ospray_scene_lights_data = nullptr;
+bool                        update_ospray_scene_instances = true;
+bool                        update_ospray_scene_lights = true;
 
 int                         framebuffer_width=0, framebuffer_height=0;
 OSPFrameBufferFormat        framebuffer_format;
@@ -1191,6 +1193,7 @@ update_blender_mesh_object(const UpdateObject& update)
 
     // XXX should create this list from scene_objects?
     ospray_scene_instances.push_back(instance);
+    update_ospray_scene_instances = true;
 
     return true;
 }
@@ -1285,6 +1288,7 @@ update_geometry_object(const UpdateObject& update)
         scene_objects[object_name] = geometry_object;
 
     ospray_scene_instances.push_back(instance);
+    update_ospray_scene_instances = true;
 
     return true;
 }
@@ -1335,7 +1339,7 @@ update_scene_object(const UpdateObject& update)
     if (group_instances.size() == 0)
         printf("... WARNING: no instances to add!\n");
     else
-        printf("... Adding %d instances to scene!\n", group_instances.size());
+        printf("... Adding %d instances to scene\n", group_instances.size());
 
     glm::mat4   obj2world;
     float       affine_xform[12];
@@ -1354,7 +1358,9 @@ update_scene_object(const UpdateObject& update)
         ospCommit(instance);
 
         scene_object_scene->instances.push_back(instance);
+
         ospray_scene_instances.push_back(instance);
+        update_ospray_scene_instances = true;
     }
 
     // Lights
@@ -1367,7 +1373,9 @@ update_scene_object(const UpdateObject& update)
             // XXX Sigh, need to apply object2world transform manually
             // This should be coming in 2.0
             scene_object_scene->lights.push_back(light);
+
             ospray_scene_lights.push_back(light);
+            update_ospray_scene_lights = true;
         }
     }
 
@@ -1469,6 +1477,7 @@ update_volume_object(const UpdateObject& update, const Volume& volume_settings)
         scene_objects[object_name] = volume_object;
 
     ospray_scene_instances.push_back(instance);
+    update_ospray_scene_instances = true;
 
     return true;
 }
@@ -1594,6 +1603,7 @@ update_isosurfaces_object(const UpdateObject& update)
         scene_objects[object_name] = isosurfaces_object;
 
     ospray_scene_instances.push_back(instance);
+    update_ospray_scene_instances = true;
     
     return true;
 }
@@ -1743,6 +1753,7 @@ add_slices_objects(const UpdateObject& update, const Slices& slices)
         //scene_objects[object_name] = ...
 
         ospray_scene_instances.push_back(instance);
+        update_ospray_scene_instances = true;
 
 #if 0
         plane[0] = slice.a();
@@ -1814,6 +1825,7 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
 
             auto it = std::find(ospray_scene_lights.begin(), ospray_scene_lights.end(), light);
             ospray_scene_lights.erase(it);
+            update_ospray_scene_lights = true;
             
             light_object = nullptr;
         }
@@ -1851,7 +1863,9 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
         light_object->data_link = light_settings.light_name();
 
         scene_objects[object_name] = light_object;    
+        
         ospray_scene_lights.push_back(light);    
+        update_ospray_scene_lights = true;
     }
 
     if (light_settings.type() == LightSettings::SPOT)
@@ -2758,15 +2772,18 @@ clear_scene(const std::string& type)
 
     if (ospray_scene_instances_data != nullptr)
         ospRelease(ospray_scene_instances_data);
+        
     if (ospray_scene_lights_data != nullptr)
         ospRelease(ospray_scene_lights_data);   
 
     ospray_scene_instances.clear();
     ospray_scene_instances_data = nullptr;
+    update_ospray_scene_instances = true;
 
     ospray_scene_lights.clear();
     ospray_scene_lights.push_back(ospray_scene_ambient_light);
     ospray_scene_lights_data = nullptr;
+    update_ospray_scene_lights = true;
 
     for (auto& so : scene_objects)
         delete so.second;
@@ -2801,25 +2818,43 @@ clear_scene(const std::string& type)
 bool
 prepare_scene()
 {
-    printf("Setting up world with %d instance(s)\n", ospray_scene_instances.size());
-    if (ospray_scene_instances.size() > 0)
+    if (update_ospray_scene_instances)
     {
         if (ospray_scene_instances_data != nullptr)
             ospRelease(ospray_scene_instances_data);    
-        ospray_scene_instances_data = ospNewSharedData(&ospray_scene_instances[0], OSP_INSTANCE, ospray_scene_instances.size());
-        ospSetObject(ospray_world, "instance", ospray_scene_instances_data);    
-        ospRetain(ospray_scene_instances_data);
+
+        printf("Setting up world with %d instance(s)\n", ospray_scene_instances.size());
+
+        if (ospray_scene_instances.size() > 0)
+        {
+            ospray_scene_instances_data = ospNewSharedData(&ospray_scene_instances[0], OSP_INSTANCE, ospray_scene_instances.size());
+            ospSetObject(ospray_world, "instance", ospray_scene_instances_data);    
+            ospRetain(ospray_scene_instances_data);
+        }
+
+        update_ospray_scene_instances = false;
     }
-    
-    printf("Adding %d light(s) to the world\n", ospray_scene_lights.size());
-    if (ospray_scene_lights.size() > 0)
+    else
+        printf("World instances (%d) still up-to-date\n", ospray_scene_instances.size());
+
+    if (update_ospray_scene_lights)
     {
         if (ospray_scene_lights_data != nullptr)
             ospRelease(ospray_scene_lights_data);
-        ospray_scene_lights_data = ospNewSharedData(&ospray_scene_lights[0], OSP_LIGHT, ospray_scene_lights.size());
-        ospSetObject(ospray_world, "light", ospray_scene_lights_data);
-        ospRetain(ospray_scene_lights_data);
+    
+        printf("Setting up %d light(s) in the world\n", ospray_scene_lights.size());
+
+        if (ospray_scene_lights.size() > 0)
+        {
+            ospray_scene_lights_data = ospNewSharedData(&ospray_scene_lights[0], OSP_LIGHT, ospray_scene_lights.size());
+            ospSetObject(ospray_world, "light", ospray_scene_lights_data);
+            ospRetain(ospray_scene_lights_data);
+        }
+
+        update_ospray_scene_lights = false;
     }
+    else
+        printf("World lights (%d) still up-to-date\n", ospray_scene_lights.size());
 
     ospCommit(ospray_world);
 
