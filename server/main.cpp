@@ -167,7 +167,8 @@ struct PluginInstance
     }
 };
 
-// A regular Blender Mesh XXX currently triangles only
+// A regular Blender Mesh 
+// XXX currently triangles only
 struct BlenderMesh
 {
     std::string     name;
@@ -177,6 +178,12 @@ struct BlenderMesh
     json            parameters;     // XXX not sure we need this
 
     OSPGeometry     geometry;
+
+    ~BlenderMesh()
+    {
+        if (geometry != nullptr)
+            ospRelease(geometry);
+    }
 };
 
 // Top-level scene objects
@@ -412,13 +419,53 @@ delete_plugin_instance(const std::string& name)
 
     if (state->bound)
         delete state->bound;
-    //if (state->data)
-    // XXX call plugin's clear_data_function_t
 
+    if (state->data)
+    {
+        PluginDefinitionsMap::iterator it = plugin_definitions.find(plugin_instance->plugin_name);
+
+        if (it != plugin_definitions.end())
+        {
+            // Call plugin's clear_data_function_t
+            it->second.functions.clear_data_function(state);
+        }
+        else
+            printf("ERROR: no plugin definition found for plugin '%s' to delete\n", name.c_str());
+    }
+    
     delete state;    
 
     plugin_instances.erase(it);
     plugin_state.erase(name);
+    scene_data_types.erase(name);
+}
+
+void
+delete_blender_mesh(const std::string& name)
+{
+    SceneDataTypeMap::iterator it = scene_data_types.find(name);
+
+    if (it == scene_data_types.end())
+    {
+        printf("ERROR: blender mesh to delete '%s' not found!\n", name.c_str());
+        return;
+    }
+
+    if (it->second != SDT_BLENDER_MESH)
+    {
+        printf("ERROR: blender mesh to delete '%s' is not of type SDT_BLENDER_MESH!\n", name.c_str());
+        return;
+    }
+
+    BlenderMeshMap::iterator bm = blender_meshes.find(name);
+    if (bm == blender_meshes.end())
+    {
+        printf("ERROR: blender mesh to delete '%s' not found!\n", name.c_str());
+        return;        
+    }
+
+    delete bm->second;
+
     scene_data_types.erase(name);
 }
 
@@ -459,11 +506,30 @@ delete_scene_data(const std::string& name)
     else
     {
         assert(it->second == SDT_BLENDER_MESH);
-        // XXX todo
-        //delete_blender_mesh(name);
+        delete_blender_mesh(name);
     }
 
     scene_data_types.erase(name);
+}
+
+void
+delete_all_scene_data()
+{
+    for (auto& kv : scene_data_types)
+    {
+        const std::string& name = kv.first;
+        const SceneDataType& type = kv.second;
+
+        if (type == SDT_PLUGIN)
+            delete_plugin_instance(name);
+        else
+        {
+            assert(type == SDT_BLENDER_MESH);
+            delete_blender_mesh(name);
+        }
+    }
+
+    scene_data_types.clear();
 }
 
 /*
@@ -2706,19 +2772,28 @@ clear_scene(const std::string& type)
         delete so.second;
     scene_objects.clear();
 
-    // XXX currently, plugin instances ARE clear, no matter what the type of clear_scene is used, need to fix this
-    scene_data_types.clear();
+    if (type == "keep_plugin_instances")
+    {
+        std::set<std::string> data_to_delete;
+
+        for (auto& kv : scene_data_types)
+        {
+            if (kv.second != SDT_PLUGIN)
+                data_to_delete.insert(kv.first);
+        }
+
+        for (auto& name : data_to_delete)
+            delete_scene_data(name);
+    }
+    else
+    {
+        // "all"
+        delete_all_scene_data();    
+    }
 
     for (auto& sm : scene_materials)
         delete sm.second;
     scene_materials.clear();
-
-    if (type == "all")
-    {
-        for (auto& pi : plugin_instances)
-            delete pi.second;
-        plugin_instances.clear();
-    }
 
     return true;
 }
