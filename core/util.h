@@ -249,6 +249,7 @@ get_sha1(const std::string& p_arg)
     return std::string(buf);
 }
 
+// Return memory usage in megabytes
 // Linux only atm
 float
 memory_usage()

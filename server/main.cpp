@@ -1863,7 +1863,7 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
         light_object->data_link = light_settings.light_name();
 
         scene_objects[object_name] = light_object;    
-        
+
         ospray_scene_lights.push_back(light);    
         update_ospray_scene_lights = true;
     }
@@ -3297,7 +3297,8 @@ handle_connection(TCPSocket *sock)
 
         variance = ospGetVariance(framebuffer);
         
-        printf("Frame %8.3f seconds | Variance %7.3f ", time_diff(frame_start_time, frame_end_time), variance);
+        printf("Frame %7.3f s | Var %5.2f | Mem %7.1f MB ", 
+                time_diff(frame_start_time, frame_end_time), variance, mem_usage);
 
         mem_usage = memory_usage();
         peak_memory_usage = std::max(mem_usage, peak_memory_usage);        
@@ -3324,7 +3325,7 @@ handle_connection(TCPSocket *sock)
             stat(fname, &st);
 
             gettimeofday(&now, NULL);
-            printf("| Save FB %6.3f seconds | EXR file %9d bytes\n", time_diff(frame_end_time, now), st.st_size);
+            printf("| Save FB %6.3f s | EXR file %.1f MB\n", time_diff(frame_end_time, now), st.st_size/1000000.0f);
 
             render_result.set_file_name(fname);
             render_result.set_file_size(st.st_size);
@@ -3372,9 +3373,9 @@ handle_connection(TCPSocket *sock)
 
             gettimeofday(&now, NULL);
             if (render_output_socket != nullptr)
-                printf("| Send FB* %6.3f seconds | Pixels %9d bytes\n", time_diff(frame_end_time, now), bufsize);
+                printf("| Send FB* %6.3f s | Pixels %6.1f MB\n", time_diff(frame_end_time, now), bufsize/1000000.0f);
             else
-                printf("| Send FB %6.3f seconds | Pixels %9d bytes\n", time_diff(frame_end_time, now), bufsize);                
+                printf("| Send FB %6.3f s | Pixels %6.1f MB\n", time_diff(frame_end_time, now), bufsize/1000000.0f);  
         }
 
         // Check if we're done rendering
