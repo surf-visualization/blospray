@@ -241,6 +241,7 @@ generate(GenerateFunctionResult &result, PluginState *state)
     ospSetObject(volume, "voxelData", voxel_data);
     ospRelease(voxel_data);
 
+    // XXX this currently leaks the data as the array is never deleted
     //delete [] data;
 
     ospCommit(volume);
