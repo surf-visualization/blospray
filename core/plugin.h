@@ -204,13 +204,14 @@ typedef struct
     plugin_load_function_t      plugin_load_function;
     plugin_unload_function_t    plugin_unload_function;
     
-    // Create/destroy the scene element(s) this plugin provides.
+    // Create/destroy the scene element(s) this plugin instance provides.
     // Depending on the type of plugin the corresponding fields in
     // PluginState must be set.
     // This function may not be NULL.
     generate_function_t         generate_function;    
     
-    // Clear any plugin-specific data from PluginState. May be NULL
+    // Clear any plugin-specific data from PluginState for this plugin instance. 
+    // May be NULL
     clear_data_function_t       clear_data_function;
     
     // Optimization later: allow light-weight updating (if we can

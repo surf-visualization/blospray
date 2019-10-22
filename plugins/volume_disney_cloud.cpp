@@ -199,29 +199,42 @@ generate(GenerateFunctionResult &result, PluginState *state)
     int nx = file_bbox_max.x() - file_bbox_min.x() + 1;
     int ny = file_bbox_max.y() - file_bbox_min.y() + 1;
     int nz = file_bbox_max.z() - file_bbox_min.z() + 1;
-    printf("... Volume is %d x %d x %d\n", nx, ny, nz);
 
     const int min_x = file_bbox_min.x();
     const int min_y = file_bbox_min.y();
     const int min_z = file_bbox_min.z();
-    printf("... Origin is %d, %d, %d\n", min_x, min_y, min_z);
 
-    printf("... Voxel size %.6f\n", voxel_size);
+    const float voxel_size_x = (float)(voxel_size.x());
+    const float voxel_size_y = (float)(voxel_size.y());
+    const float voxel_size_z = (float)(voxel_size.z());
 
+    const float origin_x = min_x * voxel_size_x;
+    const float origin_y = min_y * voxel_size_y;
+    const float origin_z = min_z * voxel_size_z;
+    
+    printf("... Volume is %zd x %zd x %zd\n", nx, ny, nz);
+    printf("... Voxel size %.6f, %.6f, %.6f\n", voxel_size_x, voxel_size_y, voxel_size_z);
+    printf("... Origin (index-space) is %d, %d, %d\n", min_x, min_y, min_z);
+    printf("... Origin (scaled index-space) is %.6f, %.6f, %.6f\n", origin_x, origin_y, origin_z);
+    
     OSPVolume volume = ospNewVolume("structured_volume");
     
     ospSetInt(volume, "voxelType", OSP_FLOAT);
     ospSetVec3i(volume, "dimensions", nx, ny, nz);
-    ospSetVec3f(volume, "gridOrigin", min_x*voxel_size.x(), min_y*voxel_size.y(), min_z*voxel_size.z());
-    ospSetVec3f(volume, "gridSpacing", voxel_size.x(), voxel_size.y(), voxel_size.z());
+    ospSetVec3f(volume, "gridOrigin", origin_x, origin_y, origin_z);
+    ospSetVec3f(volume, "gridSpacing", voxel_size_x, voxel_size_y, voxel_size_z);
 
-    // This is used in mitsuba-vdb to sample at an arbitrary location
+    // This is used in mitsuba-vdb to sample at an arbitrary world-space location
     //openvdb::tools::GridSampler<openvdb::FloatTree, openvdb::tools::BoxSampler> interpolator(floatGrid->constTree() , floatGrid->transform());
     //data = interpolator.wsSample(openvdb::math::Vec3d(p.x, p.y, p.z));
 
     // Use index-space sampler instead
-    
-    float *data = new float[nx*ny*nz];
+
+    size_t datalen = (size_t)nx * ny * nz;  
+    printf("... Allocating voxel data array of %zd values\n", datalen);  
+
+    float *data = new float[datalen];
+
     openvdb::FloatGrid::ConstAccessor accessor = grid->getConstAccessor();
 
     for (int k = 0; k < nz; k++)
@@ -231,28 +244,29 @@ generate(GenerateFunctionResult &result, PluginState *state)
             for (int i = 0; i < nx; i++)
             {
                 const openvdb::Vec3R ijk(i+min_x, j+min_y, k+min_z);
-                data[(k*ny + j)*nx + i] = openvdb::tools::PointSampler::sample(accessor, ijk);
+                data[((size_t)k*ny + j)*nx + i] = openvdb::tools::PointSampler::sample(accessor, ijk);
             }
         }    
     }
 
-    //OSPData voxel_data = ospNewCopiedData(nx*ny*nz, OSP_FLOAT, data);
-    OSPData voxel_data = ospNewSharedData(data, OSP_FLOAT, nx*ny*nz);
+    //OSPData voxel_data = ospNewCopiedData(datalen, OSP_FLOAT, data);
+    OSPData voxel_data = ospNewSharedData(data, OSP_FLOAT, nx, 0, ny, 0, nz, 0);
     ospSetObject(volume, "voxelData", voxel_data);
     ospRelease(voxel_data);
 
     // XXX this currently leaks the data as the array is never deleted
+    // after the shared OSP_DATA gets destroyed. 
     //delete [] data;
 
     ospCommit(volume);
     
     state->volume = volume;
-    state->volume_data_range[0] = 0.0f;
+    state->volume_data_range[0] = 0.0f; // XXX get from file, but should be correct in this case
     state->volume_data_range[1] = 1.0f;    
     
     float bbox[6] = { 
-        file_bbox_min.x()*voxel_size.x(), file_bbox_min.y()*voxel_size.y(), file_bbox_min.z()*voxel_size.z(),
-        file_bbox_max.x()*voxel_size.x(), file_bbox_max.y()*voxel_size.y(), file_bbox_max.z()*voxel_size.z()
+        file_bbox_min.x()*voxel_size_x, file_bbox_min.y()*voxel_size_y, file_bbox_min.z()*voxel_size_z,
+        file_bbox_max.x()*voxel_size_x, file_bbox_max.y()*voxel_size_y, file_bbox_max.z()*voxel_size_z
      };
     
     state->bound = BoundingMesh::bbox(
