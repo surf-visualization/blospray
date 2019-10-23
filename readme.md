@@ -193,11 +193,21 @@ black patch visible in the lower part of the left car door.
 - The OSPRay scene was matched in terms of render settings. Shaders and lights
   were manually changed to match the look of the original scene, although
   this is very hard to do perfectly.
+  
+Here's the renders at the same 35 samples per pixel:
 
-<img src="./images/bmw27-cycles-35spp.png" width="256">
-<img src="./images/bmw27-ospray-35spp.png" width="256">
-<img src="./images/bmw27-ospray-100spp.png" width="256">
-<img src="./images/bmw27-ospray-400spp.png" width="256">
+<img src="./images/bmw27-cycles-35spp.png" width="512">
+<img src="./images/bmw27-ospray-35spp.png" width="512">
+
+5m35.59s (Cycles) versus 32.31s (OSPRay)
+
+As the OSPRay render is much noisier here's two more renders at
+100 and 400 SPP to match the noise level:
+
+<img src="./images/bmw27-ospray-100spp.png" width="512">
+<img src="./images/bmw27-ospray-400spp.png" width="512">
+
+1m28.29s (100 SPP) versus 5m50.74s (400 SPP)
 
 Here's a crop to compare the different noise levels (Cycles at 35 SPP,
 OSPRay at 35, 100 and 400 SPP):
