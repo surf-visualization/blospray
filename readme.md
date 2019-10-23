@@ -136,18 +136,23 @@ Notes:
 
 `dof.blend`: camera depth-of-field, simple objects
 
+![](./images/dof.png)
+
+Path tracer renderer, 1920x1080, 32 SPP, 11.72s
+
 ---
 
 `disney_cloud.blend`: volume rendering of the Disney Cloud dataset
 
-Path tracer renderer, 960x540, 256 SPP, 6m05s. This uses a volume
-plugin to load the data through OpenVDB (the reader isn't
+This uses a volume plugin to load the data through OpenVDB (the reader isn't
 very advanced currently, as it turns the AMR mesh into a regular 
 structured grid).
 
 Note: see the file for instructions on how to download and set up the dataset.
 
-![](./images/disney_cloud.png | width=256)
+![](./images/disney_cloud.png)
+
+Path tracer renderer, 960x540, 256 SPP, 6m05s
 
 
 
