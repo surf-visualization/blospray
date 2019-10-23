@@ -395,11 +395,17 @@ For building:
 
 * The code uses the [JSON for Modern C++](https://github.com/nlohmann/json) library,
   which is included in the sources
+  
+For the plugins:
+
+* volume_disney_cloud: [OpenVDB](https://www.openvdb.org/) 
+* geometry_assimp: [Open Asset Import Library](http://www.assimp.org/)
+* scene_cosmogrid and volume_hdf5: [uHDF5](https://github.com/paulmelis/uhdf5) and [HDF5](https://www.hdfgroup.org/solutions/hdf5/)
 
 For running the BLOSPRAY addon in Blender:
 
-* Numpy
-* Google protobuf (Python modules)
+* Numpy, which must available in Blender (try `import numpy` in a Python console area)
+* Google protobuf (Python modules), see Installation below
 
 ## Building
 
@@ -475,7 +481,11 @@ Some files, mostly separate test files, are not part of BLOSPRAY
 itself. These files have license information included in their text,
 where appropriate. 
 
-The file `ss002.128_3.bin.vtk` is derived from the Cosmogrid 512^3 
+The file `tests/teapot.obj` is based on the Teapot model from 
+the [McGuire Computer Graphics Archive](https://casual-effects.com/data/).
+The separate meshes in the file were combined into a single one. 
+
+The file `tests/ss002.128_3.bin.vtk` is derived from the Cosmogrid 512^3 
 simulation by Ishiyama et al. available at https://repository.surfsara.nl/datasets/cosmogrid/648.
 One shapshot of the original particle data was mapped to a density 
 volume (log10 of 1+#particles) at 128^3. The original data is covered 
