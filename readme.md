@@ -132,17 +132,19 @@ Notes:
 * Timings listed are on an Intel(R) Core(TM) i7-6700K CPU @ 4.00GHz
   system with 32 GB RAM running Arch Linux
   
----
+### dof.blend: camera depth-of-field, simple objects
 
-`dof.blend`: camera depth-of-field, simple objects
+Path tracer renderer, 960x540, 32 SPP, 3.26s
 
 ![](./images/dof.png)
 
-Path tracer renderer, 1920x1080, 32 SPP, 11.72s
+### lights.blend: all supported light types
 
----
+Path tracer renderer, 960x540, 64 SPP, 9.45s
 
-`disney_cloud.blend`: volume rendering of the Disney Cloud dataset
+![](./images/lights.png)
+
+### disney_cloud.blend: volume rendering of the Disney Cloud dataset
 
 This uses a volume plugin to load the data through OpenVDB (the reader isn't
 very advanced currently, as it turns the AMR mesh into a regular 
@@ -150,10 +152,9 @@ structured grid).
 
 Note: see the file for instructions on how to download and set up the dataset.
 
-![](./images/disney_cloud.png)
-
 Path tracer renderer, 960x540, 256 SPP, 6m05s
 
+![](./images/disney_cloud.png)
 
 
 ## Workflow
