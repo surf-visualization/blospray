@@ -136,13 +136,21 @@ Notes:
 
 Path tracer renderer, 960x540, 32 SPP, 3.26s
 
-<img src="./images/dof.png" width="256">
+<img src="./images/dof.png" width="512">
 
 ### lights.blend: all supported light types
 
 Path tracer renderer, 960x540, 64 SPP, 9.45s
 
-![](./images/lights.png)
+<img src="./images/lights.png" width="512">
+
+### metals.blend: different metals
+
+OSPRay has some really nice metal materials.
+
+Path tracer renderer, 1024x1024, 16 SPP, 2.74s
+
+<img src="./images/metals" width="512">
 
 ### disney_cloud.blend: volume rendering of the Disney Cloud dataset
 
@@ -154,7 +162,7 @@ Note: see the file for instructions on how to download and set up the dataset.
 
 Path tracer renderer, 960x540, 256 SPP, 6m05s on the *half-sized* dataset.
 
-![](./images/disney_cloud.png)
+<img src="./images/disney_cloud.png" width="512">
 
 
 ## Workflow
