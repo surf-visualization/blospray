@@ -315,12 +315,15 @@ check_plugin_parameters(GenerateFunctionResult& result, const PluginParameter *p
         const char *name = pdef->name;
         const int length = pdef->length;
         const ParameterType type = pdef->type;
+        const int flags = pdef->flags;
 
-        // XXX param might be optional in future
         if (actual_parameters.find(name) == actual_parameters.end())
         {
-            printf("ERROR: Missing parameter '%s'!\n", name);
-            ok = false;
+            if (!(flags & FLAG_OPTIONAL))
+            {
+                printf("ERROR: Missing mandatory parameter '%s'!\n", name);
+                ok = false;
+            }
             continue;
         }
 
@@ -331,7 +334,7 @@ check_plugin_parameters(GenerateFunctionResult& result, const PluginParameter *p
             // Array value
             if (!value.is_array())
             {
-                printf("ERROR: Expected array of length %d for parameter '%s'!\n", length, name);
+                printf("ERROR: Expected array (of length %d) for parameter '%s'!\n", length, name);
                 ok = false;
                 continue;
             }
@@ -383,6 +386,8 @@ check_plugin_parameters(GenerateFunctionResult& result, const PluginParameter *p
         }
     }
 
+    // XXX check for unused parameters
+
     return ok;
 }
 
@@ -420,7 +425,10 @@ delete_plugin_instance(const std::string& name)
     }
 
     if (state->bound)
+    {
         delete state->bound;
+        state->bound = nullptr;
+    }
 
     if (state->data)
     {
@@ -606,7 +614,7 @@ scene_data_with_type_exists(const std::string& name, SceneDataType type)
 OSPTransferFunction
 create_transfer_function(const std::string& name, float minval, float maxval)
 {
-    printf("create_transfer_function('%s', %.6f, %.6f)\n", name.c_str(), minval, maxval);
+    //printf("create_transfer_function('%s', %.6f, %.6f)\n", name.c_str(), minval, maxval);
 
 	/*if (name == "jet")
 	{
@@ -651,7 +659,7 @@ create_transfer_function(const std::string& name, float minval, float maxval)
 OSPTransferFunction
 create_user_transfer_function(float minval, float maxval, const Volume& volume, int num_tf_entries=128)
 {
-    printf("create_user_transfer_function(%.6f, %.6f, ...)\n", minval, maxval);
+    //printf("create_user_transfer_function(%.6f, %.6f, ...)\n", minval, maxval);
 
     if (volume.tf_positions_size() != volume.tf_colors_size())
     {
@@ -915,11 +923,11 @@ handle_update_plugin_instance(TCPSocket *sock)
     // Handle any other business for this type of plugin
     // XXX set result.success to false?
 
-    switch (update.type())
+    switch (plugin_type)
     {
-    case UpdatePluginInstance::GEOMETRY:
+    case PT_GEOMETRY:
 
-        if (state->geometry == NULL)
+        if (state->geometry == nullptr)
         {
             send_protobuf(sock, result);
 
@@ -930,9 +938,13 @@ handle_update_plugin_instance(TCPSocket *sock)
 
         break;
 
-    case UpdatePluginInstance::VOLUME:
+    case PT_VOLUME:
 
-        if (state->volume == NULL)
+        if (state->volume != nullptr)
+        {
+            printf("... volume data range %.6f %.6f\n", state->volume_data_range[0], state->volume_data_range[1]);
+        }
+        else
         {
             send_protobuf(sock, result);
 
@@ -943,9 +955,14 @@ handle_update_plugin_instance(TCPSocket *sock)
 
         break;
 
-    case UpdatePluginInstance::SCENE:
+    case PT_SCENE:
 
-        if (state->group_instances.size() == 0)
+        if (state->group_instances.size() > 0)
+        {
+            printf("... %d instances\n", state->group_instances.size());
+            printf("... %d lights\n", state->lights.size());
+        }
+        else
             printf("... WARNING: scene generate function returned 0 instances!\n");    
 
         break;

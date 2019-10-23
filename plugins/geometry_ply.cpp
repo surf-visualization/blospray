@@ -372,7 +372,7 @@ load_ply_file(GenerateFunctionResult &result, PluginState *state)
 static PluginParameters 
 parameters = {
     
-    {"file",          PARAM_STRING,    1, FLAG_GEOMETRY, "PLY file to load"},
+    {"file",          PARAM_STRING,    1, FLAG_NONE, "PLY file to load"},
         
     PARAMETERS_DONE         // Sentinel (signals end of list)
 };

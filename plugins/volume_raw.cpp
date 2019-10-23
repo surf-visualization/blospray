@@ -20,6 +20,7 @@
 
 #include <cstdio>
 #include <stdint.h>
+#include <limits>
 #include <ospray/ospray.h>
 #include "json.hpp"
 #include "plugin.h"
@@ -34,7 +35,7 @@ load_as_structured(float *bbox, GenerateFunctionResult &result,
     const json &parameters, const glm::mat4 &/*object2world*/, 
     const int32_t *dims, const std::string &voxelType, OSPDataType dataType, void *grid_field_values)
 {
-    fprintf(stderr, "WARNING: volume loaded as structured, OSPRay currently doesn't support object-to-world transformation on it\n");
+    fprintf(stderr, "... WARNING: volume loaded as structured, OSPRay currently doesn't support object-to-world transformation on it\n");
     
     OSPVolume volume = ospNewVolume("structured_volume");
     
@@ -97,7 +98,7 @@ load_as_unstructured(
 {    
     if (voxelType != "float")
     {
-        fprintf(stderr, "ERROR: OSPRay currently only supports unstructured volumes of 'float', not '%s'\n", voxelType.c_str());
+        fprintf(stderr, "... ERROR: OSPRay currently only supports unstructured volumes of 'float', not '%s'\n", voxelType.c_str());
         return NULL;
     }
     
@@ -222,7 +223,7 @@ load(float *bbox, float *data_range, GenerateFunctionResult &result, const json 
         
     if (parameters.find("volume") == parameters.end() || parameters["volume"].get<std::string>() != "raw")
     {
-        fprintf(stderr, "WARNING: volume_raw.load() called without property 'volume' set to 'raw'!\n");
+        fprintf(stderr, "... WARNING: volume_raw.load() called without property 'volume' set to 'raw'!\n");
     }
     
     // Dimensions
@@ -246,7 +247,7 @@ load(float *bbox, float *data_range, GenerateFunctionResult &result, const json 
         snprintf(msg, 1024, "Could not open file '%s'", fname.c_str());
         result.set_success(false);
         result.set_message(msg);
-        fprintf(stderr, "%s\n", msg);
+        fprintf(stderr, "... %s\n", msg);
         return NULL;
     }
 
@@ -284,7 +285,7 @@ load(float *bbox, float *data_range, GenerateFunctionResult &result, const json 
         snprintf(msg, 1024, "ERROR: unhandled voxel data type '%s'!\n", voxelType.c_str());
         result.set_success(false);
         result.set_message(msg);
-        fprintf(stderr, "%s\n", msg);
+        fprintf(stderr, "... %s\n", msg);
         fclose(f);
         return NULL;
     }
@@ -306,7 +307,7 @@ load(float *bbox, float *data_range, GenerateFunctionResult &result, const json 
         }
         else
         {
-            fprintf(stderr, "WARNING: no endian flip available for data type '%s'!\n", voxelType.c_str());
+            fprintf(stderr, "... WARNING: no endian flip available for data type '%s'!\n", voxelType.c_str());
         }
     }
 
@@ -414,6 +415,29 @@ create_volume(float *bbox,
 
 
 
+template <typename T>
+void get_value_range(const T* values, int n, float& minval, float& maxval)
+{
+    float min = std::numeric_limits<float>::max();
+    float max = std::numeric_limits<float>::min();
+
+    for (int i = 0; i < n; i++)
+    {
+        min = std::min(min, (float)(values[i]));
+        max = std::max(max, (float)(values[i]));
+    }    
+
+    minval = min;
+    maxval = max;
+}
+
+template <typename T>
+void convert_to_float(float *float_values, const T* values, int n)
+{
+    for (int i = 0; i < n; i++)
+        float_values[i] = (float)(values[i]);
+}
+
 extern "C"
 void
 generate(GenerateFunctionResult &result, PluginState *state)
@@ -422,11 +446,6 @@ generate(GenerateFunctionResult &result, PluginState *state)
     
     char msg[1024];
         
-    if (parameters.find("volume") == parameters.end() || parameters["volume"].get<std::string>() != "raw")
-    {
-        fprintf(stderr, "WARNING: volume_raw.load() called without property 'volume' set to 'raw'!\n");
-    }
-    
     // Dimensions
     
     int32_t dims[3];            // XXX why int and not uint?
@@ -437,6 +456,8 @@ generate(GenerateFunctionResult &result, PluginState *state)
     dims[2] = parameters["dimensions"][2];
     
     num_grid_points = dims[0] * dims[1] * dims[2];
+
+    printf("... %d x %d x %d (%d values)\n", dims[0], dims[1], dims[2], num_grid_points);
     
     // Open file
     
@@ -448,11 +469,11 @@ generate(GenerateFunctionResult &result, PluginState *state)
         snprintf(msg, 1024, "Could not open file '%s'", fname.c_str());
         result.set_success(false);
         result.set_message(msg);
-        fprintf(stderr, "ERROR: %s\n", msg);
+        fprintf(stderr, "... ERROR: %s\n", msg);
         return;
     }
 
-    // XXX check return value?
+    // XXX check return value
     fseek(f, parameters["header_skip"].get<int>(), SEEK_SET);
     
     // Prepare data array and read data from file
@@ -492,15 +513,20 @@ generate(GenerateFunctionResult &result, PluginState *state)
         snprintf(msg, 1024, "ERROR: unhandled voxel data type '%s'!\n", voxelType.c_str());
         result.set_success(false);
         result.set_message(msg);
-        fprintf(stderr, "%s\n", msg);
+        fprintf(stderr, "... %s\n", msg);
         fclose(f);
         return;
     }
     
+    // Read the actual voxel data
+
     // XXX check bytes read
-    fread(grid_field_values, 1, read_size, f);   
+    int actual_size = fread(grid_field_values, 1, read_size, f);
     
     fclose(f);
+
+    if (actual_size != read_size)
+        printf("... WARNING: expected to read %d bytes from file, got only %d!\n", read_size, actual_size);
     
     // Endian-flip if needed
 
@@ -515,8 +541,69 @@ generate(GenerateFunctionResult &result, PluginState *state)
         // XXX handle double swap
         else
         {
-            fprintf(stderr, "WARNING: no endian flip available for data type '%s'!\n", voxelType.c_str());
+            fprintf(stderr, "... WARNING: no endian flip available for data type '%s'!\n", voxelType.c_str());
         }
+    }
+
+#if 0
+    // XXX for now, convert to floats, as it seems not all types works well
+    if (voxelType != "float")        
+    {
+        fprintf(stderr, "... WARNING: converting values to floats (for now)\n");
+
+        float *new_values = new float[num_grid_points];
+
+        // XXX really need to look into a better (templated) way of doing this
+        if (voxelType == "uchar")
+        {
+            convert_to_float(new_values, (uint8_t*)grid_field_values, num_grid_points);
+            delete [] (uint8_t*)grid_field_values;
+        }
+        else if (voxelType == "ushort") 
+        {           
+            convert_to_float(new_values, (uint16_t*)grid_field_values, num_grid_points);
+            delete [] (uint16_t*)grid_field_values;
+        }
+        else if (voxelType == "float")            
+        {
+            convert_to_float(new_values, (float*)grid_field_values, num_grid_points);
+            delete [] (float*)grid_field_values;
+        }
+        else if (voxelType == "double")            
+        {
+            convert_to_float(new_values, (double*)grid_field_values, num_grid_points);    
+            delete [] (double*)grid_field_values;
+        }
+
+        voxelType = "float";
+        dataType = OSP_FLOAT;
+        grid_field_values = new_values;
+    }
+#endif
+
+    // Check data range if needed
+
+    float minval, maxval;
+    
+    if (parameters.find("data_range") != parameters.end())
+    {
+        minval = parameters["data_range"][0];
+        maxval = parameters["data_range"][1];
+        printf("... Using user-provided data range %.6f, %.6f\n", minval, maxval);
+    }
+    else
+    {        
+        printf("... No data range, provided, deriving from voxel data\n");
+        // XXX really need to look into a better (templated) way of doing this
+        if (voxelType == "uchar")
+            get_value_range((uint8_t*)grid_field_values, num_grid_points, minval, maxval);
+        else if (voxelType == "ushort")            
+            get_value_range((uint16_t*)grid_field_values, num_grid_points, minval, maxval);
+        else if (voxelType == "float")            
+            get_value_range((float*)grid_field_values, num_grid_points, minval, maxval);
+        else if (voxelType == "double")            
+            get_value_range((double*)grid_field_values, num_grid_points, minval, maxval);
+        printf("... Computed data range %.6f, %.6f\n", minval, maxval);
     }
 
     // Set up volume object
@@ -549,26 +636,9 @@ generate(GenerateFunctionResult &result, PluginState *state)
     
     if (!volume)
     {
-        fprintf(stderr, "ERROR: volume preparation failed!\n");
+        fprintf(stderr, "... ERROR: volume preparation failed!\n");
         return;
     }
-    
-    float minval, maxval;
-    
-    if (parameters.find("data_range") != parameters.end())
-    {
-        minval = parameters["data_range"][0];
-        maxval = parameters["data_range"][1];
-    }
-    else
-    {
-        // XXX fixed
-        printf("WARNING: using default data range of [0,1] for volume data\n");
-        minval = 0.0f;
-        maxval = 1.0f;
-    }
-
-    ospSetVec2f(volume, "voxelRange", minval, maxval);
     
     ospCommit(volume);
     
@@ -588,25 +658,31 @@ static PluginParameters
 parameters = {
     
     // Name, type, length, flags, description
-    {"dimensions",          PARAM_FLOAT,    3, FLAG_VOLUME, 
+    {"dimensions",          PARAM_FLOAT,    3, FLAG_NONE, 
         "Dimension of the volume in number of voxels per axis"},
+
+    {"grid_origin",             PARAM_FLOAT,    3, FLAG_OPTIONAL, 
+        "Origin of voxel grid"},
+
+    {"grid_spacing",             PARAM_FLOAT,    3, FLAG_OPTIONAL, 
+        "Voxel spacing per axis"},
         
-    {"header_skip",         PARAM_INT,      1, FLAG_VOLUME,//|FLAG_OPTIONAL, 
+    {"header_skip",         PARAM_INT,      1, FLAG_NONE,//|FLAG_OPTIONAL, 
         "Number of header bytes to skip"},
         
-    {"file",                PARAM_STRING,   1, FLAG_VOLUME, 
+    {"file",                PARAM_STRING,   1, FLAG_NONE, 
         "File to read"},
         
-    {"voxel_type",          PARAM_STRING,   1, FLAG_VOLUME, 
-        "Voxel data type (uchar, float)"},
+    {"voxel_type",          PARAM_STRING,   1, FLAG_NONE, 
+        "Voxel data type (uchar, ushort, float, double)"},
         
-    {"data_range",          PARAM_FLOAT,    2, FLAG_VOLUME,     // Could make this optional and then determine the range during loading
+    {"data_range",          PARAM_FLOAT,    2, FLAG_OPTIONAL,     
         "Data range of the volume"},
         
-    {"endian_flip",         /*PARAM_BOOL*/ PARAM_INT,     1, FLAG_VOLUME,//|FLAG_OPTIONAL, 
+    {"endian_flip",         /*PARAM_BOOL*/ PARAM_INT,     1, FLAG_NONE,//|FLAG_OPTIONAL, 
         "Endian-flip the data during reading"},
         
-    {"make_unstructured",   /*PARAM_BOOL*/ PARAM_INT,     1, FLAG_VOLUME,//|FLAG_OPTIONAL, 
+    {"make_unstructured",   /*PARAM_BOOL*/ PARAM_INT,     1, FLAG_NONE,//|FLAG_OPTIONAL, 
         "Create an OSPRay unstructured volume (which can be transformed)"},
         
     PARAMETERS_DONE         // Sentinel (signals end of list)

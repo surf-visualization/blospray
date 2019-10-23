@@ -240,12 +240,7 @@ enum ParameterType
 enum ParameterFlags
 {
     FLAG_NONE       = 0x0,
-    
-    FLAG_VOLUME     = 0x1,      // Parameter applies to volume generation
-    FLAG_GEOMETRY   = 0x2,      // Parameter applies to geometry generation
-    FLAG_SCENE      = 0x3,      // Parameter applies to scene generation            // XXX rename to "groups" plugin, to avoid confusion on the word "scene"?
-    
-    //FLAG_OPTIONAL   = 0x10,     // Parameter is optional
+    FLAG_OPTIONAL   = 0x1,     // Parameter is optional
 };
 
 

@@ -240,16 +240,16 @@ generate(GenerateFunctionResult &result, PluginState *state)
 static PluginParameters 
 parameters = {
     
-    {"cosmogrid_data_file",   PARAM_STRING,   1, FLAG_SCENE, 
+    {"cosmogrid_data_file",   PARAM_STRING,   1, FLAG_NONE, 
         "Path to data file"},
         
-    {"max_points",        PARAM_INT,      1, FLAG_SCENE, 
+    {"max_points",        PARAM_INT,      1, FLAG_NONE, 
         "Maximum number of points to load"},
         
-    {"sphere_radius",        PARAM_FLOAT,      1, FLAG_SCENE, 
+    {"sphere_radius",        PARAM_FLOAT,      1, FLAG_NONE, 
         "Radius of each sphere"},
         
-    {"sphere_opacity",        PARAM_FLOAT,      1, FLAG_SCENE, 
+    {"sphere_opacity",        PARAM_FLOAT,      1, FLAG_NONE, 
         "Opacity of each sphere"},
 
     PARAMETERS_DONE         // Sentinel (signals end of list)

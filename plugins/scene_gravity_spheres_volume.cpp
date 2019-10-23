@@ -56,7 +56,7 @@ static PluginParameters
 parameters = {
     
     // Name, type, length, flags, description        
-    //{"voxel_type",          PARAM_STRING,   1, FLAG_VOLUME, 
+    //{"voxel_type",          PARAM_STRING,   1, FLAG_NONE, 
     //    "Voxel data type (uchar, float)"},
         
     PARAMETERS_DONE         // Sentinel (signals end of list)

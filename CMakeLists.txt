@@ -27,7 +27,7 @@ cmake_minimum_required(VERSION 3.12)
 cmake_policy(SET CMP0048 NEW)   # Project version
 
 set(BLOSPRAY_VERSION_MAJOR 0)
-set(BLOSPRAY_VERSION_MINOR 2)
+set(BLOSPRAY_VERSION_MINOR 1)
 
 project(blospray
     VERSION "${BLOSPRAY_VERSION_MAJOR}.${BLOSPRAY_VERSION_MINOR}"

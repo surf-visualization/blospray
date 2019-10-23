@@ -41,47 +41,60 @@ BLOSPRAY is still in its early stages of development, but the following
 basic functionality and integration with Blender features is already available:
 
 * Supports OSPRay's SciVis and Path Tracer renderers
-* Export and rendering of polygonal geometry (i.e. Blender meshes)
-* Object transformations and parenting
-* Instancing 
-* Vertex colors on Blender meshes
+* Scene export and rendering of polygonal geometry (i.e. Blender meshes)
+    - Subdivision surfaces. These are handled by Blender's dependency graph mechanism,
+      but this triangulates the geometry instead of passing the subdivision control
+      cage to OSPRay (which also has subdiv support).
+    - No support for othernon-polygonal objects (e.g. text, curves, ...)
 * Point, sun, spot and area lights
-* Perspective and orthographic cameras, plus OSPRay's panoramic camera (which is similar to Cycles' equirectangular camera, but without any parameters to tweak)
+    - No support for OSPRay's HDRI light yet
+* Vertex colors on Blender meshes
+* Final render
+* Interactive preview render 
+    - Works with respect to viewpoint changes, but most other scene changes 
+      will NOT update in the rendered view. Switching out and back into 
+      rendered view should sync to the updated scene
+    - The view will match in orthographic and "free" view mode, but is
+      incorrect when viewing through a camera
+* Object transformations and parenting
+* Instancing
+    - For large numbers of instances there currently is quite a high overhead
+      in terms of scene setup and memory usage
+* Perspective and orthographic cameras, plus OSPRay's panoramic camera 
+  (which is similar to Cycles' equirectangular camera, but without any parameters to tweak)
 * Depth of field
-* Border render (i.e. render only part of an image). But only works currently for final render, not for interactive rendering
+* Border render (i.e. render only part of an image)
+    - This currently only works for final render, not for interactive render
 * Rudimentary support for volume, geometry and scene plugins
-* Node-based material editing for a subset of OSPRay materials. Note that input ports for
-  node values, like a color, will not work as expected when a connection is made. 
-  There is also no way to hide the sockets.
+* Node-based material editing for a subset of OSPRay materials
+    - Note that input ports for node values, like a color, will not 
+      work as expected when a connection is made (and there is no way 
+      to hide the sockets to signal this)
 * Rudimentary transfer function editing for volume data (by mis-using the ColorRamp node)
-
-Available, but not in the most optimal way and/or not completely bug-free:
-
-* Interactive preview render
-* Subdivision surfaces. These are handled by Blender's dependency graph mechanism,
-  but this triangulates the geometry instead of passing the subdivision control
-  cage to OSPRay (which also has subdiv support).
-
-Major features that are currently missing:
-
-* Motion blur (which is not supported by OSPRay itself)
-* Parallel rendering mode through MPI
-
-Other features that might be of interest in the HPC context that are missing:
-
-* Texturing
-* HDRI lighting
-
-
-Finally, some current limitations:
-
 * Integration within the Blender UI, mostly panels for editing properties and such, 
-is not very advanced. Some properties are currently only settable using Blender
-[custom properties](https://docs.blender.org/manual/en/latest/data_system/custom_properties.html) on objects and meshes.
+  is not very advanced. Some properties are currently only settable using Blender
+  [custom properties](https://docs.blender.org/manual/en/latest/data_system/custom_properties.html) on objects and meshes.
 * Only a single connection to the render server (see below) is handled 
   at a time
 * Simulatenous rendering modes in Blender are not supported. E.g. multiple
-  3D views each in interactive rendering mode will not work.
+  3D views each in interactive rendering mode will not work as the render
+  server does not support this.
+
+### Known to be missing and/or buggy
+
+**Please check this list before reporting a bug!**
+
+* Scene updates in interactive render mode as mostly not implemented.
+  Only viewpoint changes will work, plus some limited material editing
+  (changing node values works, changing node *connections* does not)
+* Texturing
+* HDRI lighting
+* Motion blur   
+    - This is not supported by OSPRay itself
+* Parallel rendering mode through MPI
+* Slice rendering and isosurfacing on volumes is not working yet
+* Many errors that can happen during scene sync between Blender and
+  the render server are not caught and/or not reported correctly
 
 ### Workflow
 

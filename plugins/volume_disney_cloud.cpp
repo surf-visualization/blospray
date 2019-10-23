@@ -282,7 +282,7 @@ generate(GenerateFunctionResult &result, PluginState *state)
 static PluginParameters 
 parameters = {
         
-    {"file",                PARAM_STRING,   1, FLAG_VOLUME, "File to read"},
+    {"file",                PARAM_STRING,   1, FLAG_NONE, "File to read"},
         
     PARAMETERS_DONE         // Sentinel (signals end of list)
 };

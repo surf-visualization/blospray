@@ -124,10 +124,8 @@ generate(GenerateFunctionResult &result, PluginState *state)
         ospSetInt(volume, "voxelType", dataType);
         ospSetVec3i(volume, "dimensions", dims[0], dims[1], dims[2]);
     
-        ospSetParam(volume, "gridOrigin", OSP_VEC3F, origin);
+        ospSetParam(volume, "gridOrigin", OSP_VEC3F, origin);           // XXX how the heck can this work? we're not passing OSPData
         ospSetParam(volume, "gridSpacing", OSP_VEC3F, spacing);
-
-        //ospSetVec2f(volume, "voxelRange", minval, maxval);    
 
     ospCommit(volume);
 
@@ -145,16 +143,16 @@ generate(GenerateFunctionResult &result, PluginState *state)
 static PluginParameters 
 parameters = {
     
-    {"hdf5_file",   PARAM_STRING,   1, FLAG_SCENE, 
+    {"hdf5_file",   PARAM_STRING,   1, FLAG_NONE, 
         "Path to HDF5 file"},
         
-    {"dataset",     PARAM_STRING,      1, FLAG_SCENE, 
+    {"dataset",     PARAM_STRING,      1, FLAG_NONE, 
         "Path of dataset to read"},
         
-    {"origin",      PARAM_FLOAT,      3, FLAG_SCENE, 
+    {"origin",      PARAM_FLOAT,      3, FLAG_NONE, 
         "Origin of the volume"},
         
-    {"spacing",     PARAM_FLOAT,      3, FLAG_SCENE, 
+    {"spacing",     PARAM_FLOAT,      3, FLAG_NONE, 
         "Spacing of the volume"},
 
     PARAMETERS_DONE         // Sentinel (signals end of list)

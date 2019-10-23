@@ -301,8 +301,8 @@ load_file(GenerateFunctionResult &result, PluginState *state)
 static PluginParameters 
 parameters = {
     
-    {"file",          PARAM_STRING,     1, FLAG_GEOMETRY, "Geometry file to load"},
-    //{"divisions",     PARAM_INT,        1, FLAG_GEOMETRY, "Divisions (for QC simplification)"},
+    {"file",          PARAM_STRING,     1, FLAG_NONE, "Geometry file to load"},
+    //{"divisions",     PARAM_INT,        1, FLAG_NONE, "Divisions (for QC simplification)"},
         
     PARAMETERS_DONE         // Sentinel (signals end of list)
 };

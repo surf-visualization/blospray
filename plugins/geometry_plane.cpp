@@ -115,8 +115,8 @@ create_geometry(GenerateFunctionResult &result, PluginState *state)
 static PluginParameters 
 parameters = {
     
-    {"size_x",          PARAM_FLOAT,    1, FLAG_GEOMETRY, "Size in X"},
-    {"size_y",          PARAM_FLOAT,    1, FLAG_GEOMETRY, "Size in Y"},
+    {"size_x",          PARAM_FLOAT,    1, FLAG_NONE, "Size in X"},
+    {"size_y",          PARAM_FLOAT,    1, FLAG_NONE, "Size in Y"},
         
     PARAMETERS_DONE         // Sentinel (signals end of list)
 };

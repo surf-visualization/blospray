@@ -409,13 +409,13 @@ generate(GenerateFunctionResult &result, PluginState *state)
 static PluginParameters 
 parameters = {
     
-    {"rbc_data_path",   PARAM_STRING,   1, FLAG_SCENE, 
+    {"rbc_data_path",   PARAM_STRING,   1, FLAG_NONE, 
         "Path to data files"},
         
-    {"num_rbcs",        PARAM_INT,      1, FLAG_SCENE, 
+    {"num_rbcs",        PARAM_INT,      1, FLAG_NONE, 
         "Limit number of RBCs"},
         
-    {"num_plts",        PARAM_INT,      1, FLAG_SCENE, 
+    {"num_plts",        PARAM_INT,      1, FLAG_NONE, 
         "Limit number of PLTs"},
         
     PARAMETERS_DONE         // Sentinel (signals end of list)
