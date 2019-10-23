@@ -218,9 +218,9 @@ OSPRay at 35, 100 and 400 SPP):
 <img src="./images/bmw27-crop-ospray-400spp.png">
 
 
+### plane_geometry.blend, geometry_plane.cpp
 
-
-
+Bare bones geometry plugin example and scene using it.
 
 ## Workflow
 
@@ -445,16 +445,46 @@ in the console window where Blender is running.
 2. Start Blender
 3. Set the `Render Engine` to `OSPRay`
 
-## License
+## Licenses
 
 BLOSPRAY is licensed under the Apache License, version 2.0 (the same
 license as OSPRay). See LICENSE-2.0.txt for more information.
-
-Some files, mostly separate test files, are not part of BLOSPRAY
-itself. These files have license information included in their text,
-where appropriate.
 
 BLOSPRAY uses the [JSON for Modern C++](https://github.com/nlohmann/json) 
 header-only library, which is included in this source distribution
 as `core/json.hpp`. This file is not part of BLOSPRAY and has a different 
 license, see its contents.
+
+Some files, mostly separate test files, are not part of BLOSPRAY
+itself. These files have license information included in their text,
+where appropriate. 
+
+The file `ss002.128_3.bin.vtk` is derived from the Cosmogrid 512^3 
+simulation by Ishiyama et al. available at https://repository.surfsara.nl/datasets/cosmogrid/648.
+One shapshot of the original particle data was mapped to a density 
+volume (log10 of 1+#particles) at 128^3. The original data is covered 
+by an MIT license for which the following holds:
+
+> Copyright 2011 Tomoaki Ishiyama, Steven Rieder, Junichiro Makino, 
+> Simon Portegies Zwart, Derek Groen, Keigo Nitadori, Cees de Laat, 
+> Stephen McMillan, Kei Hiraki, Stefan Harfst
+>
+> Permission is hereby granted, free of charge, to any person obtaining
+> a copy of this software and associated documentation files (the "Software"), 
+> to deal in the Software without restriction, including without 
+> limitation the rights to use, copy, modify, merge, publish, distribute, 
+> sublicense, and/or sell copies of the Software, and to permit persons 
+> to whom the Software is furnished to do so, subject to the following 
+> conditions:
+>
+> The above copyright notice and this permission notice shall be included in all 
+> copies or substantial portions of the Software.
+>
+> THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, 
+> EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF 
+> MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
+> IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+> CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
+> TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
+> SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
