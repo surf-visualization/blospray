@@ -194,10 +194,13 @@ black patch visible in the lower part of the left car door.
   were manually changed to match the look of the original scene, although
   this is very hard to do perfectly.
 
-<img src="./images/bmw27-cycles-35spp.png" width="512">
-<img src="./images/bmw27-ospray-35spp.png" width="512">
-<img src="./images/bmw27-ospray-100spp.png" width="512">
-<img src="./images/bmw27-ospray-400spp.png" width="512">
+<img src="./images/bmw27-cycles-35spp.png" width="256">
+<img src="./images/bmw27-ospray-35spp.png" width="256">
+<img src="./images/bmw27-ospray-100spp.png" width="256">
+<img src="./images/bmw27-ospray-400spp.png" width="256">
+
+Here's a crop to compare the different noise levels (Cycles at 35 SPP,
+OSPRay at 35, 100 and 400 SPP):
 
 <img src="./images/bmw27-crop-cycles-35spp.png">
 <img src="./images/bmw27-crop-ospray-35spp.png">
