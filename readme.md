@@ -39,7 +39,9 @@ BLOSPRAY is still in its early stages of development, but the following
 basic functionality and integration with Blender features is already available,
 with certain limitations :)
 
-### Features
+### Features (and known issues)
+
+**Please check this list before reporting a bug for a known issue**
 
 * Scene elements
     - Polygonal geometry, i.e. Blender meshes
@@ -91,26 +93,21 @@ with certain limitations :)
     - Note also that some builtin UI panels are disabled when the render engine
       is set to OSPRay as those panels can't directly be used with OSPRay 
       (e.g. they contain Cycles-specific settings)
-  
-Notes on 2.0.x alpha OSPRay (not BLOSPRAY) limitations:
-
-* When using the scivis renderer a transformed volume will not render
-  correctly 
-
-### Known to be missing and/or buggy
-
-**Please check this list before reporting a bug!**
-
 * This project is developed for Blender 2.8x, the latest stable release.
-  Blender 2.7x is not supported.
-* Scene updates in interactive render mode as mostly not implemented.
-  Only viewpoint changes will work, plus some limited material editing
-  (changing node values works, changing node *connections* does not)
+  Blender 2.7x is not supported
+  
+Known to be missing and/or buggy:
+
+* When scaling a volume much smaller it appears that the rendered volume is
+  "thinned out", i.e. there's much less opacity accumulating. Also, the `Sampling
+  rate` parameter appears to have no effect. It needs further checks wether this
+  is an issue with BLOSPRAY or with OSPRay.
 * Texturing
 * HDRI lighting
 * Motion blur   
     - This is not supported by OSPRay itself
-* Parallel rendering mode through MPI
+* Parallel rendering mode through MPI is supported by OSPRay, but not 
+  used in BLOSPRAY yet
 * Slice rendering and isosurfacing on volumes is not working yet
 * Many errors that can happen during scene sync between Blender and
   the render server are not caught and/or not reported correctly  
@@ -123,6 +120,39 @@ Notes on 2.0.x alpha OSPRay (not BLOSPRAY) limitations:
 * All Blender meshes are converted to triangle meshes before being passed to BLOSPRAY, even though OSPRay also supports quad meshes.
   This is partly due to the way the new Blender depsgraph export works.
    
+
+OSPRay (currently, 2.0.x alpha) also has some limitations:
+
+* OSPRay's SciVis and Path Tracer renderer do not have the same set of features
+
+    - Only the Path Tracer supports advanced materials, like the principled material
+    - The lighting in the SciVis renderer is very basic
+
+* Volumes cannot be transformed properly when using the SciVis rendering
+
+* Volumes are limited in their size, due to the relevant ISPC-based
+  code being built in 32-bit mode. See [this issue](https://github.com/ospray/ospray/issues/239).
+  
+* Unstructured volumes can only contain float values (i.e. not integers).
+  See [here](https://github.com/ospray/ospray/issues/289)
+  
+* Lights generated in a scene plugin (see below) can not be transformed
+  
+* OSPRay meshes are either pure-triangle, pure-quad or subdivision meshes.
+  The latter can mix polygons of different numbers of vertices, but might suffer
+  from being less efficient (although this needs more testing).
+  
+* The OSPRay *orthographic* camera does not support depth-of-field
+  
+* Blender supports multiple colors per vertex (basically one per vertex per face loop),
+  while OSPRay only supports a single value per vertex (XXX need to double-check this). 
+  During export the vertex colors are reduced to a single color per vertex
+  
+* OSPRay does not support motion blur through its API, although the underlying
+  Embree library does
+
+* All rendering is done on the CPU, because, well ... it's OSPRay ;-)
+
 ## Example scenes in the tests/ directory
 
 Notes: 
@@ -133,6 +163,12 @@ Notes:
   system with 32 GB RAM running Arch Linux
   
   
+### objects.blend - volumetric data, sun light, simple meshes
+
+Path tracer renderer, 960x540, 32 SPP
+
+<img src="./images/objects.png" width="512">
+
 ### dof.blend - camera depth-of-field, simple objects
 
 Path tracer renderer, 960x540, 32 SPP, 3.26s
@@ -158,25 +194,10 @@ Path tracer renderer, 1024x1024, 16 SPP, 2.74s
 
 SciVis renderer, 1024x1024, 4 SPP, 0.42s
 
+The OSPRay command `ospExample -s gravity_spheres_volume` will show the
+same dataset, but using the OSPRay example tool.
+
 <img src="./images/gravity_spheres_volume.png" width="512">
-
-
-### disney_cloud.blend - volume rendering of the Disney Cloud dataset
-
-This uses a volume plugin to load the data through OpenVDB.
-
-Notes: 
-
-- See the file for instructions on how to download and set up the dataset.
-- This example requires the `volume_disney_cloud.so` plugin to be built, which depends
-  on OpenVBD and the `PLUGIN_DISNEY_CLOUD` cmake option to be `ON`.
-- The reader plugin isn't very advanced currently, as it turns the AMR 
-  mesh into a regular structured grid
-
-Path tracer renderer, 960x540, 256 SPP, 6m05s on the *half-sized* dataset.
-
-<img src="./images/disney_cloud.png" width="512">
-
 
 ### bmw27_cpu.ospray.blend, bmw27_cpu.original.blend - performance comparison between OSPRay and Cycles
 
@@ -218,6 +239,30 @@ OSPRay at 35, 100 and 400 SPP):
 <img src="./images/bmw27-crop-ospray-400spp.png">
 
 
+### disney_cloud.blend - volume rendering of the Disney Cloud dataset
+
+This uses a volume plugin to load the data through OpenVDB.
+
+Notes: 
+
+- See the file for instructions on how to download and set up the dataset.
+- This example requires the `volume_disney_cloud.so` plugin to be built, which depends
+  on OpenVDB and the `PLUGIN_DISNEY_CLOUD` cmake option to be `ON`.
+- The reader plugin isn't very advanced currently, as it turns the AMR 
+  mesh into a regular structured grid
+- With some versions of OpenVDB you need to start the BLOSPRAY server
+  with `$ LD_PRELOAD=/usr/lib/libjemalloc.so ./bin/blserver`, see the 
+  notes in the blend file for more info.
+
+Path tracer renderer, 960x540, 256 SPP (max. depth 50), 6m05s on the *half-sized* dataset.
+
+<img src="./images/disney_cloud.png" width="512">
+
+Here's cloud rendered in interactive mode:
+
+<img src="./images/disney_cloud_interactive.png" width="512">
+
+
 ### plane_geometry.blend, geometry_plane.cpp
 
 Bare bones geometry plugin example and scene using it.
@@ -243,11 +288,14 @@ There are currently 3 types of plugins in BLOSPRAY:
   Note that OSPRay supports regular volumetric grids, but also ununstructured grids
   and AMR meshes. 
 
-- Scene plugins: these can generate any set of `OSPInstance` elements
+- Scene plugins: these can generate any set of `OSPInstance` elements, plus
+  zero or more lights.
 
 Meshes that have a plugin attached can be transformed in the Blender scene 
 in the usual way. Meshes with a volume plugin have a few more options
 specific to volumes: 
+
+- Note: the two options below are currently broken in 0.1!
 
 - One or more isosurfaces can be rendered through the volume
 
@@ -334,38 +382,6 @@ Note that BLOSPRAY plugins are different from OSPRay's own [Extensions](http://w
 that are also loadable at run-time. The latter are meant for extending OSPRay itself
 with, for example, a new geometry type. BLOSPRAY plugins serve to extend *Blender*
 with new types of scene elements that are then rendered in OSPRay.
-
-
-### Limitations specific to OSPRay 
-
-Some of the OSPRay limitations we can work around, some of these we can't:
-
-* OSPRay's SciVis and Path Tracer renderer do not have the same set of features:
-
-    - Only the Path Tracer supports advanced materials, like the principled material
-    - The lighting in the SciVis renderer is very basic
-
-* Volumes cannot be transformed properly when using the SciVis rendering. This is a
-  current limitation in OSPRay.
-
-* Volumes are limited in their size, due to the relevant ISPC-based
-  code being built in 32-bit mode. See [this issue](https://github.com/ospray/ospray/issues/239).
-  
-* Unstructured volumes can only contain float values (i.e. not integers).
-  See [here](https://github.com/ospray/ospray/issues/289)
-  
-* OSPRay meshes are either pure-triangle, pure-quad or subdivision meshes.
-  The latter can mix polygons of different numbers of vertices.
-  
-* The OSPRay *orthographic* camera does not support depth-of-field
-  
-* Blender supports multiple colors per vertex (basically one per vertex per face loop),
-  while OSPRay only supports a single value per vertex (XXX need to double-check this). 
-  During export the vertex colors are reduced to a single color per vertex
-  
-* OSPRay does not support motion blur
-
-* All rendering is done on the CPU, because, well ... it's OSPRay ;-)
 
 ## Dependencies
 
