@@ -18,6 +18,9 @@
 // limitations under the License.                                           //
 // ======================================================================== //
 
+// Color map based on CoolWarmFloat257.csv by Kenneth Moreland,
+// see https://www.kennethmoreland.com/color-maps/
+
 #ifndef COOL2WARM_H
 #define COOL2WARM_H
 

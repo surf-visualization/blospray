@@ -614,7 +614,7 @@ scene_data_with_type_exists(const std::string& name, SceneDataType type)
 OSPTransferFunction
 create_transfer_function(const std::string& name, float minval, float maxval)
 {
-    //printf("create_transfer_function('%s', %.6f, %.6f)\n", name.c_str(), minval, maxval);
+    printf("... create_transfer_function('%s', %.6f, %.6f)\n", name.c_str(), minval, maxval);
 
 	/*if (name == "jet")
 	{
@@ -640,10 +640,12 @@ create_transfer_function(const std::string& name, float minval, float maxval)
         	ospSetVec2f(tf, "valueRange", minval, maxval);
 
         	OSPData color_data = ospNewCopiedData(cool2warm_entries, OSP_VEC3F, tf_colors);
+            ospCommit(color_data);
         	ospSetObject(tf, "color", color_data);        	
 
         	// XXX color and opacity can be decoupled?
         	OSPData opacity_data = ospNewCopiedData(cool2warm_entries, OSP_FLOAT, tf_opacities);
+            ospCommit(opacity_data);
         	ospSetObject(tf, "opacity", opacity_data);        	
 
     	ospCommit(tf);
@@ -659,7 +661,7 @@ create_transfer_function(const std::string& name, float minval, float maxval)
 OSPTransferFunction
 create_user_transfer_function(float minval, float maxval, const Volume& volume, int num_tf_entries=128)
 {
-    //printf("create_user_transfer_function(%.6f, %.6f, ...)\n", minval, maxval);
+    printf("... create_user_transfer_function(%.6f, %.6f, ...)\n", minval, maxval);
 
     if (volume.tf_positions_size() != volume.tf_colors_size())
     {
@@ -1478,10 +1480,16 @@ update_volume_object(const UpdateObject& update, const Volume& volume_settings)
     OSPTransferFunction tf;
 
     if (volume_settings.tf_positions_size() > 0 && volume_settings.tf_colors_size() > 0)
+    {
+        printf("... Creating user-defined transfer function\n");
         tf = create_user_transfer_function(state->volume_data_range[0], state->volume_data_range[1], volume_settings);
+    }
     else
+    {
         // Default TF        
+        printf("... Creating default cool2warm transfer function\n");
         tf = create_transfer_function("cool2warm", state->volume_data_range[0], state->volume_data_range[1]);
+    }
 
     ospSetObject(vmodel, "transferFunction", tf);
     ospRelease(tf);
