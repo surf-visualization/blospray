@@ -206,9 +206,10 @@ Finally, the teapot model is polygonal and not based on the actual Utah Teapot
 parametric surfaces, as the latter are not supported in BLOSPRAY at the moment ;-)
 
 
-### disney_cloud.blend - volume rendering of the Disney Cloud dataset
+### disney_cloud.blend
 
-This uses a volume plugin to load the data through OpenVDB.
+Volume rendering of the Disney Cloud dataset. This uses a volume plugin to 
+load the data through OpenVDB.
 
 Notes: 
 
@@ -230,18 +231,18 @@ Here's cloud rendered in interactive mode:
 <img src="./images/disney_cloud_interactive.png" width="512">
 
 
-### bmw27_cpu.ospray.blend, bmw27_cpu.original.blend - performance comparison between OSPRay and Cycles
+### bmw27_cpu.ospray.blend, bmw27_cpu.original.blend
 
-Based on the "Car Demo" test scene (CPU version) by Mike Pan, available 
-from https://www.blender.org/download/demo-files/. 
+Performance comparison between OSPRay and Cycles. Based on the "Car Demo" test 
+scene (CPU version) by Mike Pan, available from https://www.blender.org/download/demo-files/. 
 
 Notes: 
 
 - The original scene was changed to convert all libraries to local objects, plus the
-compositing step was disabled. Note that it seems some of the library
-conversions isn't done correctly in Blender 2.8 (as this is a file created
-with 2.7), leading to a wheel rim that is slightly off, plus a small
-black patch visible in the lower part of the left car door.
+  compositing step was disabled. Note that it seems some of the library
+  conversions isn't done correctly in Blender 2.8 (as this is a file created
+  with 2.7), leading to a wheel rim that is slightly off, plus a small
+  black patch visible in the lower part of the left car door.
 - The OSPRay scene was matched in terms of render settings. Shaders and lights
   were manually changed to match the look of the original scene, although
   this is very hard to do perfectly.
@@ -270,8 +271,9 @@ OSPRay at 35, 100 and 400 SPP):
 <img src="./images/bmw27-crop-ospray-400spp.png">
 
 
+### gravity_spheres_volume.blend 
 
-### gravity_spheres_volume.blend - volume rendering of the OSPRay built-in gravity spheres volume
+Volume rendering of the OSPRay built-in gravity spheres volume.
 
 SciVis renderer, 1024x1024, 4 SPP, 0.42s
 
@@ -281,20 +283,24 @@ same dataset, but using the OSPRay example tool.
 <img src="./images/gravity_spheres_volume.png" width="512">
 
 
-### dof.blend - camera depth-of-field, simple objects
+### dof.blend 
+
+Camera depth-of-field, simple objects.
 
 Path tracer renderer, 960x540, 32 SPP, 3.26s
 
 <img src="./images/dof.png" width="512">
 
-### lights.blend - all supported light types
+### lights.blend
+
+All supported light types
 
 Path tracer renderer, 960x540, 64 SPP, 9.45s
 
 <img src="./images/lights.png" width="512">
 
 
-### metals.blend - different metals
+### metals.blend 
 
 OSPRay has some really nice metal materials.
 
