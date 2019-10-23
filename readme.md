@@ -35,12 +35,11 @@ and challenge than production of photo-realistic imagery.
 
 ## Features & limitations
 
-### Supported scene elements and features
-
 BLOSPRAY is still in its early stages of development, but the following 
-basic functionality and integration with Blender features is already available:
+basic functionality and integration with Blender features is already available,
+with certain limitations :)
 
-Features (and remarks):
+### Features
 
 * Scene elements
     - Polygonal geometry, i.e. Blender meshes
@@ -132,16 +131,23 @@ Notes:
   might not work, others will need extra data to be downloaded, etc.
 * Timings listed are on an Intel(R) Core(TM) i7-6700K CPU @ 4.00GHz
   system with 32 GB RAM running Arch Linux
+  
+---
 
-### `dof.blend`: camera depth-of-field, simple objects
+`dof.blend`: camera depth-of-field, simple objects
 
-### `disney_cloud.blend`: volume rendering of the Disney Cloud dataset
+---
 
-Path tracer renderer, 256 SPP, 6m05s
+`disney_cloud.blend`: volume rendering of the Disney Cloud dataset
 
-See the file for instructions on how to download and set up the dataset.
+Path tracer renderer, 960x540, 256 SPP, 6m05s. This uses a volume
+plugin to load the data through OpenVDB (the reader isn't
+very advanced currently, as it turns the AMR mesh into a regular 
+structured grid).
 
-![](./images/disney_cloud.png)
+Note: see the file for instructions on how to download and set up the dataset.
+
+![](./images/disney_cloud.png | width=256)
 
 
 
