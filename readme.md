@@ -150,7 +150,7 @@ OSPRay has some really nice metal materials.
 
 Path tracer renderer, 1024x1024, 16 SPP, 2.74s
 
-<img src="./images/metals" width="512">
+<img src="./images/metals.png" width="512">
 
 ### disney_cloud.blend: volume rendering of the Disney Cloud dataset
 
