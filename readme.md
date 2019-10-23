@@ -136,7 +136,7 @@ Notes:
 
 Path tracer renderer, 960x540, 32 SPP, 3.26s
 
-![](./images/dof.png)
+<img src="./images/dof.png" width="256">
 
 ### lights.blend: all supported light types
 
@@ -152,7 +152,7 @@ structured grid).
 
 Note: see the file for instructions on how to download and set up the dataset.
 
-Path tracer renderer, 960x540, 256 SPP, 6m05s
+Path tracer renderer, 960x540, 256 SPP, 6m05s on the *half-sized* dataset.
 
 ![](./images/disney_cloud.png)
 
@@ -288,6 +288,9 @@ Some of the OSPRay limitations we can work around, some of these we can't:
   
 * Unstructured volumes can only contain float values (i.e. not integers).
   See [here](https://github.com/ospray/ospray/issues/289)
+  
+* OSPRay meshes are either pure-triangle, pure-quad or subdivision meshes.
+  The latter can mix polygons of different numbers of vertices.
   
 * The OSPRay *orthographic* camera does not support depth-of-field
   
