@@ -123,7 +123,7 @@ Notes on 2.0.x alpha OSPRay (not BLOSPRAY) limitations:
 * All Blender meshes are converted to triangle meshes before being passed to BLOSPRAY, even though OSPRay also supports quad meshes.
   This is partly due to the way the new Blender depsgraph export works.
    
-## Example scenes in the `tests` directory
+## Example scenes in the tests/ directory
 
 Notes: 
 
@@ -132,19 +132,20 @@ Notes:
 * Timings listed are on an Intel(R) Core(TM) i7-6700K CPU @ 4.00GHz
   system with 32 GB RAM running Arch Linux
   
-### dof.blend: camera depth-of-field, simple objects
+  
+### dof.blend - camera depth-of-field, simple objects
 
 Path tracer renderer, 960x540, 32 SPP, 3.26s
 
 <img src="./images/dof.png" width="512">
 
-### lights.blend: all supported light types
+### lights.blend - all supported light types
 
 Path tracer renderer, 960x540, 64 SPP, 9.45s
 
 <img src="./images/lights.png" width="512">
 
-### metals.blend: different metals
+### metals.blend - different metals
 
 OSPRay has some really nice metal materials.
 
@@ -152,18 +153,26 @@ Path tracer renderer, 1024x1024, 16 SPP, 2.74s
 
 <img src="./images/metals.png" width="512">
 
-### disney_cloud.blend: volume rendering of the Disney Cloud dataset
+### disney_cloud.blend - volume rendering of the Disney Cloud dataset
 
 This uses a volume plugin to load the data through OpenVDB (the reader isn't
 very advanced currently, as it turns the AMR mesh into a regular 
 structured grid).
 
-Note: see the file for instructions on how to download and set up the dataset.
+Notes: 
+- See the file for instructions on how to download and set up the dataset.
+- This requires the volume_disney_cloud plugin to be built, which depends
+  on OpenVBD and the `PLUGIN_DISNEY_CLOUD` cmake option to be `ON`.
 
 Path tracer renderer, 960x540, 256 SPP, 6m05s on the *half-sized* dataset.
 
 <img src="./images/disney_cloud.png" width="512">
 
+### gravity_spheres_volume.blend - volume rendering of the OSPRay built-in gravity spheres volume
+
+SciVis rendered, 1024x1024, 4 SPP, 0.42s
+
+<img src="./images/gravity_spheres_volume.png" width="512">
 
 ## Workflow
 
