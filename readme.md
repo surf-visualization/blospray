@@ -75,6 +75,8 @@ Features (and remarks):
       3D views each in interactive rendering mode will not work as the render
       server does not support this
     - Material/light/... preview rendering does not work
+* Rudimentary support for BLOSPRAY-specific volume, geometry and scene plugins      
+* Rudimentary transfer function editing for volume data (by mis-using the ColorRamp node)    
 * Camera
     - Perspective and orthographic cameras, plus OSPRay's panoramic camera.
       The latter is similar to Cycles' equirectangular camera, but without 
@@ -82,11 +84,14 @@ Features (and remarks):
     - Depth of field
 * Blender UI
     - Integration within UI, mostly panels for editing properties and such, 
-      is not very advanced. Some properties are currently only settable using Blender
-      [custom properties](https://docs.blender.org/manual/en/latest/data_system/custom_properties.html) 
-      on objects and meshes.
-* Rudimentary support for BLOSPRAY-specific volume, geometry and scene plugins      
-* Rudimentary transfer function editing for volume data (by mis-using the ColorRamp node)
+      is not very advanced
+    - The addon provides some UI panels to set OSPRay specific settings, but in other cases we 
+      use Blender's [custom properties](https://docs.blender.org/manual/en/dev/data_system/custom_properties.html)
+      to pass information to OSPRay. These can even be animated, with certain limitations, 
+      but are not a long-term solution. 
+    - Note also that some builtin UI panels are disabled when the render engine
+      is set to OSPRay as those panels can't directly be used with OSPRay 
+      (e.g. they contain Cycles-specific settings)
   
 Notes on 2.0.x alpha OSPRay (not BLOSPRAY) limitations:
 
@@ -97,6 +102,8 @@ Notes on 2.0.x alpha OSPRay (not BLOSPRAY) limitations:
 
 **Please check this list before reporting a bug!**
 
+* This project is developed for Blender 2.8x, the latest stable release.
+  Blender 2.7x is not supported.
 * Scene updates in interactive render mode as mostly not implemented.
   Only viewpoint changes will work, plus some limited material editing
   (changing node values works, changing node *connections* does not)
@@ -107,9 +114,38 @@ Notes on 2.0.x alpha OSPRay (not BLOSPRAY) limitations:
 * Parallel rendering mode through MPI
 * Slice rendering and isosurfacing on volumes is not working yet
 * Many errors that can happen during scene sync between Blender and
-  the render server are not caught and/or not reported correctly
+  the render server are not caught and/or not reported correctly  
+* In many cases only a subset of OSPRay parameters can be set from Blender, either using UI elements or using custom properties
+* Scene management on the render server is not optimal yet. I.e. memory usage might increase after each render.  
+* Only a few OSPRay materials can be set through the shader editor. They also don't work on all types of geometry yet.
+* Command-line (batch) rendering isn't supported in a nice way yet, as the lifetime of the BLOSPRAY server needs to be managed manually,
+  although this isn't a big issue.
+* Volumes can only use point-based values, not cell-based values (XXX this is a limitation of the volume_raw plugin)
+* All Blender meshes are converted to triangle meshes before being passed to BLOSPRAY, even though OSPRay also supports quad meshes.
+  This is partly due to the way the new Blender depsgraph export works.
+   
+## Example scenes in the `tests` directory
 
-### Workflow
+Notes: 
+
+* The directory contains many more scene than are listed here. Some
+  might not work, others will need extra data to be downloaded, etc.
+* Timings listed are on an Intel(R) Core(TM) i7-6700K CPU @ 4.00GHz
+  system with 32 GB RAM running Arch Linux
+
+### `dof.blend`: camera depth-of-field, simple objects
+
+### `disney_cloud.blend`: volume rendering of the Disney Cloud dataset
+
+Path tracer renderer, 256 SPP, 6m05s
+
+See the file for instructions on how to download and set up the dataset.
+
+![](./images/disney_cloud.png)
+
+
+
+## Workflow
 
 The overall idea is to use Blender to set up the scene to render in the usual way.
 Regular Blender meshes are handled mostly correct, although Blender's Cycles
@@ -147,7 +183,7 @@ simplified mesh, to be used as proxy in the Blender scene.
 
 See the Plugin section below for more details.
 
-### Render server
+## Render server
 
 BLOSPRAY consists of two parts:
 
@@ -187,7 +223,7 @@ Note that the render server currently doesn't support loading multiple different
 Blender scenes or serving different users at the same time. There is also 
 a manual action required to start/stop the render server.
 
-### Plugins
+## Plugins
 
 There is a rudimentary plugin system that can be used to set up
 custom scene elements that are represented by a proxy object in Blender,
@@ -221,41 +257,6 @@ Note that BLOSPRAY plugins are different from OSPRay's own [Extensions](http://w
 that are also loadable at run-time. The latter are meant for extending OSPRay itself
 with, for example, a new geometry type. BLOSPRAY plugins serve to extend *Blender*
 with new types of scene elements that are then rendered in OSPRay.
-
-## Known limitations and bugs
-
-This project is developed for Blender 2.8x, the latest stable release.
-Blender 2.7x is not supported.
-
-As BLOSPRAY is in early development some things are currently suboptimal or missing:
-
-* The addon provides some UI panels to set OSPRay specific settings, but in other cases we use Blender's [custom properties](https://docs.blender.org/manual/en/dev/data_system/custom_properties.html)
-  to pass information to OSPRay. These can even be animated, with certain limitations, but are not a long-term solution. Note also that some builtin UI panels are disabled when the render engine
-  is set to OSPRay as those panels can't directly be used with OSPRay (e.g. they contain Cycles-specific settings).
-  
-* In many cases only a subset of OSPRay parameters can be set from Blender, either using UI elements or using custom properties
-
-* Scene management on the render server is not optimal yet. I.e. memory usage might increase after each render.  
-
-* Caching of scene data on the server, especially for large data loaded by plugins, is partly done
-
-* Only a single (hard-coded) transfer function for volume rendering and slice geometry is supported. 
-
-* Only a few OSPRay materials can be set through the shader editor. They also don't work on all types of geometry yet.
-
-* Only final (F12 key) renders are supported. Preview rendering is not implemented yet, but is high on the list of features to add
-
-* Error handling isn't very good yet, causing a lockup in the Blender script in case the BLOSPRAY server does something wrong (like crash ;-))
-
-* BLOSPRAY is only being developed on Linux at the moment, on other platforms it might only work after some code tweaks
-
-* Command-line (batch) rendering isn't supported in a nice way yet, as the lifetime of the BLOSPRAY server needs to be managed manually,
-  although this isn't a big issue.
-
-* Volumes can only use point-based values, not cell-based values (XXX this is a limitation of the volume_raw plugin)
-
-* All Blender meshes are converted to triangle meshes before being passed to BLOSPRAY, even though OSPRay also supports quad meshes.
-  This is partly due to the way the new Blender depsgraph export works.
 
 
 ### Limitations specific to OSPRay 
@@ -305,6 +306,9 @@ For running the BLOSPRAY addon in Blender:
 * Google protobuf (Python modules)
 
 ## Building
+
+Note: BLOSPRAY is only being developed on Linux at the moment, on other 
+platforms it might only work after some code tweaks.
 
 BLOSPRAY uses CMake for building in the usual way. There's currently 
 only a very small set of BLOSPRAY specific switches that can be tweaked.

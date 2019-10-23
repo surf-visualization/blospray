@@ -57,7 +57,7 @@ Features (and remarks):
 * Rudimentary support for BLOSPRAY-specific volume, geometry and scene plugins      
 * Rudimentary transfer function editing for volume data (by mis-using the ColorRamp node)
   
-Notes on 2.0.x alpha OSPRay (not BLOSPRAY) limitations:
+Notes on current (2.0.x alpha) OSPRa, not BLOSPRAY, limitations:
 
 * When using the scivis renderer a transformed volume will not render
   correctly 

@@ -23,6 +23,10 @@ typedef std::map<std::string, void*>    PointerMap;
 static PointerMap           library_pointers;
 static bool                 enum_mapping_initialized=false;
 
+static std::map<int,std::string>    ospdatatype_names;
+static std::map<int,std::string>    ospframebufferformat_names;
+static std::map<int,std::string>    osptextureformat_names;
+
 typedef OSPError            (*ospInit_ptr)          (int *argc, const char **argv);
 typedef OSPDevice           (*ospNewDevice_ptr)     (const char *type);
 typedef void                (*ospDeviceSetErrorFunc_ptr) (OSPDevice, OSPErrorFunc);
@@ -127,99 +131,108 @@ init_enum_mapping()
     j["timestamp"] = timestamp();
     j["call"] = "<enums>";
 
-    json ospdatatype_names;
-    json ospframebufferformat_names;
-    json osptextureformat_names;
+    json ospdatatype_values;
+    json ospframebufferformat_values;
+    json osptextureformat_values;
 
-    ospdatatype_names["OSP_DEVICE"] = OSP_DEVICE;
-    ospdatatype_names["OSP_VOID_PTR"] = OSP_VOID_PTR;
-    ospdatatype_names["OSP_BOOL"] = OSP_BOOL;
-    ospdatatype_names["OSP_OBJECT"] = OSP_OBJECT;
-    ospdatatype_names["OSP_CAMERA"] = OSP_CAMERA;
-    ospdatatype_names["OSP_DATA"] = OSP_DATA;
-    ospdatatype_names["OSP_FRAMEBUFFER"] = OSP_FRAMEBUFFER;
-    ospdatatype_names["OSP_FUTURE"] = OSP_FUTURE;    
-    ospdatatype_names["OSP_GEOMETRIC_MODEL"] = OSP_GEOMETRIC_MODEL;
-    ospdatatype_names["OSP_GEOMETRY"] = OSP_GEOMETRY;
-    ospdatatype_names["OSP_GROUP"] = OSP_GROUP;
-    ospdatatype_names["OSP_IMAGE_OPERATION"] = OSP_IMAGE_OPERATION;  
-    ospdatatype_names["OSP_INSTANCE"] = OSP_INSTANCE; 
-    ospdatatype_names["OSP_LIGHT"] = OSP_LIGHT;
-    ospdatatype_names["OSP_MATERIAL"] = OSP_MATERIAL;
-    ospdatatype_names["OSP_RENDERER"] = OSP_RENDERER;
-    ospdatatype_names["OSP_TEXTURE"] = OSP_TEXTURE;
-    ospdatatype_names["OSP_TRANSFER_FUNCTION"] = OSP_TRANSFER_FUNCTION;
-    ospdatatype_names["OSP_VOLUME"] = OSP_VOLUME;
-    ospdatatype_names["OSP_VOLUMETRIC_MODEL"] = OSP_VOLUMETRIC_MODEL;    
-    ospdatatype_names["OSP_WORLD"] = OSP_WORLD;
+    ospdatatype_values["OSP_DEVICE"] = OSP_DEVICE;
+    ospdatatype_values["OSP_VOID_PTR"] = OSP_VOID_PTR;
+    ospdatatype_values["OSP_BOOL"] = OSP_BOOL;
+    ospdatatype_values["OSP_OBJECT"] = OSP_OBJECT;
+    ospdatatype_values["OSP_CAMERA"] = OSP_CAMERA;
+    ospdatatype_values["OSP_DATA"] = OSP_DATA;
+    ospdatatype_values["OSP_FRAMEBUFFER"] = OSP_FRAMEBUFFER;
+    ospdatatype_values["OSP_FUTURE"] = OSP_FUTURE;    
+    ospdatatype_values["OSP_GEOMETRIC_MODEL"] = OSP_GEOMETRIC_MODEL;
+    ospdatatype_values["OSP_GEOMETRY"] = OSP_GEOMETRY;
+    ospdatatype_values["OSP_GROUP"] = OSP_GROUP;
+    ospdatatype_values["OSP_IMAGE_OPERATION"] = OSP_IMAGE_OPERATION;  
+    ospdatatype_values["OSP_INSTANCE"] = OSP_INSTANCE; 
+    ospdatatype_values["OSP_LIGHT"] = OSP_LIGHT;
+    ospdatatype_values["OSP_MATERIAL"] = OSP_MATERIAL;
+    ospdatatype_values["OSP_RENDERER"] = OSP_RENDERER;
+    ospdatatype_values["OSP_TEXTURE"] = OSP_TEXTURE;
+    ospdatatype_values["OSP_TRANSFER_FUNCTION"] = OSP_TRANSFER_FUNCTION;
+    ospdatatype_values["OSP_VOLUME"] = OSP_VOLUME;
+    ospdatatype_values["OSP_VOLUMETRIC_MODEL"] = OSP_VOLUMETRIC_MODEL;    
+    ospdatatype_values["OSP_WORLD"] = OSP_WORLD;
         
-    ospdatatype_names["OSP_STRING"] = OSP_STRING;
-    ospdatatype_names["OSP_CHAR"] = OSP_CHAR;
-    ospdatatype_names["OSP_UCHAR"] = OSP_UCHAR;
-    ospdatatype_names["OSP_VEC2UC"] = OSP_VEC2UC;
-    ospdatatype_names["OSP_VEC3UC"] = OSP_VEC3UC;
-    ospdatatype_names["OSP_VEC4UC"] = OSP_VEC4UC;
-    ospdatatype_names["OSP_BYTE"] = OSP_BYTE;
-    ospdatatype_names["OSP_RAW"] = OSP_RAW;
-    ospdatatype_names["OSP_SHORT"] = OSP_SHORT;
-    ospdatatype_names["OSP_USHORT"] = OSP_USHORT;
-    ospdatatype_names["OSP_INT"] = OSP_INT;
-    ospdatatype_names["OSP_VEC2I"] = OSP_VEC2I;
-    ospdatatype_names["OSP_VEC3I"] = OSP_VEC3I;
-    ospdatatype_names["OSP_VEC4I"] = OSP_VEC4I;
-    ospdatatype_names["OSP_UINT"] = OSP_UINT;
-    ospdatatype_names["OSP_VEC2UI"] = OSP_VEC2UI;
-    ospdatatype_names["OSP_VEC3UI"] = OSP_VEC3UI;
-    ospdatatype_names["OSP_VEC4UI"] = OSP_VEC4UI;
-    ospdatatype_names["OSP_LONG"] = OSP_LONG;
-    ospdatatype_names["OSP_VEC2L"] = OSP_VEC2L;
-    ospdatatype_names["OSP_VEC3L"] = OSP_VEC3L;
-    ospdatatype_names["OSP_VEC4L"] = OSP_VEC4L;
-    ospdatatype_names["OSP_ULONG"] = OSP_ULONG;
-    ospdatatype_names["OSP_VEC2UL"] = OSP_VEC2UL;
-    ospdatatype_names["OSP_VEC3UL"] = OSP_VEC3UL;
-    ospdatatype_names["OSP_VEC4UL"] = OSP_VEC4UL;
-    ospdatatype_names["OSP_FLOAT"] = OSP_FLOAT;
-    ospdatatype_names["OSP_VEC2F"] = OSP_VEC2F;
-    ospdatatype_names["OSP_VEC3F"] = OSP_VEC3F;
-    ospdatatype_names["OSP_VEC4F"] = OSP_VEC4F;
-    ospdatatype_names["OSP_DOUBLE"] = OSP_DOUBLE;
-    ospdatatype_names["OSP_BOX1I"] = OSP_BOX1I;
-    ospdatatype_names["OSP_BOX2I"] = OSP_BOX2I;
-    ospdatatype_names["OSP_BOX3I"] = OSP_BOX3I;
-    ospdatatype_names["OSP_BOX4I"] = OSP_BOX4I;
-    ospdatatype_names["OSP_BOX1F"] = OSP_BOX1F;
-    ospdatatype_names["OSP_BOX2F"] = OSP_BOX2F;
-    ospdatatype_names["OSP_BOX3F"] = OSP_BOX3F;
-    ospdatatype_names["OSP_BOX4F"] = OSP_BOX4F;
-    ospdatatype_names["OSP_LINEAR2F"] = OSP_LINEAR2F;
-    ospdatatype_names["OSP_LINEAR3F"] = OSP_LINEAR3F;
-    ospdatatype_names["OSP_AFFINE2F"] = OSP_AFFINE2F;
-    ospdatatype_names["OSP_AFFINE3F"] = OSP_AFFINE3F;
-    ospdatatype_names["OSP_UNKNOWN"] = OSP_UNKNOWN;
+    ospdatatype_values["OSP_STRING"] = OSP_STRING;
+    ospdatatype_values["OSP_CHAR"] = OSP_CHAR;
+    ospdatatype_values["OSP_UCHAR"] = OSP_UCHAR;
+    ospdatatype_values["OSP_VEC2UC"] = OSP_VEC2UC;
+    ospdatatype_values["OSP_VEC3UC"] = OSP_VEC3UC;
+    ospdatatype_values["OSP_VEC4UC"] = OSP_VEC4UC;
+    ospdatatype_values["OSP_BYTE"] = OSP_BYTE;
+    ospdatatype_values["OSP_RAW"] = OSP_RAW;
+    ospdatatype_values["OSP_SHORT"] = OSP_SHORT;
+    ospdatatype_values["OSP_USHORT"] = OSP_USHORT;
+    ospdatatype_values["OSP_INT"] = OSP_INT;
+    ospdatatype_values["OSP_VEC2I"] = OSP_VEC2I;
+    ospdatatype_values["OSP_VEC3I"] = OSP_VEC3I;
+    ospdatatype_values["OSP_VEC4I"] = OSP_VEC4I;
+    ospdatatype_values["OSP_UINT"] = OSP_UINT;
+    ospdatatype_values["OSP_VEC2UI"] = OSP_VEC2UI;
+    ospdatatype_values["OSP_VEC3UI"] = OSP_VEC3UI;
+    ospdatatype_values["OSP_VEC4UI"] = OSP_VEC4UI;
+    ospdatatype_values["OSP_LONG"] = OSP_LONG;
+    ospdatatype_values["OSP_VEC2L"] = OSP_VEC2L;
+    ospdatatype_values["OSP_VEC3L"] = OSP_VEC3L;
+    ospdatatype_values["OSP_VEC4L"] = OSP_VEC4L;
+    ospdatatype_values["OSP_ULONG"] = OSP_ULONG;
+    ospdatatype_values["OSP_VEC2UL"] = OSP_VEC2UL;
+    ospdatatype_values["OSP_VEC3UL"] = OSP_VEC3UL;
+    ospdatatype_values["OSP_VEC4UL"] = OSP_VEC4UL;
+    ospdatatype_values["OSP_FLOAT"] = OSP_FLOAT;
+    ospdatatype_values["OSP_VEC2F"] = OSP_VEC2F;
+    ospdatatype_values["OSP_VEC3F"] = OSP_VEC3F;
+    ospdatatype_values["OSP_VEC4F"] = OSP_VEC4F;
+    ospdatatype_values["OSP_DOUBLE"] = OSP_DOUBLE;
+    ospdatatype_values["OSP_BOX1I"] = OSP_BOX1I;
+    ospdatatype_values["OSP_BOX2I"] = OSP_BOX2I;
+    ospdatatype_values["OSP_BOX3I"] = OSP_BOX3I;
+    ospdatatype_values["OSP_BOX4I"] = OSP_BOX4I;
+    ospdatatype_values["OSP_BOX1F"] = OSP_BOX1F;
+    ospdatatype_values["OSP_BOX2F"] = OSP_BOX2F;
+    ospdatatype_values["OSP_BOX3F"] = OSP_BOX3F;
+    ospdatatype_values["OSP_BOX4F"] = OSP_BOX4F;
+    ospdatatype_values["OSP_LINEAR2F"] = OSP_LINEAR2F;
+    ospdatatype_values["OSP_LINEAR3F"] = OSP_LINEAR3F;
+    ospdatatype_values["OSP_AFFINE2F"] = OSP_AFFINE2F;
+    ospdatatype_values["OSP_AFFINE3F"] = OSP_AFFINE3F;
+    ospdatatype_values["OSP_UNKNOWN"] = OSP_UNKNOWN;
 
-    ospframebufferformat_names["OSP_FB_NONE"] = OSP_FB_NONE;
-    ospframebufferformat_names["OSP_FB_RGBA8"] = OSP_FB_RGBA8;
-    ospframebufferformat_names["OSP_FB_SRGBA"] = OSP_FB_SRGBA;
-    ospframebufferformat_names["OSP_FB_RGBA32F"] = OSP_FB_RGBA32F;
+    ospframebufferformat_values["OSP_FB_NONE"] = OSP_FB_NONE;
+    ospframebufferformat_values["OSP_FB_RGBA8"] = OSP_FB_RGBA8;
+    ospframebufferformat_values["OSP_FB_SRGBA"] = OSP_FB_SRGBA;
+    ospframebufferformat_values["OSP_FB_RGBA32F"] = OSP_FB_RGBA32F;
 
-    osptextureformat_names["OSP_TEXTURE_RGBA8"] = OSP_TEXTURE_RGBA8;
-    osptextureformat_names["OSP_TEXTURE_SRGBA"] = OSP_TEXTURE_SRGBA;
-    osptextureformat_names["OSP_TEXTURE_RGBA32F"] = OSP_TEXTURE_RGBA32F;
-    osptextureformat_names["OSP_TEXTURE_RGB8"] = OSP_TEXTURE_RGB8;
-    osptextureformat_names["OSP_TEXTURE_SRGB"] = OSP_TEXTURE_SRGB;
-    osptextureformat_names["OSP_TEXTURE_RGB32F"] = OSP_TEXTURE_RGB32F;
-    osptextureformat_names["OSP_TEXTURE_R8"] = OSP_TEXTURE_R8;
-    osptextureformat_names["OSP_TEXTURE_R32F"] = OSP_TEXTURE_R32F;
-    osptextureformat_names["OSP_TEXTURE_L8"] = OSP_TEXTURE_L8;
-    osptextureformat_names["OSP_TEXTURE_RA8"] = OSP_TEXTURE_RA8;
-    osptextureformat_names["OSP_TEXTURE_LA8"] = OSP_TEXTURE_LA8;
-    osptextureformat_names["OSP_TEXTURE_FORMAT_INVALID"] = OSP_TEXTURE_FORMAT_INVALID;
+    osptextureformat_values["OSP_TEXTURE_RGBA8"] = OSP_TEXTURE_RGBA8;
+    osptextureformat_values["OSP_TEXTURE_SRGBA"] = OSP_TEXTURE_SRGBA;
+    osptextureformat_values["OSP_TEXTURE_RGBA32F"] = OSP_TEXTURE_RGBA32F;
+    osptextureformat_values["OSP_TEXTURE_RGB8"] = OSP_TEXTURE_RGB8;
+    osptextureformat_values["OSP_TEXTURE_SRGB"] = OSP_TEXTURE_SRGB;
+    osptextureformat_values["OSP_TEXTURE_RGB32F"] = OSP_TEXTURE_RGB32F;
+    osptextureformat_values["OSP_TEXTURE_R8"] = OSP_TEXTURE_R8;
+    osptextureformat_values["OSP_TEXTURE_R32F"] = OSP_TEXTURE_R32F;
+    osptextureformat_values["OSP_TEXTURE_L8"] = OSP_TEXTURE_L8;
+    osptextureformat_values["OSP_TEXTURE_RA8"] = OSP_TEXTURE_RA8;
+    osptextureformat_values["OSP_TEXTURE_LA8"] = OSP_TEXTURE_LA8;
+    osptextureformat_values["OSP_TEXTURE_FORMAT_INVALID"] = OSP_TEXTURE_FORMAT_INVALID;
+
+    for (auto& e : ospdatatype_values.items())
+        ospdatatype_names[e.value()] = e.key();
+
+    for (auto& e : ospframebufferformat_values.items())
+        ospframebufferformat_names[e.value()] = e.key();
+
+    for (auto& e : osptextureformat_values.items())
+        osptextureformat_names[e.value()] = e.key();
 
     j["result"] = {
-        {"OSPDataType", ospdatatype_names}, 
-        {"OSPFrameBufferFormat", ospframebufferformat_names},
-        {"OSPTextureFormat", osptextureformat_names}
+        {"OSPDataType", ospdatatype_values}, 
+        {"OSPFrameBufferFormat", ospframebufferformat_values},
+        {"OSPTextureFormat", osptextureformat_values}
     };
     log_json(j);
     
@@ -454,7 +467,7 @@ get_source_array_contents(json& j, unsigned long numItems, OSPDataType type, con
     // OSP_BOX1/2/3F
 
     default:
-        printf("get_source_array_contents(): data type %d not handled\n", type);
+        printf("get_source_array_contents(): data type %s (%d) not handled\n", ospdatatype_names[type], type);
 
     } // switch    
 }
@@ -472,7 +485,7 @@ ospNewSharedData(const void *sharedData, OSPDataType type, uint32_t numItems1, i
     j["call"] = "ospNewSharedData";
     j["arguments"] = {
         {"sharedData", (size_t)sharedData},
-        {"type", type},
+        {"type", ospdatatype_names[type]},
         {"numItems1", numItems1},
         {"byteStride1", byteStride1},
         {"numItems2", numItems2},
@@ -506,7 +519,7 @@ ospNewData(OSPDataType type, uint32_t numItems1, uint32_t numItems2, uint32_t nu
     j["timestamp"] = timestamp();
     j["call"] = "ospNewData";
     j["arguments"] = {
-        {"type", type},
+        {"type", ospdatatype_names[type]},
         {"numItems1", numItems1},
         {"numItems2", numItems2},
         {"numItems3", numItems3},
@@ -531,7 +544,7 @@ _Z10ospNewDatam11OSPDataTypePKvj(unsigned long numItems, OSPDataType type, const
     j["timestamp"] = timestamp();
     j["call"] = "_Z10ospNewDatam11OSPDataTypePKvj";
     j["arguments"] = {
-        {"numItems", numItems}, {"type", (int)type}, {"source", (size_t)source}, {"dataCreationFlags", dataCreationFlags}
+        {"numItems", numItems}, {"type", ospdatatype_names[type]}, {"source", (size_t)source}, {"dataCreationFlags", dataCreationFlags}
         // XXX source contents
     };
     
@@ -597,7 +610,7 @@ ospNewFrameBuffer(int x, int y, OSPFrameBufferFormat format, uint32_t frameBuffe
     j["timestamp"] = timestamp();
     j["call"] = "ospNewFrameBuffer";
     j["arguments"] = {
-        {"x", x}, {"y", y}, {"format", int(format)}, {"frameBufferChannels", frameBufferChannels}
+        {"x", x}, {"y", y}, {"format", ospframebufferformat_names[format]}, {"frameBufferChannels", frameBufferChannels}
     };
 
     OSPFrameBuffer res = libcall(x, y, format, frameBufferChannels);
@@ -797,7 +810,7 @@ ospSetParam(OSPObject obj, const char *id, OSPDataType type, const void *mem)
     j["timestamp"] = timestamp();
     j["call"] = "ospSetParam";
     json &a = j["arguments"] = {
-        {"obj", (size_t)obj}, {"id", id}, {"type", type}
+        {"obj", (size_t)obj}, {"id", id}, {"type", ospdatatype_names[type]}
     };
 
     int *i;

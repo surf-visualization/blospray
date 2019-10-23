@@ -669,18 +669,27 @@ create_user_transfer_function(float minval, float maxval, const Volume& volume, 
 
     const int& num_positions = volume.tf_positions_size();
 
+    printf("Input (%d positions):\n", num_positions);
+    for (int i = 0; i < num_positions; i++)
+    {
+        const Color& col = volume.tf_colors(i);
+        printf("[%d] pos = %.3f; col = %.3f %.3f %.3f; %.3f\n", i, volume.tf_positions(i), 
+            col.r(), col.g(), col.b(), col.a());
+    }
+
     float tf_colors[3*num_tf_entries];
     float tf_opacities[num_tf_entries];
 
     assert(num_tf_entries >= 2);
     float value_step = 1.0f / (num_tf_entries - 1);
     float normalized_value;
-    int pos;
+    int pos;    // XXX rename in index
     float r, g, b, a;
 
     normalized_value = 0.0f;
 
     // XXX need to verify correctness here
+    printf("TF:\n");
     for (int i = 0; i < num_tf_entries; i++)
     {
         // Find first position that is <= normalized_value        
@@ -724,7 +733,7 @@ create_user_transfer_function(float minval, float maxval, const Volume& volume, 
             }
         }    
 
-        //printf("[%d] %f, %f, %f; %f\n", i, r, g, b, a);
+        printf("[%d] %f, %f, %f; %f\n", i, r, g, b, a);
 
         tf_colors[3*i+0] = r;
         tf_colors[3*i+1] = g;
@@ -1461,6 +1470,7 @@ update_volume_object(const UpdateObject& update, const Volume& volume_settings)
     }
 
     // XXX not sure these are handled correctly, and working in API2
+    printf("! SAMPLING RATE %.1f\n", volume_settings.sampling_rate());
     ospSetFloat(vmodel,  "samplingRate", volume_settings.sampling_rate());
     //ospSetFloat(vmodel,  "densityScale", volume_settings.density_scale());  // TODO
     //ospSetFloat(vmodel,  "anisotropy", volume_settings.anisotropy());  // TODO    
@@ -3314,7 +3324,7 @@ handle_connection(TCPSocket *sock)
 
         variance = ospGetVariance(framebuffer);
         
-        printf("Frame %7.3f s | Var %5.2f | Mem %7.1f MB ", 
+        printf("Frame %7.3f s | Var %5.3f | Mem %7.1f MB ", 
                 time_diff(frame_start_time, frame_end_time), variance, mem_usage);
 
         mem_usage = memory_usage();

@@ -50,15 +50,11 @@ generate(GenerateFunctionResult &result, PluginState *state)
     state->bound = BoundingMesh::bbox_from_group(group, true);
 }
 
-
-// XXX header_skip -> header-skip?
 static PluginParameters 
 parameters = {
     
     // Name, type, length, flags, description        
-    //{"voxel_type",          PARAM_STRING,   1, FLAG_NONE, 
-    //    "Voxel data type (uchar, float)"},
-        
+
     PARAMETERS_DONE         // Sentinel (signals end of list)
 };
 
