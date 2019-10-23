@@ -205,36 +205,30 @@ at 1.1 MB. Total server memory used during rendering is roughly 5.1 GB.
 Finally, the teapot model is polygonal and not based on the actual Utah Teapot
 parametric surfaces, as the latter are not supported in BLOSPRAY at the moment ;-)
 
-### dof.blend - camera depth-of-field, simple objects
 
-Path tracer renderer, 960x540, 32 SPP, 3.26s
+### disney_cloud.blend - volume rendering of the Disney Cloud dataset
 
-<img src="./images/dof.png" width="512">
+This uses a volume plugin to load the data through OpenVDB.
 
-### lights.blend - all supported light types
+Notes: 
 
-Path tracer renderer, 960x540, 64 SPP, 9.45s
+- See the file for instructions on how to download and set up the dataset.
+- This example requires the `volume_disney_cloud.so` plugin to be built, which depends
+  on OpenVDB and the `PLUGIN_DISNEY_CLOUD` cmake option to be `ON`.
+- The reader plugin isn't very advanced currently, as it turns the AMR 
+  mesh into a regular structured grid
+- With some versions of OpenVDB you need to start the BLOSPRAY server
+  with `$ LD_PRELOAD=/usr/lib/libjemalloc.so ./bin/blserver`, see the 
+  notes in the blend file for more info.
 
-<img src="./images/lights.png" width="512">
+Path tracer renderer, 960x540, 256 SPP (max. depth 50), 6m05s on the *half-sized* dataset.
 
+<img src="./images/disney_cloud.png" width="512">
 
-### metals.blend - different metals
+Here's cloud rendered in interactive mode:
 
-OSPRay has some really nice metal materials.
+<img src="./images/disney_cloud_interactive.png" width="512">
 
-Path tracer renderer, 1024x1024, 16 SPP, 2.74s
-
-<img src="./images/metals.png" width="512">
-
-
-### gravity_spheres_volume.blend - volume rendering of the OSPRay built-in gravity spheres volume
-
-SciVis renderer, 1024x1024, 4 SPP, 0.42s
-
-The OSPRay command `ospExample -s gravity_spheres_volume` will show the
-same dataset, but using the OSPRay example tool.
-
-<img src="./images/gravity_spheres_volume.png" width="512">
 
 ### bmw27_cpu.ospray.blend, bmw27_cpu.original.blend - performance comparison between OSPRay and Cycles
 
@@ -276,28 +270,37 @@ OSPRay at 35, 100 and 400 SPP):
 <img src="./images/bmw27-crop-ospray-400spp.png">
 
 
-### disney_cloud.blend - volume rendering of the Disney Cloud dataset
 
-This uses a volume plugin to load the data through OpenVDB.
+### gravity_spheres_volume.blend - volume rendering of the OSPRay built-in gravity spheres volume
 
-Notes: 
+SciVis renderer, 1024x1024, 4 SPP, 0.42s
 
-- See the file for instructions on how to download and set up the dataset.
-- This example requires the `volume_disney_cloud.so` plugin to be built, which depends
-  on OpenVDB and the `PLUGIN_DISNEY_CLOUD` cmake option to be `ON`.
-- The reader plugin isn't very advanced currently, as it turns the AMR 
-  mesh into a regular structured grid
-- With some versions of OpenVDB you need to start the BLOSPRAY server
-  with `$ LD_PRELOAD=/usr/lib/libjemalloc.so ./bin/blserver`, see the 
-  notes in the blend file for more info.
+The OSPRay command `ospExample -s gravity_spheres_volume` will show the
+same dataset, but using the OSPRay example tool.
 
-Path tracer renderer, 960x540, 256 SPP (max. depth 50), 6m05s on the *half-sized* dataset.
+<img src="./images/gravity_spheres_volume.png" width="512">
 
-<img src="./images/disney_cloud.png" width="512">
 
-Here's cloud rendered in interactive mode:
+### dof.blend - camera depth-of-field, simple objects
 
-<img src="./images/disney_cloud_interactive.png" width="512">
+Path tracer renderer, 960x540, 32 SPP, 3.26s
+
+<img src="./images/dof.png" width="512">
+
+### lights.blend - all supported light types
+
+Path tracer renderer, 960x540, 64 SPP, 9.45s
+
+<img src="./images/lights.png" width="512">
+
+
+### metals.blend - different metals
+
+OSPRay has some really nice metal materials.
+
+Path tracer renderer, 1024x1024, 16 SPP, 2.74s
+
+<img src="./images/metals.png" width="512">
 
 
 ### plane_geometry.blend, geometry_plane.cpp
