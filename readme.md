@@ -196,8 +196,8 @@ Features:
 - Metal material
 
 Note that the scene has a weird orientation in Blender (Y up), as the light in 
-the Cornell box part currently cannot be transformed in OSPRay in the same was a geometry
-can be transformed. So that light dictates the rest of the scene at the moment.
+the Cornell box part currently cannot be transformed in OSPRay in the same way 
+geometry can be transformed. So that single light dictates the rest of the scene at the moment.
 
 Also note that the blend file contains hardly any geometry and is quite small
 at 1.1 MB. Total server memory used during rendering is roughly 5.1 GB.
@@ -226,7 +226,7 @@ Path tracer renderer, 960x540, 256 SPP (max. depth 50), 6m05s on the *half-sized
 
 <img src="./images/disney_cloud.png" width="512">
 
-Here's cloud rendered in interactive mode:
+Here's the cloud rendered in interactive mode:
 
 <img src="./images/disney_cloud_interactive.png" width="512">
 
