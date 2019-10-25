@@ -138,16 +138,19 @@ OSPRay (currently, 2.0.x alpha) also has some limitations:
 * Unstructured volumes can only contain float values (i.e. not integers).
   See [here](https://github.com/ospray/ospray/issues/289)
   
+* Intersecting/overlapping volumes are not (always?) rendered correctly 
+  
 * Lights generated in a scene plugin (see below) can not be transformed
+  currently
   
 * OSPRay meshes are either pure-triangle, pure-quad or subdivision meshes.
   The latter can mix polygons of different numbers of vertices, but might suffer
-  from being less efficient (although this needs more testing).
+  from being less efficient (XXX although this needs more testing).
   
 * The OSPRay *orthographic* camera does not support depth-of-field
   
 * Blender supports multiple colors per vertex (basically one per vertex per face loop),
-  while OSPRay only supports a single value per vertex (XXX need to double-check this). 
+  while OSPRay only supports a single value per vertex. 
   During export the vertex colors are reduced to a single color per vertex
   
 * OSPRay does not support motion blur through its API, although the underlying

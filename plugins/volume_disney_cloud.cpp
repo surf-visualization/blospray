@@ -248,6 +248,17 @@ generate(GenerateFunctionResult &result, PluginState *state)
             }
         }    
     }
+    
+    float min = std::numeric_limits<float>::max();
+    float max = std::numeric_limits<float>::min();
+
+    for (size_t i = 0; i < datalen; i++)
+    {
+        min = std::min(min, (float)(data[i]));
+        max = std::max(max, (float)(data[i]));
+    }    
+
+    printf("... Data range %.6f, %.6f\n", min, max);
 
     //OSPData voxel_data = ospNewCopiedData(datalen, OSP_FLOAT, data);
     OSPData voxel_data = ospNewSharedData(data, OSP_FLOAT, nx, 0, ny, 0, nz, 0);
