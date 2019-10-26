@@ -21,17 +21,21 @@ in this github project.
 
 ## Goals 
 
-- Flexible and high-quality rendering of large scientific datasets using OSPRay 
+- Flexible and high-quality rendering of large scientific datasets 
+  using OSPRay from Blender
 - Provide a way to add user-specific types of data as
   scene elements *without having to import that data into Blender*
 - Make OSPRay features available to Blender users
 
-Note that BLOSPRAY does not aim to compete with Cycles (the built-in renderer of Blender),
-as it has a different focus. Cycles provides production rendering of animations
-and stills, focusing (more or less) on artistic workloads. Instead, BLOSPRAY focuses 
-on rendering scenes containing (large) scientific datasets, where 
-efficient handling and rendering of the data is usually a more important goal 
-and challenge than production of photo-realistic imagery.
+NON-goals:
+
+- Compete with Cycles (the built-in renderer of Blender).Cycles has a 
+  different focus, as it provides production rendering 
+  of animations and stills, aimed (more or less) at artistic workloads. 
+  Instead, BLOSPRAY focuses on rendering scenes containing (large) 
+  scientific datasets, where efficient handling and rendering of the 
+  data is usually a more important goal and challenge than production 
+  of photo-realistic imagery.
 
 ## Features & limitations
 
@@ -46,21 +50,23 @@ with certain limitations :)
 * Scene elements
     - Polygonal geometry, i.e. Blender meshes
     - Subdivision surfaces: these are handled by Blender's dependency graph mechanism,
-      but this triangulates the geometry instead of passing the subdivision control
-      cage to OSPRay (which also has subdiv support).
-    - Currently no specific support for other non-polygonal objects (e.g. text, curves, ...),
-      if it works it's due to the dependency graph mechanism
+      which triangulates the geometry. This in contrast to passing the subdivision 
+      control mesh to OSPRay (which also has subdiv support).
+    - Currently no specific support for other non-polygonal objects (e.g. text, curves, ...)
+      is present. If these objects render correctly it's due to the dependency graph mechanism
     - Object transformations and parenting
-    - Instancing: for large numbers of instances there currently is 
+    - Instancing, mostly for smaller number of instances. For large numbers of instances there currently is 
       quite a high overhead in terms of scene setup and memory usage    
-    - Point, sun, spot and area lights. No support for OSPRay's HDRI light yet
+    - Point, sun, spot and area lights. There's no support for OSPRay's HDRI light yet
     - Vertex colors on Blender meshes
     - Node-based material editing for a subset of OSPRay materials,
       using nodes from the `OSPRay` sub-menu. Note that connecting
       nodes to input ports, like a color, will not work as expected 
       when a connection is made (and there is no way to hide the sockets to signal this).
       Also, although most of the Cycles nodes are still available in the
-      shader editor almost NONE of those nodes will work.    
+      shader editor almost NONE of those nodes will work.   
+    - Modifiers that work on mesh geometry should work, as they get
+      handled by Blender's dependency graph before being passed to BLOSPRAY
 * Rendering
     - Supports OSPRay's SciVis and Path Tracer renderers, and most of
       their settings
@@ -68,8 +74,8 @@ with certain limitations :)
     - Interactive preview render works with respect to viewpoint changes, 
       but most other scene changes will NOT update in the rendered view. 
       Switching out and back into rendered view should sync to the updated scene
-    - The view will match in orthographic and "free" view mode, but it is
-      incorrect when viewing through a camera
+    - The view will match in orthographic (top/left/...) and "free" 3D view mode, 
+      but it is currently incorrect when viewing through a camera
     - Border render (i.e. render only part of an image) currently only works 
       for final render, not for interactive render      
     - Simultaneous rendering modes in Blender are not supported. E.g. multiple
@@ -102,15 +108,18 @@ Known to be missing and/or buggy:
   "thinned out", i.e. there's much less opacity accumulating. Also, the `Sampling
   rate` parameter appears to have no effect. It needs further checks wether this
   is an issue with BLOSPRAY or with OSPRay.
-* Texturing
-* HDRI lighting
-* Motion blur   
+* Texturing is not handled
+* HDRI lighting is not available
+* Motion blur is not available
     - This is not supported by OSPRay itself
 * Parallel rendering mode through MPI is supported by OSPRay, but not 
   used in BLOSPRAY yet
 * Slice rendering and isosurfacing on volumes is not working yet
+* In interactive render mode when showing a camera view the rendered
+  view does not match the scene
 * Many errors that can happen during scene sync between Blender and
-  the render server are not caught and/or not reported correctly  
+  the render server are not caught and/or not reported correctly. Restarting
+  either the render server and/or Blender might be needed in these cases.  
 * In many cases only a subset of OSPRay parameters can be set from Blender, either using UI elements or using custom properties
 * Scene management on the render server is not optimal yet. I.e. memory usage might increase after each render.  
 * Only a few OSPRay materials can be set through the shader editor. They also don't work on all types of geometry yet.
@@ -120,10 +129,10 @@ Known to be missing and/or buggy:
 * All Blender meshes are converted to triangle meshes before being passed to BLOSPRAY, even though OSPRay also supports quad meshes.
   This is partly due to the way the new Blender depsgraph export works.
 * Tracking identity of Blender scene objects in a robust way is a challenge, as
-  an object's name is about the only thing available. Therefore, renaming scene
+  an object's name is about the only thing available for this. Therefore, renaming scene
   objects while a render is ongoing might trigger funny effects.
 
-OSPRay (currently, 2.0.x alpha) also has some limitations:
+OSPRay (more specifically 2.0.x alpha) also has some limitations:
 
 * OSPRay's SciVis and Path Tracer renderer do not have the same set of features
 
@@ -482,10 +491,9 @@ $ cmake -GNinja ..
 $ ninja install
 $ cd ../bin
 $ ls
-blserver            libblospray.so      plugin.h             scene_rbc.so    volume_testing.so
-geometry_assimp.so  libblospray.so.0.2  scene_boxes.so       t_json
-geometry_plane.so   libblospray.so.1    scene_cornellbox.so  volume_hdf5.so
-geometry_ply.so     libfaker.so         scene_cosmogrid.so   volume_raw.so
+blender-ospray-engine$ ls bin
+blserver            geometry_plane.so  libblospray.so.0.1  libfaker.so  scene_boxes.so       scene_gravity_spheres_volume.so  t_json                  volume_hdf5.so
+geometry_assimp.so  libblospray.so     libblospray.so.1    plugin.h     scene_cornellbox.so  scene_rbc.so                     volume_disney_cloud.so  volume_raw.so
 ```
 
 ## Installation
