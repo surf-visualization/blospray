@@ -74,9 +74,10 @@ message ClientMessage
     QUERY_BOUND: 
         string_value = object name
     START_RENDERING:
-        string_value = "final" | "interactive" | "preview"
+        string_value = "final" | "interactive" | "preview"      
         uint_value = number of samples
-        uint_value2 = initial resolution factor, e.g. 16 or 4
+        uint_value2 = initial resolution factor, e.g. 16 or 4 (interactive)
+                    = framebuffer update rate (final)
     UPDATE_RENDERER_TYPE:
         string_value = "scivis" | "pathtracer"
     UPDATE_FRAMEBUFFER:

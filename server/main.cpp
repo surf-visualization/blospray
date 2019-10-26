@@ -104,9 +104,10 @@ OSPData                     ospray_scene_lights_data = nullptr;
 bool                        update_ospray_scene_instances = true;
 bool                        update_ospray_scene_lights = true;
 
-int                         framebuffer_width=0, framebuffer_height=0;
+int                         framebuffer_width = 0, framebuffer_height = 0;
 OSPFrameBufferFormat        framebuffer_format;
-int                         framebuffer_reduction_factor=1;
+int                         framebuffer_reduction_factor = 1;
+int                         framebuffer_update_rate = 1;
 int                         reduced_framebuffer_width, reduced_framebuffer_height;
 TCPSocket                   *render_output_socket = nullptr;
 
@@ -3162,11 +3163,13 @@ start_rendering(const ClientMessage& client_message)
     {
         render_mode = RM_FINAL;
         framebuffer_reduction_factor = 1;
+        framebuffer_update_rate = client_message.uint_value2();
     }
     else if (mode == "interactive")
     {
         render_mode = RM_INTERACTIVE;
         framebuffer_reduction_factor = client_message.uint_value2();
+        framebuffer_update_rate = 1;
     }
 
     // Prepare framebuffer(s), if needed
@@ -3349,36 +3352,54 @@ handle_connection(TCPSocket *sock)
         
         if (render_mode == RM_FINAL)
         {        
-            // Save framebuffer to file
-
-            sprintf(fname, "/dev/shm/blospray-final-%04d.exr", current_sample);
-
-            const float *fb = (float*)ospMapFrameBuffer(framebuffer, OSP_FB_COLOR);            
-            writeEXRFramebuffer(fname, reduced_framebuffer_width, reduced_framebuffer_height, fb, framebuffer_compression);
-            ospUnmapFrameBuffer(fb, framebuffer);
-            
-            stat(fname, &st);
-
-            gettimeofday(&now, NULL);
-            printf("| Save FB %6.3f s | EXR file %.1f MB\n", time_diff(frame_end_time, now), st.st_size/1000000.0f);
-
-            render_result.set_file_name(fname);
-            render_result.set_file_size(st.st_size);
-
-            send_protobuf(sock, render_result);
-
-            sock->sendfile(fname);
-            if (!keep_framebuffer_files)
+            // Depending on the framebuffer update rate check if we need to send
+            // the framebuffer. In case this was the last sample always send it.
+            if ((framebuffer_update_rate > 0 
+                 && 
+                 (current_sample % framebuffer_update_rate == 0)
+                )
+                || 
+                current_sample == render_samples)
             {
+                // Save framebuffer to file 
+                sprintf(fname, "/dev/shm/blospray-final-%04d.exr", current_sample);
+
+                const float *fb = (float*)ospMapFrameBuffer(framebuffer, OSP_FB_COLOR);            
+                writeEXRFramebuffer(fname, reduced_framebuffer_width, reduced_framebuffer_height, fb, framebuffer_compression);
+                ospUnmapFrameBuffer(fb, framebuffer);
+                
+                stat(fname, &st);
+
+                gettimeofday(&now, NULL);
+                printf("| Save FB %6.3f s | EXR file %.1f MB\n", time_diff(frame_end_time, now), st.st_size/1000000.0f);
+
+                render_result.set_file_name(fname);
+                render_result.set_file_size(st.st_size);
+
+                send_protobuf(sock, render_result);
+
+                sock->sendfile(fname);
+
                 // Remove local framebuffer file
-                unlink(fname);
-            }            
+                if (!keep_framebuffer_files)
+                    unlink(fname);
+            }
+            else
+            {
+                // Signal to the client that there is no framebuffer data
+                render_result.set_file_name("<skipped>");
+                render_result.set_file_size(0);
+                
+                printf("| Skipped FB\n");
+                
+                send_protobuf(sock, render_result);
+            }
         }
         else if (render_mode == RM_INTERACTIVE)
         {
             // Send framebuffer directly        
 
-            // XXX different pixel type?
+            // XXX could be different pixel type?
             const float *fb = (float*)ospMapFrameBuffer(framebuffer, OSP_FB_COLOR);
 
             const int bufsize = reduced_framebuffer_width*reduced_framebuffer_height*4*sizeof(float);

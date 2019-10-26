@@ -98,6 +98,7 @@ class OSPRAY_RENDER_PT_rendering(Panel):
         #col.prop(ospray, 'shadows_enabled')    # XXX Removed in 2.0?
 
         col.separator()
+        col.prop(ospray, 'framebuffer_update_rate')
         col.prop(ospray, 'reduction_factor')
 
 
