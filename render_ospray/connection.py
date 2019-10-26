@@ -1305,11 +1305,13 @@ class Connection:
         # Signal server to start rendering
 
         scene = depsgraph.scene
+        ospray = scene.ospray
     
         client_message = ClientMessage()
         client_message.type = ClientMessage.START_RENDERING
         client_message.string_value = "final"
-        self.render_samples = client_message.uint_value = scene.ospray.samples
+        self.render_samples = client_message.uint_value = ospray.samples
+        client_message.uint_value2 = ospray.framebuffer_update_rate
         send_protobuf(self.sock, client_message)
 
         # Read back successive framebuffer samples
@@ -1350,45 +1352,48 @@ class Connection:
                 if render_result.type == RenderResult.FRAME:
 
                     # New framebuffer (for a single pixel sample) is available
+                    
+                    if render_result.file_size > 0:
 
-                    """
-                    # XXX Slow: get as raw block of floats
-                    print('[%6.3f] _read_framebuffer start' % (time.time()-t0))
-                    self._read_framebuffer(framebuffer, self.framebuffer_width, self.framebuffer_height)
-                    print('[%6.3f] _read_framebuffer end' % (time.time()-t0))
+                        """
+                        # XXX Slow: get as raw block of floats
+                        print('[%6.3f] _read_framebuffer start' % (time.time()-t0))
+                        self._read_framebuffer(framebuffer, self.framebuffer_width, self.framebuffer_height)
+                        print('[%6.3f] _read_framebuffer end' % (time.time()-t0))
 
-                    pixels = framebuffer.view(numpy.float32).reshape((num_pixels, 4))
-                    print(pixels.shape)
-                    print('[%6.3f] view() end' % (time.time()-t0))
+                        pixels = framebuffer.view(numpy.float32).reshape((num_pixels, 4))
+                        print(pixels.shape)
+                        print('[%6.3f] view() end' % (time.time()-t0))
 
-                    # Here we write the pixel values to the RenderResult
-                    # XXX This is the slow part
-                    print(type(layer.rect))
-                    layer.rect = pixels
-                    self.update_result(result)
-                    """
+                        # Here we write the pixel values to the RenderResult
+                        # XXX This is the slow part
+                        print(type(layer.rect))
+                        layer.rect = pixels
+                        self.update_result(result)
+                        """
 
-                    # We read the framebuffer file content from the server
-                    # and locally write it to FBFILE, which then gets loaded by Blender
+                        # We read the framebuffer file content from the server
+                        # and locally write it to FBFILE, which then gets loaded by Blender
 
-                    # XXX both receiving into a file and loading from file 
-                    # block the blender UI for a short time
+                        # XXX both receiving into a file and loading from file 
+                        # block the blender UI for a short time
 
-                    #print('[%6.3f] _read_framebuffer_to_file start' % (time.time()-t0))
-                    self._read_framebuffer_to_file(FBFILE, render_result.file_size)
-                    #print('[%6.3f] _read_framebuffer_to_file end' % (time.time()-t0))
+                        #print('[%6.3f] _read_framebuffer_to_file start' % (time.time()-t0))
+                        self._read_framebuffer_to_file(FBFILE, render_result.file_size)
+                        #print('[%6.3f] _read_framebuffer_to_file end' % (time.time()-t0))
 
-                    # This needs an image file format. I.e. reading in a raw framebuffer
-                    # of floats isn't possible, hence the OpenEXR file. This isn't as
-                    # bad as it looks as we can include several layers in the OpenEXR file
-                    # and they get picked up automatically.
-                    # XXX result.load_from_file(...), instead of result.layers[0].load_from_file(...), would work as well?
-                    result.layers[0].load_from_file(FBFILE)
+                        # This needs an image file format. I.e. reading in a raw framebuffer
+                        # of floats isn't possible, hence the OpenEXR file. This isn't as
+                        # bad as it looks as we can include several layers in the OpenEXR file
+                        # and they get picked up automatically.
+                        # XXX result.load_from_file(...), instead of result.layers[0].load_from_file(...), would work as well?
+                        result.layers[0].load_from_file(FBFILE)
 
-                    # Remove file
-                    os.unlink(FBFILE)
+                        # Remove file
+                        os.unlink(FBFILE)
 
-                    self.engine().update_result(result)
+                        self.engine().update_result(result)
+                        
                     self.engine().update_progress(sample/self.render_samples)
                     self.engine().update_memory_stats(memory_used=render_result.memory_usage, memory_peak=render_result.peak_memory_usage)
 

@@ -105,7 +105,7 @@ class RenderOspraySettingsScene(PropertyGroup):
         description='Number of samples per pixel (spp)',
         default = 4,
         min = 1,
-        max = 1024
+        max = 65535
         )
 
     max_depth: IntProperty(
@@ -182,7 +182,17 @@ class RenderOspraySettingsScene(PropertyGroup):
         default = True
         )
 
-    # Interactive rendering
+    # Final render
+            
+    framebuffer_update_rate: IntProperty(
+        name='Update rate',
+        description='For final rendering the number of samples after which the framebuffer display is updated (use 0 for updating only after all samples have been computed)',
+        default = 1,
+        min = 0,
+        max = 65535
+        )
+    
+    # Interactive render
 
     reduction_factor: IntProperty(
         name='Reduction factor',
