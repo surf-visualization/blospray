@@ -233,6 +233,10 @@ Here's the cloud rendered in interactive mode:
 
 ### bmw27_cpu.ospray.blend, bmw27_cpu.original.blend
 
+NOTE: Milan Jaros pointed out (at BCON19) that the original bmw scene
+      uses the `Square Samples` option. The comparisons below will need to 
+      be updated to take the 35^2 samples (instead of 35) into account.
+
 Performance comparison between OSPRay and Cycles. Based on the "Car Demo" test 
 scene (CPU version) by Mike Pan, available from https://www.blender.org/download/demo-files/. 
 
