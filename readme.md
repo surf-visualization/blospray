@@ -508,6 +508,15 @@ symlinks to `google` and `six.py` in Blender's python library dir:
   $ ln -sf /usr/lib/python3.7/site-packages/six.py six.py
   $ ln -sf /usr/lib/python3.7/site-packages/google google
   ```
+  
+  
+XXX improve on this using pip, see e.g. 
+https://devtalk.blender.org/t/can-3rd-party-modules-ex-scipy-be-installed-when-an-add-on-is-installed/9709
+and https://devtalk.blender.org/t/can-3rd-party-modules-ex-scipy-be-installed-when-an-add-on-is-installed/9709/7
+```
+$ ./blender/2.81/python/bin/python3.7 -m ensurepip
+$ ./blender/2.81/python/bin/python3.7 -m pip install -U protobuf
+```
 
 Finally, enable the `Render: OSPRay` add-on in Blender (`Edit -> Preferences -> Add-ons`). 
 
