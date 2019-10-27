@@ -1310,7 +1310,7 @@ class Connection:
         client_message = ClientMessage()
         client_message.type = ClientMessage.START_RENDERING
         client_message.string_value = "final"
-        self.render_samples = client_message.uint_value = ospray.samples
+        self.render_samples = client_message.uint_value = ospray.render_samples
         client_message.uint_value2 = ospray.framebuffer_update_rate
         send_protobuf(self.sock, client_message)
 

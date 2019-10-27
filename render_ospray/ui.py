@@ -80,7 +80,9 @@ class OSPRAY_RENDER_PT_rendering(Panel):
         col.prop(ospray, 'renderer', expand=True)
         col.separator()
 
-        col.prop(ospray, 'samples')
+        col.prop(ospray, 'render_samples')
+        col.prop(ospray, 'viewport_samples')
+        col.separator()
         col.prop(ospray, 'max_depth')
         col.prop(ospray, 'min_contribution')
         col.prop(ospray, 'variance_threshold')

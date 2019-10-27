@@ -1,3 +1,9 @@
+### Changes in version 0.2 (unreleased)
+
+* Added separate control for render and viewport samples
+* Added framebuffer "Update rate" for final renders so 
+  the rate at which the framebuffer is updated can be controlled
+
 ### Changes in version 0.1
 
 Initial release. 

@@ -512,7 +512,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
             self.log.info('view_update(): restarting rendering')
             assert self.receive_render_result_thread is None
             # Start thread to handle results
-            self.num_samples = ospray.samples
+            self.num_samples = ospray.viewport_samples
             self.initial_reduction_factor = ospray.reduction_factor
             self.start_render_thread()
 
@@ -589,7 +589,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
 
         if restart_rendering:
             self.log.info('view_draw(): restarting rendering')
-            self.num_samples = ospray.samples
+            self.num_samples = ospray.viewport_samples
             self.initial_reduction_factor = ospray.reduction_factor
             self.start_render_thread()
 
