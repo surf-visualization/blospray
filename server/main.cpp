@@ -2690,12 +2690,12 @@ size_t
 write_framebuffer_exr(OSPFrameBuffer framebuffer, const char *fname)
 {
     // Access framebuffer
-    const float *fb = (float*)ospMapFrameBuffer(framebuffer, OSP_FB_COLOR);
+    const float *color = (float*)ospMapFrameBuffer(framebuffer, OSP_FB_COLOR);
 
-    writeEXRFramebuffer(fname, framebuffer_width, framebuffer_height, fb, framebuffer_compression);
+    writeFramebufferEXR(fname, framebuffer_width, framebuffer_height, framebuffer_compression, color);
 
     // Unmap framebuffer
-    ospUnmapFrameBuffer(fb, framebuffer);
+    ospUnmapFrameBuffer(color, framebuffer);
 
     struct stat st;
     stat(fname, &st);
@@ -2948,11 +2948,15 @@ ensure_idle_render_mode()
     // XXX
     // Re-create framebuffer to work around https://github.com/ospray/ospray/issues/367
     ospRelease(framebuffers[framebuffer_reduction_factor]);
+
+    int channels = OSP_FB_COLOR | /*OSP_FB_DEPTH |*/ OSP_FB_ACCUM | OSP_FB_VARIANCE;
+    //int channels = OSP_FB_COLOR | /*OSP_FB_DEPTH |*/ OSP_FB_ACCUM | OSP_FB_VARIANCE | OSP_FB_NORMAL | OSP_FB_ALBEDO;
+
     framebuffers[framebuffer_reduction_factor] = ospNewFrameBuffer(
         reduced_framebuffer_width,
         reduced_framebuffer_height,
         framebuffer_format, 
-        OSP_FB_COLOR | /*OSP_FB_DEPTH |*/ OSP_FB_ACCUM | OSP_FB_VARIANCE);
+        channels);
     ospResetAccumulation(framebuffers[framebuffer_reduction_factor]);    
 }
 
@@ -3196,11 +3200,14 @@ start_rendering(const ClientMessage& client_message)
                 framebuffer_width, framebuffer_height, factor, 
                 framebuffer_format);
 
+            int channels = OSP_FB_COLOR | /*OSP_FB_DEPTH |*/ OSP_FB_ACCUM | OSP_FB_VARIANCE;
+            //int channels = OSP_FB_COLOR | /*OSP_FB_DEPTH |*/ OSP_FB_ACCUM | OSP_FB_VARIANCE | OSP_FB_NORMAL | OSP_FB_ALBEDO;
+
             framebuffer = ospNewFrameBuffer(
                 reduced_framebuffer_width, 
                 reduced_framebuffer_height, 
                 framebuffer_format, 
-                OSP_FB_COLOR | /*OSP_FB_DEPTH |*/ OSP_FB_ACCUM | OSP_FB_VARIANCE);                
+                channels);
 
             framebuffers.push_back(framebuffer);
         }
@@ -3364,10 +3371,21 @@ handle_connection(TCPSocket *sock)
                 // Save framebuffer to file 
                 sprintf(fname, "/dev/shm/blospray-final-%04d.exr", current_sample);
 
-                const float *fb = (float*)ospMapFrameBuffer(framebuffer, OSP_FB_COLOR);            
-                writeEXRFramebuffer(fname, reduced_framebuffer_width, reduced_framebuffer_height, fb, framebuffer_compression);
-                ospUnmapFrameBuffer(fb, framebuffer);
+#if 0
+                const float *color = (float*)ospMapFrameBuffer(framebuffer, OSP_FB_COLOR);     
+                const float *normal = (float*)ospMapFrameBuffer(framebuffer, OSP_FB_NORMAL);     
+                const float *albedo = (float*)ospMapFrameBuffer(framebuffer, OSP_FB_ALBEDO);     
+
+                writeFramebufferEXR(fname, reduced_framebuffer_width, reduced_framebuffer_height, framebuffer_compression, color, nullptr, normal, albedo);
                 
+                ospUnmapFrameBuffer(color, framebuffer);
+                ospUnmapFrameBuffer(normal, framebuffer);
+                ospUnmapFrameBuffer(albedo, framebuffer);
+#else
+                const float *color = (float*)ospMapFrameBuffer(framebuffer, OSP_FB_COLOR);   
+                writeFramebufferEXR(fname, reduced_framebuffer_width, reduced_framebuffer_height, framebuffer_compression, color);
+                ospUnmapFrameBuffer(color, framebuffer);
+#endif
                 stat(fname, &st);
 
                 gettimeofday(&now, NULL);
@@ -3422,7 +3440,7 @@ handle_connection(TCPSocket *sock)
             if (keep_framebuffer_files)
             {
                 sprintf(fname, "/dev/shm/blospray-interactive-%04d-%d.exr", current_sample, framebuffer_reduction_factor);                    
-                writeEXRFramebuffer(fname, reduced_framebuffer_width, reduced_framebuffer_height, fb, framebuffer_compression);
+                writeFramebufferEXR(fname, reduced_framebuffer_width, reduced_framebuffer_height, framebuffer_compression, fb);
             }
             
             ospUnmapFrameBuffer(fb, framebuffer);        

@@ -122,6 +122,9 @@ Known to be missing and/or buggy:
 * Tracking identity of Blender scene objects in a robust way is a challenge, as
   an object's name is about the only thing available. Therefore, renaming scene
   objects while a render is ongoing might trigger funny effects.
+* The upcoming Blender 2.81 includes a new Denoise compositor node that is
+  baed on Intel's OpenImageDenoise, but BLOSPRAY does not provide the needed
+  extra render passes yet (albedo and normal)
 
 OSPRay (currently, 2.0.x alpha) also has some limitations:
 
