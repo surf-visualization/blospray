@@ -131,6 +131,9 @@ Known to be missing and/or buggy:
 * Tracking identity of Blender scene objects in a robust way is a challenge, as
   an object's name is about the only thing available for this. Therefore, renaming scene
   objects while a render is ongoing might trigger funny effects.
+* The upcoming Blender 2.81 includes a new Denoise compositor node that is
+  baed on Intel's OpenImageDenoise, but BLOSPRAY does not provide the needed
+  extra render passes yet (albedo and normal)
 
 OSPRay (more specifically 2.0.x alpha) also has some limitations:
 
@@ -516,6 +519,15 @@ symlinks to `google` and `six.py` in Blender's python library dir:
   $ ln -sf /usr/lib/python3.7/site-packages/six.py six.py
   $ ln -sf /usr/lib/python3.7/site-packages/google google
   ```
+  
+  
+XXX improve on this using pip, see e.g. 
+https://devtalk.blender.org/t/can-3rd-party-modules-ex-scipy-be-installed-when-an-add-on-is-installed/9709
+and https://devtalk.blender.org/t/can-3rd-party-modules-ex-scipy-be-installed-when-an-add-on-is-installed/9709/7
+```
+$ ./blender/2.81/python/bin/python3.7 -m ensurepip
+$ ./blender/2.81/python/bin/python3.7 -m pip install -U protobuf
+```
 
 Finally, enable the `Render: OSPRay` add-on in Blender (`Edit -> Preferences -> Add-ons`). 
 

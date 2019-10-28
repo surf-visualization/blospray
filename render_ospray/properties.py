@@ -100,10 +100,18 @@ class RenderOspraySettingsScene(PropertyGroup):
 
     # General renderer settings
 
-    samples: IntProperty(
-        name='Samples',
-        description='Number of samples per pixel (spp)',
-        default = 4,
+    render_samples: IntProperty(
+        name='Render samples',
+        description='Number of samples per pixel (spp), final render',
+        default = 128,
+        min = 1,
+        max = 65535
+        )
+
+    viewport_samples: IntProperty(
+        name='Viewport samples',
+        description='Number of samples per pixel (spp), interactive render',
+        default = 32,
         min = 1,
         max = 65535
         )

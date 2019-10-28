@@ -1,3 +1,9 @@
+### Changes in version 0.2 (unreleased)
+
+* Added separate control for render and viewport samples
+* Added framebuffer "Update rate" for final renders so 
+  the rate at which the framebuffer is updated can be controlled
+
 ### Changes in version 0.1
 
 Initial release. 
@@ -57,9 +63,11 @@ Features (and remarks):
 * Rudimentary support for BLOSPRAY-specific volume, geometry and scene plugins      
 * Rudimentary transfer function editing for volume data (by mis-using the ColorRamp node)
   
-Notes on current (2.0.x alpha) OSPRa, not BLOSPRAY, limitations:
+Notes on current (2.0.x alpha) OSPRay, not BLOSPRAY, limitations and/or issues:
 
 * When using the scivis renderer a transformed volume will not render
   correctly 
+* Scaling a volume appears to influence the density of the samples (needs
+  verification to be an OSPRay issue)
 
   

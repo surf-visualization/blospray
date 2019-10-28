@@ -1310,7 +1310,7 @@ class Connection:
         client_message = ClientMessage()
         client_message.type = ClientMessage.START_RENDERING
         client_message.string_value = "final"
-        self.render_samples = client_message.uint_value = ospray.samples
+        self.render_samples = client_message.uint_value = ospray.render_samples
         client_message.uint_value2 = ospray.framebuffer_update_rate
         send_protobuf(self.sock, client_message)
 
@@ -1326,7 +1326,7 @@ class Connection:
         # Only Combined and Depth seem to be available
         # https://docs.blender.org/manual/en/latest/render/layers/passes.html
         # Combined = lighting only        
-        layer = result.layers[0].passes["Combined"]
+        #layer = result.layers[0].passes["Combined"]
 
         FBFILE = '/dev/shm/blosprayfb.exr'
 
@@ -1388,6 +1388,7 @@ class Connection:
                         # and they get picked up automatically.
                         # XXX result.load_from_file(...), instead of result.layers[0].load_from_file(...), would work as well?
                         result.layers[0].load_from_file(FBFILE)
+                        #result.load_from_file(FBFILE)
 
                         # Remove file
                         os.unlink(FBFILE)
