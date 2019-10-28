@@ -96,6 +96,15 @@ limitations compared to sciviz tools as well:
   ParaView, as the user needs to edit the Attribute node. But this
   can be hidden using scripting and custom UI elements, where the script 
   just provides a  selection menu for the value to show and color map to use.
+  
+## Data
+
+Conversion of scientific datasets to an intermediate format just for
+visualization in Blender is almost never preferable. It would be much
+better to be directly able to read the data into Blender and turn it
+into scene elements. 
+
+XXX addon, python
 
 ## Rendering
 

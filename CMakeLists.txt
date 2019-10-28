@@ -40,6 +40,7 @@ option(PLUGIN_PLY "Build PLY geometry plugin (needs rply 1.1.4 sources)" OFF)
 option(PLUGIN_ASSIMP "Build Assimp geometry plugin (needs Assimp)" OFF)
 option(PLUGIN_VOLUME_HDF5 "Build PLY geometry plugin (needs uhdf5 and HDF5)" OFF)
 option(PLUGIN_DISNEY_CLOUD "Build disney cloud volume plugin (needs OpenVDB)" OFF)
+option(PLUGIN_VTK_STREAMLINES "Build VTK streamlines geometry plugin" OFF)
 option(ADDRESS_SANITIZER "Compile with GCC's AddressSanitizer" OFF)
 option(VTK_QC_BOUND "Add support to generate a simplified bound using VTK" OFF)
 
@@ -107,13 +108,15 @@ if(PLUGIN_ASSIMP)
     FIND_PACKAGE(assimp)
 endif(PLUGIN_ASSIMP)
 
-if(VTK_QC_BOUND)
+if(VTK_QC_BOUND OR PLUGIN_VTK_STREAMLINES)
     # https://lorensen.github.io/VTKExamples/site/Cxx/Meshes/QuadricClustering/
     FIND_PACKAGE(VTK
         COMPONENTS
         vtkCommonCore
         vtkCommonDataModel
         vtkFiltersCore
+        vtkIOCore
+        vtkIOLegacy
         )
 
     if(NOT VTK_FOUND)
@@ -121,7 +124,7 @@ if(VTK_QC_BOUND)
     endif()
 
     message (STATUS "VTK_VERSION: ${VTK_VERSION}")
-endif(VTK_QC_BOUND)
+endif(VTK_QC_BOUND OR PLUGIN_VTK_STREAMLINES)
 
 include_directories("${CMAKE_SOURCE_DIR}/core")		# json.hpp in faker
 include_directories(${OSPRAY_INCLUDE_DIRS})

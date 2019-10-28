@@ -111,6 +111,38 @@ if(PLUGIN_ASSIMP)
 
 endif(PLUGIN_ASSIMP)
 
+# geometry_vtk_streamlines
+
+if(PLUGIN_VTK_STREAMLINES)
+
+    add_library(geometry_vtk_streamlines SHARED geometry_vtk_streamlines.cpp)
+    set_target_properties(geometry_vtk_streamlines PROPERTIES PREFIX "")   
+    target_link_libraries(geometry_vtk_streamlines PUBLIC 
+        ${OSPRAY_LIBRARIES}
+        ${ASSIMP_LIBRARIES})
+    target_include_directories(geometry_vtk_streamlines
+        PUBLIC
+        ${ASSIMP_INCLUDE_DIRS}
+        ${PROTOBUF_INCLUDE_DIRS}
+        ${CMAKE_CURRENT_BINARY_DIR}
+    )
+
+    if (VTK_VERSION VERSION_LESS "8.90.0")
+        # old system
+        include(${VTK_USE_FILE})
+        target_link_libraries(geometry_vtk_streamlines PRIVATE ${VTK_LIBRARIES})
+    else ()
+        # include all components
+        target_link_libraries(geometry_vtk_streamlines PRIVATE ${VTK_LIBRARIES})
+        # vtk_module_autoinit is needed
+        vtk_module_autoinit(
+            TARGETS geometry_vtk_streamlines
+            MODULES ${VTK_LIBRARIES}
+        )
+    endif () 
+
+endif(PLUGIN_VTK_STREAMLINES)
+
 # scene_rbc
 
 add_library(scene_rbc SHARED scene_rbc.cpp)
@@ -121,7 +153,6 @@ target_include_directories(scene_rbc
     ${PROTOBUF_INCLUDE_DIRS}
     ${CMAKE_CURRENT_BINARY_DIR}
 )
-
 
 # scene_cornellbox
 
@@ -201,42 +232,26 @@ install(TARGETS
     DESTINATION bin)
     
 
+if(PLUGIN_ASSIMP)
+    install(TARGETS geometry_assimp DESTINATION bin)
+endif(PLUGIN_ASSIMP)
+
 if(PLUGIN_COSMOGRID)
-
-    install(TARGETS 
-        scene_cosmogrid 
-        DESTINATION bin)
-
+    install(TARGETS scene_cosmogrid DESTINATION bin)
 endif(PLUGIN_COSMOGRID)
 
 if(PLUGIN_DISNEY_CLOUD)
-
-    install(TARGETS 
-        volume_disney_cloud 
-        DESTINATION bin)
-
+    install(TARGETS volume_disney_cloud DESTINATION bin)
 endif(PLUGIN_DISNEY_CLOUD)
 
+if(PLUGIN_VTK_STREAMLINES)
+    install(TARGETS geometry_vtk_streamlines DESTINATION bin)
+endif(PLUGIN_VTK_STREAMLINES)
+
 if(PLUGIN_PLY)
-
-    install(TARGETS 
-        geometry_ply 
-        DESTINATION bin)
-
+    install(TARGETS geometry_ply DESTINATION bin)
 endif(PLUGIN_PLY)
 
-if(PLUGIN_ASSIMP)
-
-    install(TARGETS 
-        geometry_assimp 
-        DESTINATION bin)
-
-endif(PLUGIN_ASSIMP)
-
 if(PLUGIN_VOLUME_HDF5)
-
-    install(TARGETS 
-        volume_hdf5 
-        DESTINATION bin)
-
+    install(TARGETS volume_hdf5 DESTINATION bin)
 endif(PLUGIN_VOLUME_HDF5)
