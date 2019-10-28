@@ -65,8 +65,10 @@ limitations compared to sciviz tools as well:
   This usually involves a client-server setup, where the sciviz GUI application
   is the client. Blender does not provide this kind of functionality,
   although CyclesPhi is a step in this direction for rendering (but not
-  analysis). The large datasets use case is a bit of a niche though, with
-  new systems having many CPU cores and powerful GPUs available.
+  analysis). BLOSPRAY could support this mode, as OSPRay itself has
+  support for distributed rendering based on MPI. The use case for large 
+  datasets that need parallel processing is a bit of a niche though, 
+  as new systems have many CPU cores, lots of memory and powerful GPUs.
   
 - Volume rendering in Blender is currently geared towards the builtin smoke and fluid
   simulations. Some effort is going on into making import of external data
@@ -106,3 +108,13 @@ high-quality rendering:
 - No control of the pixel filter used for the final output image
 - Less control of path tracing settings, e.g. can't set limits on the 
   number of bounces per type
+  
+Limitations of Cycles compared to OSPRay:
+
+- OSPRay supports simple geometric shapes and their colors to defined 
+  by a few data arrays. This allows large numbers of colored spheres, cylinders 
+  or streamlines. Cycles, in contrast, supports only triangle meshes, 
+  subdivision meshes, curves and volumes (XXX check this). So even simple 
+  shapes like spheres need to be defined by a mesh of some sorts, 
+  although these can approximated with a subdiv cube mesh. But adding a
+  unique color to each shape involves using vertex colors.
