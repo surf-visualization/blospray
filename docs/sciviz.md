@@ -33,7 +33,9 @@ focus, workflow and limitations in sciviz tools versus Blender:
   analysis. As such, creative control in sciviz tools is usually limited.
 
 - Blender supports advanced shading, lighting and animation, where most
-  sciviz tools provide only rudimentary functionality.
+  sciviz tools provide only basic functionality. Even though tools like
+  ParaView are moving a bit towards high-quality rendering, but integrating
+  OSPRay, this provides only a part of the advanced options.
 
 But as Blender is not a scientific visualization tool it has its own
 limitations in this area as well:
@@ -44,7 +46,8 @@ limitations in this area as well:
   the underlying numbers in the dataset is used as well.
   This is what sciviz tools like ParaView allow you to do quite easily.
   They also contains *data analysis* operations, such as integration, histogramming, 
-  plot value over line and k-means.
+  plot value over line and k-means. Finally, data related annotations
+  are available, such as color legends and axis grids.
   
 - Sciviz tools like ParaView and VisIt allow analysis and visualization 
   of large datasets using parallel (multi-node) processing and rendering. 
