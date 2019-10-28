@@ -87,7 +87,7 @@ load_file(GenerateFunctionResult &result, PluginState *state)
         vtkIdType qi = cell->GetPointId(1);
 
         const double *p = dataset->GetPoint(pi);
-        const double *q = dataset->GetPoint(qi);
+        const double *q = dataset->GetPoint(qi);        
 
         positions.push_back(p[0]);
         positions.push_back(p[1]);
