@@ -69,6 +69,11 @@ limitations compared to sciviz tools as well:
   support for distributed rendering based on MPI. The use case for large 
   datasets that need parallel processing is a bit of a niche though, 
   as new systems have many CPU cores, lots of memory and powerful GPUs.
+  However, a client-server setup can be of interest to run the rendering
+  backend close to the datasets being used, for example on an HPC system.
+  The client (Blender) can then still be used on a regular workstation.
+  However, using a remote visualization setup, like VNC with VirtualGL,
+  could also be used in this scenario, if the HPC system supports OpenGL.
   
 - Volume rendering in Blender is currently geared towards the builtin smoke and fluid
   simulations. Some effort is going on into making import of external data
@@ -111,10 +116,11 @@ high-quality rendering:
   
 Limitations of Cycles compared to OSPRay:
 
-- OSPRay supports simple geometric shapes and their colors to defined 
-  by a few data arrays. This allows large numbers of colored spheres, cylinders 
-  or streamlines. Cycles, in contrast, supports only triangle meshes, 
-  subdivision meshes, curves and volumes (XXX check this). So even simple 
-  shapes like spheres need to be defined by a mesh of some sorts, 
+- OSPRay supports simple geometric shapes and their colors to be defined 
+  by a few data arrays, without using explicit geometry. This allows 
+  large numbers of colored spheres, cylinders or streamlines. Cycles, 
+  in contrast, supports only triangle meshes, subdivision meshes, curves 
+  and volumes (XXX check this). So even simple shapes like spheres need 
+  to be defined by a mesh of some sorts, 
   although these can approximated with a subdiv cube mesh. But adding a
-  unique color to each shape involves using vertex colors.
+  data-based color to each shape involves using vertex colors.
