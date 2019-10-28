@@ -9,11 +9,11 @@ in the sciviz panel,  I wanted to put down some thoughts in this page.
 There's quite a number of ongoing activities to make Blender more 
 usable for scientific visualization:
 
-- [BVtkNodes](https://github.com/simboden/BVtkNodes) (and the more
-  active [fork](https://github.com/tkeskita/BVtkNodes]) for allowing
+- [BVtkNodes](https://github.com/simboden/BVtkNodes) (and this more
+  active [fork](https://github.com/tkeskita/BVtkNodes])) for allowing
   VTK operations to be performed using node networks and use their
   output in a Blender scene. This was initially presented at BCON18.
-- [Integration of COVISE in Blender](http://blender.it4i.cz/scientific-visualization/covise/),
+- [Integration of Covise in Blender](http://blender.it4i.cz/scientific-visualization/covise/),
   for data processing and analysis, as presented at BCON19.
 - Not specifically related to scientific visualization, but interesting
   in an HPC context, is the [CyclesPhi](https://code.it4i.cz/blender/cyclesphi280) version
@@ -28,38 +28,63 @@ usable for scientific visualization:
 The reasons the above activities exist have to do with a difference in 
 focus, workflow and limitations in sciviz tools versus Blender:
 
-- Blender's UI and workflow are fully supportive of working creatively.
-  Sciviz tools are usually centered on very functional tasks, like data
-  analysis. As such, creative control in sciviz tools is usually limited.
+- Blender's UI and workflow are fully supportive in working creatively.
+  In contrast, sciviz tools are usually centered on very functional tasks, 
+  like data analysis. As such, creative control and ease-of-use in this
+  area in sciviz tools is usually limited.
 
 - Blender supports advanced shading, lighting and animation, where most
-  sciviz tools provide only basic functionality. Even though tools like
-  ParaView are moving a bit towards high-quality rendering, but integrating
-  OSPRay, this provides only a part of the advanced options.
+  sciviz tools provide only basic functionality in these areas. Even though tools 
+  like ParaView are moving a bit towards high-quality rendering, for example
+  by integrating OSPRay for ray-traced rendering, this provides only a part 
+  of the advanced options.
+  
+- The [Everything Nodes](https://wiki.blender.org/wiki/Source/Nodes/EverythingNodes)
+  project that is being worked on would be a very good basis for all
+  kinds of data processing and visualization pipelines in Blender.
+  The BVtkNodes and Covise projects currently already provide such
+  functionality, but the integration within Blender could be much improved 
+  when the Everything Nodes framework is in place. This would make scientific
+  data processing pipelines a first citizen within Blender and would
+  combine node-based workflows with Blender's creative UI workflow.
 
 But as Blender is not a scientific visualization tool it has its own
-limitations in this area as well:
+limitations compared to sciviz tools as well:
 
 - Scientific visualization usually involves more than just turning data
   into visuals. It involves interactive (visual) analysis to interpret,
   understand and check the data (and visuals). Sometimes, looking at 
-  the underlying numbers in the dataset is used as well.
+  the underlying numbers in the dataset is necessary as well.
   This is what sciviz tools like ParaView allow you to do quite easily.
   They also contains *data analysis* operations, such as integration, histogramming, 
-  plot value over line and k-means. Finally, data related annotations
-  are available, such as color legends and axis grids.
+  plotting a value over a 3D line and k-means clustering. Finally, data 
+  related annotations are available, such as color legends and axis grids.
   
 - Sciviz tools like ParaView and VisIt allow analysis and visualization 
   of large datasets using parallel (multi-node) processing and rendering. 
   This usually involves a client-server setup, where the sciviz GUI application
   is the client. Blender does not provide this kind of functionality,
   although CyclesPhi is a step in this direction for rendering (but not
-  analysis)
+  analysis). The large datasets use case is a bit of a niche though, with
+  new systems having many CPU cores and powerful GPUs available.
+  
+- Volume rendering in Blender is currently geared towards the builtin smoke and fluid
+  simulations. Some effort is going on into making import of external data
+  from OpenVDB files possible. At BCON19 Stefan Werner gave an overview
+  presentations of possible improvements to Cycles' volume rendering
+  support (XXX youtube not online yet), some of which would also apply
+  to scientific volumetric data. However, some forms of volumetric data might
+  not get supported at all in the near future, such as unstructured grids, AMR meshes, 
+  regular grids with varying cell sizes, volumes with vector values and point-centered
+  values versus cell-centered values. These types of volumetric data are 
+  well-supported in sciviz tools like ParaView and VisIt.
   
 - Vertex colors are quite often used to show data values. In Blender adding
   vertex colors on a model is easy, but showing them in the 3D viewport
   requires the appropriate draw mode to be active (e.g. Material preview
-  in EEVEE and Cycles). Also, the mesh's shader must use, for example,
+  in EEVEE and Cycles). In other draw modes vertex colors are no longer
+  visible.
+  Also, the mesh's shader must use, for example,
   an Attribute node. Changing the value displayed is also not as easy as in 
   ParaView, as the user needs to edit the Attribute node. But this
   can be hidden using scripting and custom UI elements, where the script 
