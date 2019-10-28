@@ -66,6 +66,7 @@ load_file(GenerateFunctionResult &result, PluginState *state)
     std::vector<float>      positions;
     std::vector<uint32_t>   indices;
     uint32_t    curindex = 0;
+    double  p[3];
 
     for (vtkIdType i = 0; i < nc; i++)
     {
@@ -85,20 +86,19 @@ load_file(GenerateFunctionResult &result, PluginState *state)
 
         vtkIdType pi = cell->GetPointId(0);
         vtkIdType qi = cell->GetPointId(1);
-
-        const double *p = dataset->GetPoint(pi);
-        const double *q = dataset->GetPoint(qi);        
-
+        
+        dataset->GetPoint(pi, p);
+        positions.push_back(p[0]);
+        positions.push_back(p[1]);
+        positions.push_back(p[2]);
+        
+        dataset->GetPoint(qi, p);
         positions.push_back(p[0]);
         positions.push_back(p[1]);
         positions.push_back(p[2]);
 
-        positions.push_back(q[0]);
-        positions.push_back(q[1]);
-        positions.push_back(q[2]);
-
         indices.push_back(curindex);
-
+        
         curindex += 2;
     }
 
