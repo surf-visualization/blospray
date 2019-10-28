@@ -2669,7 +2669,6 @@ update_world_settings(const WorldSettings& world_settings)
 
         OSPTexture backplate = ospNewTexture("texture2d");    
             ospSetInt(backplate, "format", OSP_TEXTURE_RGBA32F);
-            //ospSetVec2i(backplate, "size", 1, 1);            
             ospSetObject(backplate, "data", data);
         ospCommit(backplate);            
         ospRelease(data);
