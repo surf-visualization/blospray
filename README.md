@@ -266,28 +266,29 @@ Notes:
   were manually changed to match the look of the original scene, although
   this is very hard to do perfectly.
   
-Here's the renders at the same 35 samples per pixel:
+Here's the renders at the same 35^2 (= 1225) samples per pixel:
 
 <img src="./images/bmw27-cycles-35spp.png" width="512">
-<img src="./images/bmw27-ospray-35spp.png" width="512">
+<img src="./images/bmw27-ospray-1225spp.png" width="512">  
 
-5m35.59s (Cycles) versus 32.31s (OSPRay)
+5m35.59s (Cycles) versus 17m55.52s (OSPRay)
 
-As the OSPRay render is much noisier here's two more renders at
-100 and 400 SPP to match the noise level:
+This takes much longer in OSPRay, but the comparison isn't fair:
+the shaders, light and other settings are different. Even when using
+many more samples per pixel the renderings can never match perfectly.
 
-<img src="./images/bmw27-ospray-100spp.png" width="512">
+So to make a somewhat fairer comparison in noise levels, here's
+using 400 samples per pixel with OSPRay. The total render time
+at 5m50.74s is roughly the same as for the Cycles original render:
+
 <img src="./images/bmw27-ospray-400spp.png" width="512">
 
-1m28.29s (100 SPP) versus 5m50.74s (400 SPP)
-
-Here's a crop to compare the different noise levels (Cycles at 35 SPP,
-OSPRay at 35, 100 and 400 SPP):
+Here's a crop to compare the different noise levels (Cycles at 1225 SPP,
+OSPRay at 400 SPP and 1225 SPP):
 
 <img src="./images/bmw27-crop-cycles-35spp.png">
-<img src="./images/bmw27-crop-ospray-35spp.png">
-<img src="./images/bmw27-crop-ospray-100spp.png">
 <img src="./images/bmw27-crop-ospray-400spp.png">
+<img src="./images/bmw27-crop-ospray-1225spp.png">
 
 
 ### gravity_spheres_volume.blend 
