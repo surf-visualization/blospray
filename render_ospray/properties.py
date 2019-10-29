@@ -256,6 +256,7 @@ class RenderOspraySettingsObject(PropertyGroup):
         description='How to use the linked data (which is assumed to have a volume plugin)',
         items=[ ('volume', 'Volume', 'Render as regular volume'),
                 ('isosurfaces', 'Isosurfaces', 'Render isosurfaces derived from the volume'),
+                ('slices', 'Slices', 'Render child objects as slice geometry')
                ]
         )   
         

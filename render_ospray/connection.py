@@ -930,8 +930,8 @@ class Connection:
         # Plugin enabled or not?
 
         if not obj.ospray.ospray_override or not mesh.ospray.plugin_enabled:
-            # Not OSPRay enabled or plugin disabled on the linked mesh data.
-            # Treat as regular blender Mesh object            
+            # Linked mesh data is not enabled for OSPRay, or its plugin is disabled.
+            # Treat as regular blender Mesh object       
             update.type = UpdateObject.MESH
                 
             # Check that this object isn't a child used for slicing, in which case it 
@@ -1043,6 +1043,7 @@ class Connection:
 
                     #  Process child objects to use as slices
                     ss = []
+
                     # Apparently the depsgraph leaves out the parenting? So get
                     # that information from the original object
                     # XXX need to ignore slice object itself in export, but not its mesh data
@@ -1059,7 +1060,7 @@ class Connection:
 
                     for childobj in children:
 
-                        if not childobj.type == 'MESH':
+                        if childobj.type != 'MESH':
                             print('Ignoring slicing child object "%s", it\'s not a mesh' % childobj.name)
                             continue
 
@@ -1072,7 +1073,8 @@ class Connection:
                         self.update_blender_mesh(blend_data, depsgraph, childobj.data, childobj.matrix_local)
 
                         slice = Slice()
-                        slice.linked_mesh_data = childobj.data.name
+                        slice.name = childobj.name
+                        slice.mesh_link = childobj.data.name
                         # Note: this is the parent's object-to-world transform
                         slice.object2world[:] = matrix2list(obj.matrix_world)
                         ss.append(slice)                            

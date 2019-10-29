@@ -150,26 +150,36 @@ struct SceneObjectIsosurfaces : SceneObject
 struct SceneObjectSlice : SceneObject
 {
 	OSPVolumetricModel vmodel;
-	OSPGeometry isosurfaces_geometry;
+	OSPGeometry slice_geometry;
 	OSPGeometricModel gmodel;
 	OSPGroup group;
 	OSPInstance instance;
 	// XXX TF and material
 
+	std::vector<OSPObject>	objects_to_commit;
+
 	SceneObjectSlice(): SceneObject()
 	{
 		type = SOT_SLICE;
 		vmodel = nullptr;
-		isosurfaces_geometry = ospNewGeometry("slices"); 
-		gmodel = ospNewGeometricModel(isosurfaces_geometry);
+		slice_geometry = nullptr;
+		gmodel = ospNewGeometricModel(slice_geometry);
 		group = ospNewGroup();
 		ospSetObjectAsData(group, "geometry", OSP_GEOMETRIC_MODEL, gmodel);
-	    ospCommit(group);
+	    //ospCommit(group);
 		instance = ospNewInstance(group);
-	}           
+	}
+
+	void commit()
+	{
+		for (auto& obj : objects_to_commit)
+			ospCommit(obj);
+	}
 
 	virtual ~SceneObjectSlice()
 	{
+		if (gmodel)
+			ospRelease(gmodel);
 		if (vmodel)
 			ospRelease(vmodel);
 		ospRelease(instance);

@@ -814,8 +814,11 @@ handle_update_plugin_instance(TCPSocket *sock)
     const char *s_custom_properties = update.custom_properties().c_str();
     //printf("Received custom properties:\n%s\n", s_custom_properties);
     const json &custom_properties = json::parse(s_custom_properties);
-    printf("... custom properties:\n");
-    printf("%s\n", custom_properties.dump(4).c_str());
+    if (!custom_properties.empty())
+    {
+        printf("... custom properties:\n");
+        printf("%s\n", custom_properties.dump(4).c_str());
+    }
 
     // Check against the current instances
 
@@ -1578,7 +1581,6 @@ update_isosurfaces_object(const UpdateObject& update)
     if (scene_object == nullptr)
     {
         assert(scene_objects.find(object_name) == scene_objects.end());
-        printf("setting %s -> %016x\n", object_name.c_str(), isosurfaces_object);
         scene_objects[object_name] = isosurfaces_object;
 
         // XXX hacked temp volume module, as we need the volume to create it
@@ -1595,8 +1597,11 @@ update_isosurfaces_object(const UpdateObject& update)
     const char *s_custom_properties = update.custom_properties().c_str();
     //printf("Received custom properties:\n%s\n", s_custom_properties);
     const json &custom_properties = json::parse(s_custom_properties);
-    printf("... custom properties:\n");
-    printf("%s\n", custom_properties.dump(4).c_str());
+    if (!custom_properties.empty())
+    {
+        printf("... custom properties:\n");
+        printf("%s\n", custom_properties.dump(4).c_str());
+    }
     
     if (custom_properties.find("isovalues") == custom_properties.end())
     {
@@ -1651,7 +1656,7 @@ update_isosurfaces_object(const UpdateObject& update)
 // XXX parenting can be animated using a Childof object constraint
 // XXX a text field in a node can't be animated
 bool
-add_slices_objects(const UpdateObject& update, const Slices& slices)
+add_slice_objects(const UpdateObject& update, const Slices& slices)
 {
     const std::string& linked_data = update.data_link();
 
@@ -1667,7 +1672,7 @@ add_slices_objects(const UpdateObject& update, const Slices& slices)
 
     OSPVolume volume = state->volume;
 
-    if (volume == NULL)
+    if (volume == nullptr)
     {
         printf("... ERROR: volume is NULL!\n");
         return false;
@@ -1676,89 +1681,87 @@ add_slices_objects(const UpdateObject& update, const Slices& slices)
     const char *s_custom_properties = update.custom_properties().c_str();
     //printf("Received custom properties:\n%s\n", s_custom_properties);
     const json &custom_properties = json::parse(s_custom_properties);
-    printf("... custom properties:\n");
-    printf("%s\n", custom_properties.dump(4).c_str());
-
-    return true;
-
-#if 0
+    if (!custom_properties.empty())
+    {
+        printf("... custom properties:\n");
+        printf("%s\n", custom_properties.dump(4).c_str());
+    }
 
     SceneObject         *scene_object;
     SceneObjectSlice    *slice_object;
-    OSPInstance         instance;
     OSPGroup            group;
-    OSPGeometry         isosurfaces_geometry;
     OSPVolumetricModel  vmodel;
     OSPGeometricModel   gmodel;
+    OSPInstance         instance;
 
     // Each slice becomes a separate scene object of type SOT_SLICE
     for (int i = 0; i < slices.slices_size(); i++)
     {
         const Slice& slice = slices.slices(i);
 
-        const std::string& mesh_name = slice.linked_mesh_data();
-
-        scene_object = find_scene_object(object_name, SOT_SLICE);
-
-        if (scene_object != nullptr)
-            slices_object = dynamic_cast<SceneObjectSlice*>(scene_object);
-        else
-            slices_object = new SceneObjectSlices;
-
-        instance = slices_object->instance;
-        assert(instance != nullptr);
-        group = isosurfaces_object->group;
-        assert(group != nullptr); 
-        vmodel = isosurfaces_object->vmodel;
-        gmodel = isosurfaces_object->gmodel;
-        assert(gmodel != nullptr);
-        isosurfaces_geometry = isosurfaces_object->isosurfaces_geometry;
-        assert(isosurfaces_geometry != nullptr);
-
+        const std::string& object_name = slice.name();
+        const std::string& linked_mesh = slice.mesh_link();
 
         // Get linked geometry
 
-        const std::string& linked_data = slice.linked_mesh();
+        printf("... linked mesh '%s' (blender mesh)\n", linked_mesh.c_str());    
 
-        printf("... linked mesh '%s' (blender mesh)\n", linked_data.c_str());    
-
-        SceneDataTypeMap::iterator it = scene_data_types.find(linked_data);
+        SceneDataTypeMap::iterator it = scene_data_types.find(linked_mesh);
 
         if (it == scene_data_types.end())
         {
-            printf("--> '%s' | WARNING: linked data not found!\n", linked_data.c_str());
+            printf("--> '%s' | WARNING: linked data not found!\n", linked_mesh.c_str());
             return false;
         }
         else if (it->second != SDT_BLENDER_MESH)
         {
             printf("--> '%s' | WARNING: linked data is not of type SDT_BLENDER_MESH but of type %s!\n", 
-                linked_data.c_str(), SceneDataType_names[it->second]);
+                linked_mesh.c_str(), SceneDataType_names[it->second]);
             return false;
         }
         else
-            printf("--> '%s' (blender mesh data)\n", linked_data.c_str());
+            printf("--> '%s' (blender mesh data)\n", linked_mesh.c_str());
 
-        BlenderMesh *blender_mesh = blender_meshes[linked_data];
+        BlenderMesh *blender_mesh = blender_meshes[linked_mesh];
         OSPGeometry geometry = blender_mesh->geometry;
 
-        if (geometry == NULL)
+        if (geometry == nullptr)
         {
-            printf("... ERROR: geometry is NULL!\n");
+            printf("... ERROR: geometry of blender mesh is NULL!\n");
             return false;
         }                    
+
+        // Update/create scene object
+
+        scene_object = find_scene_object(object_name, SOT_SLICE);
+
+        if (scene_object != nullptr)
+            slice_object = dynamic_cast<SceneObjectSlice*>(scene_object);
+        else
+            slice_object = new SceneObjectSlice;
+
+        instance = slice_object->instance;
+        assert(instance != nullptr);
+        group = slice_object->group;
+        assert(group != nullptr); 
+        vmodel = slice_object->vmodel;
+        gmodel = slice_object->gmodel;
+        assert(gmodel != nullptr);
+        slice_object->slice_geometry = geometry;
 
         // Set up slice geometry
 
         // XXX temp inserted volumetric model
-        auto volume_model = ospNewVolumetricModel(volume);
+        if (vmodel == nullptr)
+            vmodel = slice_object->vmodel = ospNewVolumetricModel(volume);
+            
             OSPTransferFunction tf = create_transfer_function("cool2warm", state->volume_data_range[0], state->volume_data_range[1]);
-            ospSetObject(volume_model, "transferFunction", tf);            
-            //ospSetFloat(volume_model, "samplingRate", 0.5f);
-        ospCommit(volume_model);
+            ospSetObject(vmodel, "transferFunction", tf);            
+        ospCommit(vmodel);
         ospRelease(tf);
-
+    
         OSPTexture volume_texture = ospNewTexture("volume");
-            ospSetObject(volume_texture, "volume", volume_model);   // XXX volume model, not volume
+            ospSetObject(volume_texture, "volume", vmodel);   // XXX volume model, not volume
         ospCommit(volume_texture);
 
         OSPMaterial material = ospNewMaterial(current_renderer_type.c_str(), "default");
@@ -1766,14 +1769,10 @@ add_slices_objects(const UpdateObject& update, const Slices& slices)
         ospCommit(material);
         ospRelease(volume_texture);        
 
-        OSPGeometricModel geometric_model = ospNewGeometricModel(geometry);
-            ospSetObjectAsData(geometric_model, "material", OSP_MATERIAL, material);
-        ospCommit(geometric_model);
+        ospSetObjectAsData(gmodel, "material", OSP_MATERIAL, material);
+        ospCommit(gmodel);
         ospRelease(material);
 
-        OSPGroup group = ospNewGroup();
-            ospSetObjectAsData(group, "geometry", OSP_GEOMETRIC_MODEL, geometric_model); 
-            //ospRelease(model);
         ospCommit(group);
      
         glm::mat4   obj2world;
@@ -1781,50 +1780,17 @@ add_slices_objects(const UpdateObject& update, const Slices& slices)
 
         object2world_from_protobuf(obj2world, slice);
         affine3fv_from_mat4(affine_xform, obj2world);
+        
+        ospSetParam(instance, "xfm", OSP_AFFINE3F, affine_xform);
+        ospCommit(instance);        
 
-        OSPInstance instance = ospNewInstance(group);
-            ospSetAffine3fv(instance, "xfm", affine_xform);
-        ospCommit(instance);
-        ospRelease(group);
-
-        //if (scene_object == nullptr)
-        //scene_objects[object_name] = ...
+        if (scene_object == nullptr)
+            scene_objects[object_name] = slice_object;
 
         ospray_scene_instances.push_back(instance);
         update_ospray_scene_instances = true;
-
-#if 0
-        plane[0] = slice.a();
-        plane[1] = slice.b();
-        plane[2] = slice.c();
-        plane[3] = slice.d();
-
-        printf("... plane[%d]: %.3f, %3f, %.3f, %.3f\n", i, plane[0], plane[1], plane[2], plane[3]);
-
-        OSPData planeData = ospNewCopiedData(1, OSP_VEC4F, plane);        
-
-            // XXX hacked temp volume module
-        auto volumeModel = ospNewVolumetricModel(volume);
-            OSPTransferFunction tf = create_transfer_function("cool2warm", state->volume_data_range[0], state->volume_data_range[1]);
-            ospSetObject(volumeModel, "transferFunction", tf);
-            ospRelease(tf);
-        ospCommit(volumeModel);
-
-        OSPGeometry slice_geometry = ospNewGeometry("slices");
-            ospSetObject(slice_geometry, "volume", volumeModel);         // XXX volume model, not volume
-            //ospRelease(volumeModel);
-            ospSetObject(slice_geometry, "plane", planeData);
-            ospRelease(planeData);
-        ospCommit(slice_geometry);
-            
-        OSPGeometricModel model = ospNewGeometricModel(slice_geometry);
-            ospSetObjectAsData(model, "material", OSP_MATERIAL, default_material);
-        ospCommit(model);
-        ospRelease(slice_geometry);
-#endif        
     }
 
-#endif
     return true;
 }
 
@@ -2152,7 +2118,7 @@ handle_update_object(TCPSocket *sock)
         Slices slices;
         if (!receive_protobuf(sock, slices))
             return false;
-        add_slices_objects(update, slices);
+        add_slice_objects(update, slices);
         }
         break;
 

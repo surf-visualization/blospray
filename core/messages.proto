@@ -206,8 +206,10 @@ message Volume
 
 message Slice
 {
-    repeated float  object2world = 1;
-    string          linked_mesh_data = 2;
+    string          name = 1;    
+    string          mesh_link = 2;
+
+    repeated float  object2world = 3;
 }
 
 message Slices
