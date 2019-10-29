@@ -116,7 +116,8 @@ if(VTK_QC_BOUND OR PLUGIN_VTK_STREAMLINES)
         vtkCommonDataModel
         vtkFiltersCore
         vtkIOCore
-        vtkIOLegacy
+        vtkIOLegacy             # vtkDataSetReader
+        vtkRenderingCore        # vtkColorTransferFunction
         )
 
     if(NOT VTK_FOUND)

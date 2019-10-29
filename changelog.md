@@ -3,6 +3,10 @@
 * Added separate control for render and viewport samples
 * Added framebuffer "Update rate" for final renders so 
   the rate at which the framebuffer is updated can be controlled
+* Rudimentary animation support by being able to use `{{frame}}` in
+  plugin property values. You can actually use `{{<expression>}}`, 
+  but `frame` is currently the only value available to use in the expression.
+  But something like `/data/step{{'%04d' % frame}}.bin` will work.
 
 ### Changes in version 0.1
 

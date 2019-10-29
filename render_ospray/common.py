@@ -1,3 +1,4 @@
+import os, re
 from struct import pack, unpack
 from logging import getLogger
 
@@ -71,3 +72,46 @@ def receive_into_numpy_array(sock, buffer, n):
         n = sock.recv_into(view, bytes_left)
         view = view[n:]
         bytes_left -= n
+
+
+def substitute_values(value, expression_locals={}):
+
+    # Local environment variables, e.g. ${HOME}
+    pat = re.compile('\$\{([^\}]+?)\}')
+    def func(m):
+        envvar = m.group(1)
+        if envvar in os.environ:
+            return os.environ[envvar]
+        else:
+            return '${%s}' % envvar
+    value, n = re.subn(pat, func, value)
+
+    # Global values, e.g. {{frame}}
+    pat2 = re.compile('\{\{([^\}]+?)\}\}')
+    def func2(m):
+        expr = m.group(1)
+        try:
+            svalue = eval(expr, None, expression_locals)            
+            svalue = str(svalue)
+            return svalue
+        except:            
+            # XXX show backtrace
+            print('WARNING: exception while trying to evaluate "%s" in property value' % expr)
+            return '{{%s}}' % expr
+    value, n = re.subn(pat2, func2, value)
+
+    return value
+
+
+if __name__ == '__main__':
+
+    def tsub(value, expression_locals={}):
+        s = substitute_values(value, expression_locals)
+        print(repr(value), '->', repr(s))
+
+    tsub('${HOME}')
+    tsub('${HOME} ${HOME}')
+    tsub('$<HOME>')
+    tsub('{{frame}}')
+    tsub('file{{frame}}.raw', dict(frame=25))
+    tsub("file{{'%04d' % frame}}.raw", dict(frame=25))

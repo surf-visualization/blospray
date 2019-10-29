@@ -24,7 +24,7 @@ import bpy, bmesh
 #from bgl import *
 from mathutils import Vector, Matrix
 
-import sys, array, json, logging, os, re, select, socket, time, weakref
+import sys, array, json, logging, os, select, socket, time, weakref
 from math import tan, atan, degrees, radians, sqrt
 from struct import pack, unpack
 
@@ -32,7 +32,7 @@ import numpy
 
 sys.path.insert(0, os.path.split(__file__)[0])
 
-from .common import PROTOCOL_VERSION, send_protobuf, receive_protobuf, OSP_FB_RGBA32F
+from .common import PROTOCOL_VERSION, OSP_FB_RGBA32F, send_protobuf, receive_protobuf, substitute_values
 from .messages_pb2 import (
     HelloResult,
     ClientMessage,
@@ -242,20 +242,7 @@ class Connection:
     # Scene export
     #
 
-    def _substitute_environment_values(self, value):
-        # XXX Handle multiple vars in the same value
-        pat = re.compile('\$\{([^}]+?)\}')
-        def func(m):
-            envvar = m.group(1)
-            if envvar in os.environ:
-                return os.environ[envvar]
-            else:
-                return '${%s}' % envvar
-        value, n = re.subn(pat, func, value)
-        return value
-
-
-    def _process_properties(self, obj, extract_plugin_parameters=False):
+    def _process_properties(self, obj, expression_locals, extract_plugin_parameters=False):
         """
         Get Blender custom properties set on obj, and process where necessary:
 
@@ -274,7 +261,7 @@ class Connection:
         for k, v in customproperties2dict(obj).items():
             #print('k', k, 'v', v)
             if isinstance(v, str):
-                v = self._substitute_environment_values(v)
+                v = substitute_values(v, expression_locals)
                 print(v)
             if k[0] == '_':
                 #print(properties, k, v)
@@ -690,8 +677,12 @@ class Connection:
         update.name = obj.name
         update.object2world[:] = matrix2list(xform)
         update.data_link = data.name
+
+        expression_locals = {
+            'frame': depsgraph.scene.frame_current
+        }
         
-        custom_properties, plugin_parameters = self._process_properties(obj, False)
+        custom_properties, plugin_parameters = self._process_properties(obj, expression_locals, False)
         assert len(plugin_parameters.keys()) == 0
         
         update.custom_properties = json.dumps(custom_properties)  
@@ -907,8 +898,12 @@ class Connection:
         update.name = name
         update.object2world[:] = matrix2list(matrix_world)
         update.data_link = mesh.name
-        
-        custom_properties, plugin_parameters = self._process_properties(obj, False)
+
+        expression_locals = {
+            'frame': depsgraph.scene.frame_current
+        }
+    
+        custom_properties, plugin_parameters = self._process_properties(obj, expression_locals, False)
         assert len(plugin_parameters.keys()) == 0
         
         update.custom_properties = json.dumps(custom_properties)   
@@ -1111,8 +1106,12 @@ class Connection:
             plugin_enabled = ospray.plugin_enabled
             plugin_name = ospray.plugin_name
             plugin_type = ospray.plugin_type
-            
-            custom_properties, plugin_parameters = self._process_properties(mesh, True)
+
+            expression_locals = {
+                'frame': depsgraph.scene.frame_current
+            }
+
+            custom_properties, plugin_parameters = self._process_properties(mesh, expression_locals, True)
             
             self.update_plugin_instance(mesh.name, plugin_type, plugin_name, plugin_parameters, custom_properties)
 
