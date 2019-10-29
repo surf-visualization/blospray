@@ -1,12 +1,22 @@
 ### Changes in version 0.2 (unreleased)
 
-* Added separate control for render and viewport samples
+* Added separate controls for render and viewport samples
 * Added framebuffer "Update rate" for final renders so 
   the rate at which the framebuffer is updated can be controlled
-* Rudimentary animation support by being able to use `{{frame}}` in
-  plugin property values. You can actually use `{{<expression>}}`, 
-  but `frame` is currently the only value available to use in the expression.
-  But something like `/data/step{{'%04d' % frame}}.bin` will work.
+* Rudimentary animation support:
+  - Handle animated camera when final rendering animation sequences
+  - Added way to use the current frame number in plugin property 
+    values, so data that is frame-dependent can be specified. This 
+    uses a simple template syntax, `{{<expression>}}`. 
+    Currently, `frame` is the only available value to use in the 
+    expression, but can already be used for something like 
+    `/data/step{{'%04d' % frame}}.bin`.
+    
+Plugins:
+
+* Added `geometry_vtk_streamlines.cpp` as an example of what can be
+  done using VTK data loading, together with the OSPRay streamline
+  geometry.
 
 ### Changes in version 0.1
 
