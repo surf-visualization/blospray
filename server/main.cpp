@@ -2214,6 +2214,7 @@ update_camera(CameraSettings& camera_settings)
     cam_updir[2] = camera_settings.up_dir(2);
     
     // XXX for now create new cam object
+    // YYY why?
     if (ospray_camera != nullptr)
         ospRelease(ospray_camera);
 

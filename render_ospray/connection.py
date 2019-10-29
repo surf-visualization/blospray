@@ -138,7 +138,7 @@ class Connection:
     def receive_protobuf(self, message):
         receive_protobuf(self.sock, message)
 
-    def update(self, blend_data, depsgraph):    
+    def update(self, blend_data, depsgraph):
 
         scene = depsgraph.scene
         render = scene.render
@@ -180,7 +180,7 @@ class Connection:
             (render.resolution_x, render.resolution_y, render.resolution_percentage,
             self.framebuffer_width, self.framebuffer_height, self.framebuffer_aspect))
 
-        border = None
+        self.render_border = None
 
         if render.use_border:
             # Blender: X to the right, Y up, i.e. (0,0) is lower-left, same
@@ -203,7 +203,7 @@ class Connection:
 
             # Crop region in ospray is set in normalized screen-space coordinates,
             # i.e. bottom-left of pixel (i,j) is (i,j), but top-right is (i+1,j+1)
-            border = [
+            self.render_border = [
                 left/self.framebuffer_width, bottom/self.framebuffer_height,
                 (right+1)/self.framebuffer_width, (top+1)/self.framebuffer_height
             ]
@@ -217,10 +217,6 @@ class Connection:
             print('Framebuffer for border render: %d x %d' % (self.framebuffer_width, self.framebuffer_height))
         
         self.send_updated_framebuffer_settings(self.framebuffer_width, self.framebuffer_height, OSP_FB_RGBA32F)
-
-        # Camera settings
-
-        self.send_updated_camera(scene.camera, border)  
 
         # World settings      
 
@@ -608,6 +604,8 @@ class Connection:
                 self.send_updated_light(blend_data, depsgraph, obj)
             elif obj.type == 'MESH':                                        
                 self.send_updated_mesh_object(blend_data, depsgraph, obj, obj.data, instance.matrix_world, instance.is_instance, instance.random_id)        
+            elif obj.type == 'CAMERA':
+                self.send_updated_camera(obj, self.render_border)  
             elif obj.type not in ['CAMERA']:
                 print('Warning: not exporting object of type "%s"' % obj.type)
 
