@@ -221,7 +221,11 @@ class Connection:
         # World settings      
 
         self.send_updated_world_settings(world.ospray.background_color, 
-            world.ospray.ambient_color, world.ospray.ambient_intensity)        
+            world.ospray.ambient_color, world.ospray.ambient_intensity)    
+
+        # Camera
+
+        self.send_updated_camera(self.engine().camera_override, self.render_border)  
 
         # Clear scene
 
@@ -604,8 +608,6 @@ class Connection:
                 self.send_updated_light(blend_data, depsgraph, obj)
             elif obj.type == 'MESH':                                        
                 self.send_updated_mesh_object(blend_data, depsgraph, obj, obj.data, instance.matrix_world, instance.is_instance, instance.random_id)        
-            elif obj.type == 'CAMERA':
-                self.send_updated_camera(obj, self.render_border)  
             elif obj.type not in ['CAMERA']:
                 print('Warning: not exporting object of type "%s"' % obj.type)
 

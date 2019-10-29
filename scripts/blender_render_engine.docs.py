@@ -1,4 +1,4 @@
-# Sources from https://docs.blender.org/api/blender2.8/bpy.types.RenderEngine.html
+# Based on sources from https://docs.blender.org/api/blender2.8/bpy.types.RenderEngine.html
 
 import bpy
 import bgl
@@ -27,6 +27,12 @@ class CustomRenderEngine(bpy.types.RenderEngine):
     # small preview for materials, world and lights.
     def render(self, depsgraph):
         scene = depsgraph.scene
+        
+        camera = self.camera_override
+        
+        print('CAMERA matrix')
+        print(camera.matrix_world)
+        
         scale = scene.render.resolution_percentage / 100.0
         self.size_x = int(scene.render.resolution_x * scale)
         self.size_y = int(scene.render.resolution_y * scale)
