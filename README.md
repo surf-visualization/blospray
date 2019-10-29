@@ -248,10 +248,6 @@ Here's the cloud rendered in interactive mode:
 
 ### bmw27_cpu.ospray.blend, bmw27_cpu.original.blend
 
-NOTE: Milan Jaros pointed out (at BCON19) that the original bmw scene
-      uses the `Square Samples` option. The comparisons below will need to 
-      be updated to take the 35^2 samples (instead of 35) into account.
-
 Performance comparison between OSPRay and Cycles. Based on the "Car Demo" test 
 scene (CPU version) by Mike Pan, available from https://www.blender.org/download/demo-files/. 
 
@@ -265,6 +261,8 @@ Notes:
 - The OSPRay scene was matched in terms of render settings. Shaders and lights
   were manually changed to match the look of the original scene, although
   this is very hard to do perfectly.
+- Thanks to Milan Jaros for pointing out at BCON19 that the original bmw scene
+  uses the `Square Samples` option.
   
 Here's the renders at the same 35^2 (= 1225) samples per pixel:
 
@@ -275,20 +273,22 @@ Here's the renders at the same 35^2 (= 1225) samples per pixel:
 
 This takes much longer in OSPRay, but the comparison isn't fair:
 the shaders, light and other settings are different. Even when using
-many more samples per pixel the renderings can never match perfectly.
+many more samples per pixel the renderings will not converge to the
+same image.
 
-So to make a somewhat fairer comparison in noise levels, here's
-using 400 samples per pixel with OSPRay. The total render time
-at 5m50.74s is roughly the same as for the Cycles original render:
+So to make a somewhat fairer comparison, in noise level, here's
+using 400 samples per pixel with OSPRay. The total render time, 
+at 5m50.74s, then is roughly the same as for the Cycles original render
+(5m35.59s):
 
 <img src="./images/bmw27-ospray-400spp.png" width="512">
 
 Here's a crop to compare the different noise levels (Cycles at 1225 SPP,
 OSPRay at 400 SPP and 1225 SPP):
 
-<img src="./images/bmw27-crop-cycles-35spp.png">
-<img src="./images/bmw27-crop-ospray-400spp.png">
-<img src="./images/bmw27-crop-ospray-1225spp.png">
+<img width="150" src="./images/bmw27-crop-cycles-35spp.png">
+<img width="150" src="./images/bmw27-crop-ospray-400spp.png">
+<img width="150" src="./images/bmw27-crop-ospray-1225spp.png">
 
 
 ### gravity_spheres_volume.blend 
