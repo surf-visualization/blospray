@@ -276,10 +276,10 @@ the shaders, light and other settings are different. Even when using
 many more samples per pixel the renderings will not converge to the
 same image.
 
-So to make a somewhat fairer comparison, in noise level, here's
-using 400 samples per pixel with OSPRay. The total render time, 
-at 5m50.74s, then is roughly the same as for the Cycles original render
-(5m35.59s):
+So to make a somewhat fairer comparison, here's using 400 samples per pixel 
+with OSPRay. The total render time, at 5m50.74s, then is roughly the same 
+as for the Cycles original render (5m35.59s) but the noise level is still
+a bit higher:
 
 <img src="./images/bmw27-ospray-400spp.png" width="512">
 
