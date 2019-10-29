@@ -559,31 +559,30 @@ find_scene_object(const std::string& name, SceneObjectType type, bool delete_exi
     SceneObject *scene_object;
     SceneObjectMap::iterator it = scene_objects.find(name);
 
-    if (it != scene_objects.end())
+    if (it == scene_objects.end())
     {
-        scene_object = it->second;
-        if (scene_object->type != type)
+        printf("... No existing object\n");
+        return nullptr;
+    }
+    
+    scene_object = it->second;
+    if (scene_object->type != type)
+    {
+        if (delete_existing_mismatch)
         {
-            if (delete_existing_mismatch)
-            {
-                printf("... Existing object is not of type %s, but of type %s, deleting\n", 
-                    SceneObjectType_names[type], SceneObjectType_names[scene_object->type]);
-                delete_object(name);
-                return nullptr;
-            }
-            else
-                return scene_object;
+            printf("... Existing object is not of type %s, but of type %s, deleting\n", 
+                SceneObjectType_names[type], SceneObjectType_names[scene_object->type]);
+            delete_object(name);
+            return nullptr;
         }
         else
-        {        
-            printf("... Existing object matches type %s\n", SceneObjectType_names[type]);
             return scene_object;
-        }
     }
-
-    printf("... No existing object\n");
-
-    return nullptr;
+    else
+    {        
+        printf("... Existing object matches type %s\n", SceneObjectType_names[type]);
+        return scene_object;
+    }
 }
 
 bool
@@ -1755,8 +1754,8 @@ add_slice_objects(const UpdateObject& update, const Slices& slices)
         if (vmodel == nullptr)
             vmodel = slice_object->vmodel = ospNewVolumetricModel(volume);
             
-            OSPTransferFunction tf = create_transfer_function("cool2warm", state->volume_data_range[0], state->volume_data_range[1]);
-            ospSetObject(vmodel, "transferFunction", tf);            
+        OSPTransferFunction tf = create_transfer_function("cool2warm", state->volume_data_range[0], state->volume_data_range[1]);
+        ospSetObject(vmodel, "transferFunction", tf);            
         ospCommit(vmodel);
         ospRelease(tf);
     
