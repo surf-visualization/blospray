@@ -132,9 +132,9 @@ struct SceneObjectIsosurfaces : SceneObject
 		isosurfaces_geometry = ospNewGeometry("isosurfaces"); 
 		gmodel = ospNewGeometricModel(isosurfaces_geometry);
 		group = ospNewGroup();
-		OSPData data = ospNewCopiedData(1, OSP_OBJECT, &gmodel);
-	        ospSetObject(group, "geometry", data);
-	    ospCommit(group);
+		ospSetObjectAsData(group, "geometry", OSP_GEOMETRIC_MODEL, gmodel);
+		// XXX https://github.com/ospray/ospray/issues/356
+		//ospCommit(group);
 		instance = ospNewInstance(group);
 	}           
 
@@ -163,8 +163,7 @@ struct SceneObjectSlice : SceneObject
 		isosurfaces_geometry = ospNewGeometry("slices"); 
 		gmodel = ospNewGeometricModel(isosurfaces_geometry);
 		group = ospNewGroup();
-		OSPData data = ospNewCopiedData(1, OSP_OBJECT, &gmodel);
-	        ospSetObject(group, "geometry", data);
+		ospSetObjectAsData(group, "geometry", OSP_GEOMETRIC_MODEL, gmodel);
 	    ospCommit(group);
 		instance = ospNewInstance(group);
 	}           

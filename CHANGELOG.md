@@ -11,6 +11,9 @@
     Currently, `frame` is the only available value to use in the 
     expression, but can already be used for something like 
     `/data/step{{'%04d' % frame}}.bin`.
+* Isosurface rendering is now available, by setting the Render mode
+  of the volume object to `Isosurfaces` and setting a property
+  `isovalues` with a list of values.
     
 Plugins:
 

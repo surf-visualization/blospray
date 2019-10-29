@@ -1575,13 +1575,13 @@ update_isosurfaces_object(const UpdateObject& update)
         return false;
     }        
 
-    if (scene_object != nullptr)
+    if (scene_object == nullptr)
     {
         assert(scene_objects.find(object_name) == scene_objects.end());
         printf("setting %s -> %016x\n", object_name.c_str(), isosurfaces_object);
         scene_objects[object_name] = isosurfaces_object;
 
-        // XXX hacked temp volume module
+        // XXX hacked temp volume module, as we need the volume to create it
         vmodel = isosurfaces_object->vmodel = ospNewVolumetricModel(volume);
             OSPTransferFunction tf = create_transfer_function("cool2warm", state->volume_data_range[0], state->volume_data_range[1]);
             ospSetObject(vmodel, "transferFunction", tf);
@@ -1589,9 +1589,8 @@ update_isosurfaces_object(const UpdateObject& update)
             //ospSetFloat(volumeModel, "samplingRate", 0.5f);
          ospCommit(vmodel);
 
-        ospSetObjectAsData(gmodel, "material", OSP_MATERIAL, default_materials[current_renderer_type]);
-        ospCommit(gmodel);
-     }
+        ospSetObjectAsData(gmodel, "material", OSP_MATERIAL, default_materials[current_renderer_type]);        
+    }
 
     const char *s_custom_properties = update.custom_properties().c_str();
     //printf("Received custom properties:\n%s\n", s_custom_properties);
@@ -1618,8 +1617,8 @@ update_isosurfaces_object(const UpdateObject& update)
     OSPData isovalues_data = ospNewCopiedData(n, OSP_FLOAT, isovalues);    
     delete [] isovalues;
 
-    ospSetObject(isosurfaces_geometry, "volume", vmodel);       		// XXX structured vol example indicates this needs to be the volume model??
-    ospRelease(volume);
+    ospSetObject(isosurfaces_geometry, "volume", vmodel);
+    //ospRelease(volume);
 
     ospSetObject(isosurfaces_geometry, "isovalue", isovalues_data);
     ospRelease(isovalues_data);
@@ -1634,6 +1633,9 @@ update_isosurfaces_object(const UpdateObject& update)
 
     ospSetParam(instance, "xfm", OSP_AFFINE3F, affine_xform);
     ospCommit(instance);
+
+    ospCommit(gmodel);
+    ospCommit(group);
 
     if (scene_object == nullptr)
         scene_objects[object_name] = isosurfaces_object;

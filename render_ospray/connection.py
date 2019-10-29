@@ -1180,6 +1180,21 @@ class Connection:
         # See https://devtalk.blender.org/t/universal-unique-id-per-object/363/3
 
         self.engine().update_stats('', 'Updating Blender MESH DATA "%s"' % mesh.name)
+
+        # Get triangulated geometry
+        mesh.calc_loop_triangles()
+
+        nv = len(mesh.vertices)
+        nt = len(mesh.loop_triangles)
+
+        print('... MESH DATA "%s": %d vertices, %d triangles' % (mesh.name, nv, nt))
+
+        if nt == 0 or nv == 0:
+            print('... No vertices/triangles, NOT sending mesh')
+            self.mesh_data_exported.add(mesh.name)
+            return        
+
+        # Send client message
         
         client_message = ClientMessage()
         client_message.type = ClientMessage.UPDATE_BLENDER_MESH       
@@ -1190,16 +1205,10 @@ class Connection:
         # Send the actual mesh geometry
         
         mesh_data = MeshData()
-        flags = 0
+        mesh_data.num_vertices = nv
+        mesh_data.num_triangles = nt
 
-        # Send (triangulated) geometry
-
-        mesh.calc_loop_triangles()
-
-        nv = mesh_data.num_vertices = len(mesh.vertices)
-        nt = mesh_data.num_triangles = len(mesh.loop_triangles)
-
-        print('MESH DATA "%s": %d vertices, %d triangles' % (mesh.name, nv, nt))
+        flags = 0    
 
         # Check if any faces use smooth shading
         # XXX we currently don't handle meshes with both smooth

@@ -69,6 +69,7 @@ with certain limitations :)
       shader editor almost NONE of those nodes will work.   
     - Modifiers that work on mesh geometry should work, as they get
       handled by Blender's dependency graph before being passed to BLOSPRAY
+    - Volume and isosurfaces rendering (see `tests/volren.blend`)
 * Rendering
     - Supports OSPRay's SciVis and Path Tracer renderers, and most of
       their settings
@@ -116,7 +117,7 @@ Known to be missing and/or buggy:
     - This is not supported by OSPRay itself
 * Parallel rendering mode through MPI is supported by OSPRay, but not 
   used in BLOSPRAY yet
-* Slice rendering and isosurfacing on volumes is not working yet
+* Slice rendering on volumes is not working yet
 * In interactive render mode when showing a camera view the rendered
   view does not match the scene
 * Many errors that can happen during scene sync between Blender and
