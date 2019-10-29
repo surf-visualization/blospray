@@ -225,7 +225,11 @@ class Connection:
 
         # Camera
 
-        self.send_updated_camera(self.engine().camera_override, self.render_border)  
+        camera = self.engine().camera_override
+        if camera is None:
+            camera = scene.camera
+
+        self.send_updated_camera(camera, self.render_border)  
 
         # Clear scene
 
