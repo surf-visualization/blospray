@@ -104,13 +104,13 @@ bool                        update_ospray_scene_lights = true;
 
 int                         framebuffer_width = 0, framebuffer_height = 0;
 OSPFrameBufferFormat        framebuffer_format;
-int                         framebuffer_initial_reduction_factor = 1;
 int                         framebuffer_update_rate = 1;
-int                         reduced_framebuffer_width, reduced_framebuffer_height;
-std::vector<OSPFrameBuffer> framebuffers;                       
+int                         reduced_framebuffer_width, reduced_framebuffer_height;          
+int                         framebuffer_initial_reduction_factor = 1;             
 std::vector<int>            framebuffer_reduction_factors;      // [0] = 1, ... [-1] = framebuffer_initial_reduction_factor
 int                         framebuffer_reduction_index = 0;    // Index into framebuffer_reduction_factors
-bool                        recreate_framebuffers = false;      // XXX workaround for ospCancel screwing up the framebuffer
+int                         framebuffer_reduction_factor = 1;
+std::vector<OSPFrameBuffer> framebuffers;
 
 TCPSocket                   *render_output_socket = nullptr;
 
@@ -3123,40 +3123,29 @@ handle_client_message(TCPSocket *sock, const ClientMessage& client_message, bool
 void
 start_rendering(const ClientMessage& client_message)
 {
+    int factor;
+
     if (render_mode != RM_IDLE)
     {        
         printf("Received START_RENDERING message, but we're already rendering, ignoring!\n");                        
         return;                        
     }
 
+    auto& mode = client_message.string_value();
+
     gettimeofday(&rendering_start_time, NULL);    
 
     render_samples = client_message.uint_value();  
     current_sample = 1;
 
-    auto& mode = client_message.string_value();
-    if (mode == "final")
-    {
-        render_mode = RM_FINAL;
-        framebuffer_initial_reduction_factor = 1;
-        framebuffer_reduction_index = 0;
-        framebuffer_update_rate = client_message.uint_value2();
-    }
-    else if (mode == "interactive")
-    {
-        render_mode = RM_INTERACTIVE;
-        framebuffer_initial_reduction_factor = client_message.uint_value2();
-        framebuffer_reduction_factor= XXX;
-        framebuffer_update_rate = 1;
-    }
-
     // Prepare framebuffer(s), if needed
-    if (framebuffers.size()-1 != framebuffer_reduction_factors.size() || recreate_framebuffers)
+    if (framebuffers.size()-1 != framebuffer_reduction_factors.size())
     {
         // Determine sequence of reduction factors
         // 1 .. framebuffer_initial_reduction_factor
         framebuffer_reduction_factors.clear();
-        int factor = framebuffer_initial_reduction_factor;
+
+        factor = framebuffer_initial_reduction_factor;
         while (factor > 1)
         {
             framebuffer_reduction_factors.insert(framebuffer_reduction_factors.begin(), factor);
@@ -3173,7 +3162,7 @@ start_rendering(const ClientMessage& client_message)
         }
         framebuffers.clear();
 
-        for (factor : framebuffer_reduction_factors)
+        for (int factor : framebuffer_reduction_factors)
         {
             reduced_framebuffer_width = framebuffer_width / factor;
             reduced_framebuffer_height = framebuffer_height / factor;
@@ -3194,8 +3183,6 @@ start_rendering(const ClientMessage& client_message)
 
             framebuffers.push_back(framebuffer);
         }
-
-        recreate_framebuffers = false;
     }
 
     // Clear framebuffer contents
@@ -3205,6 +3192,23 @@ start_rendering(const ClientMessage& client_message)
             ospResetAccumulation(fb);
     }
 
+    if (mode == "final")
+    {
+        render_mode = RM_FINAL;
+        framebuffer_initial_reduction_factor = 1;
+        framebuffer_reduction_index = 0;
+        framebuffer_update_rate = client_message.uint_value2();
+    }
+    else if (mode == "interactive")
+    {
+        render_mode = RM_INTERACTIVE;
+        framebuffer_initial_reduction_factor = client_message.uint_value2();
+        framebuffer_reduction_index = framebuffer_reduction_factors.size() - 1;
+        framebuffer_update_rate = 1;
+    }
+
+    framebuffer_reduction_factor = framebuffer_reduction_factors[framebuffer_reduction_index];
+    // XXX same division as above, store fb size in list as well?
     reduced_framebuffer_width = framebuffer_width / framebuffer_reduction_factor;
     reduced_framebuffer_height = framebuffer_height / framebuffer_reduction_factor;
         
@@ -3296,8 +3300,6 @@ handle_connection(TCPSocket *sock)
             ospCancel(render_future);
             ospWait(render_future, OSP_TASK_FINISHED);
 
-            recreate_framebuffers = true;
-            
             ospRelease(render_future);
             render_future = nullptr;
 
