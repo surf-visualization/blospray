@@ -66,8 +66,6 @@ OSPRenderer     ospray_renderer;
 std::string     current_renderer_type;
 OSPWorld        ospray_world = nullptr;
 OSPCamera       ospray_camera = nullptr;
-std::vector<OSPFrameBuffer>  framebuffers;    // 0 = nullptr (unused), 1 = FB for reduction factor 1, etc.
-bool            recreate_framebuffers = false;  // XXX workaround for ospCancel screwing up the framebuffer
 
 struct SceneMaterial
 {
@@ -106,9 +104,14 @@ bool                        update_ospray_scene_lights = true;
 
 int                         framebuffer_width = 0, framebuffer_height = 0;
 OSPFrameBufferFormat        framebuffer_format;
-int                         framebuffer_reduction_factor = 1;
+int                         framebuffer_initial_reduction_factor = 1;
 int                         framebuffer_update_rate = 1;
 int                         reduced_framebuffer_width, reduced_framebuffer_height;
+std::vector<OSPFrameBuffer> framebuffers;                       
+std::vector<int>            framebuffer_reduction_factors;      // [0] = 1, ... [-1] = framebuffer_initial_reduction_factor
+int                         framebuffer_reduction_index = 0;    // Index into framebuffer_reduction_factors
+bool                        recreate_framebuffers = false;      // XXX workaround for ospCancel screwing up the framebuffer
+
 TCPSocket                   *render_output_socket = nullptr;
 
 enum RenderMode
@@ -2015,7 +2018,7 @@ get_server_state(json& j)
         p.push_back((size_t)framebuffers[i]);
     fb["framebuffers"] = p;
 
-    fb["framebuffer_reduction_factor"] = framebuffer_reduction_factor;
+    fb["framebuffer_initial_reduction_factor"] = framebuffer_initial_reduction_factor;
 
     j["framebuffer"] = fb;
 
@@ -2146,6 +2149,8 @@ update_framebuffer(OSPFrameBufferFormat format, uint32_t width, uint32_t height)
 
     if (framebuffer_width == width && framebuffer_height == height && framebuffer_format == format)
         return;
+
+    printf("... Clearing existing framebuffers\n");
 
     // Clear framebuffers
     for (auto& fb : framebuffers)
@@ -2914,17 +2919,17 @@ ensure_idle_render_mode()
 
     // XXX
     // Re-create framebuffer to work around https://github.com/ospray/ospray/issues/367
-    ospRelease(framebuffers[framebuffer_reduction_factor]);
+    ospRelease(framebuffers[framebuffer_reduction_index]);
 
     int channels = OSP_FB_COLOR | /*OSP_FB_DEPTH |*/ OSP_FB_ACCUM | OSP_FB_VARIANCE;
     //int channels = OSP_FB_COLOR | /*OSP_FB_DEPTH |*/ OSP_FB_ACCUM | OSP_FB_VARIANCE | OSP_FB_NORMAL | OSP_FB_ALBEDO;
 
-    framebuffers[framebuffer_reduction_factor] = ospNewFrameBuffer(
+    framebuffers[framebuffer_reduction_index] = ospNewFrameBuffer(
         reduced_framebuffer_width,
         reduced_framebuffer_height,
         framebuffer_format, 
         channels);
-    ospResetAccumulation(framebuffers[framebuffer_reduction_factor]);    
+    ospResetAccumulation(framebuffers[framebuffer_reduction_index]);    
 }
 
 // Returns false on socket errors
@@ -3133,19 +3138,32 @@ start_rendering(const ClientMessage& client_message)
     if (mode == "final")
     {
         render_mode = RM_FINAL;
-        framebuffer_reduction_factor = 1;
+        framebuffer_initial_reduction_factor = 1;
+        framebuffer_reduction_index = 0;
         framebuffer_update_rate = client_message.uint_value2();
     }
     else if (mode == "interactive")
     {
         render_mode = RM_INTERACTIVE;
-        framebuffer_reduction_factor = client_message.uint_value2();
+        framebuffer_initial_reduction_factor = client_message.uint_value2();
+        framebuffer_reduction_factor= XXX;
         framebuffer_update_rate = 1;
     }
 
     // Prepare framebuffer(s), if needed
-    if (framebuffers.size()-1 != framebuffer_reduction_factor || recreate_framebuffers)
+    if (framebuffers.size()-1 != framebuffer_reduction_factors.size() || recreate_framebuffers)
     {
+        // Determine sequence of reduction factors
+        // 1 .. framebuffer_initial_reduction_factor
+        framebuffer_reduction_factors.clear();
+        int factor = framebuffer_initial_reduction_factor;
+        while (factor > 1)
+        {
+            framebuffer_reduction_factors.insert(framebuffer_reduction_factors.begin(), factor);
+            factor >>= 1;
+        }
+
+        // Allocate framebuffers
         OSPFrameBuffer framebuffer;
 
         for (auto& fb : framebuffers)
@@ -3155,9 +3173,7 @@ start_rendering(const ClientMessage& client_message)
         }
         framebuffers.clear();
 
-        framebuffers.push_back(nullptr);
-
-        for (int factor = 1; factor <= framebuffer_reduction_factor; factor++)
+        for (factor : framebuffer_reduction_factors)
         {
             reduced_framebuffer_width = framebuffer_width / factor;
             reduced_framebuffer_height = framebuffer_height / factor;
@@ -3182,7 +3198,7 @@ start_rendering(const ClientMessage& client_message)
         recreate_framebuffers = false;
     }
 
-    // Clear framebuffers
+    // Clear framebuffer contents
     for (auto& fb : framebuffers)
     {
         if (fb != nullptr)
@@ -3201,7 +3217,13 @@ start_rendering(const ClientMessage& client_message)
         print_server_state();    
 
     printf("Rendering %d samples (%s):\n", render_samples, mode.c_str());
-    printf("[1:%d] ", framebuffer_reduction_factor);
+
+    // XXX move this to rendering loop
+    if (render_mode == RM_INTERACTIVE)
+        printf("[1:%d] ", framebuffer_reduction_factor);
+    else
+        printf("[%d/%d] ", current_sample, render_samples);
+
     printf("I:%d L:%d m:%d | ", ospray_scene_instances.size(), ospray_scene_lights.size(), scene_materials.size());
     fflush(stdout);    
 
