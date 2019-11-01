@@ -32,7 +32,7 @@ message ClientMessage
         UPDATE_RENDERER_TYPE = 20;
         UPDATE_WORLD_SETTINGS = 21;
         UPDATE_RENDER_SETTINGS = 22;         
-        UPDATE_FRAMEBUFFER = 23;        
+        UPDATE_FRAMEBUFFER_SETTINGS = 23;        
         UPDATE_BLENDER_MESH = 24;
         UPDATE_PLUGIN_INSTANCE = 25;
         UPDATE_CAMERA = 26;
@@ -80,7 +80,7 @@ message ClientMessage
                     = framebuffer update rate (final)
     UPDATE_RENDERER_TYPE:
         string_value = "scivis" | "pathtracer"
-    UPDATE_FRAMEBUFFER:
+    UPDATE_FRAMEBUFFER_SETTINGS:
         string_value = "final" | "interactive"
         uint_value = format (OSPFrameBufferFormat)
         uint_value2 = width

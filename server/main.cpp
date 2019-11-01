@@ -2186,10 +2186,9 @@ handle_update_object(TCPSocket *sock)
     return true;
 }
 
-// XXX rename update_framebuffer_specs
 // XXX include channels
 void
-update_framebuffer(const std::string& mode, OSPFrameBufferFormat format, uint32_t width, uint32_t height)
+update_framebuffer_settings(const std::string& mode, OSPFrameBufferFormat format, uint32_t width, uint32_t height)
 {
     printf("FRAMEBUFFER %s, %d x %d (format %d)\n", mode.c_str(), width, height, format);
 
@@ -3088,9 +3087,9 @@ handle_client_message(TCPSocket *sock, const ClientMessage& client_message, bool
             handle_update_object(sock);
             break;
         
-        case ClientMessage::UPDATE_FRAMEBUFFER:
+        case ClientMessage::UPDATE_FRAMEBUFFER_SETTINGS:
             ensure_idle_render_mode();
-            update_framebuffer(client_message.string_value(),
+            update_framebuffer_settings(client_message.string_value(),
                 (OSPFrameBufferFormat)(client_message.uint_value()), 
                 client_message.uint_value2(), client_message.uint_value3());
             break;
@@ -3195,7 +3194,7 @@ start_rendering(const ClientMessage& client_message)
     {
         render_mode = RM_FINAL;
         framebuffer_update_rate = client_message.uint_value2();
-        
+
         ospResetAccumulation(final_framebuffer);
     }
     else if (mode == "interactive")
@@ -3271,10 +3270,14 @@ start_rendering(const ClientMessage& client_message)
 
     gettimeofday(&frame_start_time, NULL);
 
+    OSPFrameBuffer framebuffer;
+
     if (render_mode == RM_FINAL)
-        render_future = ospRenderFrame(final_framebuffer, ospray_renderer, ospray_camera, ospray_world);
+        framebuffer = final_framebuffer;
     else
-        render_future = ospRenderFrame(framebuffers[framebuffer_reduction_factor].framebuffer, ospray_renderer, ospray_camera, ospray_world);
+        framebuffer = framebuffers[framebuffer_reduction_factor].framebuffer;
+
+    render_future = ospRenderFrame(framebuffer, ospray_renderer, ospray_camera, ospray_world);
     
     if (render_future == nullptr)
         printf("ERROR: ospRenderFrame() returned NULL!\n");

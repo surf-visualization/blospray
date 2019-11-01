@@ -13,7 +13,7 @@
     `/data/step{{'%04d' % frame}}.bin`.
 * Isosurface rendering is now available, by setting the Render mode
   of the volume object to `Isosurfaces` and setting a property
-  `isovalues` with a list of values.
+  `isovalues` on the object with a list of values.
     
 Plugins:
 

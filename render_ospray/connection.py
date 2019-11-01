@@ -287,7 +287,7 @@ class Connection:
     def send_updated_framebuffer_settings(self, mode, width, height, format):
 
         client_message = ClientMessage()
-        client_message.type = ClientMessage.UPDATE_FRAMEBUFFER
+        client_message.type = ClientMessage.UPDATE_FRAMEBUFFER_SETTINGS
         client_message.string_value = mode
         client_message.uint_value = format
         client_message.uint_value2 = width
