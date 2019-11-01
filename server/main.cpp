@@ -103,6 +103,12 @@ bool                        update_ospray_scene_instances = true;
 bool                        update_ospray_scene_lights = true;
 
 // User-chosen framebuffer settings
+// Final render
+int                         final_framebuffer_width = 0, final_framebuffer_height = 0;
+OSPFrameBufferFormat        final_framebuffer_format;
+int                         final_framebuffer_update_rate = 1;    
+OSPFrameBuffer              final_framebuffer = nullptr;      
+// Interactive render
 int                         framebuffer_width = 0, framebuffer_height = 0;
 OSPFrameBufferFormat        framebuffer_format;
 int                         framebuffer_update_rate = 1;          
@@ -110,6 +116,7 @@ int                         framebuffer_initial_reduction_factor = 1;
 
 // Derived values    
 
+// XXX interactive render only
 struct AllocatedFramebuffer
 {
     OSPFrameBuffer  framebuffer;
@@ -2179,25 +2186,47 @@ handle_update_object(TCPSocket *sock)
     return true;
 }
 
-// XXX rename update_framebuffer_size
+// XXX rename update_framebuffer_specs
 // XXX include channels
 void
-update_framebuffer(OSPFrameBufferFormat format, uint32_t width, uint32_t height)
+update_framebuffer(const std::string& mode, OSPFrameBufferFormat format, uint32_t width, uint32_t height)
 {
-    printf("FRAMEBUFFER %d x %d (format %d)\n", width, height, format);
+    printf("FRAMEBUFFER %s, %d x %d (format %d)\n", mode.c_str(), width, height, format);
 
-    if (framebuffer_width == width && framebuffer_height == height && framebuffer_format == format)
-        return;
+    if (mode == "final")
+    {
+        
+        if (final_framebuffer_width == width && final_framebuffer_height == height && final_framebuffer_format == format)
+        {
+            printf("... No need to update framebuffer dimensions or format\n");
+            return;
+        }
 
-    printf("... Clearing existing framebuffers\n");
+        if (final_framebuffer != nullptr)
+            ospRelease(final_framebuffer);
 
-    // Clear framebuffers
-    framebuffers.clear();
+        int channels = OSP_FB_COLOR | /*OSP_FB_DEPTH |*/ OSP_FB_ACCUM | OSP_FB_VARIANCE;
+        //int channels = OSP_FB_COLOR | /*OSP_FB_DEPTH |*/ OSP_FB_ACCUM | OSP_FB_VARIANCE | OSP_FB_NORMAL | OSP_FB_ALBEDO;    
 
-    // Update values to use
-    framebuffer_width = width;
-    framebuffer_height = height;
-    framebuffer_format = format;
+        final_framebuffer = ospNewFrameBuffer(width, height, format, channels);
+        final_framebuffer_width = width;
+        final_framebuffer_height = height;
+        final_framebuffer_format = format;
+    }
+    else
+    {
+        assert(mode == "interactive");
+
+        printf("... Clearing existing framebuffers\n");
+
+        // Clear framebuffers
+        framebuffers.clear();
+
+        // Update values to use
+        framebuffer_width = width;
+        framebuffer_height = height;
+        framebuffer_format = format;        
+    }
 }
 
 void
@@ -3061,7 +3090,8 @@ handle_client_message(TCPSocket *sock, const ClientMessage& client_message, bool
         
         case ClientMessage::UPDATE_FRAMEBUFFER:
             ensure_idle_render_mode();
-            update_framebuffer((OSPFrameBufferFormat)(client_message.uint_value()), 
+            update_framebuffer(client_message.string_value(),
+                (OSPFrameBufferFormat)(client_message.uint_value()), 
                 client_message.uint_value2(), client_message.uint_value3());
             break;
 
@@ -3164,60 +3194,61 @@ start_rendering(const ClientMessage& client_message)
     if (mode == "final")
     {
         render_mode = RM_FINAL;
-        framebuffer_initial_reduction_factor = 1;
         framebuffer_update_rate = client_message.uint_value2();
+        
+        ospResetAccumulation(final_framebuffer);
     }
     else if (mode == "interactive")
     {
         render_mode = RM_INTERACTIVE;
         framebuffer_initial_reduction_factor = client_message.uint_value2();
         framebuffer_update_rate = 1;
-    }
 
-    // Prepare framebuffer(s), if needed
-    if (framebuffer_initial_reduction_factor != framebuffer_reduction_factors.size())
-    {
-        // Clear existing framebuffers
-        framebuffers.clear();
-
-        // Determine sequence of reduction factors
-        // [1, 2, .., framebuffer_initial_reduction_factor]
-        framebuffer_reduction_factors.clear();
-        factor = framebuffer_initial_reduction_factor;
-        while (factor > 1)
+        // Prepare framebuffer(s), if needed
+        if (framebuffer_initial_reduction_factor != framebuffer_reduction_factors.size())
         {
-            framebuffer_reduction_factors.insert(framebuffer_reduction_factors.begin(), factor);
-            factor >>= 1;
+            // Clear existing framebuffers
+            framebuffers.clear();
+
+            // Determine sequence of reduction factors
+            // [1, 2, .., framebuffer_initial_reduction_factor]
+            framebuffer_reduction_factors.clear();
+            factor = framebuffer_initial_reduction_factor;
+            while (factor > 1)
+            {
+                framebuffer_reduction_factors.insert(framebuffer_reduction_factors.begin(), factor);
+                factor >>= 1;
+            }
+
+            // Allocate new set of framebuffers
+
+            for (int factor : framebuffer_reduction_factors)
+            {
+                reduced_framebuffer_width = framebuffer_width / factor;
+                reduced_framebuffer_height = framebuffer_height / factor;
+
+                printf("... Initializing framebuffer of %dx%d pixels (%dx%d @ reduction factor %d), format %d\n", 
+                    reduced_framebuffer_width, reduced_framebuffer_height, 
+                    framebuffer_width, framebuffer_height, factor, 
+                    framebuffer_format);
+
+                int channels = OSP_FB_COLOR | /*OSP_FB_DEPTH |*/ OSP_FB_ACCUM | OSP_FB_VARIANCE;
+                //int channels = OSP_FB_COLOR | /*OSP_FB_DEPTH |*/ OSP_FB_ACCUM | OSP_FB_VARIANCE | OSP_FB_NORMAL | OSP_FB_ALBEDO;
+
+                framebuffers.push_back(
+                    AllocatedFramebuffer(reduced_framebuffer_width, reduced_framebuffer_height, framebuffer_format, channels)
+                );
+            }
         }
 
-        // Allocate new set of framebuffers
+        // Clear framebuffer contents
+        for (auto& fb : framebuffers)
+            fb.clear();
 
-        for (int factor : framebuffer_reduction_factors)
-        {
-            reduced_framebuffer_width = framebuffer_width / factor;
-            reduced_framebuffer_height = framebuffer_height / factor;
-
-            printf("... Initializing framebuffer of %dx%d pixels (%dx%d @ reduction factor %d), format %d\n", 
-                reduced_framebuffer_width, reduced_framebuffer_height, 
-                framebuffer_width, framebuffer_height, factor, 
-                framebuffer_format);
-
-            int channels = OSP_FB_COLOR | /*OSP_FB_DEPTH |*/ OSP_FB_ACCUM | OSP_FB_VARIANCE;
-            //int channels = OSP_FB_COLOR | /*OSP_FB_DEPTH |*/ OSP_FB_ACCUM | OSP_FB_VARIANCE | OSP_FB_NORMAL | OSP_FB_ALBEDO;
-
-            framebuffers.push_back(
-                AllocatedFramebuffer(reduced_framebuffer_width, reduced_framebuffer_height, framebuffer_format, channels)
-            );
-        }
+        framebuffer_reduction_index = framebuffer_reduction_factors.size() - 1;
+        reduced_framebuffer_width = framebuffers[framebuffer_reduction_index].width;
+        reduced_framebuffer_height = framebuffers[framebuffer_reduction_index].height;        
     }
-
-    // Clear framebuffer contents
-    for (auto& fb : framebuffers)
-        fb.clear();
-
-    framebuffer_reduction_index = framebuffer_reduction_factors.size() - 1;
-    reduced_framebuffer_width = framebuffers[framebuffer_reduction_index].width;
-    reduced_framebuffer_height = framebuffers[framebuffer_reduction_index].height;
         
     cancel_rendering = false;
 
@@ -3239,7 +3270,12 @@ start_rendering(const ClientMessage& client_message)
     fflush(stdout);    
 
     gettimeofday(&frame_start_time, NULL);
-    render_future = ospRenderFrame(framebuffers[framebuffer_reduction_factor].framebuffer, ospray_renderer, ospray_camera, ospray_world);
+
+    if (render_mode == RM_FINAL)
+        render_future = ospRenderFrame(final_framebuffer, ospray_renderer, ospray_camera, ospray_world);
+    else
+        render_future = ospRenderFrame(framebuffers[framebuffer_reduction_factor].framebuffer, ospray_renderer, ospray_camera, ospray_world);
+    
     if (render_future == nullptr)
         printf("ERROR: ospRenderFrame() returned NULL!\n");
 }
@@ -3336,7 +3372,12 @@ handle_connection(TCPSocket *sock)
         ospRelease(render_future);
         render_future = nullptr;
 
-        OSPFrameBuffer framebuffer = framebuffers[framebuffer_reduction_factor].framebuffer;
+        OSPFrameBuffer framebuffer;
+
+        if (render_mode == RM_FINAL)
+            framebuffer = final_framebuffer;
+        else
+            framebuffer = framebuffers[framebuffer_reduction_factor].framebuffer;
 
         variance = ospGetVariance(framebuffer);
         
@@ -3370,19 +3411,19 @@ handle_connection(TCPSocket *sock)
                 sprintf(fname, "/dev/shm/blospray-final-%04d.exr", current_sample);
 
 #if 0
-                const float *color = (float*)ospMapFrameBuffer(framebuffer, OSP_FB_COLOR);     
-                const float *normal = (float*)ospMapFrameBuffer(framebuffer, OSP_FB_NORMAL);     
-                const float *albedo = (float*)ospMapFrameBuffer(framebuffer, OSP_FB_ALBEDO);     
+                const float *color = (float*)ospMapFrameBuffer(final_framebuffer, OSP_FB_COLOR);     
+                const float *normal = (float*)ospMapFrameBuffer(final_framebuffer, OSP_FB_NORMAL);     
+                const float *albedo = (float*)ospMapFrameBuffer(final_framebuffer, OSP_FB_ALBEDO);     
 
-                writeFramebufferEXR(fname, reduced_framebuffer_width, reduced_framebuffer_height, framebuffer_compression, color, nullptr, normal, albedo);
+                writeFramebufferEXR(fname, final_framebuffer_width, final_framebuffer_height, framebuffer_compression, color, nullptr, normal, albedo);
                 
-                ospUnmapFrameBuffer(color, framebuffer);
-                ospUnmapFrameBuffer(normal, framebuffer);
-                ospUnmapFrameBuffer(albedo, framebuffer);
+                ospUnmapFrameBuffer(color, final_framebuffer);
+                ospUnmapFrameBuffer(normal, final_framebuffer);
+                ospUnmapFrameBuffer(albedo, final_framebuffer);
 #else
-                const float *color = (float*)ospMapFrameBuffer(framebuffer, OSP_FB_COLOR);   
-                writeFramebufferEXR(fname, reduced_framebuffer_width, reduced_framebuffer_height, framebuffer_compression, color);
-                ospUnmapFrameBuffer(color, framebuffer);
+                const float *color = (float*)ospMapFrameBuffer(final_framebuffer, OSP_FB_COLOR);   
+                writeFramebufferEXR(fname, final_framebuffer_width, final_framebuffer_height, framebuffer_compression, color);
+                ospUnmapFrameBuffer(color, final_framebuffer);
 #endif
                 stat(fname, &st);
 
@@ -3502,7 +3543,11 @@ handle_connection(TCPSocket *sock)
             
             gettimeofday(&frame_start_time, NULL);
 
-            render_future = ospRenderFrame(framebuffers[framebuffer_reduction_factor].framebuffer, ospray_renderer, ospray_camera, ospray_world);
+            if (render_mode == RM_FINAL)            
+                render_future = ospRenderFrame(final_framebuffer, ospray_renderer, ospray_camera, ospray_world);
+            else
+                render_future = ospRenderFrame(framebuffers[framebuffer_reduction_factor].framebuffer, ospray_renderer, ospray_camera, ospray_world);
+
             if (render_future == nullptr)
                 printf("ERROR: ospRenderFrame() returned NULL!\n");
         }

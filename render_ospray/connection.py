@@ -216,7 +216,7 @@ class Connection:
 
             print('Framebuffer for border render: %d x %d' % (self.framebuffer_width, self.framebuffer_height))
         
-        self.send_updated_framebuffer_settings(self.framebuffer_width, self.framebuffer_height, OSP_FB_RGBA32F)
+        self.send_updated_framebuffer_settings('final', self.framebuffer_width, self.framebuffer_height, OSP_FB_RGBA32F)
 
         # World settings      
 
@@ -284,10 +284,11 @@ class Connection:
         send_protobuf(self.sock, client_message)    
         # XXX flags to pick which scene items are cleared    
 
-    def send_updated_framebuffer_settings(self, width, height, format):
+    def send_updated_framebuffer_settings(self, mode, width, height, format):
 
         client_message = ClientMessage()
         client_message.type = ClientMessage.UPDATE_FRAMEBUFFER
+        client_message.string_value = mode
         client_message.uint_value = format
         client_message.uint_value2 = width
         client_message.uint_value3 = height
