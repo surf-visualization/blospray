@@ -107,11 +107,11 @@ bool                        update_ospray_scene_lights = true;
 int                         final_framebuffer_width = 0, final_framebuffer_height = 0;
 OSPFrameBufferFormat        final_framebuffer_format;
 int                         final_framebuffer_update_rate = 1;    
-OSPFrameBuffer              final_framebuffer = nullptr;      
+OSPFrameBuffer              final_framebuffer = nullptr;   
+int                         framebuffer_update_rate = 1;    
 // Interactive render
-int                         framebuffer_width = 0, framebuffer_height = 0;
-OSPFrameBufferFormat        framebuffer_format;
-int                         framebuffer_update_rate = 1;          
+int                         interactive_framebuffer_width = 0, interactive_framebuffer_height = 0;
+OSPFrameBufferFormat        interactive_framebuffer_format;
 int                         framebuffer_initial_reduction_factor = 1;         
 
 // Derived values    
@@ -2216,15 +2216,18 @@ update_framebuffer_settings(const std::string& mode, OSPFrameBufferFormat format
     {
         assert(mode == "interactive");
 
-        printf("... Clearing existing framebuffers\n");
+        if (interactive_framebuffer_width == width && interactive_framebuffer_height == height && interactive_framebuffer_format == format)
+            return;
+
+        printf("... Clearing existing framebuffers (dimensions or format changed)\n");
 
         // Clear framebuffers
         framebuffers.clear();
 
         // Update values to use
-        framebuffer_width = width;
-        framebuffer_height = height;
-        framebuffer_format = format;        
+        interactive_framebuffer_width = width;
+        interactive_framebuffer_height = height;
+        interactive_framebuffer_format = format;        
     }
 }
 
@@ -2718,7 +2721,7 @@ update_world_settings(const WorldSettings& world_settings)
     return true;
 }
 
-
+/*
 // Send result
 
 size_t
@@ -2738,7 +2741,6 @@ write_framebuffer_exr(OSPFrameBuffer framebuffer, const char *fname)
     return st.st_size;
 }
 
-/*
 // Not used atm, as we use sendfile()
 void
 send_framebuffer(TCPSocket *sock)
@@ -3174,6 +3176,7 @@ void
 start_rendering(const ClientMessage& client_message)
 {
     int factor;
+    OSPFrameBuffer framebuffer;
 
     if (render_mode != RM_IDLE)
     {        
@@ -3195,6 +3198,7 @@ start_rendering(const ClientMessage& client_message)
         render_mode = RM_FINAL;
         framebuffer_update_rate = client_message.uint_value2();
 
+        framebuffer = final_framebuffer;
         ospResetAccumulation(final_framebuffer);
     }
     else if (mode == "interactive")
@@ -3204,38 +3208,45 @@ start_rendering(const ClientMessage& client_message)
         framebuffer_update_rate = 1;
 
         // Prepare framebuffer(s), if needed
-        if (framebuffer_initial_reduction_factor != framebuffer_reduction_factors.size())
+        if (framebuffer_reduction_factors.size() == 0 
+            || 
+            framebuffer_reduction_factors[framebuffer_reduction_factors.size()-1] != framebuffer_initial_reduction_factor)
         {
             // Clear existing framebuffers
             framebuffers.clear();
+            framebuffer_reduction_factors.clear();
 
             // Determine sequence of reduction factors
             // [1, 2, .., framebuffer_initial_reduction_factor]
-            framebuffer_reduction_factors.clear();
             factor = framebuffer_initial_reduction_factor;
-            while (factor > 1)
+            while (factor >= 1)
             {
                 framebuffer_reduction_factors.insert(framebuffer_reduction_factors.begin(), factor);
                 factor >>= 1;
             }
 
+            printf("... Reduction factors: ");
+            for (auto& factor : framebuffer_reduction_factors)
+                printf("%d ", factor);
+            printf("\n");
+
             // Allocate new set of framebuffers
 
             for (int factor : framebuffer_reduction_factors)
             {
-                reduced_framebuffer_width = framebuffer_width / factor;
-                reduced_framebuffer_height = framebuffer_height / factor;
+                reduced_framebuffer_width = interactive_framebuffer_width / factor;
+                reduced_framebuffer_height = interactive_framebuffer_height / factor;
 
                 printf("... Initializing framebuffer of %dx%d pixels (%dx%d @ reduction factor %d), format %d\n", 
                     reduced_framebuffer_width, reduced_framebuffer_height, 
-                    framebuffer_width, framebuffer_height, factor, 
-                    framebuffer_format);
+                    interactive_framebuffer_width, interactive_framebuffer_height, factor, 
+                    interactive_framebuffer_format);
 
                 int channels = OSP_FB_COLOR | /*OSP_FB_DEPTH |*/ OSP_FB_ACCUM | OSP_FB_VARIANCE;
                 //int channels = OSP_FB_COLOR | /*OSP_FB_DEPTH |*/ OSP_FB_ACCUM | OSP_FB_VARIANCE | OSP_FB_NORMAL | OSP_FB_ALBEDO;
 
                 framebuffers.push_back(
-                    AllocatedFramebuffer(reduced_framebuffer_width, reduced_framebuffer_height, framebuffer_format, channels)
+                    AllocatedFramebuffer(reduced_framebuffer_width, reduced_framebuffer_height, interactive_framebuffer_format, channels)
                 );
             }
         }
@@ -3245,6 +3256,10 @@ start_rendering(const ClientMessage& client_message)
             fb.clear();
 
         framebuffer_reduction_index = framebuffer_reduction_factors.size() - 1;
+        framebuffer_reduction_factor = framebuffer_reduction_factors[framebuffer_reduction_index];
+
+        framebuffer = framebuffers[framebuffer_reduction_index].framebuffer;
+
         reduced_framebuffer_width = framebuffers[framebuffer_reduction_index].width;
         reduced_framebuffer_height = framebuffers[framebuffer_reduction_index].height;        
     }
@@ -3269,13 +3284,6 @@ start_rendering(const ClientMessage& client_message)
     fflush(stdout);    
 
     gettimeofday(&frame_start_time, NULL);
-
-    OSPFrameBuffer framebuffer;
-
-    if (render_mode == RM_FINAL)
-        framebuffer = final_framebuffer;
-    else
-        framebuffer = framebuffers[framebuffer_reduction_factor].framebuffer;
 
     render_future = ospRenderFrame(framebuffer, ospray_renderer, ospray_camera, ospray_world);
     
@@ -3305,7 +3313,8 @@ handle_connection(TCPSocket *sock)
         usleep(1000);
 
         // Check for new client message
-        // XXX loop to get more messages before checking frame is done?
+        // XXX loop to get more messages before checking frame is done, as we 
+        // currently have an implicit limit due to the usleep above
 
         if (sock->is_readable())
         {            
@@ -3349,9 +3358,6 @@ handle_connection(TCPSocket *sock)
             ospRelease(render_future);
             render_future = nullptr;
 
-            render_mode = RM_IDLE;
-            cancel_rendering = false;  
-
             gettimeofday(&now, NULL);
             printf("Rendering cancelled after %.3f seconds\n", time_diff(rendering_start_time, now));
 
@@ -3361,6 +3367,9 @@ handle_connection(TCPSocket *sock)
                 send_protobuf(render_output_socket, render_result);
             else
                 send_protobuf(sock, render_result);
+
+            render_mode = RM_IDLE;
+            cancel_rendering = false;
 
             continue;            
         }
@@ -3380,7 +3389,7 @@ handle_connection(TCPSocket *sock)
         if (render_mode == RM_FINAL)
             framebuffer = final_framebuffer;
         else
-            framebuffer = framebuffers[framebuffer_reduction_factor].framebuffer;
+            framebuffer = framebuffers[framebuffer_reduction_index].framebuffer;
 
         variance = ospGetVariance(framebuffer);
         
@@ -3392,15 +3401,16 @@ handle_connection(TCPSocket *sock)
 
         render_result.set_type(RenderResult::FRAME);
         render_result.set_sample(current_sample);
-        render_result.set_reduction_factor(framebuffer_reduction_factor);
-        render_result.set_width(reduced_framebuffer_width);
-        render_result.set_height(reduced_framebuffer_height);
         render_result.set_variance(variance);        
         render_result.set_memory_usage(mem_usage);
         render_result.set_peak_memory_usage(peak_memory_usage);
         
         if (render_mode == RM_FINAL)
-        {        
+        {    
+            render_result.set_reduction_factor(1);
+            render_result.set_width(final_framebuffer_width);
+            render_result.set_height(final_framebuffer_height);
+
             // Depending on the framebuffer update rate check if we need to send
             // the framebuffer. In case this was the last sample always send it.
             if ((framebuffer_update_rate > 0 
@@ -3412,7 +3422,6 @@ handle_connection(TCPSocket *sock)
             {
                 // Save framebuffer to file 
                 sprintf(fname, "/dev/shm/blospray-final-%04d.exr", current_sample);
-
 #if 0
                 const float *color = (float*)ospMapFrameBuffer(final_framebuffer, OSP_FB_COLOR);     
                 const float *normal = (float*)ospMapFrameBuffer(final_framebuffer, OSP_FB_NORMAL);     
@@ -3428,6 +3437,7 @@ handle_connection(TCPSocket *sock)
                 writeFramebufferEXR(fname, final_framebuffer_width, final_framebuffer_height, framebuffer_compression, color);
                 ospUnmapFrameBuffer(color, final_framebuffer);
 #endif
+
                 stat(fname, &st);
 
                 gettimeofday(&now, NULL);
@@ -3446,7 +3456,7 @@ handle_connection(TCPSocket *sock)
             }
             else
             {
-                // Signal to the client that there is no framebuffer data
+                // Signal to the client that there is no framebuffer data for this sample
                 render_result.set_file_name("<skipped>");
                 render_result.set_file_size(0);
                 
@@ -3457,7 +3467,11 @@ handle_connection(TCPSocket *sock)
         }
         else if (render_mode == RM_INTERACTIVE)
         {
-            // Send framebuffer directly        
+            // Send framebuffer directly, instead of as a file
+
+            render_result.set_reduction_factor(framebuffer_reduction_factor);
+            render_result.set_width(reduced_framebuffer_width);
+            render_result.set_height(reduced_framebuffer_height);    
 
             // XXX could be different pixel type?
             const float *fb = (float*)ospMapFrameBuffer(framebuffer, OSP_FB_COLOR);
@@ -3466,7 +3480,6 @@ handle_connection(TCPSocket *sock)
 
             render_result.set_file_name("<memory>");
             render_result.set_file_size(bufsize);
-            // XXX set render_result.frame reduction factor
 
             if (render_output_socket != nullptr)
             {
@@ -3521,13 +3534,16 @@ handle_connection(TCPSocket *sock)
         }
         else
         {
-            if (framebuffer_reduction_factor > 1)
+            if (framebuffer_reduction_index > 0)
             {
                 // Redo first sample, but in higher resolution
-                framebuffer_reduction_factor >>= 1;
-                reduced_framebuffer_width = framebuffer_width / framebuffer_reduction_factor;
-                reduced_framebuffer_height = framebuffer_height / framebuffer_reduction_factor; 
-                framebuffers[framebuffer_reduction_factor].clear();
+                framebuffer_reduction_index--;
+                framebuffer_reduction_factor = framebuffer_reduction_factors[framebuffer_reduction_index];
+                AllocatedFramebuffer& fb = framebuffers[framebuffer_reduction_index];
+                framebuffer = fb.framebuffer;
+                reduced_framebuffer_width = fb.width;
+                reduced_framebuffer_height = fb.height;
+                fb.clear();
             }            
             else
             {
@@ -3535,7 +3551,7 @@ handle_connection(TCPSocket *sock)
                 current_sample++;
             }        
             
-            if (framebuffer_reduction_factor > 1)
+            if (framebuffer_reduction_index > 0)
                 printf("[1:%d] ", framebuffer_reduction_factor);
             else
                 printf("[%d/%d] ", current_sample, render_samples);
@@ -3546,10 +3562,7 @@ handle_connection(TCPSocket *sock)
             
             gettimeofday(&frame_start_time, NULL);
 
-            if (render_mode == RM_FINAL)            
-                render_future = ospRenderFrame(final_framebuffer, ospray_renderer, ospray_camera, ospray_world);
-            else
-                render_future = ospRenderFrame(framebuffers[framebuffer_reduction_factor].framebuffer, ospray_renderer, ospray_camera, ospray_world);
+            render_future = ospRenderFrame(framebuffer, ospray_renderer, ospray_camera, ospray_world);
 
             if (render_future == nullptr)
                 printf("ERROR: ospRenderFrame() returned NULL!\n");

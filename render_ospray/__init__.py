@@ -477,6 +477,13 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
 
             self.connection.send_updated_render_settings(render_settings)          
 
+            # Framebuffer settings
+            viewport_width, viewport_height = region.width, region.height
+            self.viewport_width = viewport_width
+            self.viewport_height = viewport_height
+            # Reduction factor is passed with START_RENDERING
+            self.connection.send_updated_framebuffer_settings('interactive', viewport_width, viewport_height, OSP_FB_RGBA32F)
+
             # Send complete (visible) scene
             # XXX put exception handler around whole block above
             try:

@@ -2186,193 +2186,193 @@ DESCRIPTOR.message_types_by_name['ThinGlassSettings'] = _THINGLASSSETTINGS
 DESCRIPTOR.message_types_by_name['GenerateFunctionResult'] = _GENERATEFUNCTIONRESULT
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-ClientMessage = _reflection.GeneratedProtocolMessageType('ClientMessage', (_message.Message,), {
-  'DESCRIPTOR' : _CLIENTMESSAGE,
-  '__module__' : 'messages_pb2'
+ClientMessage = _reflection.GeneratedProtocolMessageType('ClientMessage', (_message.Message,), dict(
+  DESCRIPTOR = _CLIENTMESSAGE,
+  __module__ = 'messages_pb2'
   # @@protoc_insertion_point(class_scope:ClientMessage)
-  })
+  ))
 _sym_db.RegisterMessage(ClientMessage)
 
-HelloResult = _reflection.GeneratedProtocolMessageType('HelloResult', (_message.Message,), {
-  'DESCRIPTOR' : _HELLORESULT,
-  '__module__' : 'messages_pb2'
+HelloResult = _reflection.GeneratedProtocolMessageType('HelloResult', (_message.Message,), dict(
+  DESCRIPTOR = _HELLORESULT,
+  __module__ = 'messages_pb2'
   # @@protoc_insertion_point(class_scope:HelloResult)
-  })
+  ))
 _sym_db.RegisterMessage(HelloResult)
 
-ServerStateResult = _reflection.GeneratedProtocolMessageType('ServerStateResult', (_message.Message,), {
-  'DESCRIPTOR' : _SERVERSTATERESULT,
-  '__module__' : 'messages_pb2'
+ServerStateResult = _reflection.GeneratedProtocolMessageType('ServerStateResult', (_message.Message,), dict(
+  DESCRIPTOR = _SERVERSTATERESULT,
+  __module__ = 'messages_pb2'
   # @@protoc_insertion_point(class_scope:ServerStateResult)
-  })
+  ))
 _sym_db.RegisterMessage(ServerStateResult)
 
-QueryBoundResult = _reflection.GeneratedProtocolMessageType('QueryBoundResult', (_message.Message,), {
-  'DESCRIPTOR' : _QUERYBOUNDRESULT,
-  '__module__' : 'messages_pb2'
+QueryBoundResult = _reflection.GeneratedProtocolMessageType('QueryBoundResult', (_message.Message,), dict(
+  DESCRIPTOR = _QUERYBOUNDRESULT,
+  __module__ = 'messages_pb2'
   # @@protoc_insertion_point(class_scope:QueryBoundResult)
-  })
+  ))
 _sym_db.RegisterMessage(QueryBoundResult)
 
-RenderResult = _reflection.GeneratedProtocolMessageType('RenderResult', (_message.Message,), {
-  'DESCRIPTOR' : _RENDERRESULT,
-  '__module__' : 'messages_pb2'
+RenderResult = _reflection.GeneratedProtocolMessageType('RenderResult', (_message.Message,), dict(
+  DESCRIPTOR = _RENDERRESULT,
+  __module__ = 'messages_pb2'
   # @@protoc_insertion_point(class_scope:RenderResult)
-  })
+  ))
 _sym_db.RegisterMessage(RenderResult)
 
-UpdatePluginInstance = _reflection.GeneratedProtocolMessageType('UpdatePluginInstance', (_message.Message,), {
-  'DESCRIPTOR' : _UPDATEPLUGININSTANCE,
-  '__module__' : 'messages_pb2'
+UpdatePluginInstance = _reflection.GeneratedProtocolMessageType('UpdatePluginInstance', (_message.Message,), dict(
+  DESCRIPTOR = _UPDATEPLUGININSTANCE,
+  __module__ = 'messages_pb2'
   # @@protoc_insertion_point(class_scope:UpdatePluginInstance)
-  })
+  ))
 _sym_db.RegisterMessage(UpdatePluginInstance)
 
-UpdateObject = _reflection.GeneratedProtocolMessageType('UpdateObject', (_message.Message,), {
-  'DESCRIPTOR' : _UPDATEOBJECT,
-  '__module__' : 'messages_pb2'
+UpdateObject = _reflection.GeneratedProtocolMessageType('UpdateObject', (_message.Message,), dict(
+  DESCRIPTOR = _UPDATEOBJECT,
+  __module__ = 'messages_pb2'
   # @@protoc_insertion_point(class_scope:UpdateObject)
-  })
+  ))
 _sym_db.RegisterMessage(UpdateObject)
 
-Color = _reflection.GeneratedProtocolMessageType('Color', (_message.Message,), {
-  'DESCRIPTOR' : _COLOR,
-  '__module__' : 'messages_pb2'
+Color = _reflection.GeneratedProtocolMessageType('Color', (_message.Message,), dict(
+  DESCRIPTOR = _COLOR,
+  __module__ = 'messages_pb2'
   # @@protoc_insertion_point(class_scope:Color)
-  })
+  ))
 _sym_db.RegisterMessage(Color)
 
-Volume = _reflection.GeneratedProtocolMessageType('Volume', (_message.Message,), {
-  'DESCRIPTOR' : _VOLUME,
-  '__module__' : 'messages_pb2'
+Volume = _reflection.GeneratedProtocolMessageType('Volume', (_message.Message,), dict(
+  DESCRIPTOR = _VOLUME,
+  __module__ = 'messages_pb2'
   # @@protoc_insertion_point(class_scope:Volume)
-  })
+  ))
 _sym_db.RegisterMessage(Volume)
 
-Slice = _reflection.GeneratedProtocolMessageType('Slice', (_message.Message,), {
-  'DESCRIPTOR' : _SLICE,
-  '__module__' : 'messages_pb2'
+Slice = _reflection.GeneratedProtocolMessageType('Slice', (_message.Message,), dict(
+  DESCRIPTOR = _SLICE,
+  __module__ = 'messages_pb2'
   # @@protoc_insertion_point(class_scope:Slice)
-  })
+  ))
 _sym_db.RegisterMessage(Slice)
 
-Slices = _reflection.GeneratedProtocolMessageType('Slices', (_message.Message,), {
-  'DESCRIPTOR' : _SLICES,
-  '__module__' : 'messages_pb2'
+Slices = _reflection.GeneratedProtocolMessageType('Slices', (_message.Message,), dict(
+  DESCRIPTOR = _SLICES,
+  __module__ = 'messages_pb2'
   # @@protoc_insertion_point(class_scope:Slices)
-  })
+  ))
 _sym_db.RegisterMessage(Slices)
 
-MeshData = _reflection.GeneratedProtocolMessageType('MeshData', (_message.Message,), {
-  'DESCRIPTOR' : _MESHDATA,
-  '__module__' : 'messages_pb2'
+MeshData = _reflection.GeneratedProtocolMessageType('MeshData', (_message.Message,), dict(
+  DESCRIPTOR = _MESHDATA,
+  __module__ = 'messages_pb2'
   # @@protoc_insertion_point(class_scope:MeshData)
-  })
+  ))
 _sym_db.RegisterMessage(MeshData)
 
-WorldSettings = _reflection.GeneratedProtocolMessageType('WorldSettings', (_message.Message,), {
-  'DESCRIPTOR' : _WORLDSETTINGS,
-  '__module__' : 'messages_pb2'
+WorldSettings = _reflection.GeneratedProtocolMessageType('WorldSettings', (_message.Message,), dict(
+  DESCRIPTOR = _WORLDSETTINGS,
+  __module__ = 'messages_pb2'
   # @@protoc_insertion_point(class_scope:WorldSettings)
-  })
+  ))
 _sym_db.RegisterMessage(WorldSettings)
 
-CameraSettings = _reflection.GeneratedProtocolMessageType('CameraSettings', (_message.Message,), {
-  'DESCRIPTOR' : _CAMERASETTINGS,
-  '__module__' : 'messages_pb2'
+CameraSettings = _reflection.GeneratedProtocolMessageType('CameraSettings', (_message.Message,), dict(
+  DESCRIPTOR = _CAMERASETTINGS,
+  __module__ = 'messages_pb2'
   # @@protoc_insertion_point(class_scope:CameraSettings)
-  })
+  ))
 _sym_db.RegisterMessage(CameraSettings)
 
-RenderSettings = _reflection.GeneratedProtocolMessageType('RenderSettings', (_message.Message,), {
-  'DESCRIPTOR' : _RENDERSETTINGS,
-  '__module__' : 'messages_pb2'
+RenderSettings = _reflection.GeneratedProtocolMessageType('RenderSettings', (_message.Message,), dict(
+  DESCRIPTOR = _RENDERSETTINGS,
+  __module__ = 'messages_pb2'
   # @@protoc_insertion_point(class_scope:RenderSettings)
-  })
+  ))
 _sym_db.RegisterMessage(RenderSettings)
 
-LightSettings = _reflection.GeneratedProtocolMessageType('LightSettings', (_message.Message,), {
-  'DESCRIPTOR' : _LIGHTSETTINGS,
-  '__module__' : 'messages_pb2'
+LightSettings = _reflection.GeneratedProtocolMessageType('LightSettings', (_message.Message,), dict(
+  DESCRIPTOR = _LIGHTSETTINGS,
+  __module__ = 'messages_pb2'
   # @@protoc_insertion_point(class_scope:LightSettings)
-  })
+  ))
 _sym_db.RegisterMessage(LightSettings)
 
-MaterialUpdate = _reflection.GeneratedProtocolMessageType('MaterialUpdate', (_message.Message,), {
-  'DESCRIPTOR' : _MATERIALUPDATE,
-  '__module__' : 'messages_pb2'
+MaterialUpdate = _reflection.GeneratedProtocolMessageType('MaterialUpdate', (_message.Message,), dict(
+  DESCRIPTOR = _MATERIALUPDATE,
+  __module__ = 'messages_pb2'
   # @@protoc_insertion_point(class_scope:MaterialUpdate)
-  })
+  ))
 _sym_db.RegisterMessage(MaterialUpdate)
 
-AlloySettings = _reflection.GeneratedProtocolMessageType('AlloySettings', (_message.Message,), {
-  'DESCRIPTOR' : _ALLOYSETTINGS,
-  '__module__' : 'messages_pb2'
+AlloySettings = _reflection.GeneratedProtocolMessageType('AlloySettings', (_message.Message,), dict(
+  DESCRIPTOR = _ALLOYSETTINGS,
+  __module__ = 'messages_pb2'
   # @@protoc_insertion_point(class_scope:AlloySettings)
-  })
+  ))
 _sym_db.RegisterMessage(AlloySettings)
 
-CarPaintSettings = _reflection.GeneratedProtocolMessageType('CarPaintSettings', (_message.Message,), {
-  'DESCRIPTOR' : _CARPAINTSETTINGS,
-  '__module__' : 'messages_pb2'
+CarPaintSettings = _reflection.GeneratedProtocolMessageType('CarPaintSettings', (_message.Message,), dict(
+  DESCRIPTOR = _CARPAINTSETTINGS,
+  __module__ = 'messages_pb2'
   # @@protoc_insertion_point(class_scope:CarPaintSettings)
-  })
+  ))
 _sym_db.RegisterMessage(CarPaintSettings)
 
-GlassSettings = _reflection.GeneratedProtocolMessageType('GlassSettings', (_message.Message,), {
-  'DESCRIPTOR' : _GLASSSETTINGS,
-  '__module__' : 'messages_pb2'
+GlassSettings = _reflection.GeneratedProtocolMessageType('GlassSettings', (_message.Message,), dict(
+  DESCRIPTOR = _GLASSSETTINGS,
+  __module__ = 'messages_pb2'
   # @@protoc_insertion_point(class_scope:GlassSettings)
-  })
+  ))
 _sym_db.RegisterMessage(GlassSettings)
 
-LuminousSettings = _reflection.GeneratedProtocolMessageType('LuminousSettings', (_message.Message,), {
-  'DESCRIPTOR' : _LUMINOUSSETTINGS,
-  '__module__' : 'messages_pb2'
+LuminousSettings = _reflection.GeneratedProtocolMessageType('LuminousSettings', (_message.Message,), dict(
+  DESCRIPTOR = _LUMINOUSSETTINGS,
+  __module__ = 'messages_pb2'
   # @@protoc_insertion_point(class_scope:LuminousSettings)
-  })
+  ))
 _sym_db.RegisterMessage(LuminousSettings)
 
-MetalSettings = _reflection.GeneratedProtocolMessageType('MetalSettings', (_message.Message,), {
-  'DESCRIPTOR' : _METALSETTINGS,
-  '__module__' : 'messages_pb2'
+MetalSettings = _reflection.GeneratedProtocolMessageType('MetalSettings', (_message.Message,), dict(
+  DESCRIPTOR = _METALSETTINGS,
+  __module__ = 'messages_pb2'
   # @@protoc_insertion_point(class_scope:MetalSettings)
-  })
+  ))
 _sym_db.RegisterMessage(MetalSettings)
 
-MetallicPaintSettings = _reflection.GeneratedProtocolMessageType('MetallicPaintSettings', (_message.Message,), {
-  'DESCRIPTOR' : _METALLICPAINTSETTINGS,
-  '__module__' : 'messages_pb2'
+MetallicPaintSettings = _reflection.GeneratedProtocolMessageType('MetallicPaintSettings', (_message.Message,), dict(
+  DESCRIPTOR = _METALLICPAINTSETTINGS,
+  __module__ = 'messages_pb2'
   # @@protoc_insertion_point(class_scope:MetallicPaintSettings)
-  })
+  ))
 _sym_db.RegisterMessage(MetallicPaintSettings)
 
-OBJMaterialSettings = _reflection.GeneratedProtocolMessageType('OBJMaterialSettings', (_message.Message,), {
-  'DESCRIPTOR' : _OBJMATERIALSETTINGS,
-  '__module__' : 'messages_pb2'
+OBJMaterialSettings = _reflection.GeneratedProtocolMessageType('OBJMaterialSettings', (_message.Message,), dict(
+  DESCRIPTOR = _OBJMATERIALSETTINGS,
+  __module__ = 'messages_pb2'
   # @@protoc_insertion_point(class_scope:OBJMaterialSettings)
-  })
+  ))
 _sym_db.RegisterMessage(OBJMaterialSettings)
 
-PrincipledSettings = _reflection.GeneratedProtocolMessageType('PrincipledSettings', (_message.Message,), {
-  'DESCRIPTOR' : _PRINCIPLEDSETTINGS,
-  '__module__' : 'messages_pb2'
+PrincipledSettings = _reflection.GeneratedProtocolMessageType('PrincipledSettings', (_message.Message,), dict(
+  DESCRIPTOR = _PRINCIPLEDSETTINGS,
+  __module__ = 'messages_pb2'
   # @@protoc_insertion_point(class_scope:PrincipledSettings)
-  })
+  ))
 _sym_db.RegisterMessage(PrincipledSettings)
 
-ThinGlassSettings = _reflection.GeneratedProtocolMessageType('ThinGlassSettings', (_message.Message,), {
-  'DESCRIPTOR' : _THINGLASSSETTINGS,
-  '__module__' : 'messages_pb2'
+ThinGlassSettings = _reflection.GeneratedProtocolMessageType('ThinGlassSettings', (_message.Message,), dict(
+  DESCRIPTOR = _THINGLASSSETTINGS,
+  __module__ = 'messages_pb2'
   # @@protoc_insertion_point(class_scope:ThinGlassSettings)
-  })
+  ))
 _sym_db.RegisterMessage(ThinGlassSettings)
 
-GenerateFunctionResult = _reflection.GeneratedProtocolMessageType('GenerateFunctionResult', (_message.Message,), {
-  'DESCRIPTOR' : _GENERATEFUNCTIONRESULT,
-  '__module__' : 'messages_pb2'
+GenerateFunctionResult = _reflection.GeneratedProtocolMessageType('GenerateFunctionResult', (_message.Message,), dict(
+  DESCRIPTOR = _GENERATEFUNCTIONRESULT,
+  __module__ = 'messages_pb2'
   # @@protoc_insertion_point(class_scope:GenerateFunctionResult)
-  })
+  ))
 _sym_db.RegisterMessage(GenerateFunctionResult)
 
 
