@@ -150,6 +150,7 @@ struct AllocatedFramebuffer
 };
 
 std::vector<AllocatedFramebuffer> framebuffers;
+// XXX fold factors into AllocatedFramebuffer
 std::vector<int>            framebuffer_reduction_factors;      // [0] = 1, ..., framebuffer_initial_reduction_factor
 int                         framebuffer_reduction_index = 0;    // Index into framebuffer_reduction_factors
 
@@ -3317,7 +3318,7 @@ handle_connection(TCPSocket *sock)
         // XXX loop to get more messages before checking frame is done, as we 
         // currently have an implicit limit due to the usleep above
 
-        if (sock->is_readable())
+        while (sock->is_readable())
         {            
             if (!receive_protobuf(sock, client_message))
             {
