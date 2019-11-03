@@ -2223,6 +2223,7 @@ update_framebuffer_settings(const std::string& mode, OSPFrameBufferFormat format
 
         // Clear framebuffers
         framebuffers.clear();
+        framebuffer_reduction_factors.clear();
 
         // Update values to use
         interactive_framebuffer_width = width;
@@ -2969,18 +2970,18 @@ ensure_idle_render_mode()
     if (render_mode == RM_IDLE)
         return;
 
-    if (render_future != nullptr)
-    {
-        ospCancel(render_future);
-        ospWait(render_future, OSP_TASK_FINISHED);
+    if (render_future == nullptr)
+        return;
 
-        ospRelease(render_future);
-        render_future = nullptr;
+    ospCancel(render_future);
+    ospWait(render_future, OSP_TASK_FINISHED);
 
-        render_mode = RM_IDLE;
+    ospRelease(render_future);
+    render_future = nullptr;
 
-        printf("Canceled active render\n");
-    }
+    render_mode = RM_IDLE;
+
+    printf("Canceled active render\n");
 }
 
 // Returns false on socket errors
