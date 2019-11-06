@@ -75,6 +75,17 @@ target_include_directories(geometry_plane
     ${CMAKE_CURRENT_BINARY_DIR}
 )
 
+# geometry_hyg_stars
+
+add_library(geometry_hyg_stars SHARED geometry_hyg_stars.cpp)
+set_target_properties(geometry_hyg_stars PROPERTIES PREFIX "")   
+target_link_libraries(geometry_hyg_stars PUBLIC ${OSPRAY_LIBRARIES})
+target_include_directories(geometry_hyg_stars
+    PUBLIC
+    ${PROTOBUF_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_BINARY_DIR}
+)
+
 # geometry_ply
 
 if(PLUGIN_PLY)
@@ -225,6 +236,7 @@ install(TARGETS
     volume_raw 
     #volume_testing
     geometry_plane
+    geometry_hyg_stars
     scene_rbc
     scene_boxes
     scene_cornellbox
