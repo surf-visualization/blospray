@@ -128,7 +128,7 @@ if(VTK_QC_BOUND OR PLUGIN_VTK_STREAMLINES)
 endif(VTK_QC_BOUND OR PLUGIN_VTK_STREAMLINES)
 
 include_directories("${CMAKE_SOURCE_DIR}/core")		# json.hpp in faker
-include_directories(${OSPRAY_INCLUDE_DIRS})
+include_directories(${OSPRAY_INCLUDE_DIR})
 include_directories(${Boost_INCLUDE_DIR})
 include_directories(${GLM_INCLUDE_DIRS})
 

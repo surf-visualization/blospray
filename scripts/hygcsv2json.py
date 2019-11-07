@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-# Convert Hyg star database from CSV to JSON
+# Convert Hyg star database (http://www.astronexus.com/hyg)
+# from CSV to JSON
 # Paul Melis <paul.melis@surfsara.nl>
 import sys, csv, json
 
