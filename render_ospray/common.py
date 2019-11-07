@@ -64,10 +64,10 @@ def receive_buffer(sock, n):
     return b''.join(parts)
         
         
-def receive_into_numpy_array(sock, buffer, n):
-    
-    view = memoryview(buffer)
-    bytes_left = n
+def receive_into_numpy_array(sock, buffer, numbytes):
+
+    view = memoryview(buffer).cast('B')
+    bytes_left = numbytes
     while bytes_left > 0:
         n = sock.recv_into(view, bytes_left)
         view = view[n:]

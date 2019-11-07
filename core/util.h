@@ -153,7 +153,7 @@ receive_protobuf(TCPSocket *sock, T& protobuf)
 
     protobuf.ParseFromArray(receive_buffer, message_size);
 
-#if DUMP_PROTOBUF_TRAFFIC    
+#ifdef DUMP_PROTOBUF_TRAFFIC    
     fprintf(stderr, "--- receive_protobuf() ---\n%s\n--------------------------\n", protobuf.DebugString().c_str());
 #endif
 
@@ -167,7 +167,7 @@ send_protobuf(TCPSocket *sock, T& protobuf)
     std::string message;
     uint32_t message_size;
 
-#if DUMP_PROTOBUF_TRAFFIC
+#ifdef DUMP_PROTOBUF_TRAFFIC
     fprintf(stderr, "--- send_protobuf() ---\n%s\n-----------------------\n", protobuf.DebugString().c_str());
 #endif
     

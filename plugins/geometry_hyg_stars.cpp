@@ -66,9 +66,11 @@ create_spheres(PluginState *state, json& j, bool project, float scale, float rad
         // A magnitude of 5 units higher means 100 times dimmer
         // Magnitude 0 maps to radius.
         mag = e["mag"].get<float>();
+
         brightness = 1.0f;
         if (mag >= 0.0f)
             brightness = 1.0f / (powf(2.512f, mag));
+
         radii.push_back(radius*sqrt(brightness));
 
         min[0] = std::min(min[0], x);
@@ -96,6 +98,13 @@ create_spheres(PluginState *state, json& j, bool project, float scale, float rad
         min[0], min[1], min[2], max[0], max[1], max[2]);
     printf("... Magnitude range %.6f %.6f\n", minmag, maxmag);
 
+    std::vector<float>::iterator minr, maxr;
+
+    minr = std::min_element(radii.begin(), radii.end());
+    maxr = std::max_element(radii.begin(), radii.end());
+
+    printf("... Radius range %.6f %.6f\n", *minr, *maxr);
+
     OSPData data;
 
     OSPGeometry spheres = ospNewGeometry("spheres");
@@ -104,11 +113,11 @@ create_spheres(PluginState *state, json& j, bool project, float scale, float rad
         ospCommit(data);
         ospSetObject(spheres, "sphere.position", data);
 
-        //ospSetFloat(spheres, "radius", radius);
-        data = ospNewCopiedData(radii.size(), OSP_FLOAT, radii.data());
+        ospSetFloat(spheres, "radius", radius);
+        /*data = ospNewCopiedData(radii.size(), OSP_FLOAT, radii.data());
         ospCommit(data);
         ospSetObject(spheres, "sphere.radius", data);
-
+*/
         //data = ospNewCopiedData(num_vertices, OSP_VEC4F, colors);
         //ospCommit(data);
         //ospSetData(mesh, "vertex.color", data);

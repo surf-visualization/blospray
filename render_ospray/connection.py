@@ -24,7 +24,7 @@ import bpy, bmesh
 #from bgl import *
 from mathutils import Vector, Matrix
 
-import sys, array, json, logging, os, select, socket, time, weakref
+import sys, array, json, os, select, socket, time, weakref
 from math import tan, atan, degrees, radians, sqrt
 from struct import pack, unpack
 

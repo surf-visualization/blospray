@@ -2792,16 +2792,18 @@ bool
 handle_query_bound(TCPSocket *sock, const std::string& name)
 {
     QueryBoundResult result;
+    char msg[1024];
 
     PluginStateMap::const_iterator it = plugin_state.find(name);
 
     if (it == plugin_state.end())
     {
-        char msg[1024];
         sprintf(msg, "No plugin state for id '%s'", name.c_str());
 
         result.set_success(false);
         result.set_message(msg);
+
+        printf("... FAILED: %s\n", msg);
 
         send_protobuf(sock, result);
 
@@ -2822,11 +2824,18 @@ handle_query_bound(TCPSocket *sock, const std::string& name)
 
         send_protobuf(sock, result);
         sock->sendall(buffer, size);
+
+        delete [] buffer;
     }
     else
     {
+        sprintf(msg, "No bound specified");
+
         result.set_success(false);
-        result.set_message("No bound specified");
+        result.set_message(msg);
+
+        printf("... FAILED: %s\n", msg);
+
         send_protobuf(sock, result);
     }
 

@@ -70,6 +70,8 @@ class OSPRayUpdateMeshBound(bpy.types.Operator):
             return {'CANCELLED'}
 
         # Receive actual geometry
+        # Lengths are for the complete vector, not the number of higher
+        # level elements
         vertices_len, edges_len, faces_len, loop_len = unpack('<IIII', receive_buffer(sock, 4*4))
         
         vertices = numpy.empty(vertices_len, dtype=numpy.float32)
@@ -77,6 +79,8 @@ class OSPRayUpdateMeshBound(bpy.types.Operator):
         faces = numpy.empty(faces_len, dtype=numpy.uint32)
         loop_start = numpy.empty(loop_len, dtype=numpy.uint32)
         loop_total = numpy.empty(loop_len, dtype=numpy.uint32)
+
+        print('Mesh bound: %d v, %d e, %d f, %d l' % (vertices_len, edges_len, faces_len, loop_len))
         
         receive_into_numpy_array(sock, vertices, vertices_len*4)
         receive_into_numpy_array(sock, edges, edges_len*4)
