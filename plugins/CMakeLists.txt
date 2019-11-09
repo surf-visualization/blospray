@@ -75,6 +75,17 @@ target_include_directories(geometry_plane
     ${CMAKE_CURRENT_BINARY_DIR}
 )
 
+# geometry_triangles (for testing)
+
+add_library(geometry_triangles SHARED geometry_triangles.cpp)
+set_target_properties(geometry_triangles PROPERTIES PREFIX "")   
+target_link_libraries(geometry_triangles PUBLIC ${OSPRAY_LIBRARIES})
+target_include_directories(geometry_triangles
+    PUBLIC
+    ${PROTOBUF_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_BINARY_DIR}
+)
+
 # geometry_hyg_stars
 
 add_library(geometry_hyg_stars SHARED geometry_hyg_stars.cpp)
@@ -236,6 +247,7 @@ install(TARGETS
     volume_raw 
     #volume_testing
     geometry_plane
+    geometry_triangles
     geometry_hyg_stars
     scene_rbc
     scene_boxes

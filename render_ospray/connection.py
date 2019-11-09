@@ -233,7 +233,7 @@ class Connection:
 
         # Clear scene
 
-        self.send_clear_scene()
+        self.send_clear_scene(scene.ospray.clear_scene_keep_plugin_instances)
 
         # Send scene content
 
@@ -277,10 +277,10 @@ class Connection:
                 
         return properties, plugin_parameters
         
-    def send_clear_scene(self):
+    def send_clear_scene(self, keep_plugin_instances=True):
         client_message = ClientMessage()
         client_message.type = ClientMessage.CLEAR_SCENE
-        client_message.string_value = 'keep_plugin_instances'
+        client_message.string_value = 'keep_plugin_instances' if keep_plugin_instances else 'all'
         send_protobuf(self.sock, client_message)    
         # XXX flags to pick which scene items are cleared    
 

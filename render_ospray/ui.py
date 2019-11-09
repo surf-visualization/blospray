@@ -103,6 +103,9 @@ class OSPRAY_RENDER_PT_rendering(Panel):
         col.prop(ospray, 'framebuffer_update_rate')
         col.prop(ospray, 'reduction_factor')
 
+        col.separator()
+        col.prop(ospray, 'clear_scene_keep_plugin_instances')
+
 
 class OSPRAY_OBJECT_PT_settings(Panel):
     #bl_idname = 'OSPRAY_OBJECT_PT_settings'

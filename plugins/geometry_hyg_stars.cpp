@@ -113,11 +113,11 @@ create_spheres(PluginState *state, json& j, bool project, float scale, float rad
         ospCommit(data);
         ospSetObject(spheres, "sphere.position", data);
 
-        ospSetFloat(spheres, "radius", radius);
-        /*data = ospNewCopiedData(radii.size(), OSP_FLOAT, radii.data());
+        //ospSetFloat(spheres, "radius", radius);
+        data = ospNewCopiedData(radii.size(), OSP_FLOAT, radii.data());
         ospCommit(data);
         ospSetObject(spheres, "sphere.radius", data);
-*/
+
         //data = ospNewCopiedData(num_vertices, OSP_VEC4F, colors);
         //ospCommit(data);
         //ospSetData(mesh, "vertex.color", data);

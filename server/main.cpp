@@ -454,31 +454,6 @@ delete_plugin_instance(const std::string& name)
 
     PluginInstance *plugin_instance = it->second;
     PluginState *state = plugin_instance->state;
-    
-    // Released OSPRay resources created by the plugin
-    switch (plugin_instance->type)
-    {
-    case PT_GEOMETRY:
-        if (state->geometry)
-            ospRelease(state->geometry);
-        break;
-    case PT_VOLUME:
-        if (state->volume)
-            ospRelease(state->volume);
-        break;
-    case PT_SCENE:
-        for (auto& kv: state->group_instances)
-            ospRelease(kv.first);    
-        for (OSPLight& l: state->lights)
-            ospRelease(l);
-        break;
-    }
-
-    if (state->bound)
-    {
-        delete state->bound;
-        state->bound = nullptr;
-    }
 
     if (state->data)
     {
@@ -493,7 +468,7 @@ delete_plugin_instance(const std::string& name)
             printf("ERROR: no plugin definition found for plugin '%s' to delete\n", name.c_str());
     }
     
-    delete state;    
+    delete state;
 
     plugin_instances.erase(it);
     plugin_state.erase(name);

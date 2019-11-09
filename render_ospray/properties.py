@@ -210,6 +210,13 @@ class RenderOspraySettingsScene(PropertyGroup):
         max = 64
         )
 
+    # Clear scene
+
+    clear_scene_keep_plugin_instances: BoolProperty(
+        name='Keep plugin instances',
+        description='When clearing the scene keep plugin instances',
+        default=True
+    )
 
 
         
