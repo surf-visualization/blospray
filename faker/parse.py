@@ -1,6 +1,14 @@
 #!/usr/bin/env python
 import sys, getopt, json
 
+"""
+- Need to keep track of repeatedly used references. I.e. address A is released,
+  but then a call to ospNew...() returns the same address, but for a new object.
+  Should track the first as A-0, the second as A-1, etc
+- Show edge to deleted object with dotted line
+- Cascading object deletion not computed correctly
+"""
+
 def usage():
     print('usage: %s [options] faker.log' % sys.argv[0])
     print()
