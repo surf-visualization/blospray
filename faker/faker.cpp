@@ -14,8 +14,13 @@ using json = nlohmann::json;
 
 static FILE *log_file = NULL;
 
-// 0 = no, 1 = short arrays, 2 = all
-static int dump_arrays = getenv("FAKER_DUMP_ARRAYS") ? atol(getenv("FAKER_DUMP_ARRAYS")) : 0;
+// Bitmask (can be OR-ed):
+// 0x1 = Dump arrays of references (e.g. array of OSP_GEOMETRIC_MODEL)
+const int DUMP_REFERENCE_ARRAYS = 0x1;
+// 0x2 = Dump value arrays (e.g. array of OSP_VEC3F)
+const int DUMP_VALUE_ARRAYS = 0x2;
+
+static int dump_arrays = getenv("FAKER_DUMP_ARRAYS") ? atol(getenv("FAKER_DUMP_ARRAYS")) : DUMP_REFERENCE_ARRAYS;
 static bool abort_on_ospray_error = getenv("FAKER_ABORT_ON_OSPRAY_ERROR") != nullptr;
 
 typedef std::map<std::string, void*>    PointerMap;
@@ -33,7 +38,7 @@ typedef void                (*ospDeviceSetErrorFunc_ptr) (OSPDevice, OSPErrorFun
 
 typedef OSPData             (*ospNewSharedData_ptr) (const void *sharedData, OSPDataType type, uint32_t numItems1, int64_t byteStride1,  uint32_t numItems2, int64_t byteStride2, uint32_t numItems3, int64_t byteStride3);
 typedef OSPData             (*ospNewData_ptr)       (OSPDataType type, uint32_t numItems1, uint32_t numItems2, uint32_t numItems3);
-typedef OSPData             (*_Z10ospNewDatam11OSPDataTypePKvj_ptr) (size_t numItems, OSPDataType, const void *source, uint32_t dataCreationFlags);
+//typedef OSPData             (*_Z10ospNewDatam11OSPDataTypePKvj_ptr) (size_t numItems, OSPDataType, const void *source, uint32_t dataCreationFlags);
 typedef void                (*ospCopyData_ptr)      (const OSPData source, OSPData destination, uint32_t destinationIndex1, uint32_t destinationIndex2, uint32_t destinationIndex3);
 typedef void                (*ospCopyData1D_ptr)    (const OSPData source, OSPData destination, uint32_t destinationIndex);
 
@@ -376,6 +381,55 @@ NEW_FUNCTION_1(Texture)
 NEW_FUNCTION_1(TransferFunction)
 NEW_FUNCTION_1(Volume)
 
+static bool
+is_value_type(OSPDataType type)
+{
+    switch (type)
+    {
+    case OSP_FLOAT:
+    case OSP_VEC2F:
+    case OSP_VEC3F:
+    case OSP_VEC4F:
+        
+    case OSP_UINT:
+    case OSP_VEC2UI:
+    case OSP_VEC3UI:
+    case OSP_VEC4UI:
+        
+    case OSP_INT:
+    case OSP_VEC2I:
+    case OSP_VEC3I:
+    case OSP_VEC4I:
+        
+    // OSP_BOX1/2/3F
+        return true;
+    }
+    
+    return false;
+}
+
+static bool 
+is_reference_type(OSPDataType type)
+{
+    switch (type)
+    {
+    case OSP_CAMERA:    
+    case OSP_GEOMETRY:
+    case OSP_GEOMETRIC_MODEL:
+    case OSP_GROUP:
+    case OSP_INSTANCE:
+    case OSP_LIGHT:
+    case OSP_MATERIAL:
+    case OSP_OBJECT:
+    case OSP_TEXTURE:
+    case OSP_VOLUME:
+    case OSP_VOLUMETRIC_MODEL:
+        return true;
+    }
+    
+    return false;
+}
+
 static void
 get_source_array_contents(json& j, unsigned long numItems, OSPDataType type, const void *source)
 {
@@ -496,7 +550,11 @@ ospNewSharedData(const void *sharedData, OSPDataType type, uint32_t numItems1, i
 
     OSPData res = libcall(sharedData, type, numItems1, byteStride1, numItems2, byteStride2, numItems3, byteStride3);    
 
-    if (dump_arrays > 0)
+    if (
+        ((dump_arrays & DUMP_REFERENCE_ARRAYS) && is_reference_type(type))
+        ||
+        ((dump_arrays & DUMP_VALUE_ARRAYS) && is_value_type(type))
+    )
     {
         // XXX other dimensions
         get_source_array_contents(j, numItems1, type, sharedData);    
@@ -533,6 +591,8 @@ ospNewData(OSPDataType type, uint32_t numItems1, uint32_t numItems2, uint32_t nu
     return res;
 }
 
+#if 0
+
 // ospNewData(unsigned long, OSPDataType, void const*, unsigned int)
 extern "C" OSPData
 _Z10ospNewDatam11OSPDataTypePKvj(unsigned long numItems, OSPDataType type, const void *source, unsigned int dataCreationFlags)
@@ -558,6 +618,8 @@ _Z10ospNewDatam11OSPDataTypePKvj(unsigned long numItems, OSPDataType type, const
     
     return res;    
 }
+
+#endif
 
 extern "C"
 void

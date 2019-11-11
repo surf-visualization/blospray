@@ -114,6 +114,7 @@ class Object:
 
         c = '?' if self.addr not in reference_counts else str(reference_counts[self.addr])
         label = '%s [%s]' % (self.label, c)
+        label += '\n%d\n' % self.addr
         if len(fields) > 0:
             label += '\n\n'
             label += '\n'.join(fields)
@@ -208,8 +209,7 @@ try:
                 
             elif call == '_Z10ospNewDatam11OSPDataTypePKvj':
                 # ospNewData(unsigned long, OSPDataType, void const*, unsigned int)
-                data_type = args['type']
-                data_type_name = ospdatatype2name[data_type]
+                data_type_name = args['type']
                 obj.set_property('type', data_type_name, False)
                 obj.set_property('numItems', args['numItems'], False)                                
                 if data_type_name in REFERENCE_DATA_TYPES and 'source' in e:         
@@ -221,8 +221,7 @@ try:
                         obj.add_reference(otherobj)
                         
             elif call == 'ospNewData':
-                data_type = args['type']
-                data_type_name = ospdatatype2name[data_type]
+                data_type_name = args['type']
                 obj.set_property('type', data_type_name, False)
                 obj.set_property('numItems1', args['numItems1'], False)
                 obj.items = [None]*args['numItems1']
@@ -233,8 +232,7 @@ try:
                     
             elif call == 'ospNewSharedData':
                 data_addr = args['sharedData']
-                data_type = args['type']
-                data_type_name = ospdatatype2name[data_type]
+                data_type_name = args['type']
                 obj.set_property('type', data_type_name, False)
                 obj.set_property('numItems1', args['numItems1'], False)
                 if args['numItems2'] > 1:
@@ -257,7 +255,7 @@ try:
                         obj.add_reference(otherobj)     
                     
             elif call == 'ospNewFrameBuffer':            
-                obj.set_property('format', ospframebufferformat2name[args['format']], False)
+                obj.set_property('format', args['format'], False)
                 
             elif call in ['ospNewCamera', 'ospNewGeometry', 'ospNewLight', 'ospNewRenderer', 'ospNewTexture', 'ospNewTransferFunction', 'ospNewVolume']:            
                 obj.set_property('<type>', args['type'], False)
@@ -355,8 +353,7 @@ try:
             obj = addr2object[objaddr]
             
             if call == 'ospSetParam':
-                data_type = args['type']
-                data_type_name = ospdatatype2name[data_type]                                
+                data_type_name = args['type']
                 if data_type_name in REFERENCE_DATA_TYPES:
                     otheraddr = args['mem']
                     if otheraddr in addr2object:      
