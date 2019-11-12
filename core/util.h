@@ -122,6 +122,18 @@ time_diff(struct timeval t0, struct timeval t1)
 }
 
 inline float 
+uint16_swap(uint16_t value)
+{
+    return ((value & 0xff) << 8) | (value >> 8);
+};
+
+inline float 
+int16_swap(int16_t value)
+{
+    return ((value & 0xff) << 8) | (value >> 8);
+};
+
+inline float 
 float_swap(float value)
 {
     union v {

@@ -272,7 +272,7 @@ load(float *bbox, float *data_range, GenerateFunctionResult &result, const json 
     {
         grid_field_values = new uint16_t[num_grid_points];
         dataType = OSP_USHORT;
-        read_size = num_grid_points*2;
+        read_size = num_grid_points*sizeof(uint16_t);
     }    
     else if (voxelType == "float")
     {
@@ -304,6 +304,12 @@ load(float *bbox, float *data_range, GenerateFunctionResult &result, const json 
             float *falues = (float*)grid_field_values;
             for (int i = 0; i < num_grid_points; i++)
                 falues[i] = float_swap(falues[i]);        
+        }
+        else if (voxelType == "ushort")
+        {
+            uint16_t *falues = (uint16_t*)grid_field_values;
+            for (int i = 0; i < num_grid_points; i++)
+                falues[i] = uint16_swap(falues[i]);    
         }
         else
         {
@@ -494,8 +500,14 @@ generate(GenerateFunctionResult &result, PluginState *state)
     {
         grid_field_values = new uint16_t[num_grid_points];
         dataType = OSP_USHORT;
-        read_size = num_grid_points*2;
-    }    
+        read_size = num_grid_points*sizeof(uint16_t);
+    } 
+    else if (voxelType == "short")
+    {
+        grid_field_values = new int16_t[num_grid_points];
+        dataType = OSP_USHORT;
+        read_size = num_grid_points*sizeof(int16_t);
+    }        
     else if (voxelType == "float")
     {
         grid_field_values = new float[num_grid_points];
@@ -539,6 +551,18 @@ generate(GenerateFunctionResult &result, PluginState *state)
                 falues[i] = float_swap(falues[i]);        
         }
         // XXX handle double swap
+        else if (voxelType == "ushort")
+        {
+            uint16_t *falues = (uint16_t*)grid_field_values;
+            for (int i = 0; i < num_grid_points; i++)
+                falues[i] = uint16_swap(falues[i]);    
+        }
+        else if (voxelType == "short")
+        {
+            int16_t *falues = (int16_t*)grid_field_values;
+            for (int i = 0; i < num_grid_points; i++)
+                falues[i] = int16_swap(falues[i]);  
+        }
         else
         {
             fprintf(stderr, "... WARNING: no endian flip available for data type '%s'!\n", voxelType.c_str());
@@ -589,23 +613,49 @@ generate(GenerateFunctionResult &result, PluginState *state)
     {
         minval = parameters["data_range"][0];
         maxval = parameters["data_range"][1];
-        printf("... Using user-provided data range %.6f, %.6f\n", minval, maxval);
+        
+        printf("... User-provided input data range %.6f, %.6f\n", minval, maxval);
     }
     else
     {        
         printf("... No data range, provided, deriving from voxel data\n");
+        
         // XXX really need to look into a better (templated) way of doing this
         if (voxelType == "uchar")
             get_value_range((uint8_t*)grid_field_values, num_grid_points, minval, maxval);
         else if (voxelType == "ushort")            
             get_value_range((uint16_t*)grid_field_values, num_grid_points, minval, maxval);
+        else if (voxelType == "short")            
+            get_value_range((int16_t*)grid_field_values, num_grid_points, minval, maxval);
         else if (voxelType == "float")            
             get_value_range((float*)grid_field_values, num_grid_points, minval, maxval);
         else if (voxelType == "double")            
             get_value_range((double*)grid_field_values, num_grid_points, minval, maxval);
-        printf("... Computed data range %.6f, %.6f\n", minval, maxval);
+        
+        printf("... Input data range derived from data %.6f, %.6f\n", minval, maxval);
     }
+    
+    float value_scale = 1.0f;
+    float value_offset = 0.0f;
+    
+    if (parameters.find("value_scale") != parameters.end())
+        value_scale = parameters["value_scale"].get<float>();    
+    if (parameters.find("value_offset") != parameters.end())
+        value_scale = parameters["value_offset"].get<float>();
 
+/*    
+    printf("... Value scale %.6f, offset %.6f\n", value_scale, value_offset);
+
+    if (voxelType == "uchar")
+        get_value_range((uint8_t*)grid_field_values, num_grid_points, minval, maxval);
+    else if (voxelType == "ushort")            
+        get_value_range((uint16_t*)grid_field_values, num_grid_points, minval, maxval);
+    else if (voxelType == "short")            
+        get_value_range((int16_t*)grid_field_values, num_grid_points, minval, maxval);
+    else if (voxelType == "float")            
+        get_value_range((float*)grid_field_values, num_grid_points, minval, maxval);
+    else if (voxelType == "double")            
+*/
     // Set up volume object
     
     OSPVolume volume;
@@ -648,7 +698,8 @@ generate(GenerateFunctionResult &result, PluginState *state)
     
     state->bound = BoundingMesh::bbox(
         bbox[0], bbox[1], bbox[2],
-        bbox[3], bbox[4], bbox[5]
+        bbox[3], bbox[4], bbox[5],
+        true
     );
 }
 
@@ -658,7 +709,7 @@ static PluginParameters
 parameters = {
     
     // Name, type, length, flags, description
-    {"dimensions",          PARAM_FLOAT,    3, FLAG_NONE, 
+    {"dimensions",          PARAM_INT,    3, FLAG_NONE, 
         "Dimension of the volume in number of voxels per axis"},
 
     {"grid_origin",             PARAM_FLOAT,    3, FLAG_OPTIONAL, 
@@ -682,8 +733,14 @@ parameters = {
     {"endian_flip",         /*PARAM_BOOL*/ PARAM_INT,     1, FLAG_NONE,//|FLAG_OPTIONAL, 
         "Endian-flip the data during reading"},
         
-    {"make_unstructured",   /*PARAM_BOOL*/ PARAM_INT,     1, FLAG_NONE,//|FLAG_OPTIONAL, 
+    {"make_unstructured",   /*PARAM_BOOL*/ PARAM_INT,     1, FLAG_OPTIONAL,//|FLAG_OPTIONAL, 
         "Create an OSPRay unstructured volume (which can be transformed)"},
+        
+    {"value_scale",         PARAM_FLOAT,    1, FLAG_OPTIONAL, 
+        "Scaling to apply to values"},
+        
+    {"value_offset",         PARAM_FLOAT,    1, FLAG_OPTIONAL, 
+        "Offset to apply to values"},
         
     PARAMETERS_DONE         // Sentinel (signals end of list)
 };
