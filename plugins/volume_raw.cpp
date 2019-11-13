@@ -516,7 +516,7 @@ generate(GenerateFunctionResult &result, PluginState *state)
     else if (voxelType == "short")
     {
         grid_field_values = new int16_t[num_grid_points];
-        dataType = OSP_USHORT;
+        dataType = OSP_SHORT;
         read_size = num_grid_points*sizeof(int16_t);
     }        
     else if (voxelType == "float")
@@ -677,7 +677,8 @@ generate(GenerateFunctionResult &result, PluginState *state)
         // XXX will be in wrong order when value_scale < 0
         printf("... Mapped range %.6f %.6f\n", minval*value_scale+value_offset, maxval*value_scale+value_offset);
     }
-    
+
+#if 0    
     // There's no OSP_SHORT, only OSP_USHORT, so convert here
     if (voxelType == "short")
     {
@@ -691,6 +692,7 @@ generate(GenerateFunctionResult &result, PluginState *state)
         delete [] signed_values;
         grid_field_values = unsigned_values;
     }
+#endif    
 
     // Set up volume object
     

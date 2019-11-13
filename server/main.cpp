@@ -1642,7 +1642,8 @@ update_isosurfaces_object(const UpdateObject& update)
         printf("... isovalue #%d: %.3f\n", i, isovalues[i]);
     }
 
-    OSPData isovalues_data = ospNewCopiedData(n, OSP_FLOAT, isovalues);    
+    OSPData isovalues_data = ospNewCopiedData(n, OSP_FLOAT, isovalues);  
+    ospCommit(isovalues_data);
     delete [] isovalues;
 
     ospSetObject(isosurfaces_geometry, "volume", vmodel);
