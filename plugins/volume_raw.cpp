@@ -444,6 +444,17 @@ void convert_to_float(float *float_values, const T* values, int n)
         float_values[i] = (float)(values[i]);
 }
 
+template <typename T>
+void map_values(T* values, int n, float scale, float offset)
+{
+    float m;
+    for (int i = 0; i < n; i++)
+    {
+        m = (float)(values[i]) * scale + offset;
+        values[i] = (T)m;
+    }
+}
+
 extern "C"
 void
 generate(GenerateFunctionResult &result, PluginState *state)
@@ -564,9 +575,7 @@ generate(GenerateFunctionResult &result, PluginState *state)
                 falues[i] = int16_swap(falues[i]);  
         }
         else
-        {
             fprintf(stderr, "... WARNING: no endian flip available for data type '%s'!\n", voxelType.c_str());
-        }
     }
 
 #if 0
@@ -637,25 +646,52 @@ generate(GenerateFunctionResult &result, PluginState *state)
     
     float value_scale = 1.0f;
     float value_offset = 0.0f;
+    bool map_data = false;
     
     if (parameters.find("value_scale") != parameters.end())
+    {
         value_scale = parameters["value_scale"].get<float>();    
+        map_data = true;
+    }
+    
     if (parameters.find("value_offset") != parameters.end())
-        value_scale = parameters["value_offset"].get<float>();
+    {
+        value_offset = parameters["value_offset"].get<float>();
+        map_data = true;
+    }
+    
+    if (map_data)
+    {
+        printf("... Mapping values with scale %.6f, offset %.6f\n", value_scale, value_offset);
+        
+        if (voxelType == "uchar")
+            map_values((uint8_t*)grid_field_values, num_grid_points, value_scale, value_offset);
+        else if (voxelType == "ushort")            
+            map_values((uint16_t*)grid_field_values, num_grid_points, value_scale, value_offset);
+        else if (voxelType == "short")           
+            map_values((int16_t*)grid_field_values, num_grid_points, value_scale, value_offset);
+        else if (voxelType == "float")            
+            map_values((float*)grid_field_values, num_grid_points, value_scale, value_offset);
+        //else if (voxelType == "double")    
+        
+        // XXX will be in wrong order when value_scale < 0
+        printf("... Mapped range %.6f %.6f\n", minval*value_scale+value_offset, maxval*value_scale+value_offset);
+    }
+    
+    // There's no OSP_SHORT, only OSP_USHORT, so convert here
+    if (voxelType == "short")
+    {
+        int16_t *signed_values = (int16_t*)grid_field_values;
+        uint16_t *unsigned_values = new uint16_t[num_grid_points];
+        
+        // XXX should clamp here
+        for (int i = 0; i < num_grid_points; i++)
+            unsigned_values[i] = (uint16_t)signed_values[i];
+        
+        delete [] signed_values;
+        grid_field_values = unsigned_values;
+    }
 
-/*    
-    printf("... Value scale %.6f, offset %.6f\n", value_scale, value_offset);
-
-    if (voxelType == "uchar")
-        get_value_range((uint8_t*)grid_field_values, num_grid_points, minval, maxval);
-    else if (voxelType == "ushort")            
-        get_value_range((uint16_t*)grid_field_values, num_grid_points, minval, maxval);
-    else if (voxelType == "short")            
-        get_value_range((int16_t*)grid_field_values, num_grid_points, minval, maxval);
-    else if (voxelType == "float")            
-        get_value_range((float*)grid_field_values, num_grid_points, minval, maxval);
-    else if (voxelType == "double")            
-*/
     // Set up volume object
     
     OSPVolume volume;
@@ -691,6 +727,8 @@ generate(GenerateFunctionResult &result, PluginState *state)
     }
     
     ospCommit(volume);
+    
+    // XXX delete grid values array
     
     state->volume = volume;
     state->volume_data_range[0] = minval;
