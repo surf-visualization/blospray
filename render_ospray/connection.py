@@ -226,7 +226,12 @@ class Connection:
         # Camera
 
         camera = self.engine().camera_override
-        if camera is None:
+        if camera is not None:
+            print('Camera override active, object "%s"' % camera)
+            #model_matrix = self.engine().camera_model_matrix(camera)
+            print('camera.matrix_world', camera.matrix_world)
+            #print('model_matrix', model_matrix)
+        else:
             camera = scene.camera
 
         self.send_updated_camera(camera, self.render_border)  

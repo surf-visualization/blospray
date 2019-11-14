@@ -715,7 +715,7 @@ create_user_transfer_function(float minval, float maxval, const Volume& volume, 
     normalized_value = 0.0f;
 
     // XXX need to verify correctness here
-    printf("TF:\n");
+    //printf("TF:\n");
     for (int i = 0; i < num_tf_entries; i++)
     {
         // Find first position that is <= normalized_value        
@@ -759,7 +759,7 @@ create_user_transfer_function(float minval, float maxval, const Volume& volume, 
             }
         }    
 
-        printf("[%d] %f, %f, %f; %f\n", i, r, g, b, a);
+        //printf("[%d] %f, %f, %f; %f\n", i, r, g, b, a);
 
         tf_colors[3*i+0] = r;
         tf_colors[3*i+1] = g;
@@ -1499,7 +1499,7 @@ update_volume_object(const UpdateObject& update, const Volume& volume_settings)
     }
 
     // XXX not sure these are handled correctly, and working in API2
-    printf("! SAMPLING RATE %.1f\n", volume_settings.sampling_rate());
+    //printf("! SAMPLING RATE %.1f\n", volume_settings.sampling_rate());
     ospSetFloat(vmodel,  "samplingRate", volume_settings.sampling_rate());
     //ospSetFloat(vmodel,  "densityScale", volume_settings.density_scale());  // TODO
     //ospSetFloat(vmodel,  "anisotropy", volume_settings.anisotropy());  // TODO    
@@ -3316,8 +3316,10 @@ handle_connection(TCPSocket *sock)
 
             if (dump_client_messages)
             {
-                printf("Got client message of type %s\n", ClientMessage_Type_Name(client_message.type()).c_str());
+                printf("<<< Client message (type %s) <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n",
+                    ClientMessage_Type_Name(client_message.type()).c_str());
                 printf("%s\n", client_message.DebugString().c_str());
+                printf("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n");
             }
 
             if (!handle_client_message(sock, client_message, connection_done))
