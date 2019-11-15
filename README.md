@@ -109,17 +109,18 @@ Known to be missing and/or buggy:
 
 * When scaling a volume much smaller it appears that the rendered volume is
   "thinned out", i.e. there's much less opacity accumulating. Also, the `Sampling
-  rate` parameter appears to have no effect. It needs further checks wether this
-  is an issue with BLOSPRAY or with OSPRay.
+  rate` parameter appears to have no effect. 
+  See https://github.com/ospray/ospray/issues/380
+* Slice rendering on volumes is not working yet  
+* In interactive render mode when showing a camera view the rendered
+  view does not match the scene
 * Texturing is not handled
 * HDRI lighting is not available
 * Motion blur is not available
-    - This is not supported by OSPRay itself
+    - This is not supported by OSPRay itself, but could be added
+      on the BLOSPRAY side
 * Parallel rendering mode through MPI is supported by OSPRay, but not 
   used in BLOSPRAY yet
-* Slice rendering on volumes is not working yet
-* In interactive render mode when showing a camera view the rendered
-  view does not match the scene
 * Many errors that can happen during scene sync between Blender and
   the render server are not caught and/or not reported correctly. Restarting
   either the render server and/or Blender might be needed in these cases.  
@@ -146,6 +147,7 @@ OSPRay (more specifically 2.0.x alpha) also has some limitations:
     - The lighting in the SciVis renderer is very basic
 
 * Volumes cannot be transformed properly when using the SciVis rendering
+  currently
 
 * Volumes are limited in their size, due to the relevant ISPC-based
   code being built in 32-bit mode. See [this issue](https://github.com/ospray/ospray/issues/239).
@@ -156,7 +158,7 @@ OSPRay (more specifically 2.0.x alpha) also has some limitations:
 * Intersecting/overlapping volumes are not (always?) rendered correctly 
   
 * Lights generated in a scene plugin (see below) can not be transformed
-  currently
+  currently on the OSPRay side.
   
 * OSPRay meshes are either pure-triangle, pure-quad or subdivision meshes.
   The latter can mix polygons of different numbers of vertices, but might suffer
@@ -336,14 +338,19 @@ $ ninja install
 $ cd ../bin
 $ ls
 blender-ospray-engine$ ls bin
-blserver            geometry_plane.so  libblospray.so.0.1  libfaker.so  scene_boxes.so       scene_gravity_spheres_volume.so  t_json                  volume_hdf5.so
-geometry_assimp.so  libblospray.so     libblospray.so.1    plugin.h     scene_cornellbox.so  scene_rbc.so                     volume_disney_cloud.so  volume_raw.so
+blserver               geometry_triangles.so        libfaker.so                      scene_rbc.so
+geometry_assimp.so     geometry_vtk_streamlines.so  plugin.h                         t_json
+geometry_hyg_stars.so  libblospray.so               scene_boxes.so                   volume_disney_cloud.so
+geometry_plane.so      libblospray.so.0.1           scene_cornellbox.so              volume_hdf5.so
+geometry_ply.so        libblospray.so.1             scene_gravity_spheres_volume.so  volume_raw.so
 ```
 
 ## Installation
 
-Part of BLOSPRAY consists of the Blender add-on, but this is not being distributed separately
-as the focus currently is getting to a releasable state in terms of features.
+Part of BLOSPRAY consists of a Blender add-on, but this is not being 
+distributed separately currently, as the development focus is getting 
+to a releasable state in terms of features.
+
 Currently, the way to install the add-on is to clone this repository and then
 make a symlink to the `render_ospray` directory in the Blender addon directory:
 
@@ -352,22 +359,13 @@ $ cd <blender-2.8>/2.80/scripts/addons
 $ ln -sf <blospray-repo>/render_ospray render_ospray
 ```
 
-If needed, make Blender find the necessary protobuf dependencies by adding 
-symlinks to `google` and `six.py` in Blender's python library dir:
-
-  ```
-  $ cd <blender-2.8>/2.80/python/lib/python3.7/site-packages
-  $ ln -sf /usr/lib/python3.7/site-packages/six.py six.py
-  $ ln -sf /usr/lib/python3.7/site-packages/google google
-  ```
+In most cases Blender needs an extra Python module for the `protobuf`
+dependency. This is most easily done using PIP and Blender's included
+version of Python:
   
-  
-XXX improve on this using pip, see e.g. 
-https://devtalk.blender.org/t/can-3rd-party-modules-ex-scipy-be-installed-when-an-add-on-is-installed/9709
-and https://devtalk.blender.org/t/can-3rd-party-modules-ex-scipy-be-installed-when-an-add-on-is-installed/9709/7
 ```
-$ ./blender/2.81/python/bin/python3.7 -m ensurepip
-$ ./blender/2.81/python/bin/python3.7 -m pip install -U protobuf
+$ <blender-2.8>/2.80/python/bin/python3.7m -m ensurepip
+$ <blender-2.8>/2.80/python/bin/python3.7m -m pip install -U protobuf --user
 ```
 
 Finally, enable the `Render: OSPRay` add-on in Blender (`Edit -> Preferences -> Add-ons`). 
