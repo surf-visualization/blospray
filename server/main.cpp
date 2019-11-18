@@ -2888,6 +2888,7 @@ prepare_scene()
         if (ospray_scene_instances.size() > 0)
         {
             ospray_scene_instances_data = ospNewSharedData(&ospray_scene_instances[0], OSP_INSTANCE, ospray_scene_instances.size());
+            ospCommit(ospray_scene_instances_data);
             ospSetObject(ospray_world, "instance", ospray_scene_instances_data);    
             ospRetain(ospray_scene_instances_data);
         }
@@ -2907,6 +2908,7 @@ prepare_scene()
         if (ospray_scene_lights.size() > 0)
         {
             ospray_scene_lights_data = ospNewSharedData(&ospray_scene_lights[0], OSP_LIGHT, ospray_scene_lights.size());
+            ospCommit(ospray_scene_lights_data);
             ospSetObject(ospray_world, "light", ospray_scene_lights_data);
             ospRetain(ospray_scene_lights_data);
         }
