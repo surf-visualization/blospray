@@ -840,7 +840,8 @@ handle_update_plugin_instance(TCPSocket *sock)
     const json &plugin_parameters = json::parse(s_plugin_parameters);
     printf("... parameters:\n");
     printf("%s\n", plugin_parameters.dump(4).c_str());
-
+    
+#if 0
     const char *s_custom_properties = update.custom_properties().c_str();
     //printf("Received custom properties:\n%s\n", s_custom_properties);
     const json &custom_properties = json::parse(s_custom_properties);
@@ -849,6 +850,7 @@ handle_update_plugin_instance(TCPSocket *sock)
         printf("... custom properties:\n");
         printf("%s\n", custom_properties.dump(4).c_str());
     }
+#endif
 
     // Check against the current instances
 
@@ -861,6 +863,7 @@ handle_update_plugin_instance(TCPSocket *sock)
         assert(plugin_state.find(data_name) != plugin_state.end());
         state = plugin_state[data_name];
 
+        // XXX could use internal name?
         if (plugin_instance->type != plugin_type || plugin_instance->plugin_name != plugin_name)
         {
             printf("... Existing plugin (type %s, name '%s') does't match, overwriting!\n", 
@@ -871,18 +874,22 @@ handle_update_plugin_instance(TCPSocket *sock)
         {
             // Plugin still of the same type and name, check if parameters and properties still up to date
             const std::string& parameters_hash = get_sha1(update.plugin_parameters());
+#if 0
             const std::string& custom_props_hash = get_sha1(update.custom_properties());
+#endif
 
             if (parameters_hash != plugin_instance->parameters_hash)
             {
-                printf("... Parameters changed, re-running plugin\n");
+                printf("... Parameters changed, re-creating plugin instance\n");
                 delete_plugin_instance(data_name);                
             }
+#if 0
             else if (custom_props_hash != plugin_instance->custom_properties_hash)
             {
                 printf("... Custom properties changed, re-running plugin\n");
                 delete_plugin_instance(data_name);                
             }
+#endif
             else if (plugin_instance->state->uses_renderer_type && plugin_instance->state->renderer != current_renderer_type)
             {
                 printf("... Plugin depends on renderer type, which changed from '%s', re-running plugin\n", 
@@ -918,12 +925,12 @@ handle_update_plugin_instance(TCPSocket *sock)
         return false;
     }    
 
-    generate_function_t generate_function = plugin_definition.functions.generate_function;
+    create_instance_function_t create_instance_function = plugin_definition.functions.create_instance_function;
 
-    if (generate_function == NULL)
+    if (create_instance_function == NULL)
     {
-        printf("... ERROR: plugin generate_function is NULL!\n");
-        result.set_message("Plugin generate_function is NULL!");
+        printf("... ERROR: plugin create_instance_function is NULL!\n");
+        result.set_message("Plugin create_instance_function is NULL!");
         send_protobuf(sock, result);
         return false;
     }
@@ -950,20 +957,20 @@ handle_update_plugin_instance(TCPSocket *sock)
 
     struct timeval t0, t1;
 
-    printf("... Calling generate function\n");
+    printf("... Calling create_instance function\n");
     gettimeofday(&t0, NULL);
 
-    generate_function(plugin_result, state);
+    create_instance_function(plugin_result, state);
 
     gettimeofday(&t1, NULL);
-    printf("... Generate function executed in %.3fs\n", time_diff(t0, t1));
+    printf("... Created instance in %.3fs\n", time_diff(t0, t1));
     
     if (!plugin_result.success)
     {
         result.set_success(false);
         result.set_message(plugin_result.message);
         
-        printf("... ERROR: generate function failed:\n");
+        printf("... ERROR: create_instance failed:\n");
         printf("... %s\n", result.message().c_str());
         send_protobuf(sock, result);
         delete state;
@@ -983,7 +990,7 @@ handle_update_plugin_instance(TCPSocket *sock)
         {
             send_protobuf(sock, result);
 
-            printf("... ERROR: geometry generate function did not set an OSPGeometry!\n");
+            printf("... ERROR: geometry create_instance did not set an OSPGeometry!\n");
             delete state;
             return false;
         }    
@@ -1002,7 +1009,7 @@ handle_update_plugin_instance(TCPSocket *sock)
         {
             send_protobuf(sock, result);
 
-            printf("... ERROR: volume generate function did not set an OSPVolume!\n");
+            printf("... ERROR: volume create_instance did not set an OSPVolume!\n");
             delete state;
             return false;
         }
@@ -1019,7 +1026,7 @@ handle_update_plugin_instance(TCPSocket *sock)
             printf("... %d lights\n", state->lights.size());
         }
         else
-            printf("... WARNING: scene generate function returned 0 instances!\n");    
+            printf("... WARNING: scene create_instance returned zero instances!\n");    
         
         internal_name = "scene";
 
@@ -1037,8 +1044,10 @@ handle_update_plugin_instance(TCPSocket *sock)
     plugin_instance->state = state; 
     plugin_instance->name = data_name;    
     plugin_instance->parameters_hash = get_sha1(s_plugin_parameters);
+#if 0
     plugin_instance->custom_properties_hash = get_sha1(s_custom_properties);    
-
+#endif
+    
     plugin_instances[data_name] = plugin_instance;
     plugin_state[data_name] = state;
     scene_data_types[data_name] = SDT_PLUGIN;

@@ -217,7 +217,7 @@ typedef void (*plugin_load_function_t)(
 typedef void (*plugin_unload_function_t)(    
 );
 
-typedef void (*generate_function_t)(
+typedef void (*create_instance_function_t)(
     PluginResult &result,
     PluginState *state
 );
@@ -236,7 +236,7 @@ typedef struct
     // Depending on the type of plugin the corresponding fields in
     // PluginState must be set.
     // This function may not be NULL.
-    generate_function_t         generate_function;    
+    create_instance_function_t  create_instance_function;    
     
     // Clear any plugin-specific data from PluginState for this plugin instance. 
     // May be NULL
