@@ -414,7 +414,7 @@ check_plugin_parameters(GenerateFunctionResult& result, const PluginParameter *p
                 break;
 
             case PARAM_FLOAT:
-                if (!value.is_number_float())
+                if (!value.is_number_float() && !value.is_number_integer())
                 {
                     printf("ERROR: Expected float value for parameter '%s'!\n", name);
                     ok = false;
