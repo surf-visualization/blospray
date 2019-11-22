@@ -53,7 +53,7 @@ set_target_properties(libblospray
     OUTPUT_NAME blospray
     VERSION ${PROJECT_VERSION}
     SOVERSION 1
-    PUBLIC_HEADER plugin.h
+    PUBLIC_HEADER "plugin.h;bounding_mesh.h;util.h;json.hpp"
     INSTALL_RPATH "\\\$ORIGIN"
     )
     
@@ -97,7 +97,8 @@ endif(VTK_QC_BOUND)
 
 install(TARGETS 
     libblospray 
-    DESTINATION bin)
+    LIBRARY DESTINATION bin
+    PUBLIC_HEADER DESTINATION include)
 
 #install(FILES
 #    ${PROTO_PYTHON_SRCS}

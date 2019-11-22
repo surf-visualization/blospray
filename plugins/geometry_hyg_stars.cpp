@@ -130,7 +130,7 @@ create_spheres(PluginState *state, json& j, bool project, float scale, float rad
 
 extern "C"
 void
-create_geometry(GenerateFunctionResult &result, PluginState *state)
+create_geometry(PluginResult &result, PluginState *state)
 {    
     const float radius = state->parameters["radius"];
     const float scale = state->parameters["scale"];

@@ -149,7 +149,7 @@ load_points(const char *renderer_type, const char *fname, int max_points, float 
 
 extern "C" 
 void
-generate(GenerateFunctionResult &result, PluginState *state)
+generate(PluginResult &result, PluginState *state)
 {    
     const json& parameters = state->parameters;
     

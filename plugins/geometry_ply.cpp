@@ -111,7 +111,7 @@ face_cb(p_ply_argument argument)
 
 extern "C"
 void
-load_ply_file(GenerateFunctionResult &result, PluginState *state)
+load_ply_file(PluginResult &result, PluginState *state)
 {
     const std::string& plyfile = state->parameters["file"];
     char        msg[1024];

@@ -46,6 +46,7 @@
 #include "blocking_queue.h"
 #include "cool2warm.h"
 #include "util.h"
+#include "util_internal.h"
 #include "plugin.h"
 #include "messages.pb.h"
 #include "scene.h"
@@ -937,6 +938,8 @@ handle_update_plugin_instance(TCPSocket *sock)
     state->uses_renderer_type = plugin_definition.uses_renderer_type;
     state->parameters = plugin_parameters;
 
+    PluginResult plugin_result;
+
     // Call generate function
 
     struct timeval t0, t1;
@@ -944,13 +947,16 @@ handle_update_plugin_instance(TCPSocket *sock)
     printf("... Calling generate function\n");
     gettimeofday(&t0, NULL);
 
-    generate_function(result, state);
+    generate_function(plugin_result, state);
 
     gettimeofday(&t1, NULL);
     printf("... Generate function executed in %.3fs\n", time_diff(t0, t1));
     
-    if (!result.success())
+    if (!plugin_result.success)
     {
+        result.set_success(false);
+        result.set_message(plugin_result.message);
+        
         printf("... ERROR: generate function failed:\n");
         printf("... %s\n", result.message().c_str());
         send_protobuf(sock, result);

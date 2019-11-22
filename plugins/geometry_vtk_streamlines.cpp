@@ -34,7 +34,7 @@
 
 extern "C"
 void
-load_file(GenerateFunctionResult &result, PluginState *state)
+load_file(PluginResult &result, PluginState *state)
 {
     //char        msg[1024];
 

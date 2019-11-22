@@ -271,7 +271,7 @@ add_ground_plane()
 
 extern "C" 
 void
-generate(GenerateFunctionResult &result, PluginState *state)
+generate(PluginResult &result, PluginState *state)
 {    
     const json& parameters = state->parameters;
     

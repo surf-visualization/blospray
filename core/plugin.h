@@ -26,10 +26,10 @@
 #include <ospray/ospray_util.h>
 #include <glm/matrix.hpp>
 
-#include "messages.pb.h"        
+//#include "messages.pb.h"        
 #include "json.hpp"
 #include "bounding_mesh.h"
-#include "util.h"
+#include "util.h"           // ospNewCopiedData, int swaps
 
 using json = nlohmann::json;
 
@@ -116,7 +116,7 @@ typedef std::vector<GroupInstance>          GroupInstances;
 typedef std::vector<OSPLight>               Lights;
 
 //
-// Functions
+// Structures
 //
  
 // XXX rename, as it is not the state of the plugin, but state of one
@@ -182,6 +182,34 @@ struct PluginState
     }
 };
 
+// XXX better name
+struct PluginResult
+{
+    bool            success;
+    std::string     message;
+
+    PluginResult()
+    {
+        success = true;
+        message = "";
+    }
+
+    // XXX replace these two by more informative methods, like
+    // generation_failed(), update_failed(), etc
+    void set_success(bool s)
+    {
+        success = s;
+    }
+
+    void set_message(const std::string &msg)
+    {
+        message = msg;
+    }
+};
+
+//
+// Functions
+//
 
 typedef void (*plugin_load_function_t)(
 );
@@ -190,7 +218,7 @@ typedef void (*plugin_unload_function_t)(
 );
 
 typedef void (*generate_function_t)(
-    GenerateFunctionResult &result,
+    PluginResult &result,
     PluginState *state
 );
 

@@ -99,7 +99,7 @@ create_plane(float cx, float cy, float cz, float sx, float sy)
 
 extern "C"
 void
-create_geometry(GenerateFunctionResult &result, PluginState *state)
+create_geometry(PluginResult &result, PluginState *state)
 {    
     const float size_x = state->parameters["size_x"];
     const float size_y = state->parameters["size_y"];

@@ -103,7 +103,7 @@ create_triangles(int num_triangles, float max_edge_len)
 
 extern "C"
 void
-create_geometry(GenerateFunctionResult &result, PluginState *state)
+create_geometry(PluginResult &result, PluginState *state)
 {
     const json& parameters = state->parameters;
     const int n = state->parameters["n"];

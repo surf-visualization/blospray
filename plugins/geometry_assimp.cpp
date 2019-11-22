@@ -99,7 +99,7 @@ create_plane(float cx, float cy, float cz, float sx, float sy)
 
 extern "C"
 void
-load_file(GenerateFunctionResult &result, PluginState *state)
+load_file(PluginResult &result, PluginState *state)
 {
     const std::string& file = state->parameters["file"];
     char        msg[1024];

@@ -5,7 +5,7 @@
 #include <string>
 #include <ospray/ospray.h>
 
-#include "messages.pb.h"
+//#include "messages.pb.h"
 
 typedef std::vector<OSPInstance>    OSPInstanceList;
 typedef std::vector<OSPLight>		OSPLightList;

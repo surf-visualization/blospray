@@ -31,7 +31,7 @@ using json = nlohmann::json;
 // XXX check for existence of "file", "header_skip", etc. entries in parameters[]
 
 static OSPVolumetricModel
-load_as_structured(float *bbox, GenerateFunctionResult &result,
+load_as_structured(float *bbox, PluginResult &result,
     const json &parameters, const glm::mat4 &/*object2world*/, 
     const int32_t *dims, const std::string &voxelType, OSPDataType dataType, void *grid_field_values)
 {
@@ -92,7 +92,7 @@ load_as_structured(float *bbox, GenerateFunctionResult &result,
 
 static OSPVolumetricModel
 load_as_unstructured(
-    float *bbox, GenerateFunctionResult &result,
+    float *bbox, PluginResult &result,
     const json &parameters, const glm::mat4 &object2world, 
     const int32_t *dims, const std::string &voxelType, OSPDataType dataType, void *grid_field_values)
 {    
@@ -217,7 +217,7 @@ load_as_unstructured(
 
 extern "C"
 OSPVolumetricModel
-load(float *bbox, float *data_range, GenerateFunctionResult &result, const json &parameters, const glm::mat4 &object2world)
+load(float *bbox, float *data_range, PluginResult &result, const json &parameters, const glm::mat4 &object2world)
 {
     char msg[1024];
         
@@ -457,7 +457,7 @@ void map_values(T* values, int n, float scale, float offset)
 
 extern "C"
 void
-generate(GenerateFunctionResult &result, PluginState *state)
+generate(PluginResult &result, PluginState *state)
 {
     const json& parameters = state->parameters;
     
