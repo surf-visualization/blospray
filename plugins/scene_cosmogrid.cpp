@@ -226,6 +226,7 @@ generate(PluginResult &result, PluginState *state)
     
     OSPGroup group = ospNewGroup();
         OSPData models = ospNewCopiedData(1, OSP_GEOMETRIC_MODEL, &model);
+        ospCommit(models);
         ospSetObject(group, "geometry", models); 
         ospRelease(models);
     ospCommit(group);
