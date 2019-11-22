@@ -198,6 +198,7 @@ struct PluginInstance
 
     PluginType      type;
     std::string     plugin_name;
+    std::string     plugin_internal_name;
 
     std::string     parameters_hash;
     std::string     custom_properties_hash;
@@ -258,6 +259,7 @@ void start_rendering(const ClientMessage& client_message);
 
 // If needed, loads plugin shared library and initializes plugin
 // XXX perhaps this operation should have its own ...Result type
+// XXX use internal name here?
 bool
 ensure_plugin_is_loaded(GenerateFunctionResult &result, PluginDefinition &definition,
     PluginType type, const std::string& name)
@@ -455,10 +457,11 @@ delete_plugin_instance(const std::string& name)
 
     PluginInstance *plugin_instance = it->second;
     PluginState *state = plugin_instance->state;
+    const std::string& internal_name = plugin_instance->plugin_internal_name;
 
     if (state->data)
     {
-        PluginDefinitionsMap::iterator it = plugin_definitions.find(plugin_instance->plugin_name);
+        PluginDefinitionsMap::iterator it = plugin_definitions.find(internal_name);
 
         if (it != plugin_definitions.end())
         {
@@ -466,7 +469,10 @@ delete_plugin_instance(const std::string& name)
             it->second.functions.clear_data_function(state);
         }
         else
-            printf("ERROR: no plugin definition found for plugin '%s' to delete\n", name.c_str());
+        {
+            printf("... WARNING: user data non-null on plugin instance of type '%s', but no clear data function set\n", 
+                internal_name.c_str());
+        }
     }
     
     delete state;
@@ -916,7 +922,7 @@ handle_update_plugin_instance(TCPSocket *sock)
 
     if (generate_function == NULL)
     {
-        printf("... ERROR: Plugin generate_function is NULL!\n");
+        printf("... ERROR: plugin generate_function is NULL!\n");
         result.set_message("Plugin generate_function is NULL!");
         send_protobuf(sock, result);
         return false;
@@ -966,6 +972,8 @@ handle_update_plugin_instance(TCPSocket *sock)
 
     // Handle any other business for this type of plugin
     // XXX set result.success to false?
+    
+    std::string internal_name;
 
     switch (plugin_type)
     {
@@ -979,6 +987,8 @@ handle_update_plugin_instance(TCPSocket *sock)
             delete state;
             return false;
         }    
+        
+        internal_name = "geometry";
 
         break;
 
@@ -996,6 +1006,8 @@ handle_update_plugin_instance(TCPSocket *sock)
             delete state;
             return false;
         }
+        
+        internal_name = "volume";
 
         break;
 
@@ -1008,15 +1020,20 @@ handle_update_plugin_instance(TCPSocket *sock)
         }
         else
             printf("... WARNING: scene generate function returned 0 instances!\n");    
+        
+        internal_name = "scene";
 
         break;
     }
 
     // Load function succeeded
+    
+    internal_name += "_" + plugin_name;
 
     plugin_instance = new PluginInstance;
     plugin_instance->type = plugin_type;
-    plugin_instance->plugin_name = plugin_name;        
+    plugin_instance->plugin_name = plugin_name;
+    plugin_instance->plugin_internal_name = internal_name;
     plugin_instance->state = state; 
     plugin_instance->name = data_name;    
     plugin_instance->parameters_hash = get_sha1(s_plugin_parameters);
