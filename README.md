@@ -141,11 +141,14 @@ Known to be missing and/or buggy:
 
 OSPRay (more specifically 2.0.x alpha) also has some limitations:
 
-* OSPRay's SciVis and Path Tracer renderer do not have the same set of features
+* OSPRay's SciVis and Path Tracer renderer do not have the same set of features 
+  and performance characteristics:
 
     - Only the Path Tracer supports advanced materials, like the principled material
-    - The lighting in the SciVis renderer is very basic
-
+    - The lighting in the SciVis renderer is very basic, limited only to ambient occlussion
+    - Volume rendering differs between the two renderers: the SciVis renderer
+      only supports simple ray-marching, while the path tracer XXX
+      
 * Volumes cannot be transformed properly when using the SciVis rendering
   currently
 
