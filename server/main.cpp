@@ -1101,7 +1101,7 @@ handle_update_blender_mesh_data(TCPSocket *sock, const std::string& name)
     if (create_new_mesh)
     {
         blender_mesh = blender_meshes[name] = new BlenderMesh;
-        geometry = blender_mesh->geometry = ospNewGeometry("triangles");
+        geometry = blender_mesh->geometry = ospNewGeometry("mesh");
         scene_data_types[name] = SDT_BLENDER_MESH;
     }
 
