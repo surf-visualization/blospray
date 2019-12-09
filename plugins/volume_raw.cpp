@@ -37,7 +37,7 @@ load_as_structured(float *bbox, PluginResult &result,
 {
     fprintf(stderr, "... WARNING: volume loaded as structured, OSPRay currently doesn't support object-to-world transformation on it\n");
     
-    OSPVolume volume = ospNewVolume("structured_volume");
+    OSPVolume volume = ospNewVolume("structured_regular");
     
     // XXX shared
     OSPData voxelData = ospNewCopiedData(dims[0]*dims[1]*dims[2], dataType, grid_field_values);   
@@ -182,7 +182,7 @@ load_as_unstructured(
     OSPData indicesData = ospNewCopiedData(num_hexahedrons*2, OSP_VEC4I, indices);
     ospCommit(indicesData);
     
-    OSPVolume volume = ospNewVolume("unstructured_volume");
+    OSPVolume volume = ospNewVolume("unstructured_volume"); // XXX has been renamed?
     
         ospSetObject(volume, "vertices", verticesData);
         ospRelease(verticesData);
@@ -390,7 +390,7 @@ create_volume(float *bbox,
         spacing[2] = s[2];
     }
     
-    OSPVolume volume = ospNewVolume("structured_volume");
+    OSPVolume volume = ospNewVolume("structured_regular");
     
         OSPData voxelData = ospNewCopiedData(dims[0]*dims[1]*dims[2], dataType, grid_field_values);   
         ospCommit(voxelData);
