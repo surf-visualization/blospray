@@ -23,6 +23,7 @@
 
 //#define DUMP_PROTOBUF_TRAFFIC
 
+#include <cstdlib>
 #include <iostream>
 #include <fstream>
 #include <boost/version.hpp>
@@ -31,6 +32,7 @@
 #else
 #include <boost/uuid/sha1.hpp>
 #endif
+#include <boost/regex.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
 // Protobuf message printing
@@ -224,6 +226,38 @@ get_sha1(const std::string& p_arg)
     }
 
     return std::string(buf);
+}
+
+// Replace "... $<envvar> ..."
+std::string 
+process_environment_variables_match(const boost::smatch& what)
+{
+    std::string full(what[0].first, what[0].second);
+    std::string env(what[1].first, what[1].second);
+    
+    const char *value = std::getenv(env.c_str());
+    
+    if (value == nullptr)
+    {
+        // Return unmodified full environment string,
+        // including the $<...> markers
+        printf("... WARNING: environment variable '%s' not set in '%s'\n", 
+            env.c_str(), full.c_str());
+        return full;
+    }
+    
+    return std::string(value);
+}
+
+std::string
+replace_environment_variables(const std::string& s)
+{
+    boost::regex pat("\\$<([^>]+?)>");
+    
+    return boost::regex_replace(s,
+        pat, 
+        process_environment_variables_match, 
+        boost::match_default | boost::format_all);
 }
 
 // Return memory usage in megabytes

@@ -943,13 +943,26 @@ handle_update_plugin_instance(TCPSocket *sock)
         send_protobuf(sock, result);
         return false;
     }    
+    
+    // XXX find a better place to replace envvars
+    // Could do this on the raw (unparsed) json string?
+    json plugin_parameters2;
+    for (json::const_iterator it = plugin_parameters.begin(); it != plugin_parameters.end(); ++it)
+    {
+        const json& value = it.value();
+        
+        if (value.is_string())
+            plugin_parameters2[it.key()] = replace_environment_variables(value.get<std::string>());
+        else
+            plugin_parameters2[it.key()] = value;
+    }
 
     // Create plugin instance and state    
 
     state = new PluginState; 
     state->renderer = current_renderer_type;   
     state->uses_renderer_type = plugin_definition.uses_renderer_type;
-    state->parameters = plugin_parameters;
+    state->parameters = plugin_parameters2;
 
     PluginResult plugin_result;
 
