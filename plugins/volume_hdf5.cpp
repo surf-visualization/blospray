@@ -54,7 +54,7 @@ generate(PluginResult &result, PluginState *state)
     h5::Attribute   *attr;
     h5::Type        *type;
 
-    file.open(hdf5_file.c_str());
+    file.open(hdf5_file.c_str(), true);
 
     dset = file.open_dataset(dataset.c_str());
 
@@ -113,7 +113,7 @@ generate(PluginResult &result, PluginState *state)
 
     OSPDataType dataType = OSP_FLOAT;
 
-    OSPVolume volume = ospNewVolume("structured_volume");
+    OSPVolume volume = ospNewVolume("structured_regular");
     
         OSPData voxelData = ospNewCopiedData(n, dataType, grid_field_values);   
         ospCommit(voxelData);

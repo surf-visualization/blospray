@@ -217,7 +217,7 @@ generate(PluginResult &result, PluginState *state)
     printf("... Origin (index-space) is %d, %d, %d\n", min_x, min_y, min_z);
     printf("... Origin (scaled index-space) is %.6f, %.6f, %.6f\n", origin_x, origin_y, origin_z);
     
-    OSPVolume volume = ospNewVolume("structured_volume");
+    OSPVolume volume = ospNewVolume("structured_regular");
     
     ospSetInt(volume, "voxelType", OSP_FLOAT);
     ospSetVec3i(volume, "dimensions", nx, ny, nz);
