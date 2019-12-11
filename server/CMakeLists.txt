@@ -36,9 +36,10 @@ target_link_libraries(blserver
     libblospray
     dl
     Threads::Threads
-    ${OSPRAY_LIBRARIES} 
+    ospray::ospray
     ospray::ospray_testing
-    ${OPENIMAGEIO_LIBRARIES} 
+    ${OPENIMAGEIO_LIBRARIES}
+    ${OPENEXR_LIBRARIES}
     ${Boost_LIBRARIES}
     ${PROTOBUF_LIBRARIES}
 )

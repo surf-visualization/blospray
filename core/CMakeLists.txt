@@ -70,7 +70,7 @@ target_link_libraries(libblospray
     PUBLIC
     dl
     Threads::Threads
-    ${OSPRAY_LIBRARIES} 
+    ospray::ospray
     ospray::ospray_testing
     ${OPENIMAGEIO_LIBRARIES} 
     ${Boost_LIBRARIES}
