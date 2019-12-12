@@ -124,7 +124,7 @@ generate(PluginResult &result, PluginState *state)
         ospSetInt(volume, "voxelType", dataType);
         ospSetVec3i(volume, "dimensions", dims[0], dims[1], dims[2]);
     
-        ospSetParam(volume, "gridOrigin", OSP_VEC3F, origin);           // XXX how the heck can this work? we're not passing OSPData
+        ospSetParam(volume, "gridOrigin", OSP_VEC3F, origin);
         ospSetParam(volume, "gridSpacing", OSP_VEC3F, spacing);
 
     ospCommit(volume);
@@ -132,6 +132,7 @@ generate(PluginResult &result, PluginState *state)
     state->volume = volume;
     state->volume_data_range[0] = minval;
     state->volume_data_range[1] = maxval;
+    
     state->bound = BoundingMesh::bbox(
         origin[0], origin[1], origin[2],
         origin[0]+spacing[0]*dims[0], origin[1]+spacing[1]*dims[1], origin[2]+spacing[2]*dims[2],
