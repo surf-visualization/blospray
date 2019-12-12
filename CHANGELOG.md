@@ -11,6 +11,9 @@
     Currently, `frame` is the only available value to use in the 
     expression, but can already be used for something like 
     `/data/step{{'%04d' % frame}}.bin`.
+* Added two other forms of environment variable substitution:
+  - "....${envvar}...." (client-side, i.e. Blender)
+  - "....$<envvar>...." (server-side, i.e. blserver)
 * Isosurface rendering is now available, by setting the Render mode
   of the volume object to `Isosurfaces` and setting a property
   `isovalues` on the object with a list of values.
@@ -20,6 +23,8 @@ Plugins:
 * Added `geometry_vtk_streamlines.cpp` as an example of what can be
   done using VTK data loading, together with the OSPRay streamline
   geometry.
+  XXX streamline geometry has already been replaced by curves in the last
+  2.0.x alpha commits
 
 ### Changes in version 0.1
 
