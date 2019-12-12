@@ -174,7 +174,7 @@ extern "C" bool
 initialize(PluginDefinition *def)
 {
     def->type = PT_SCENE;
-    def->uses_renderer_type = true;
+    def->uses_renderer_type = false;
     def->parameters = parameters;
     def->functions = functions;
     
