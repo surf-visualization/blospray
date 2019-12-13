@@ -391,7 +391,7 @@ dependency. This is most easily done using PIP and Blender's included
 Python interpreter:
   
 ```
-$ <blender-2.81>/2.81/python/bin/python3.7m -m ensurepip
+$ <blender-2.81>/2.81/python/bin/python3.7m -m ensurepip --user
 $ <blender-2.81>/2.81/python/bin/python3.7m -m pip install -U protobuf --user
 ```
 
