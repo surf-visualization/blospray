@@ -355,20 +355,44 @@ distributed separately currently, as the development focus is getting
 to a releasable state in terms of features.
 
 Currently, the way to install the add-on is to clone this repository and then
-make a symlink to the `render_ospray` directory in the Blender addon directory:
+make a symlink to the `render_ospray` directory in the Blender addon directory.
+It depends on the installation path of Blender itself what is the best way to
+add this symlink:
 
-```
-$ cd <blender-2.8>/2.80/scripts/addons
-$ ln -sf <blospray-repo>/render_ospray render_ospray
-```
+1. You have Blender installed in a system-wide directory that is not writeable
+   (or you prefer to not alter the system-wide installation)
+   
+   In this case the user-specific directory can be used. On Linux this
+   is `$HOME/.config/blender/2.81` (see [here](https://docs.blender.org/manual/en/latest/advanced/blender_directory_layout.html)
+   for the location on other platforms).
+   
+   ```
+    $ cd $HOME/.config/blender/2.81
+    
+    # Create addons directory, if needed
+    $ mkdir -p scripts/addons           
+    
+    $ cd scripts/addons
+    
+    # Create symlink to blospray addon
+    $ ln -sf <blospray-repo>/render_ospray render_ospray
+    ```
+   
+2. You have Blender installed in a user-writable location. In this case you
+   can create the symlink directly in the installation location:
+
+    ```
+    $ cd <blender-2.81>/2.81/scripts/addons
+    $ ln -sf <blospray-repo>/render_ospray render_ospray
+    ```
 
 In most cases Blender needs an extra Python module for the `protobuf`
 dependency. This is most easily done using PIP and Blender's included
-version of Python:
+Python interpreter:
   
 ```
-$ <blender-2.8>/2.80/python/bin/python3.7m -m ensurepip
-$ <blender-2.8>/2.80/python/bin/python3.7m -m pip install -U protobuf --user
+$ <blender-2.81>/2.81/python/bin/python3.7m -m ensurepip
+$ <blender-2.81>/2.81/python/bin/python3.7m -m pip install -U protobuf --user
 ```
 
 Finally, enable the `Render: OSPRay` add-on in Blender (`Edit -> Preferences -> Add-ons`). 
