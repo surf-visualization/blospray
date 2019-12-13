@@ -96,6 +96,9 @@ generate(PluginResult &result, PluginState *state)
     float minval, maxval;
 
     dset->read<float>(grid_field_values);
+    
+    minval = std::numeric_limits<float>::max();
+    maxval = std::numeric_limits<float>::min();
 
     for (int i = 0; i < n; i++)
     {
@@ -103,7 +106,38 @@ generate(PluginResult &result, PluginState *state)
         maxval = std::max(maxval, grid_field_values[i]);
     }
 
-    printf("Data range: %.6f, %.6f\n", minval, maxval);
+    printf("... Data range: %.6f, %.6f\n", minval, maxval);
+    
+    if (parameters.find("fill") != parameters.end())
+    {
+        const json &fill = parameters["fill"];
+        
+        const int axis = fill[0].get<int>();
+        const int min_index = fill[1].get<int>();
+        const int max_index = fill[2].get<int>();
+        const float value = fill[3].get<float>();
+        
+        printf("... Filling %c=%d..%d with %.6f\n", 'X'+axis, min_index, max_index, value);
+        
+        int i, j, k;
+        
+        // XXX oh, the horror....
+        switch (axis)
+        {
+        case 2:
+            for (k = min_index; k <= max_index; k++)
+            {
+                for (j = 0; j < dims[1]; j++)
+                {
+                    for (i = 0;  i < dims[0]; i++)
+                    {
+                        grid_field_values[(k*dims[1] + j)*dims[0] + i] = value;
+                    }
+                }
+            }
+            break;
+        }
+    }
 
     const json& p_origin = parameters["origin"];
     const json& p_spacing = parameters["spacing"];
@@ -130,8 +164,18 @@ generate(PluginResult &result, PluginState *state)
     ospCommit(volume);
 
     state->volume = volume;
-    state->volume_data_range[0] = minval;
-    state->volume_data_range[1] = maxval;
+    
+    if (parameters.find("value_range") != parameters.end())
+    {
+        const json& vrange = parameters["value_range"];
+        state->volume_data_range[0] = vrange[0].get<float>();
+        state->volume_data_range[1] = vrange[1].get<float>();        
+    }
+    else
+    {    
+        state->volume_data_range[0] = minval;
+        state->volume_data_range[1] = maxval;
+    }
     
     state->bound = BoundingMesh::bbox(
         origin[0], origin[1], origin[2],
@@ -147,14 +191,20 @@ parameters = {
     {"hdf5_file",   PARAM_STRING,   1, FLAG_NONE, 
         "Path to HDF5 file"},
         
-    {"dataset",     PARAM_STRING,      1, FLAG_NONE, 
+    {"dataset",     PARAM_STRING,   1, FLAG_NONE, 
         "Path of dataset to read"},
         
-    {"origin",      PARAM_FLOAT,      3, FLAG_NONE, 
+    {"origin",      PARAM_FLOAT,    3, FLAG_NONE, 
         "Origin of the volume"},
         
-    {"spacing",     PARAM_FLOAT,      3, FLAG_NONE, 
+    {"spacing",     PARAM_FLOAT,    3, FLAG_NONE, 
         "Spacing of the volume"},
+
+    {"fill",        PARAM_INT,      3, FLAG_OPTIONAL, 
+        "Fill (overwrite) part of the volume (axis, minindex, maxindex, value)"},
+        
+    {"value_range", PARAM_FLOAT,    2, FLAG_OPTIONAL, 
+        "Data range of the volume (derived from the data if not specified)"},        
 
     PARAMETERS_DONE         // Sentinel (signals end of list)
 };

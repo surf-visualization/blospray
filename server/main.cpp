@@ -1550,6 +1550,11 @@ update_volume_object(const UpdateObject& update, const Volume& volume_settings)
     //ospSetFloat(vmodel,  "anisotropy", volume_settings.anisotropy());  // TODO    
 
     OSPTransferFunction tf;
+    
+    // XXX the TF is based on the actual volume data range here, but there
+    // are situations in which a user would want to specify the actual range
+    // (e.g. rendering a dataset sequence where the per-step data range varies,
+    // while the TF should keep the same range for consistent color and opacity)
 
     if (volume_settings.tf_positions_size() > 0 && volume_settings.tf_colors_size() > 0)
     {
