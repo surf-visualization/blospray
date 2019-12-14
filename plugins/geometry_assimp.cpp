@@ -26,77 +26,6 @@
 #include <vector>
 #include "plugin.h"
 
-/*
-OSPGeometry
-create_plane(float cx, float cy, float cz, float sx, float sy)
-{
-    uint32_t  num_vertices, num_triangles;
-    float     *vertices, *colors;  
-    uint32_t  *triangles;    
-    
-    num_vertices = 4;
-    num_triangles = 2;
-    
-    vertices = new float[num_vertices*3];
-    triangles = new uint32_t[num_triangles*3];
-    colors = new float[num_vertices*4];
-    
-    vertices[0] = cx - 0.5f*sx;
-    vertices[1] = cy - 0.5f*sy;
-    vertices[2] = cz;
-
-    vertices[3] = cx + 0.5f*sx;
-    vertices[4] = cy - 0.5f*sy;
-    vertices[5] = cz;
-
-    vertices[6] = cx + 0.5f*sx;
-    vertices[7] = cy + 0.5f*sy;
-    vertices[8] = cz;
-
-    vertices[9] = cx - 0.5f*sx;
-    vertices[10] = cy + 0.5f*sy;
-    vertices[11] = cz;
-    
-    triangles[0] = 0;
-    triangles[1] = 1;
-    triangles[2] = 2;
-
-    triangles[3] = 0;
-    triangles[4] = 2;
-    triangles[5] = 3;
-
-    for (int i = 0; i < num_vertices; i++)
-    {
-        colors[4*i+0] = 1.0f;
-        colors[4*i+1] = 0.5f;
-        colors[4*i+2] = 0.5f;
-        colors[4*i+3] = 1.0f;
-    }    
-    
-    OSPGeometry mesh = ospNewGeometry("triangles");
-  
-        OSPData data = ospNewCopiedData(num_vertices, OSP_VEC3F, vertices);   
-        ospCommit(data);
-        ospSetData(mesh, "vertex.position", data);
-
-        data = ospNewCopiedData(num_vertices, OSP_VEC4F, colors);
-        ospCommit(data);
-        //ospSetData(mesh, "vertex.color", data);
-
-        data = ospNewCopiedData(num_triangles, OSP_VEC3UI, triangles);            
-        ospCommit(data);
-        ospSetData(mesh, "index", data);
-
-    ospCommit(mesh);
-    
-    delete [] vertices;
-    delete [] colors;
-    delete [] triangles;    
-    
-    return mesh;
-}
-*/
-
 extern "C"
 void
 load_file(PluginResult &result, PluginState *state)
@@ -144,7 +73,7 @@ load_file(PluginResult &result, PluginState *state)
     std::vector<uint32_t> triangles;
 
     // Triangle mesh
-    OSPGeometry geometry = ospNewGeometry("triangles");
+    OSPGeometry geometry = ospNewGeometry("mesh");
     {
         printf("... %d vertices\n", nvertices);
 
