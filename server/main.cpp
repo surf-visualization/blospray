@@ -2710,39 +2710,11 @@ update_world_settings(const WorldSettings& world_settings)
         world_settings.background_color(2),
         world_settings.background_color(3));    
 
-    if (current_renderer_type == "scivis")
-    {
-        ospSetVec4f(ospray_renderer, "bgColor",
-            world_settings.background_color(0),
-            world_settings.background_color(1),
-            world_settings.background_color(2),
-            world_settings.background_color(3));
-    }
-    else
-    {
-        // Pathtracer
-
-        // Work around unsupported bgColor
-        // https://github.com/ospray/ospray/issues/347
-
-        float texel[4] = { 
-            world_settings.background_color(0),
-            world_settings.background_color(1),
-            world_settings.background_color(2),
-            world_settings.background_color(3)
-        };
-
-        OSPData data = ospNewCopiedData(1, OSP_VEC4F, texel);
-
-        OSPTexture backplate = ospNewTexture("texture2d");    
-            ospSetInt(backplate, "format", OSP_TEXTURE_RGBA32F);
-            ospSetObject(backplate, "data", data);
-        ospCommit(backplate);            
-        ospRelease(data);
-
-        ospSetObject(ospray_renderer, "backplate", backplate);
-        ospRelease(backplate);
-    }
+    ospSetVec4f(ospray_renderer, "bgColor",
+        world_settings.background_color(0),
+        world_settings.background_color(1),
+        world_settings.background_color(2),
+        world_settings.background_color(3));
 
     ospCommit(ospray_renderer);
 
