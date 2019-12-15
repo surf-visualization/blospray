@@ -9,11 +9,9 @@ OSPRAY issues
 - The background alpha with `bgColor` seems to be ignored (or always 0) when using the path
   tracer renderer. See https://github.com/ospray/ospray/issues/347.
   For now use backplate work around.
+  XXX was fixed in a recent 2.0.x commit
 - Camera clipping start doesn't match cycles render, nor OpenGL scene view.
   OSPRay also only supports setting the clipping start, not a far clip value.
-- Apparently the framebuffer gets corrupted when using ospCancel(), see
-  https://github.com/ospray/ospray/issues/367. However, still needs to be
-  confirmed that it really is an issue with ospray.
 
 Blender issues
 - https://developer.blender.org/T59089 (get eevee render instead of custom one)
