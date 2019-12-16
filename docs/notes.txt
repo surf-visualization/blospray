@@ -91,3 +91,21 @@ https://blender.stackexchange.com/questions/57306/how-to-create-a-custom-ui/5733
 'space_node', 'space_outliner', 'space_properties', 'space_sequencer', 'space_statusbar', 
 'space_text', 'space_time', 'space_toolsystem_common', 'space_toolsystem_toolbar', 
 'space_topbar', 'space_userpref', 'space_view3d', 'space_view3d_toolbar', 'unregister']
+
+
+---------------------------------------------------------------------------
+
+https://blender.stackexchange.com/questions/73759/install-addons-in-headless-blender
+https://blender.stackexchange.com/a/73775
+
+paulm@tcn1378 11:12 ~/projects/slender-git$ blender -b --python-console
+Blender 2.80 (sub 75)
+Read prefs: /home/paulm/.config/blender/2.80/config/userpref.blend
+found bundled python: /home/paulm/.local/easybuild/RedHatEnterpriseServer7/2019/software/Blender/2.80-foss-2018b-Python-3.7.5/share/blender/2.80/python
+Python 3.7.5 (default, Oct 30 2019, 13:18:59) 
+[GCC 7.3.0] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+(InteractiveConsole)
+>>> import bpy
+>>> bpy.ops.preferences.addon_enable(module='render_ospray')
+>>> bpy.ops.wm.save_userpref()

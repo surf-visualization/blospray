@@ -149,9 +149,6 @@ OSPRay (more specifically 2.0.x alpha) also has some limitations:
     - Volume rendering differs between the two renderers: the SciVis renderer
       only supports simple ray-marching, while the path tracer XXX
       
-* Volumes cannot be transformed properly when using the SciVis rendering
-  currently
-
 * Volumes are limited in their size, due to the relevant ISPC-based
   code being built in 32-bit mode. See [this issue](https://github.com/ospray/ospray/issues/239).
   

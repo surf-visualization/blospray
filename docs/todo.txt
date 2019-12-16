@@ -4,8 +4,6 @@ OSPRAY updates in 2.0.x branch
   https://github.com/ospray/ospray/commit/9797ed6bdd748978f1f06b1b2a621ae78f0a3d64
 
 OSPRAY issues
-- Volume rendering currently is buggy work when applying a transform
-  to the volume model with the scivis renderer (path tracer works ok)
 - The background alpha with `bgColor` seems to be ignored (or always 0) when using the path
   tracer renderer. See https://github.com/ospray/ospray/issues/347.
   For now use backplate work around.

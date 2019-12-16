@@ -766,7 +766,7 @@ create_user_transfer_function(float minval, float maxval, const Volume& volume, 
             }
         }    
 
-        //printf("[%d] %f, %f, %f; %f\n", i, r, g, b, a);
+        printf("[%d] %f, %f, %f; %f\n", i, r, g, b, a);
 
         tf_colors[3*i+0] = r;
         tf_colors[3*i+1] = g;
