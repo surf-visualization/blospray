@@ -1,7 +1,4 @@
 OSPRAY updates in 2.0.x branch
-- volume model samplingRate got removed, is now a scivis renderer parameter
-  volumeSamplingRate
-  https://github.com/ospray/ospray/commit/9797ed6bdd748978f1f06b1b2a621ae78f0a3d64
 
 OSPRAY issues
 - Volume rendering currently is buggy work when applying a transform
