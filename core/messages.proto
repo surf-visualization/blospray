@@ -199,10 +199,8 @@ message Color
 
 message Volume
 {
-    float               sampling_rate = 1;
-
-    repeated float      tf_positions = 10;
-    repeated Color      tf_colors = 11;
+    repeated float      tf_positions = 1;
+    repeated Color      tf_colors = 2;
 }
 
 message Slice
@@ -292,7 +290,8 @@ message RenderSettings
     // Scivis renderer only
     uint32          ao_samples = 20;         
     float           ao_radius = 21;          
-    float           ao_intensity = 22;       
+    float           ao_intensity = 22;    
+    float           volume_sampling_rate = 23;    
 
     // Pathtracer renderer only
     uint32          roulette_depth = 30;

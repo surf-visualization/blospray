@@ -92,6 +92,8 @@ class OSPRAY_RENDER_PT_rendering(Panel):
             col.prop(ospray, 'ao_samples') 
             col.prop(ospray, 'ao_radius') 
             col.prop(ospray, 'ao_intensity') 
+            col.separator()
+            col.prop(ospray, 'volume_sampling_rate')
         else:
             # Path tracer
             col.prop(ospray, 'roulette_depth') 
@@ -172,12 +174,6 @@ class OSPRAY_OBJECT_PT_volume(Panel):
         # XXX align labels to the left
         col = layout.column(align=True)
         col.prop(ospray, 'volume_usage', expand=True)
-        col.separator()
-        # XXX only show when volume is attached
-        #col.prop(ospray, 'gradient_shading')
-        #col.prop(ospray, 'pre_integration')
-        #col.prop(ospray, 'single_shade')
-        col.prop(ospray, 'sampling_rate')
     
     
 class OSPRAY_MESH_PT_data(Panel):

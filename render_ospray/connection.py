@@ -162,6 +162,7 @@ class Connection:
             render_settings.ao_samples = scene.ospray.ao_samples
             render_settings.ao_radius = scene.ospray.ao_radius
             render_settings.ao_intensity = scene.ospray.ao_intensity
+            render_settings.volume_sampling_rate = scene.ospray.volume_sampling_rate
         elif scene.ospray.renderer == 'pathtracer':
             render_settings.roulette_depth = scene.ospray.roulette_depth
             render_settings.max_contribution = scene.ospray.max_contribution
@@ -986,7 +987,6 @@ class Connection:
                 if volume_usage == 'volume':
                     update.type = UpdateObject.VOLUME
                     volume = Volume()
-                    volume.sampling_rate = obj.ospray.sampling_rate
 
                     # Check if a TF is set (ColorRamp node)
                     if material is not None:
