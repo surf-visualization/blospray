@@ -108,8 +108,7 @@ with certain limitations :)
 Known to be missing and/or buggy:
 
 * When scaling a volume much smaller it appears that the rendered volume is
-  "thinned out", i.e. there's much less opacity accumulating. Also, the `Sampling
-  rate` parameter appears to have no effect. 
+  "thinned out", i.e. there's much less opacity accumulating
   See https://github.com/ospray/ospray/issues/380
 * Slice rendering on volumes is not working yet  
 * In interactive render mode when showing a camera view the rendered

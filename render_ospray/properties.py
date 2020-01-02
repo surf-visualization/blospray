@@ -165,6 +165,14 @@ class RenderOspraySettingsScene(PropertyGroup):
         min = 0,
         max = 1000
         )
+        
+    volume_sampling_rate: FloatProperty(
+        name='Volume sampling rate',
+        description='XXX Update. Sampling rate of the volume as a fraction of the cell size. This is the average number of cells per-sample taken along the ray. This is also sets the minimum step size for adaptive sampling',
+        default = 0.125,
+        min = 0.001,
+        max = 100000
+        )  
 
     # Pathtracer
 
@@ -292,14 +300,7 @@ class RenderOspraySettingsObject(PropertyGroup):
         default = True
         )           
     """
-    
-    sampling_rate: FloatProperty(
-        name='Sampling rate',
-        description='Sampling rate of the volume as a fraction of the cell size. This is the average number of cells per-sample taken along the ray. This is also sets the minimum step size for adaptive sampling',
-        default = 0.125,
-        min = 0.001,
-        max = 100000
-        )    
+ 
         
         
 class RenderOspraySettingsMesh(PropertyGroup):

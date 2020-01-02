@@ -1544,8 +1544,6 @@ update_volume_object(const UpdateObject& update, const Volume& volume_settings)
     }
 
     // XXX not sure these are handled correctly, and working in API2
-    //printf("! SAMPLING RATE %.1f\n", volume_settings.sampling_rate());
-    ospSetFloat(vmodel,  "samplingRate", volume_settings.sampling_rate());
     //ospSetFloat(vmodel,  "densityScale", volume_settings.density_scale());  // TODO
     //ospSetFloat(vmodel,  "anisotropy", volume_settings.anisotropy());  // TODO    
 
@@ -1661,7 +1659,6 @@ update_isosurfaces_object(const UpdateObject& update)
             OSPTransferFunction tf = create_transfer_function("cool2warm", state->volume_data_range[0], state->volume_data_range[1]);
             ospSetObject(vmodel, "transferFunction", tf);
             ospRelease(tf);
-            //ospSetFloat(volumeModel, "samplingRate", 0.5f);
          ospCommit(vmodel);
 
         ospSetObjectAsData(gmodel, "material", OSP_MATERIAL, default_materials[current_renderer_type]);        
@@ -2672,6 +2669,7 @@ update_render_settings(const RenderSettings& render_settings)
         ospSetInt(ospray_renderer, "aoSamples", render_settings.ao_samples());
         ospSetFloat(ospray_renderer, "aoRadius", render_settings.ao_radius());
         ospSetFloat(ospray_renderer, "aoIntensity", render_settings.ao_intensity());
+        ospSetFloat(ospray_renderer, "volumeSamplingRate", render_settings.volume_sampling_rate());
     }
     else
     {
