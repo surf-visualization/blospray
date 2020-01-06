@@ -174,6 +174,10 @@ class OSPRAY_OBJECT_PT_volume(Panel):
         # XXX align labels to the left
         col = layout.column(align=True)
         col.prop(ospray, 'volume_usage', expand=True)
+        if context.scene.ospray.renderer == 'pathtracer':
+            col.separator()
+            col.prop(ospray, 'density_scale')
+            col.prop(ospray, 'anisotropy')
     
     
 class OSPRAY_MESH_PT_data(Panel):

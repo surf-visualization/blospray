@@ -201,6 +201,9 @@ message Volume
 {
     repeated float      tf_positions = 1;
     repeated Color      tf_colors = 2;
+    
+    float               density_scale = 10;
+    float               anisotropy = 11;
 }
 
 message Slice

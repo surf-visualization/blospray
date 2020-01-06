@@ -278,29 +278,23 @@ class RenderOspraySettingsObject(PropertyGroup):
     # Properties for an object representing an OSPRay volume
     
     # XXX split off in separate panel?
-        
-    #voxelrange
     
-    """
-    gradient_shading: BoolProperty(
-        name='Gradient shading',
-        description='Render with surface shading wrt. to normalized gradient',
-        default = False
+    # XXX pathtracer only
+    density_scale: FloatProperty(
+        name='Density scale',
+        description='Make volume uniformly thinner or thicker (densityScale)',
+        default = 1.0,
+        min = 0,
+        max = 1.0
         )
         
-    pre_integration: BoolProperty(
-        name='Pre-integration',
-        description='Use pre-integration for transfer function lookups',
-        default = False
+    anisotropy: FloatProperty(
+        name='Anisotropy',
+        description='Anisotropy of the (Henyey-Greenstein) phase function (anisotropy)',
+        default = 0.0,
+        min = -1.0,
+        max = 1.0
         )
-   
-    single_shade: BoolProperty(
-        name='Single shade',
-        description='Shade only at the point of maximum intensity',
-        default = True
-        )           
-    """
- 
         
         
 class RenderOspraySettingsMesh(PropertyGroup):

@@ -987,6 +987,9 @@ class Connection:
                 if volume_usage == 'volume':
                     update.type = UpdateObject.VOLUME
                     volume = Volume()
+                    
+                    volume.density_scale = obj.ospray.density_scale
+                    volume.anisotropy = obj.ospray.anisotropy
 
                     # Check if a TF is set (ColorRamp node)
                     if material is not None:

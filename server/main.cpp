@@ -1542,10 +1542,10 @@ update_volume_object(const UpdateObject& update, const Volume& volume_settings)
         scene_objects[object_name] = volume_object;
         vmodel = volume_object->vmodel = ospNewVolumetricModel(volume);
     }
-
-    // XXX not sure these are handled correctly, and working in API2
-    //ospSetFloat(vmodel,  "densityScale", volume_settings.density_scale());  // TODO
-    //ospSetFloat(vmodel,  "anisotropy", volume_settings.anisotropy());  // TODO    
+    
+    // These are pathtracer only
+    ospSetFloat(vmodel, "densityScale", volume_settings.density_scale());
+    ospSetFloat(vmodel, "anisotropy", volume_settings.anisotropy());
 
     OSPTransferFunction tf;
     
