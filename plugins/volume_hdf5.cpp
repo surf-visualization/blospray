@@ -152,7 +152,7 @@ generate(PluginResult &result, PluginState *state)
         OSPData voxelData = ospNewCopiedData(n, dataType, grid_field_values);   
         ospCommit(voxelData);
     
-        ospSetObject(volume, "voxelData", voxelData);
+        ospSetObject(volume, "data", voxelData);
         ospRelease(voxelData);
 
         ospSetInt(volume, "voxelType", dataType);

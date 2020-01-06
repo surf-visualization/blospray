@@ -43,7 +43,7 @@ load_as_structured(float *bbox, PluginResult &result,
     OSPData voxelData = ospNewCopiedData(dims[0]*dims[1]*dims[2], dataType, grid_field_values);   
     ospCommit(voxelData);
     
-    ospSetObject(volume, "voxelData", voxelData);
+    ospSetObject(volume, "data", voxelData);
     ospRelease(voxelData);
 
     ospSetString(volume, "voxelType", voxelType.c_str());
