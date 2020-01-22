@@ -428,7 +428,7 @@ class OSPRayMetallicPaint(bpy.types.Node):
 class OSPRayOBJMaterial(bpy.types.Node):
     """OBJMaterial"""
     bl_idname = 'OSPRayOBJMaterial'
-    bl_label = 'OBJMaterial (OSPRay)'
+    bl_label = 'OBJ Material (OSPRay)'
     bl_icon = 'SOUND'
     bl_color = (0, 0.7, 0, 1)           # XXX doesn't work?
 

@@ -286,7 +286,7 @@ message RenderSettings
     string          renderer = 1;
 
     // All renderers
-    uint32          max_depth = 4;
+    uint32          max_path_length = 4;
     float           min_contribution = 5;
     float           variance_threshold = 6;
 
@@ -297,7 +297,7 @@ message RenderSettings
     float           volume_sampling_rate = 23;    
 
     // Pathtracer renderer only
-    uint32          roulette_depth = 30;
+    uint32          roulette_path_length = 30;
     float           max_contribution = 31;
     bool            geometry_lights = 32;    
 }

@@ -2371,7 +2371,7 @@ handle_update_material(TCPSocket *sock)
         if (scene_material == nullptr)
         {
             scene_material = new SceneMaterial;
-            material = scene_material->material = ospNewMaterial(current_renderer_type.c_str(), "Alloy");
+            material = scene_material->material = ospNewMaterial(current_renderer_type.c_str(), "alloy");
         }
 
         if (settings.color_size() == 3)
@@ -2393,7 +2393,7 @@ handle_update_material(TCPSocket *sock)
         if (scene_material == nullptr)
         {
             scene_material = new SceneMaterial;
-            material = scene_material->material = ospNewMaterial(current_renderer_type.c_str(), "CarPaint");
+            material = scene_material->material = ospNewMaterial(current_renderer_type.c_str(), "carPaint");
         }
 
         if (settings.base_color_size() == 3)
@@ -2429,7 +2429,7 @@ handle_update_material(TCPSocket *sock)
         if (scene_material == nullptr)
         {
             scene_material = new SceneMaterial;
-            material = scene_material->material = ospNewMaterial(current_renderer_type.c_str(), "Glass");
+            material = scene_material->material = ospNewMaterial(current_renderer_type.c_str(), "glass");
         }
 
         ospSetFloat(material, "eta", settings.eta());
@@ -2450,7 +2450,7 @@ handle_update_material(TCPSocket *sock)
         if (scene_material == nullptr)
         {
             scene_material = new SceneMaterial;
-            material = scene_material->material = ospNewMaterial(current_renderer_type.c_str(), "ThinGlass");
+            material = scene_material->material = ospNewMaterial(current_renderer_type.c_str(), "thinGlass");
         }
 
         ospSetFloat(material, "eta", settings.eta());
@@ -2472,7 +2472,7 @@ handle_update_material(TCPSocket *sock)
         if (scene_material == nullptr)
         {
             scene_material = new SceneMaterial;
-            material = scene_material->material = ospNewMaterial(current_renderer_type.c_str(), "Luminous");
+            material = scene_material->material = ospNewMaterial(current_renderer_type.c_str(), "luminous");
         }
 
         if (settings.color_size() == 3)
@@ -2498,7 +2498,7 @@ handle_update_material(TCPSocket *sock)
         if (scene_material == nullptr)
         {
             scene_material = new SceneMaterial;
-            material = scene_material->material = ospNewMaterial(current_renderer_type.c_str(), "Metal");
+            material = scene_material->material = ospNewMaterial(current_renderer_type.c_str(), "metal");
         }
 
         const float metal_eta_values[] = {
@@ -2538,7 +2538,7 @@ handle_update_material(TCPSocket *sock)
         if (scene_material == nullptr)
         {
             scene_material = new SceneMaterial;
-            material = scene_material->material = ospNewMaterial(current_renderer_type.c_str(), "MetallicPaint");
+            material = scene_material->material = ospNewMaterial(current_renderer_type.c_str(), "metallicPaint");
         }
 
         if (settings.base_color_size() == 3)
@@ -2552,24 +2552,24 @@ handle_update_material(TCPSocket *sock)
         break;
     }
 
-    case MaterialUpdate::OBJMATERIAL:
+    case MaterialUpdate::OBJMATERIAL:       // XXX rename to obj
     {
         OBJMaterialSettings settings;
 
         receive_protobuf(sock, settings);
-        printf("... OBJMaterial (Kd %.3f,%.3f,%.3f; ...)\n", settings.kd(0), settings.kd(1), settings.kd(2));
+        printf("... OBJMaterial (kd %.3f,%.3f,%.3f; ...)\n", settings.kd(0), settings.kd(1), settings.kd(2));
 
         if (scene_material == nullptr)
         {
             scene_material = new SceneMaterial;
-            material = scene_material->material = ospNewMaterial(current_renderer_type.c_str(), "OBJMaterial");
+            material = scene_material->material = ospNewMaterial(current_renderer_type.c_str(), "obj");
         }
 
         if (settings.kd_size() == 3)
-            ospSetVec3f(material, "Kd", settings.kd(0), settings.kd(1), settings.kd(2));
+            ospSetVec3f(material, "kd", settings.kd(0), settings.kd(1), settings.kd(2));
         if (settings.ks_size() == 3)
-            ospSetVec3f(material, "Ks", settings.ks(0), settings.ks(1), settings.ks(2));
-        ospSetFloat(material, "Ns", settings.ns());
+            ospSetVec3f(material, "ks", settings.ks(0), settings.ks(1), settings.ks(2));
+        ospSetFloat(material, "ns", settings.ns());
         ospSetFloat(material, "d", settings.d());            
 
         break;
@@ -2585,7 +2585,7 @@ handle_update_material(TCPSocket *sock)
         if (scene_material == nullptr)
         {
             scene_material = new SceneMaterial;
-            material = scene_material->material = ospNewMaterial(current_renderer_type.c_str(), "Principled");
+            material = scene_material->material = ospNewMaterial(current_renderer_type.c_str(), "principled");
         }
 
         if (settings.base_color_size() == 3)
@@ -2660,7 +2660,7 @@ update_render_settings(const RenderSettings& render_settings)
 
     //ospSetInt(renderer, "spp", 1);
 
-    ospSetInt(ospray_renderer, "maxDepth", render_settings.max_depth());
+    ospSetInt(ospray_renderer, "maxPathLength", render_settings.max_path_length());
     ospSetFloat(ospray_renderer, "minContribution", render_settings.min_contribution());
     ospSetFloat(ospray_renderer, "varianceThreshold", render_settings.variance_threshold());
 
@@ -2675,7 +2675,7 @@ update_render_settings(const RenderSettings& render_settings)
     {
         // Pathtracer
 
-        ospSetInt(ospray_renderer, "rouletteDepth", render_settings.roulette_depth());
+        ospSetInt(ospray_renderer, "roulettePathLength", render_settings.roulette_path_length());
         ospSetFloat(ospray_renderer, "maxContribution", render_settings.max_contribution());
         ospSetBool(ospray_renderer, "geometryLights", render_settings.geometry_lights());
     }
@@ -2708,7 +2708,7 @@ update_world_settings(const WorldSettings& world_settings)
         world_settings.background_color(2),
         world_settings.background_color(3));    
 
-    ospSetVec4f(ospray_renderer, "bgColor",
+    ospSetVec4f(ospray_renderer, "backgroundColor",
         world_settings.background_color(0),
         world_settings.background_color(1),
         world_settings.background_color(2),
@@ -3600,12 +3600,12 @@ prepare_renderers()
     renderers["scivis"] = ospNewRenderer("scivis");
     renderers["pathtracer"] = ospNewRenderer("pathtracer");
 
-    m = default_materials["scivis"] = ospNewMaterial("scivis", "OBJMaterial");
-       ospSetVec3f(m, "Kd", 0.8f, 0.8f, 0.8f);
+    m = default_materials["scivis"] = ospNewMaterial("scivis", "obj");
+       ospSetVec3f(m, "kd", 0.8f, 0.8f, 0.8f);
     ospCommit(m);
 
-    m = default_materials["pathtracer"] = ospNewMaterial("pathtracer", "OBJMaterial");
-        ospSetVec3f(m, "Kd", 0.8f, 0.8f, 0.8f);
+    m = default_materials["pathtracer"] = ospNewMaterial("pathtracer", "obj");
+        ospSetVec3f(m, "kd", 0.8f, 0.8f, 0.8f);
     ospCommit(m);
 
     // XXX move somewhere else

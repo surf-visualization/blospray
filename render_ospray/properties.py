@@ -116,9 +116,9 @@ class RenderOspraySettingsScene(PropertyGroup):
         max = 65535
         )
 
-    max_depth: IntProperty(
-        name='Max depth',
-        description='Maximum ray recursion depth (maxDepth)',
+    max_path_length: IntProperty(
+        name='Max path length',
+        description='Maximum ray recursion depth (max_path_length)',
         default = 20,
         min = 0,
         max = 128
@@ -176,9 +176,9 @@ class RenderOspraySettingsScene(PropertyGroup):
 
     # Pathtracer
 
-    roulette_depth: IntProperty(
-        name='Roulette depth',
-        description='Ray recursion depth at which to start Russian roulette termination (rouletteDepth)',
+    roulette_path_length: IntProperty(
+        name='Roulette path length',
+        description='Ray recursion depth at which to start Russian roulette termination (roulettePathLength)',
         default = 5,
         min = 0,
         max = 64

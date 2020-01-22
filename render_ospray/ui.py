@@ -83,7 +83,7 @@ class OSPRAY_RENDER_PT_rendering(Panel):
         col.prop(ospray, 'render_samples')
         col.prop(ospray, 'viewport_samples')
         col.separator()
-        col.prop(ospray, 'max_depth')
+        col.prop(ospray, 'max_path_length')
         col.prop(ospray, 'min_contribution')
         col.prop(ospray, 'variance_threshold')
         col.separator()
@@ -96,7 +96,7 @@ class OSPRAY_RENDER_PT_rendering(Panel):
             col.prop(ospray, 'volume_sampling_rate')
         else:
             # Path tracer
-            col.prop(ospray, 'roulette_depth') 
+            col.prop(ospray, 'roulette_path_length') 
             col.prop(ospray, 'max_contribution') 
             col.prop(ospray, 'geometry_lights') 
         #col.prop(ospray, 'shadows_enabled')    # XXX Removed in 2.0?

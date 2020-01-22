@@ -36,11 +36,11 @@ typedef OSPError            (*ospInit_ptr)          (int *argc, const char **arg
 typedef OSPDevice           (*ospNewDevice_ptr)     (const char *type);
 typedef void                (*ospDeviceSetErrorFunc_ptr) (OSPDevice, OSPErrorFunc);
 
-typedef OSPData             (*ospNewSharedData_ptr) (const void *sharedData, OSPDataType type, uint32_t numItems1, int64_t byteStride1,  uint32_t numItems2, int64_t byteStride2, uint32_t numItems3, int64_t byteStride3);
-typedef OSPData             (*ospNewData_ptr)       (OSPDataType type, uint32_t numItems1, uint32_t numItems2, uint32_t numItems3);
+typedef OSPData             (*ospNewSharedData_ptr) (const void *sharedData, OSPDataType type, uint64_t numItems1, int64_t byteStride1, uint64_t numItems2, int64_t byteStride2, uint64_t numItems3, int64_t byteStride3);
+typedef OSPData             (*ospNewData_ptr)       (OSPDataType type, uint64_t numItems1, uint64_t numItems2, uint64_t numItems3);
 //typedef OSPData             (*_Z10ospNewDatam11OSPDataTypePKvj_ptr) (size_t numItems, OSPDataType, const void *source, uint32_t dataCreationFlags);
-typedef void                (*ospCopyData_ptr)      (const OSPData source, OSPData destination, uint32_t destinationIndex1, uint32_t destinationIndex2, uint32_t destinationIndex3);
-typedef void                (*ospCopyData1D_ptr)    (const OSPData source, OSPData destination, uint32_t destinationIndex);
+typedef void                (*ospCopyData_ptr)      (const OSPData source, OSPData destination, uint64_t destinationIndex1, uint64_t destinationIndex2, uint64_t destinationIndex3);
+typedef void                (*ospCopyData1D_ptr)    (const OSPData source, OSPData destination, uint64_t destinationIndex);
 
 typedef OSPCamera           (*ospNewCamera_ptr)     (const char *type);
 typedef OSPDevice           (*ospNewDevice_ptr)     (const char *type);
@@ -528,8 +528,8 @@ get_source_array_contents(json& j, unsigned long numItems, OSPDataType type, con
 
 extern "C"
 OSPData
-ospNewSharedData(const void *sharedData, OSPDataType type, uint32_t numItems1, int64_t byteStride1, 
-    uint32_t numItems2, int64_t byteStride2, uint32_t numItems3, int64_t byteStride3)
+ospNewSharedData(const void *sharedData, OSPDataType type, uint64_t numItems1, int64_t byteStride1, 
+    uint64_t numItems2, int64_t byteStride2, uint64_t numItems3, int64_t byteStride3)
 {
     init_enum_mapping();
     ospNewSharedData_ptr libcall = GET_PTR(ospNewSharedData);
@@ -568,7 +568,7 @@ ospNewSharedData(const void *sharedData, OSPDataType type, uint32_t numItems1, i
 
 extern "C"
 OSPData
-ospNewData(OSPDataType type, uint32_t numItems1, uint32_t numItems2, uint32_t numItems3)
+ospNewData(OSPDataType type, uint64_t numItems1, uint64_t numItems2, uint64_t numItems3)
 {
     init_enum_mapping();
     ospNewData_ptr libcall = GET_PTR(ospNewData);
@@ -623,7 +623,7 @@ _Z10ospNewDatam11OSPDataTypePKvj(unsigned long numItems, OSPDataType type, const
 
 extern "C"
 void
-ospCopyData(const OSPData source, OSPData destination, uint32_t destinationIndex1, uint32_t destinationIndex2, uint32_t destinationIndex3)
+ospCopyData(const OSPData source, OSPData destination, uint64_t destinationIndex1, uint64_t destinationIndex2, uint64_t destinationIndex3)
 {
     ospCopyData_ptr libcall = GET_PTR(ospCopyData);
 
@@ -645,7 +645,7 @@ ospCopyData(const OSPData source, OSPData destination, uint32_t destinationIndex
 
 extern "C"
 void
-ospCopyData1D(const OSPData source, OSPData destination, uint32_t destinationIndex)
+ospCopyData1D(const OSPData source, OSPData destination, uint64_t destinationIndex)
 {
     ospCopyData1D_ptr libcall = GET_PTR(ospCopyData1D);
 

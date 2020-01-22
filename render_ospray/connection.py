@@ -155,7 +155,7 @@ class Connection:
        
         render_settings = RenderSettings()
         render_settings.renderer = scene.ospray.renderer
-        render_settings.max_depth = scene.ospray.max_depth
+        render_settings.max_path_length = scene.ospray.max_path_length
         render_settings.min_contribution = scene.ospray.min_contribution
         render_settings.variance_threshold = scene.ospray.variance_threshold
         if scene.ospray.renderer == 'scivis':
@@ -164,7 +164,7 @@ class Connection:
             render_settings.ao_intensity = scene.ospray.ao_intensity
             render_settings.volume_sampling_rate = scene.ospray.volume_sampling_rate
         elif scene.ospray.renderer == 'pathtracer':
-            render_settings.roulette_depth = scene.ospray.roulette_depth
+            render_settings.roulette_path_length = scene.ospray.roulette_path_length
             render_settings.max_contribution = scene.ospray.max_contribution
             render_settings.geometry_lights = scene.ospray.geometry_lights
 
