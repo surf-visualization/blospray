@@ -666,7 +666,7 @@ create_transfer_function(const std::string& name, float minval, float maxval)
 	        tf_colors[3*i+2] = cool2warm[4*i+3];
 	    }
 
-    	OSPTransferFunction tf = ospNewTransferFunction("piecewise_linear");
+    	OSPTransferFunction tf = ospNewTransferFunction("piecewiseLinear");
 
         	ospSetVec2f(tf, "valueRange", minval, maxval);
 
@@ -776,7 +776,7 @@ create_user_transfer_function(float minval, float maxval, const Volume& volume, 
         normalized_value += value_step;
     }
 
-    OSPTransferFunction tf = ospNewTransferFunction("piecewise_linear");
+    OSPTransferFunction tf = ospNewTransferFunction("piecewiseLinear");
 
         ospSetVec2f(tf, "valueRange", minval, maxval);
 
